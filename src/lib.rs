@@ -1,3 +1,5 @@
+#[warn(non_snake_case)]
+
 mod core;
 mod ops;
 mod broadcast;
