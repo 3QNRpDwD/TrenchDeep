@@ -1,14 +1,17 @@
 use crate::core::Tensor;
 use crate::core::TensorLayer;
 use crate::broadcast::TensorBroadcast;
-use crate::ops::traits::TensorArithmetic;
+use crate::ops::traits::TensorOps;
 use std::{
     ops::{Add, Sub, Div, Mul}
 };
 
-impl<T> TensorLayer<T> for Tensor<T> {
-    fn new(shape: Vec<usize>, value: T) -> Self where T: Clone{
-        Tensor { data: vec![value; shape.iter().product()], shape }
+impl<T: IntoIterator> TensorLayer<T> for Tensor<T> {
+    fn new(data: T) -> Self {
+        Ok(Self {
+            data: data.into_iter().flatten().collect(),
+            shape: vec![data.len(), data[0].len()]
+        })
     }
     fn get(&self, indices: &[usize]) -> Option<&T> {
         self.data.get(self.index(indices)?)
@@ -98,26 +101,64 @@ impl<T> TensorBroadcast<T> for Tensor<T> {
     }
 }
 
-impl<T> TensorArithmetic<T> for Tensor<T> {
+impl<T> TensorOps<T> for Tensor<T> {
     // Tenser Calculate
-    fn add(&self, other: &Self) -> Option<Self> where T: Add<Output = T> + Clone
-    { self.broadcast_op(other, |left, right| left.clone() + right.clone()) }
-    fn sub(&self, other: &Self) -> Option<Self> where T: Sub<Output = T> + Clone
-    { self.broadcast_op(other, |left, right| left.clone() - right.clone()) }
-    fn div(&self, other: &Self) -> Option<Self> where T: Div<Output = T> + Clone
-    { self.broadcast_op(other, |left, right| left.clone() / right.clone()) }
-    fn mul(&self, other: &Self) -> Option<Self> where T: Mul<Output = T> + Clone
-    { self.broadcast_op(other, |left, right| left.clone() * right.clone()) }
+    fn add(&self, other: &Self) -> Option<Self> where T: Add<Output = T>
+    { self.broadcast_op(other, |left, right| left + right) }
+    fn sub(&self, other: &Self) -> Option<Self> where T: Sub<Output = T>
+    { self.broadcast_op(other, |left, right| left - right) }
+    fn div(&self, other: &Self) -> Option<Self> where T: Div<Output = T>
+    { self.broadcast_op(other, |left, right| left / right) }
+    fn mul(&self, other: &Self) -> Option<Self> where T: Mul<Output = T>
+    { self.broadcast_op(other, |left, right| left * right) }
 
-    // Tenser Calculate By Into
-    fn into_add(self, other: Self) -> Option<Self> where T: Add<Output = T>
-    { self.into_broadcast_op(other, |left, right| left + right) } // Todo: error[E0507]: cannot move out of a shared reference 오류 해결하기
-    fn into_sub(self, other: Self) -> Option<Self> where T: Sub<Output = T>
-    { self.into_broadcast_op(other, |left, right| left - right) } // Todo: error[E0507]: cannot move out of a shared reference 오류 해결하기
-    fn into_div(self, other: Self) -> Option<Self> where T: Div<Output = T>
-    { self.into_broadcast_op(other, |left, right| left / right) } // Todo: error[E0507]: cannot move out of a shared reference 오류 해결하기
-    fn into_mul(self, other: Self) -> Option<Self> where T: Mul<Output = T>
-    { self.into_broadcast_op(other, |left, right| left * right) } // Todo: error[E0507]: cannot move out of a shared reference 오류 해결하기
+    fn add_scalar(&self, other: &Tensor<T>) -> Option<Self>
+    where
+        T: Add<Output=T>,
+        Self: Sized
+    {
+        todo!()
+    }
+
+    fn mul_scalar(&self, other: &Tensor<T>) -> Option<Self>
+    where
+        T: Mul<Output=T>,
+        Self: Sized
+    {
+        todo!()
+    }
+
+    fn sub_scalar(&self, other: &Tensor<T>) -> Option<Self>
+    where
+        T: Sub<Output=T>,
+        Self: Sized
+    {
+        todo!()
+    }
+
+    fn scalar_sub(&self, other: &Tensor<T>) -> Option<Self>
+    where
+        T: Sub<Output=T>,
+        Self: Sized
+    {
+        todo!()
+    }
+
+    fn div_scalar(&self, other: &Tensor<T>) -> Option<Self>
+    where
+        T: Div<Output=T>,
+        Self: Sized
+    {
+        todo!()
+    }
+
+    fn scalar_div(&self, other: &Tensor<T>) -> Option<Self>
+    where
+        T: Div<Output=T>,
+        Self: Sized
+    {
+        todo!()
+    } // Todo: error[E0507]: cannot move out of a shared reference 오류 해결하기
 }
 
 
