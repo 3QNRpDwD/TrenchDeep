@@ -24,19 +24,6 @@ mod tests {
         debug_assert_eq!(tensor.shape, expected_shape);
     }
 
-    // 헬퍼 함수를 사용한 테스트 예시
-    #[test]
-    pub fn tensor_add_with_helper_test() {
-        let t1: Tensor<f32> = TensorLayer::new(vec![2, 2], 1.0);
-        let t2: Tensor<f32> = TensorLayer::new(vec![2, 2], 2.0);
-
-        assert_tensor_eq(
-            t1.add(&t2),
-            vec![3.0, 3.0, 3.0, 3.0],
-            vec![2, 2]
-        );
-    }
-
     #[test]
     fn tensor_arithmetic_operations() {
         let t1: Tensor<f32> = TensorLayer::new(vec![2, 2], 4.0);
