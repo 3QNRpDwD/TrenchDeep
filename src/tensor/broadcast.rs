@@ -1,6 +1,6 @@
 use crate::tensor::{BroadcastLayer, Tensor};
 
-impl<T> BroadcastLayer<T> for Tensor<T> {
+impl<T: PartialEq> BroadcastLayer<T> for Tensor<T> {
     fn can_broadcast(&self, other: &Self) -> bool {
         if self.shape.len() != other.shape.len() {
             return false;
@@ -19,26 +19,9 @@ impl<T> BroadcastLayer<T> for Tensor<T> {
             .collect()
     }
 
-    fn broadcast_op<F>(&self, other: &Self, op: F) -> Option<Self>
+    fn broadcast_op<F>(self, other: Self, op: F) -> Option<Self>
     where
-        F: Fn(&T, &T) -> T,
-    {
-        let shape: Vec<usize> = self.broadcast_shape(other);
-
-        let size = shape.iter().product();
-        let mut data = Vec::with_capacity(size);
-
-        for idx in 0..size {
-            let (self_idx, other_idx) = self.calculate_broadcast_indices(other, idx, &shape)?;
-            data.push(op(&self.data[self_idx], &other.data[other_idx]));
-        }
-
-        Some(Self { data, shape })
-    }
-
-    fn into_broadcast_op<F>(self, other: Self, op: F) -> Option<Self>
-    where
-        F: Fn(&T, &T) -> T
+        F: Fn(T, T) -> T,
     {
         let shape: Vec<usize> = self.broadcast_shape(&other);
         let size = shape.iter().product();
@@ -46,7 +29,7 @@ impl<T> BroadcastLayer<T> for Tensor<T> {
 
         for idx in 0..size {
             let (self_idx, other_idx) = self.calculate_broadcast_indices(&other, idx, &shape)?;
-            data.push(op(&self.data[self_idx], &other.data[other_idx]));
+            data.push(op(self.data[self_idx], other.data[other_idx]));
         }
 
         Some(Self { data, shape })
