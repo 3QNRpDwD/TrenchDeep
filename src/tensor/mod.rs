@@ -101,7 +101,7 @@ impl Ord for Tensor {
 
 pub trait DefaultLayer {
     fn new(data: Vec<Vec<f32>>) -> MlResult<Self> where Self: Sized;
-    fn from(data: Vec<f32>, shape: Vec<usize>) -> MlResult<Self> where Self: Sized;
+    fn from(data: Vec<f32>, shape: &Vec<usize>) -> MlResult<Self> where Self: Sized;
     fn shape(&self) -> &[usize];
     fn data(&self) -> &[f32];
     fn get(&self, indices: &[usize]) -> Option<&f32>;
@@ -109,42 +109,56 @@ pub trait DefaultLayer {
 }
 
 
-pub trait BroadcastLayer<T> {
+pub trait BroadcastLayer {
     fn can_broadcast(&self, other: &Self) -> bool;
     fn broadcast_shape(&self, other: &Self) -> Vec<usize>;
-    fn broadcast_op<F>(self, other: Self, op: F) -> Option<Self>
+    fn broadcasting<F>(self, other: Self, op: F) -> Option<Self>
     where
-        F: Fn(T, T) -> T,
+        F: Fn(f32, f32) -> f32,
         Self: Sized;
     fn calculate_broadcast_indices(&self, other: &Self, idx: usize, shape: &[usize]) -> Option<(usize, usize)>;
 }
 
 pub trait OpsLayer<T: PartialEq> {
     // 사칙연산
-    fn add(self, other: Tensor)
-           -> Option<Self> where T: Add<Output = T>, Self: Sized;
-    fn sub(self, other: Tensor)
-           -> Option<Self> where T: Sub<Output = T>, Self: Sized;
-    fn div(self, other: Tensor)
-           -> Option<Self> where T: Div<Output = T>, Self: Sized;
-    fn mul(self, other: Tensor)
-           -> Option<Self> where T: Mul<Output = T>, Self: Sized;
+    fn add(&self, other: &Tensor)
+           -> MlResult<Self> where T: Add<Output = T>, Self: Sized;
+    fn sub(&self, other: &Tensor)
+           -> MlResult<Self> where T: Sub<Output = T>, Self: Sized;
+    fn mul(&self, other: &Tensor)
+           -> MlResult<Self> where T: Mul<Output = T>, Self: Sized;
+    fn div(&self, other: &Tensor)
+           -> MlResult<Self> where T: Div<Output = T>, Self: Sized;
 
     // 텐서 & 스칼라 연산
-    fn add_scalar(self, other: Tensor)
-                  -> Option<Self> where T: Add<Output = T>, Self: Sized;
-    fn mul_scalar(self, other: Tensor)
-                  -> Option<Self> where T: Mul<Output = T>, Self: Sized;
-    fn sub_scalar(self, other: Tensor)
-                  -> Option<Self> where T: Sub<Output = T>, Self: Sized;
-    fn div_scalar(self, other: Tensor)
-                  -> Option<Self> where T: Div<Output = T>, Self: Sized;
+    fn add_scalar(&self, scalar: f32)
+                  -> MlResult<Self> where T: Add<Output = T>, Self: Sized;
+    fn sub_scalar(&self, scalar: f32)
+                  -> MlResult<Self> where T: Sub<Output = T>, Self: Sized;
+    fn mul_scalar(&self, scalar: f32)
+                  -> MlResult<Self> where T: Mul<Output = T>, Self: Sized;
+    fn div_scalar(&self, scalar: f32)
+                  -> MlResult<Self> where T: Div<Output = T>, Self: Sized;
 
     // 스칼라 & 텐서 연산
-    fn scalar_sub(self, other: Tensor)
-                  -> Option<Self> where T: Sub<Output = T>, Self: Sized;
-    fn scalar_div(self, other: Tensor)
-                  -> Option<Self> where T: Div<Output = T>, Self: Sized;
+    fn scalar_sub(&self, scalar: f32)
+                  -> MlResult<Self> where T: Sub<Output = T>, Self: Sized;
+    fn scalar_div(&self, scalar: f32)
+                  -> MlResult<Self> where T: Div<Output = T>, Self: Sized;
+
+    fn neg(&self) -> MlResult<Tensor>;
+    fn exp(&self) -> MlResult<Tensor>;
+    fn pow(&self, power: f32) -> MlResult<Tensor>;
+    fn pow_scalar(&self, exponent: f32) -> MlResult<Tensor>;
+    fn scalar_pow(&self, scalar: f32) -> MlResult<Tensor>;
+    fn sqrt(&self) -> MlResult<Tensor>;
+    fn square(&self) -> MlResult<Self> where Self: Sized;
+    fn log(&self) -> MlResult<Tensor>;
+    fn matmul(&self, other: &Tensor) -> MlResult<Tensor>;
+    fn eq_scalar(&self, scalar: f32) -> MlResult<Tensor>;
+    fn topk(&self, k: usize, sorted: bool) -> MlResult<(Tensor, Tensor)>;
+    fn abs(&self) -> MlResult<Self> where Self: Sized;
+    fn matmax(&self, dim: Option<i32>, keepdim: bool) -> MlResult<(Tensor, Option<Tensor>)>;
 }
 
 impl DefaultLayer for Tensor {
@@ -158,7 +172,7 @@ impl DefaultLayer for Tensor {
         })
     }
 
-    fn from(data: Vec<f32>, shape: Vec<usize>) -> MlResult<Self> {
+    fn from(data: Vec<f32>, shape: &Vec<usize>) -> MlResult<Self> {
         let expected_len: usize = shape.iter().product();
         if data.len() != expected_len {
             return Err(MlError::TensorError(TensorError::InvalidDataLength {
@@ -199,46 +213,47 @@ impl DefaultLayer for Tensor {
 
 #[cfg(test)]
 mod tests {
-    use crate::tensor::{DefaultLayer, Tensor};
+    use crate::MlResult;
+    use crate::tensor::{DefaultLayer, OpsLayer, Tensor};
 
     // Option<T>의 결과를 테스트하는 헬퍼 함수
     pub fn assert_tensor_eq(
-        result: Option<Tensor>,
+        result: Tensor,
         expected_data: Vec<f32>,
         expected_shape: Vec<usize>
     ) {
-        let tensor = result.unwrap();
+        let tensor = result;
         debug_assert_eq!(tensor.data(), expected_data);
         debug_assert_eq!(tensor.shape(), expected_shape);
     }
 
     #[test]
     fn tensor_ops_add() {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]]);
-        let t2 = Tensor::new(vec![vec![3.0, 4.0]]);
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let t2 = Tensor::new(vec![vec![3.0, 4.0]]).unwrap();
 
-        assert_tensor_eq(t1.add(), vec![vec![6.0, 6.0, 6.0, 6.0]], vec![2, 2]);
+        assert_tensor_eq(t1 + t2, vec![6.0, 6.0, 6.0, 6.0], vec![2, 2]);
     }
     #[test]
     fn tensor_ops_sub() {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]]);
-        let t2 = Tensor::new(vec![vec![3.0, 4.0]]);
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let t2 = Tensor::new(vec![vec![3.0, 4.0]]).unwrap();
 
-        assert_tensor_eq(t1.sub(t2), vec![vec![2.0, 2.0, 2.0, 2.0]], vec![2, 2]);
+        assert_tensor_eq(t1 - t2, vec![2.0, 2.0, 2.0, 2.0], vec![2, 2]);
     }
     #[test]
     fn tensor_ops_mul() {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]]);
-        let t2 = Tensor::new(vec![vec![3.0, 4.0]]);
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let t2 = Tensor::new(vec![vec![3.0, 4.0]]).unwrap();
 
-        assert_tensor_eq(t1.mul(t2), vec![vec![8.0, 8.0, 8.0, 8.0]], vec![2, 2]);
+        assert_tensor_eq(t1 * t2, vec![8.0, 8.0, 8.0, 8.0], vec![2, 2]);
     }
     #[test]
     fn tensor_ops_div() {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]]);
-        let t2 = Tensor::new(vec![vec![3.0, 4.0]]);
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let t2 = Tensor::new(vec![vec![3.0, 4.0]]).unwrap();
 
-        assert_tensor_eq(t1.div(t2), vec![vec![2.0, 2.0, 2.0, 2.0]], vec![2, 2]);
+        assert_tensor_eq(t1 / t2, vec![2.0, 2.0, 2.0, 2.0], vec![2, 2]);
     }
 
 }
