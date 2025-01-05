@@ -1,6 +1,6 @@
 use crate::tensor::{BroadcastLayer, Tensor};
 
-impl<T: PartialEq> BroadcastLayer<T> for Tensor<T> {
+impl<T: PartialEq> BroadcastLayer<T> for Tensor {
     fn can_broadcast(&self, other: &Self) -> bool {
         if self.shape.len() != other.shape.len() {
             return false;
@@ -19,7 +19,7 @@ impl<T: PartialEq> BroadcastLayer<T> for Tensor<T> {
             .collect()
     }
 
-    fn broadcast_op<F>(self, other: Self, op: F) -> Option<Self>
+    fn broadcast_op<F>(self, other: Self, op: F) -> Option<Self> // todo: 브로드케스팅 연산 구조 변경 필요
     where
         F: Fn(T, T) -> T,
     {
