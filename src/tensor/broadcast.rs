@@ -33,7 +33,7 @@ impl BroadcastLayer for Tensor {
             data.push(op(self.data[self_idx], other.data[other_idx]));
         }
 
-        Some(Self { data, shape })
+        Some(Self { backend: self.backend, data, shape })
     }
 
     fn calculate_broadcast_indices(&self, other: &Self, idx: usize, shape: &[usize]) -> Option<(usize, usize)> {

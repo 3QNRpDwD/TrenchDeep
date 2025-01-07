@@ -3,4 +3,13 @@ name = "MIT"
 version = "0.1.0"
 edition = "2021"
 
+#[features]
+#default = ["cpu"]
+
 [dependencies]
+
+[profile.dev]
+debug = true
+
+[profile.release]
+opt-level = 3

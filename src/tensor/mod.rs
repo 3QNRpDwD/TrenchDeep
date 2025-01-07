@@ -1,13 +1,21 @@
 use std::fmt::Display;
 use std::ops::{Add, Div, Mul, Sub};
 use std::sync::Arc;
-use crate::{MlError, MlResult};
+
+use crate::{
+    MlError,
+    MlResult,
+    backend::Backend,
+    backend::Device,
+    backend,
+};
 
 mod ops;
 mod broadcast;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Tensor {
+    backend: Arc<dyn Backend>,
     data: Vec<f32>,
     shape: Vec<usize>,
 }
@@ -120,6 +128,8 @@ pub trait BroadcastLayer {
 }
 
 pub trait OpsLayer<T: PartialEq> {
+    fn can_op(&self, other: &Tensor) ->  MlResult<()> where Self: Sized;
+
     // 사칙연산
     fn add(&self, other: &Tensor)
            -> MlResult<Self> where T: Add<Output = T>, Self: Sized;
@@ -165,8 +175,10 @@ impl DefaultLayer for Tensor {
     fn new(data: Vec<Vec<f32>>) -> MlResult<Self> {
         let shape = vec![data.len(), data[0].len()];
         let data: Vec<f32> = data.into_iter().flatten().collect();
+        let backend: Arc<dyn Backend> =  Arc::new(backend::CpuBackend::new()?);
 
         Ok(Self {
+            backend,
             data,
             shape,
         })
@@ -180,8 +192,9 @@ impl DefaultLayer for Tensor {
                 got: data.len(),
             }));
         }
-
+        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
         Ok(Self {
+            backend,
             data,
             shape: shape.to_vec(),
         })
@@ -213,47 +226,88 @@ impl DefaultLayer for Tensor {
 
 #[cfg(test)]
 mod tests {
-    use crate::MlResult;
     use crate::tensor::{DefaultLayer, OpsLayer, Tensor};
 
     // Option<T>의 결과를 테스트하는 헬퍼 함수
     pub fn assert_tensor_eq(
-        result: Tensor,
-        expected_data: Vec<f32>,
-        expected_shape: Vec<usize>
+        tensor: Tensor,
+        expected_tensor: Tensor,
     ) {
-        let tensor = result;
-        debug_assert_eq!(tensor.data(), expected_data);
-        debug_assert_eq!(tensor.shape(), expected_shape);
+        debug_assert_eq!(tensor.data(), expected_tensor.data());
+        debug_assert_eq!(tensor.shape(), expected_tensor.shape());
+    }
+
+    #[test]
+    fn tensor() {
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        debug_assert_eq!(t1.data(), vec![1.0, 2.0]);
+        debug_assert_eq!(t1.shape(), vec![1, 2]);
     }
 
     #[test]
     fn tensor_ops_add() {
         let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
         let t2 = Tensor::new(vec![vec![3.0, 4.0]]).unwrap();
-
-        assert_tensor_eq(t1 + t2, vec![6.0, 6.0, 6.0, 6.0], vec![2, 2]);
+        let et = Tensor::new(vec![vec![4.0, 6.0]]).unwrap();
+        assert_tensor_eq(t1 + t2, et);
     }
     #[test]
     fn tensor_ops_sub() {
         let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
         let t2 = Tensor::new(vec![vec![3.0, 4.0]]).unwrap();
-
-        assert_tensor_eq(t1 - t2, vec![2.0, 2.0, 2.0, 2.0], vec![2, 2]);
+        let et = Tensor::new(vec![vec![-2.0, -2.0]]).unwrap();
+        assert_tensor_eq(t1 - t2, et);
     }
     #[test]
     fn tensor_ops_mul() {
         let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
         let t2 = Tensor::new(vec![vec![3.0, 4.0]]).unwrap();
-
-        assert_tensor_eq(t1 * t2, vec![8.0, 8.0, 8.0, 8.0], vec![2, 2]);
+        let et = Tensor::new(vec![vec![3.0, 8.0]]).unwrap();
+        assert_tensor_eq(t1 * t2, et);
     }
     #[test]
     fn tensor_ops_div() {
         let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
-        let t2 = Tensor::new(vec![vec![3.0, 4.0]]).unwrap();
-
-        assert_tensor_eq(t1 / t2, vec![2.0, 2.0, 2.0, 2.0], vec![2, 2]);
+        let t2 = Tensor::new(vec![vec![2.0, 4.0]]).unwrap();
+        let et = Tensor::new(vec![vec![0.5, 0.5]]).unwrap();
+        assert_tensor_eq(t1 / t2, et);
     }
 
+    #[test]
+    fn tensor_ops_add_scalar() {
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let et = Tensor::new(vec![vec![3.0, 4.0]]).unwrap();
+        assert_tensor_eq(<Tensor as OpsLayer<f32>>::add_scalar(&t1, 2.0).unwrap(), et);
+    }
+    #[test]
+    fn tensor_ops_sub_scalar() {
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let et = Tensor::new(vec![vec![-1.0, 0.0]]).unwrap();
+        assert_tensor_eq(<Tensor as OpsLayer<f32>>::sub_scalar(&t1, 2.0).unwrap(), et);
+    }
+    #[test]
+    fn tensor_ops_mul_scalar() {
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let et = Tensor::new(vec![vec![2.0, 4.0]]).unwrap();
+        assert_tensor_eq(<Tensor as OpsLayer<f32>>::mul_scalar(&t1, 2.0).unwrap(), et);
+    }
+    #[test]
+    fn tensor_ops_div_scalar() {
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let et = Tensor::new(vec![vec![0.5, 1.0]]).unwrap();
+        assert_tensor_eq(<Tensor as OpsLayer<f32>>::div_scalar(&t1, 2.0).unwrap(), et);
+    }
+
+    #[test]
+    fn tensor_ops_scalar_sub() {
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let et = Tensor::new(vec![vec![1.0, 0.0]]).unwrap();
+        assert_tensor_eq(<Tensor as OpsLayer<f32>>::scalar_sub(&t1, 2.0).unwrap(), et);
+    }
+    #[test]
+    fn tensor_ops_scalar_div() {
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let et = Tensor::new(vec![vec![2.0, 1.0]]).unwrap();
+        assert_tensor_eq(<Tensor as OpsLayer<f32>>::scalar_div(&t1, 2.0).unwrap(), et);
+    }
 }
