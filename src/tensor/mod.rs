@@ -222,87 +222,86 @@ impl DefaultLayer for Tensor {
 
 #[cfg(test)]
 mod tests {
+    use crate::MlResult;
     use crate::tensor::{DefaultLayer, OpsLayer, Tensor};
-    pub fn assert_tensor_eq(
-        tensor: Tensor,
-        expected_tensor: Tensor,
-    ) {
-        debug_assert_eq!(tensor.data(), expected_tensor.data());
-        debug_assert_eq!(tensor.shape(), expected_tensor.shape());
+    pub fn assert_tensor_eq(tensor: Tensor, expected_tensor: Tensor, ) -> MlResult<()> {
+        assert_eq!(tensor.data(), expected_tensor.data());
+        assert_eq!(tensor.shape(), expected_tensor.shape());
+        Ok(())
     }
 
     #[test]
-    fn tensor() {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
-        debug_assert_eq!(t1.data(), vec![1.0, 2.0]);
-        debug_assert_eq!(t1.shape(), vec![1, 2]);
+    fn tensor() -> MlResult<()> {
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]])?;
+        assert_eq!(t1.data(), vec![1.0, 2.0]);
+        assert_eq!(t1.shape(), vec![1, 2]);
+        Ok(())
     }
 
     #[test]
-    fn tensor_ops_add() {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
-        let t2 = Tensor::new(vec![vec![3.0, 4.0]]).unwrap();
-        let et = Tensor::new(vec![vec![4.0, 6.0]]).unwrap();
-        assert_tensor_eq(t1 + t2, et);
+    fn test_add_symbol() -> MlResult<()> {
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]])?;
+        let t2 = Tensor::new(vec![vec![3.0, 4.0]])?;
+        let et = Tensor::new(vec![vec![4.0, 6.0]])?;
+        assert_tensor_eq(t1 + t2, et)
     }
     #[test]
-    fn tensor_ops_sub() {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
-        let t2 = Tensor::new(vec![vec![3.0, 4.0]]).unwrap();
-        let et = Tensor::new(vec![vec![-2.0, -2.0]]).unwrap();
-        assert_tensor_eq(t1 - t2, et);
+    fn test_sub_symbol() -> MlResult<()> {
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]])?;
+        let t2 = Tensor::new(vec![vec![3.0, 4.0]])?;
+        let et = Tensor::new(vec![vec![-2.0, -2.0]])?;
+        assert_tensor_eq(t1 - t2, et)
+    }
+    #[test]
+    fn test_mul_symbol() -> MlResult<()> {
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]])?;
+        let t2 = Tensor::new(vec![vec![3.0, 4.0]])?;
+        let et = Tensor::new(vec![vec![3.0, 8.0]])?;
+        assert_tensor_eq(t1 * t2, et)
+    }
+    #[test]
+    fn test_div_symbol() -> MlResult<()> {
+        let t1 = Tensor::new(vec![vec![1.0, 2.0]])?;
+        let t2 = Tensor::new(vec![vec![2.0, 4.0]])?;
+        let et = Tensor::new(vec![vec![0.5, 0.5]])?;
+        assert_tensor_eq(t1 / t2, et)
     }
 
     #[test]
-    fn tensor_ops_mul() {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
-        let t2 = Tensor::new(vec![vec![3.0, 4.0]]).unwrap();
-        let et = Tensor::new(vec![vec![3.0, 8.0]]).unwrap();
-        assert_tensor_eq(t1 * t2, et);
-    }
-    #[test]
-    fn tensor_ops_div() {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
-        let t2 = Tensor::new(vec![vec![2.0, 4.0]]).unwrap();
-        let et = Tensor::new(vec![vec![0.5, 0.5]]).unwrap();
-        assert_tensor_eq(t1 / t2, et);
-    }
-
-    #[test]
-    fn tensor_ops_add_scalar() {
+    fn tensor_ops_add_scalar() -> MlResult<()> {
         let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
         let et = Tensor::new(vec![vec![3.0, 4.0]]).unwrap();
-        assert_tensor_eq(t1.add_scalar(2.0).unwrap(), et);
+        assert_tensor_eq(t1.add_scalar(2.0).unwrap(), et)
     }
     #[test]
-    fn tensor_ops_sub_scalar() {
+    fn tensor_ops_sub_scalar() -> MlResult<()> {
         let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
         let et = Tensor::new(vec![vec![-1.0, 0.0]]).unwrap();
-        assert_tensor_eq(t1.sub_scalar(2.0).unwrap(), et);
+        assert_tensor_eq(t1.sub_scalar(2.0).unwrap(), et)
     }
     #[test]
-    fn tensor_ops_mul_scalar() {
+    fn tensor_ops_mul_scalar() -> MlResult<()> {
         let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
         let et = Tensor::new(vec![vec![2.0, 4.0]]).unwrap();
-        assert_tensor_eq(t1.mul_scalar(2.0).unwrap(), et);
+        assert_tensor_eq(t1.mul_scalar(2.0).unwrap(), et)
     }
     #[test]
-    fn tensor_ops_div_scalar() {
+    fn tensor_ops_div_scalar() -> MlResult<()> {
         let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
         let et = Tensor::new(vec![vec![0.5, 1.0]]).unwrap();
-        assert_tensor_eq(t1.div_scalar(2.0).unwrap(), et);
+        assert_tensor_eq(t1.div_scalar(2.0).unwrap(), et)
     }
 
     #[test]
-    fn tensor_ops_scalar_sub() {
+    fn tensor_ops_scalar_sub() -> MlResult<()> {
         let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
         let et = Tensor::new(vec![vec![1.0, 0.0]]).unwrap();
-        assert_tensor_eq(t1.scalar_sub(2.0).unwrap(), et);
+        assert_tensor_eq(t1.scalar_sub(2.0).unwrap(), et)
     }
     #[test]
-    fn tensor_ops_scalar_div() {
+    fn tensor_ops_scalar_div() -> MlResult<()> {
         let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
         let et = Tensor::new(vec![vec![2.0, 1.0]]).unwrap();
-        assert_tensor_eq(t1.scalar_div(2.0).unwrap(), et);
+        assert_tensor_eq(t1.scalar_div(2.0).unwrap(), et)
     }
 }
