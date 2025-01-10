@@ -110,9 +110,7 @@ impl<T: DefaultLayer> OpsLayer<T> for T {
     ///
     /// # Returns
     /// A new tensor with each element being tensor_element + scalar
-    fn add_scalar(&self, scalar: f32) -> Self::Output
-    where
-        Tensor: Add<Output=Tensor> {
+    fn add_scalar(&self, scalar: f32) -> Self::Output {
         DefaultLayer::from(self.data().iter().map(|&x| x + scalar).collect(), self.shape())
     }
 
@@ -145,9 +143,7 @@ impl<T: DefaultLayer> OpsLayer<T> for T {
     ///
     /// # Returns
     /// A new tensor with each element being tensor_element / scalar
-    fn div_scalar(&self, scalar: f32) -> Self::Output
-    where
-        Tensor: Div<Output=Tensor> {
+    fn div_scalar(&self, scalar: f32) -> Self::Output {
         DefaultLayer::from(self.data().iter().map(|&x| x / scalar).collect(), self.shape())
     }
 
@@ -158,9 +154,7 @@ impl<T: DefaultLayer> OpsLayer<T> for T {
     ///
     /// # Returns
     /// A new tensor with each element being scalar - tensor_element
-    fn scalar_sub(&self, scalar: f32) -> Self::Output
-    where
-        Tensor: Sub<Output=Tensor> {
+    fn scalar_sub(&self, scalar: f32) -> Self::Output {
         DefaultLayer::from(self.data().iter().map(|&x| scalar - x).collect(), self.shape())
     }
 
