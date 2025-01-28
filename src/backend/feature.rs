@@ -39,8 +39,3 @@ pub const CPU_FEATURE_AVX2: &str = "avx2";
 pub const CPU_FEATURE_AVX512F: &str = "avx512f";
 pub const CPU_FEATURE_SSE4_1: &str = "sse4.1";
 pub const CPU_FEATURE_SSE4_2: &str = "sse4.2";
-
-// GPU Features
-pub const GPU_FEATURE_FP16: &str = "fp16";
-pub const GPU_FEATURE_FP64: &str = "fp64";
-pub const GPU_FEATURE_TENSOR_CORES: &str = "tensor_cores";

@@ -1,5 +1,5 @@
-use crate::backend::{DeviceFeatures, DeviceType};
-use crate::tensor::{Tensor, DefaultLayer, OpsLayer};
+use crate::backend::DeviceType;
+use crate::tensor::{Tensor, Matmul, DefaultLayer};
 
 #[derive(Debug)]
 pub struct CpuCore;
@@ -13,10 +13,6 @@ impl CpuCore {
         DeviceType::Cpu
     }
 
-    pub fn supports_feature(&self, _feature: &str) -> DeviceFeatures {
-        DeviceFeatures::new()
-    }
-
     pub fn calc_device_flops(&self) -> f64 {
         // Create two large tensors for benchmarking
         let size = 1024;
@@ -27,7 +23,7 @@ impl CpuCore {
 
         // Measure matrix multiplication time (more compute intensive than addition)
         let start = std::time::Instant::now();
-        let _c = a.matmul(&b).unwrap();
+        let _c = Matmul::call(a, b);
         let duration = start.elapsed();
 
         // Calculate FLOPS:

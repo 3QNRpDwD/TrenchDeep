@@ -12,6 +12,7 @@ static mut DEFAULT_DEVICE: Option<Mutex<DeviceType>> = None;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DeviceType {
     Cpu,
+    Cuda
 }
 
 impl Display for DeviceType {
@@ -48,7 +49,7 @@ impl DeviceManager {
                 GLOBAL_DEVICE_MANAGER = Some(DeviceManager::new());
 
                 // Initialize default device
-                let manager = GLOBAL_DEVICE_MANAGER.as_ref().unwrap();
+                let _manager = GLOBAL_DEVICE_MANAGER.as_ref().unwrap();
 
                 // Select default device based on priority and availability
                 let device_type = {

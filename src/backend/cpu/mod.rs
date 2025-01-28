@@ -110,6 +110,10 @@ impl Backend for CpuBackend {
     fn mean(&self, a: &[f32]) -> f32 {
         self.compute.mean(a)
     }
+
+    fn execute_compute(&self, _dimensions: [u32; 3]) -> MlResult<()> {
+        todo!()
+    }
 }
 
 #[cfg(test)]

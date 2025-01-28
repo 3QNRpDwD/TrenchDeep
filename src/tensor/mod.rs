@@ -1,23 +1,10 @@
 use std::fmt::Display;
 use std::sync::Arc;
-
-use crate::{
-    MlError,
-    MlResult,
-    backend::Backend,
-    backend::Device,
-    backend,
-};
+use crate::{ MlResult, backend::Backend };
 
 mod ops;
 mod broadcast;
-
-#[derive(Debug)]
-pub struct Tensor {
-    backend: Arc<dyn Backend>,
-    data: Vec<f32>,
-    shape: Vec<usize>,
-}
+mod creation;
 
 #[derive(Debug, Clone)]
 pub enum TensorError {
@@ -74,6 +61,16 @@ impl Display for TensorError {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Tensor {
+    backend: Arc<dyn Backend>,
+    data: Vec<f32>,
+    shape: Vec<usize>,
+    grad: Option<Box<Tensor>>,
+    grad_fn: Option<GradFn>,
+    requires_grad: bool,
+}
+
 #[derive(Clone)]
 struct GradFn(Arc<dyn Fn(&Tensor) -> MlResult<()>>);
 
@@ -116,7 +113,6 @@ pub trait DefaultLayer {
     fn backend(&self)                           -> &Arc<dyn Backend>;
 }
 
-
 pub trait BroadcastLayer {
     fn can_broadcast(&self, other: &Self) -> bool;
     fn broadcast_shape(&self, other: &Self) -> Vec<usize>;
@@ -127,16 +123,17 @@ pub trait BroadcastLayer {
     fn calculate_broadcast_indices(&self, other: &Self, idx: usize, shape: &[usize]) -> Option<(usize, usize)>;
 }
 
+pub trait Function<T: DefaultLayer> {
+    type Output;
+    type Gradient;
+    fn forward(&self) -> Self::Output;
+    fn backward(&self, grad: Self::Gradient) -> Self::Output;
+}
+
 pub trait OpsLayer<T: DefaultLayer>{
     type Output;
 
-    fn can_op(&self, other: &T) -> MlResult<()>;
-
-    // 사칙연산
-    fn add(&self, other: &T)                -> Self::Output;
-    fn sub(&self, other: &T)                -> Self::Output;
-    fn mul(&self, other: &T)                -> Self::Output;
-    fn div(&self, other: &T)                -> Self::Output;
+    fn chk_shape(&self, other: &T) -> MlResult<()>;
 
     // 텐서 & 스칼라 연산
     fn add_scalar(&self, scalar: f32)       -> Self::Output;
@@ -148,82 +145,162 @@ pub trait OpsLayer<T: DefaultLayer>{
     fn scalar_sub(&self, scalar: f32)       -> Self::Output;
     fn scalar_div(&self, scalar: f32)       -> Self::Output;
 
-    fn neg(&self)                           -> Self::Output;
-    fn exp(&self)                           -> Self::Output;
-    fn pow(&self, power: f32)               -> Self::Output;
     fn pow_scalar(&self, exponent: f32)     -> Self::Output;
     fn scalar_pow(&self, scalar: f32)       -> Self::Output;
-    fn sqrt(&self)                          -> Self::Output;
-    fn square(&self)                        -> Self::Output;
-    fn log(&self)                           -> Self::Output;
-    fn matmul(&self, other: &T)             -> Self::Output;
     fn eq_scalar(&self, scalar: f32)        -> Self::Output;
-    fn abs(&self)                           -> Self::Output;
-    fn topk(&self, k: usize, sorted: bool)              -> MlResult<(T, T)>;
-    fn matmax(&self, dim: Option<i32>, keepdim: bool)   -> MlResult<(Tensor, Option<Tensor>)>;
 }
 
-impl DefaultLayer for Tensor {
-    fn new(data: Vec<Vec<f32>>) -> MlResult<Self> {
-        let shape = vec![data.len(), data[0].len()];
-        let data: Vec<f32> = data.into_iter().flatten().collect();
-        let backend: Arc<dyn Backend> =  Arc::new(backend::CpuBackend::new()?);
+/// A macro for simplifying tensor operations in Rust.
+///
+/// This macro provides a convenient way to perform unary, binary, and ternary operations
+/// on tensors using custom operator structures. The macro matches different patterns
+/// to handle various use cases for tensor computations.
+/// Handles unary operations (e.g., Neg, Abs, Sqrt).
+///
+/// # Arguments
+///
+/// * `$x`: The input tensor.
+/// * `$op`: The operator struct that implements the `forward` method.
+///
+/// # Returns
+/// A new tensor resulting from the unary operation.
+///
+///
+/// Handles binary operations (e.g., Add, Sub, Mul, Div).
+///
+/// # Arguments
+///
+/// * `$x`: The first input tensor.
+/// * `$op`: The operator struct that implements the `forward` method.
+/// * `$y`: The second input tensor.
+///
+/// # Returns
+/// A new tensor resulting from the binary operation.
+///
+///
+/// Handles ternary operations for specific operators like `Topk` and `Matmax`.
+///
+/// # Arguments
+///
+/// * `$x`: The first input tensor.
+/// * `$op`: The operator struct (`Topk` or `Matmax`) that implements the `forward` method.
+/// * `$y`: The second parameter (e.g., `k` for `Topk`, `dim` for `Matmax`).
+/// * `$z`: The third parameter (e.g., `sorted` for `Topk`, `keepdim` for `Matmax`).
+///
+/// # Returns
+/// A new tensor resulting from the ternary operation. For `Topk`, returns the top-k values and their indices.
+/// For `Matmax`, returns the maximum values and their indices (if applicable).
+#[macro_export]
+macro_rules! ops {
+    ($x:expr, Matmax, $y:expr, $z:expr) => {
+        Matmax {
+            first: $x,
+            dim: $y,
+            keepdim: $z,
+        }.forward()
+    };
 
-        Ok(Self {
-            backend,
-            data,
-            shape,
-        })
-    }
+    ($x:expr, Topk, $y:expr, $z:expr) => {
+        Topk {
+            first: $x,
+            k: $y,
+            sorted: $z,
+        }.forward()
+    };
 
-    fn from(data: Vec<f32>, shape: &[usize]) -> MlResult<Self> {
-        let expected_len: usize = shape.iter().product();
-        if data.len() != expected_len {
-            return Err(MlError::TensorError(TensorError::InvalidDataLength {
-                expected: expected_len,
-                got: data.len(),
-            }));
-        }
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
-        Ok(Self {
-            backend,
-            data,
-            shape: shape.to_vec(),
-        })
-    }
+    ($x:expr, Pow, $y:expr) => {
+        Pow {
+            first: $x,
+            power: $y,
+        }.forward()
+    };
 
-    fn shape(&self) -> &[usize] {
-        &self.shape
-    }
+    ($x:expr, $op:ident, $y:expr) => {
+        $op {
+            first: $x,
+            second: $y,
+        }.forward()
+    };
 
-    fn data(&self) -> &[f32] {
-        &self.data
-    }
+    ($x:expr, $op:ident) => {
+        $op {
+            first: $x,
+        }.forward()
+    };
+}
 
-    fn get(&self, indices: &[usize]) -> Option<&f32> {
-        self.data.get(self.index(indices)?)
-    }
-    fn index(&self, indices: &[usize]) -> Option<usize> {
-        if indices.len() != self.shape.len() {
-            return None;
-        }
-        Some(
-            indices
-                .iter()
-                .zip(&self.shape)
-                .fold(0, |acc, (&i, &dim)| acc * dim + i),
-        )
-    }
+/// Structure representing an exponential operation.
+pub struct Exp<T: DefaultLayer>      { first: T }
 
-    fn backend(&self) -> &Arc<dyn Backend> {
-        &self.backend
-    }
+/// Structure representing a negation operation.
+pub struct Neg<T: DefaultLayer>      { first: T }
+
+/// Structure representing a square root operation.
+pub struct Sqrt<T: DefaultLayer>     { first: T }
+
+/// Structure representing an absolute value operation.
+pub struct Abs<T: DefaultLayer>      { first: T }
+
+/// Structure representing a squaring operation.
+pub struct Square<T: DefaultLayer>   { first: T }
+
+/// Structure representing a logarithmic operation.
+pub struct Log<T: DefaultLayer>      { first: T }
+
+/// Structure representing an addition operation.
+pub struct Add<T: DefaultLayer> {
+    first: T,
+    second: T
+}
+
+/// Structure representing a subtraction operation.
+pub struct Sub<T: DefaultLayer> {
+    first: T,
+    second: T
+}
+
+/// Structure representing a multiplication operation.
+pub struct Mul<T: DefaultLayer> {
+    first: T,
+    second: T
+}
+
+/// Structure representing a division operation.
+pub struct Div<T: DefaultLayer> {
+    first: T,
+    second: T
+}
+
+/// Structure representing a power operation.
+pub struct Pow<T: DefaultLayer> {
+    first: T,
+    power: f32
+}
+
+/// Structure representing a matrix multiplication operation.
+pub struct Matmul<T: DefaultLayer> {
+    first: T,
+    second: T
+}
+
+/// Structure representing a Top-k operation.
+pub  struct Topk<T: DefaultLayer> {
+    first: T,
+    k: usize,
+    sorted: bool
+}
+
+/// Structure representing a matrix max operation along a dimension.
+pub struct Matmax<T: DefaultLayer> {
+    first: T,
+    dim: Option<i32>,
+    keepdim: bool
 }
 
 #[cfg(test)]
 mod tests {
     use crate::MlResult;
-    use crate::tensor::{DefaultLayer, OpsLayer, Tensor};
+    use crate::tensor::{DefaultLayer, OpsLayer, Function, Add, Div, Mul, Sub, Tensor};
     pub fn assert_tensor_eq(tensor: Tensor, expected_tensor: Tensor, ) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
@@ -240,68 +317,72 @@ mod tests {
 
     #[test]
     fn test_add_symbol() -> MlResult<()> {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]])?;
-        let t2 = Tensor::new(vec![vec![3.0, 4.0]])?;
+        let first = Tensor::new(vec![vec![1.0, 2.0]])?;
+        let second = Tensor::new(vec![vec![3.0, 4.0]])?;
         let et = Tensor::new(vec![vec![4.0, 6.0]])?;
-        assert_tensor_eq(t1 + t2, et)
+
+        assert_tensor_eq(ops!(first, Add, second)?, et)
     }
     #[test]
     fn test_sub_symbol() -> MlResult<()> {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]])?;
-        let t2 = Tensor::new(vec![vec![3.0, 4.0]])?;
+        let first = Tensor::new(vec![vec![1.0, 2.0]])?;
+        let second = Tensor::new(vec![vec![3.0, 4.0]])?;
         let et = Tensor::new(vec![vec![-2.0, -2.0]])?;
-        assert_tensor_eq(t1 - t2, et)
+
+        assert_tensor_eq(ops!(first, Sub, second)?, et)
     }
     #[test]
     fn test_mul_symbol() -> MlResult<()> {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]])?;
-        let t2 = Tensor::new(vec![vec![3.0, 4.0]])?;
+        let first = Tensor::new(vec![vec![1.0, 2.0]])?;
+        let second = Tensor::new(vec![vec![3.0, 4.0]])?;
         let et = Tensor::new(vec![vec![3.0, 8.0]])?;
-        assert_tensor_eq(t1 * t2, et)
+
+        assert_tensor_eq(ops!(first, Mul, second)?, et)
     }
     #[test]
     fn test_div_symbol() -> MlResult<()> {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]])?;
-        let t2 = Tensor::new(vec![vec![2.0, 4.0]])?;
+        let first = Tensor::new(vec![vec![1.0, 2.0]])?;
+        let second = Tensor::new(vec![vec![2.0, 4.0]])?;
         let et = Tensor::new(vec![vec![0.5, 0.5]])?;
-        assert_tensor_eq(t1 / t2, et)
+
+        assert_tensor_eq(ops!(first, Div, second)?, et)
     }
 
     #[test]
     fn tensor_ops_add_scalar() -> MlResult<()> {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let first = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
         let et = Tensor::new(vec![vec![3.0, 4.0]]).unwrap();
-        assert_tensor_eq(t1.add_scalar(2.0).unwrap(), et)
+        assert_tensor_eq(first.add_scalar(2.0).unwrap(), et)
     }
     #[test]
     fn tensor_ops_sub_scalar() -> MlResult<()> {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let first = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
         let et = Tensor::new(vec![vec![-1.0, 0.0]]).unwrap();
-        assert_tensor_eq(t1.sub_scalar(2.0).unwrap(), et)
+        assert_tensor_eq(first.sub_scalar(2.0).unwrap(), et)
     }
     #[test]
     fn tensor_ops_mul_scalar() -> MlResult<()> {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let first = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
         let et = Tensor::new(vec![vec![2.0, 4.0]]).unwrap();
-        assert_tensor_eq(t1.mul_scalar(2.0).unwrap(), et)
+        assert_tensor_eq(first.mul_scalar(2.0).unwrap(), et)
     }
     #[test]
     fn tensor_ops_div_scalar() -> MlResult<()> {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let first = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
         let et = Tensor::new(vec![vec![0.5, 1.0]]).unwrap();
-        assert_tensor_eq(t1.div_scalar(2.0).unwrap(), et)
+        assert_tensor_eq(first.div_scalar(2.0).unwrap(), et)
     }
 
     #[test]
     fn tensor_ops_scalar_sub() -> MlResult<()> {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let first = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
         let et = Tensor::new(vec![vec![1.0, 0.0]]).unwrap();
-        assert_tensor_eq(t1.scalar_sub(2.0).unwrap(), et)
+        assert_tensor_eq(first.scalar_sub(2.0).unwrap(), et)
     }
     #[test]
     fn tensor_ops_scalar_div() -> MlResult<()> {
-        let t1 = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
+        let first = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
         let et = Tensor::new(vec![vec![2.0, 1.0]]).unwrap();
-        assert_tensor_eq(t1.scalar_div(2.0).unwrap(), et)
+        assert_tensor_eq(first.scalar_div(2.0).unwrap(), et)
     }
 }

@@ -3,10 +3,10 @@ use std::fmt::{Debug, Display, Formatter};
 mod device;
 mod feature;
 pub use device::{Device, DeviceType};
-pub use feature::DeviceFeatures;
-
 mod cpu;
 pub use cpu::CpuBackend;
+use crate::MlResult;
+
 
 pub trait Backend: Debug + Send + Sync {
     fn device(&self) -> DeviceType;
@@ -22,6 +22,7 @@ pub trait Backend: Debug + Send + Sync {
     fn sqrt(&self, a: &[f32]) -> Vec<f32>;
     fn sum(&self, a: &[f32]) -> f32;
     fn mean(&self, a: &[f32]) -> f32;
+    fn execute_compute(&self, _dimensions: [u32; 3]) -> MlResult<()>;
 }
 
 #[derive(Debug)]
