@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use crate::{backend, MlError, MlResult};
 use crate::backend::{Backend, Device};
-use crate::tensor::{Add, TensorBase, Div, Function, Matmax, Matmul, Mul, Pow, Sub, Tensor, TensorError, Topk};
+use crate::tensor::{Add, TensorBase, Div, Function, Matmax, Matmul, Mul, Pow, Sub, Tensor, TensorError, Topk, OperatorBase, OpsArg};
 
-impl<T: TensorBase> Add<T>{
-    pub fn new(first: T, second: T) -> MlResult<Self> {
-        Ok(Add { first, second })
+impl<F, S, T> OperatorBase<F, S, T> for Add<F>{
+    type Output = F;
+    fn new(first: T, second: Option<T>, _: Option<impl Into<OpsArg>>) -> Self::Output {
+        Self { first, second: second.unwrap() }
     }
 }
 
@@ -30,7 +31,7 @@ impl<T: TensorBase> Div<T>{
 
 impl<T: TensorBase> Pow<T>{
     pub fn new(first: T, power: f32) -> MlResult<Self> {
-        Ok(Pow { first, power })
+        Ok(Pow { first, second: power })
     }
 }
 
@@ -42,13 +43,13 @@ impl<T: TensorBase> Matmul<T>{
 
 impl<T: TensorBase> Topk<T>{
     pub fn new(first: T, k: usize, sorted: bool) -> MlResult<Self> {
-        Ok(Topk { first, k, sorted })
+        Ok(Topk { first, second: k, third: sorted })
     }
 }
 
 impl<T: TensorBase> Matmax<T>{
     pub fn new(first: T, dim: Option<i32>, keepdim: bool) -> MlResult<Self> {
-        Ok(Matmax { first, dim, keepdim })
+        Ok(Matmax { first, second: dim, third: keepdim })
     }
 }
 

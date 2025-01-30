@@ -122,8 +122,8 @@ impl<T: TensorBase> OpsLayer<T> for T {
     }
 }
 
-impl<T: TensorBase> Function<T> for Abs<T> {
-    type Output = MlResult<T>;
+impl<F: TensorBase, S, T> Function<F, S, T> for Abs<F> {
+    type Output = MlResult<F>;
     type Gradient = f64;
 
     /// Computes the absolute value of each element in the tensor.
@@ -139,8 +139,8 @@ impl<T: TensorBase> Function<T> for Abs<T> {
     }
 }
 
-impl<T: TensorBase> Function<T> for Exp<T> {
-    type Output = MlResult<T>;
+impl<F: TensorBase, S, T> Function<F, S, T> for Exp<F> {
+    type Output = MlResult<F>;
     type Gradient = f64;
 
     /// Applies the exponential function to each element in the tensor
@@ -156,8 +156,8 @@ impl<T: TensorBase> Function<T> for Exp<T> {
     }
 }
 
-impl<T: TensorBase> Function<T> for Log<T> {
-    type Output = MlResult<T>;
+impl<F: TensorBase, S, T> Function<F, S, T> for Log<F> {
+    type Output = MlResult<F>;
     type Gradient = f64;
 
     /// Applies the natural logarithm to each element in the tensor
@@ -173,8 +173,8 @@ impl<T: TensorBase> Function<T> for Log<T> {
     }
 }
 
-impl<T: TensorBase> Function<T> for Neg<T> {
-    type Output = MlResult<T>;
+impl<F: TensorBase, S, T> Function<F, S, T> for Neg<F> {
+    type Output = MlResult<F>;
     type Gradient = f64;
 
     /// Negates each element in the tensor
@@ -190,8 +190,8 @@ impl<T: TensorBase> Function<T> for Neg<T> {
     }
 }
 
-impl<T: TensorBase> Function<T> for Sqrt<T> {
-    type Output = MlResult<T>;
+impl<F: TensorBase, S, T> Function<F, S, T> for Sqrt<F> {
+    type Output = MlResult<F>;
     type Gradient = f64;
 
     /// Takes the square root of each element in the tensor
@@ -207,8 +207,8 @@ impl<T: TensorBase> Function<T> for Sqrt<T> {
     }
 }
 
-impl<T: TensorBase> Function<T> for Square<T> {
-    type Output = MlResult<T>;
+impl<F: TensorBase, S, T> Function<F, S, T> for Square<F> {
+    type Output = MlResult<F>;
     type Gradient = f64;
 
     /// Returns a new tensor with the square of the elements of input
@@ -224,8 +224,8 @@ impl<T: TensorBase> Function<T> for Square<T> {
     }
 }
 
-impl<T: TensorBase> Function<T> for crate::tensor::Add<T> {
-    type Output = MlResult<T>;
+impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Add<F> {
+    type Output = MlResult<F>;
     type Gradient = f64;
 
     /// Adds two tensors element-wise
@@ -265,8 +265,8 @@ impl<T: TensorBase> Function<T> for crate::tensor::Add<T> {
     }
 }
 
-impl<T: TensorBase> Function<T> for crate::tensor::Sub<T> {
-    type Output = MlResult<T>;
+impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Sub<F> {
+    type Output = MlResult<F>;
     type Gradient = f64;
     /// Subtracts two tensors element-wise
     ///
@@ -299,8 +299,8 @@ impl<T: TensorBase> Function<T> for crate::tensor::Sub<T> {
     }
 }
 
-impl<T: TensorBase> Function<T> for crate::tensor::Mul<T> {
-    type Output = MlResult<T>;
+impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Mul<F> {
+    type Output = MlResult<F>;
     type Gradient = f64;
 
     /// Multiplies two tensors element-wise
@@ -322,8 +322,8 @@ impl<T: TensorBase> Function<T> for crate::tensor::Mul<T> {
     }
 }
 
-impl<T: TensorBase> Function<T> for crate::tensor::Div<T> {
-    type Output = MlResult<T>;
+impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Div<F> {
+    type Output = MlResult<F>;
     type Gradient = f64;
 
     /// Divides two tensors element-wise
@@ -346,8 +346,8 @@ impl<T: TensorBase> Function<T> for crate::tensor::Div<T> {
     }
 }
 
-impl<T: TensorBase> Function<T> for Pow<T> {
-    type Output = MlResult<T>;
+impl<F: TensorBase, S, T> Function<F, S, T> for Pow<F> {
+    type Output = MlResult<F>;
     type Gradient = f64;
 
     /// Raises each element in the tensor to a power
@@ -358,7 +358,7 @@ impl<T: TensorBase> Function<T> for Pow<T> {
     /// # Returns
     /// A new tensor with each element being tensor_element ^ power
     fn forward(&self) -> Self::Output {
-        TensorBase::from(self.first.backend().pow(self.first.data(), self.power), self.first.shape())
+        TensorBase::from(self.first.backend().pow(self.first.data(), self.second), self.first.shape())
     }
 
     fn backward(&self, grad: Self::Gradient) -> Self::Output {
@@ -366,8 +366,8 @@ impl<T: TensorBase> Function<T> for Pow<T> {
     }
 }
 
-impl<T: TensorBase> Function<T> for Matmul<T> {
-    type Output = MlResult<T>;
+impl<F: TensorBase, S, T> Function<F, S, T> for Matmul<F> {
+    type Output = MlResult<F>;
     type Gradient = f64;
 
     /// Performs matrix multiplication on two tensors
@@ -532,8 +532,8 @@ impl<T: TensorBase> Function<T> for Matmul<T> {
     }
 }
 
-impl<T: TensorBase> Function<T> for Topk<T> {
-    type Output = MlResult<(T, T)>;
+impl<F: TensorBase, S, T> Function<F, S, T> for Topk<F> {
+    type Output = MlResult<(F, F)>;
     type Gradient = f64;
 
     /// Returns the k largest elements of the tensor along the last dimension.
@@ -545,7 +545,7 @@ impl<T: TensorBase> Function<T> for Topk<T> {
     /// # Returns
     /// A tuple of two tensors (values, indices) containing the top k values and their indices
     fn forward(&self) -> Self::Output {
-        if self.k == 0 {
+        if self.second == 0 {
             return Err(MlError::TensorError(TensorError::InvalidOperation {
                 op: "topk",
                 reason: "k must be greater than 0".to_string(),
@@ -555,12 +555,12 @@ impl<T: TensorBase> Function<T> for Topk<T> {
         let last_dim = self.first.shape().len() - 1;
         let last_dim_size = self.first.shape()[last_dim];
 
-        if self.k > last_dim_size {
+        if self.second > last_dim_size {
             return Err(MlError::TensorError(TensorError::InvalidOperation {
                 op: "topk",
                 reason: format!(
                     "k ({}) cannot be larger than last dimension size ({})",
-                    self.k, last_dim_size
+                    self.second, last_dim_size
                 ),
             }));
         }
@@ -568,8 +568,8 @@ impl<T: TensorBase> Function<T> for Topk<T> {
 
         let slice_size = last_dim_size;
         let num_slices: usize = self.first.shape()[..last_dim].iter().product();
-        let mut values = Vec::with_capacity(num_slices * self.k);
-        let mut indices = Vec::with_capacity(num_slices * self.k);
+        let mut values = Vec::with_capacity(num_slices * self.second);
+        let mut indices = Vec::with_capacity(num_slices * self.second);
 
 
         for slice_idx in 0..num_slices {
@@ -587,9 +587,9 @@ impl<T: TensorBase> Function<T> for Topk<T> {
             pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
 
-            let top_k = &pairs[..self.k];
+            let top_k = &pairs[..self.second];
             let mut selected = top_k.to_vec();
-            if !self.sorted {
+            if !self.third {
                 selected.sort_by_key(|pair| pair.1);
             }
 
@@ -598,7 +598,7 @@ impl<T: TensorBase> Function<T> for Topk<T> {
         }
 
         let mut new_shape = self.first.shape().to_vec();
-        new_shape[last_dim] = self.k;
+        new_shape[last_dim] = self.second;
 
         Ok((
             TensorBase::from(values, &new_shape)?,
@@ -611,8 +611,8 @@ impl<T: TensorBase> Function<T> for Topk<T> {
     }
 }
 
-impl<T: TensorBase> Function<T> for Matmax<T> {
-    type Output = MlResult<(T, Option<T>)>;
+impl<F: TensorBase, S, T> Function<F, S, T> for Matmax<F> {
+    type Output = MlResult<(F, Option<F>)>;
     type Gradient = f64;
 
     /// Returns the maximum value of all elements in the input tensor.
@@ -649,7 +649,7 @@ impl<T: TensorBase> Function<T> for Matmax<T> {
                 }
 
                 let mut new_shape = self.first.shape().to_vec();
-                if !self.keepdim {
+                if !self.third {
                     new_shape.remove(dim);
                 } else {
                     new_shape[dim] = 1;
