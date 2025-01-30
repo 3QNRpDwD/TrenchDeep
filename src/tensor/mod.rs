@@ -1,6 +1,7 @@
 use std::fmt::Display;
 use std::sync::Arc;
-use crate::{ MlResult, backend::Backend };
+
+use crate::{backend::Backend, MlResult};
 
 mod ops;
 mod broadcast;
@@ -249,58 +250,59 @@ pub struct Log<T: DefaultLayer>      { first: T }
 
 /// Structure representing an addition operation.
 pub struct Add<T: DefaultLayer> {
-    first: T,
-    second: T
+    pub first: T,
+    pub second: T
 }
 
 /// Structure representing a subtraction operation.
 pub struct Sub<T: DefaultLayer> {
-    first: T,
-    second: T
+    pub first: T,
+    pub second: T
 }
 
 /// Structure representing a multiplication operation.
 pub struct Mul<T: DefaultLayer> {
-    first: T,
-    second: T
+    pub first: T,
+    pub second: T
 }
 
 /// Structure representing a division operation.
 pub struct Div<T: DefaultLayer> {
-    first: T,
-    second: T
+    pub first: T,
+    pub second: T
 }
 
 /// Structure representing a power operation.
 pub struct Pow<T: DefaultLayer> {
-    first: T,
-    power: f32
+    pub first: T,
+    pub power: f32
 }
 
 /// Structure representing a matrix multiplication operation.
 pub struct Matmul<T: DefaultLayer> {
-    first: T,
-    second: T
+    pub first: T,
+    pub second: T
 }
 
 /// Structure representing a Top-k operation.
 pub  struct Topk<T: DefaultLayer> {
-    first: T,
-    k: usize,
-    sorted: bool
+    pub first: T,
+    pub k: usize,
+    pub sorted: bool
 }
 
 /// Structure representing a matrix max operation along a dimension.
 pub struct Matmax<T: DefaultLayer> {
-    first: T,
-    dim: Option<i32>,
-    keepdim: bool
+    pub first: T,
+    pub dim: Option<i32>,
+    pub keepdim: bool
 }
 
 #[cfg(test)]
 mod tests {
     use crate::MlResult;
-    use crate::tensor::{DefaultLayer, OpsLayer, Function, Add, Div, Mul, Sub, Tensor};
+    use crate::tensor::{Add, DefaultLayer, Div, Function, Mul, OpsLayer, Sub, Tensor};
+
     pub fn assert_tensor_eq(tensor: Tensor, expected_tensor: Tensor, ) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());

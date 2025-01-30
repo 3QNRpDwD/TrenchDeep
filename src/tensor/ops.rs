@@ -1,5 +1,5 @@
 use crate::{MlError, MlResult};
-use crate::tensor::{DefaultLayer, OpsLayer, Function, Pow, Topk, Matmax, Matmul, Abs, Exp, Log, Neg, Sqrt, Square, TensorError};
+use crate::tensor::{Abs, DefaultLayer, Exp, Function, Log, Matmax, Matmul, Neg, OpsLayer, Pow, Sqrt, Square, TensorError, Topk};
 
 impl<T: DefaultLayer> OpsLayer<T> for T {
     type Output = MlResult<Self>;
@@ -699,6 +699,7 @@ impl<T: DefaultLayer> Function<T> for Matmax<T> {
 mod tests {
     use crate::ops;
     use crate::tensor::Tensor;
+
     use super::*;
 
     #[test]

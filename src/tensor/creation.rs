@@ -1,55 +1,8 @@
 use std::sync::Arc;
-use crate::backend::{Backend, Device};
+
 use crate::{backend, MlError, MlResult};
-use crate::tensor::{DefaultLayer, Function, Add, Div, Mul, Sub, Tensor, TensorError, Matmul, Topk, Matmax, Pow};
-
-impl<T: DefaultLayer> Add<T>{
-    pub fn call(first: T, second: T) -> MlResult<T> {
-        Add { first, second }.forward()
-    }
-}
-
-impl<T: DefaultLayer> Sub<T>{
-    fn call(first: T, second: T) -> MlResult<T> {
-        Sub { first, second }.forward()
-    }
-}
-
-impl<T: DefaultLayer> Mul<T>{
-    pub fn call(first: T, second: T) -> MlResult<T> {
-        Mul { first, second }.forward()
-    }
-}
-
-impl<T: DefaultLayer> Div<T>{
-    pub fn call(first: T, second: T) -> MlResult<T> {
-        Div { first, second }.forward()
-    }
-}
-
-impl<T: DefaultLayer> Pow<T>{
-    pub fn call(first: T, power: f32) -> MlResult<T> {
-        Pow { first, power }.forward()
-    }
-}
-
-impl<T: DefaultLayer> Matmul<T>{
-    pub fn call(first: T, second: T) -> MlResult<T> {
-        Matmul { first, second }.forward()
-    }
-}
-
-impl<T: DefaultLayer> Topk<T>{
-    pub fn call(first: T, k: usize, sorted: bool) -> MlResult<(T, T)> {
-        Topk { first, k, sorted }.forward()
-    }
-}
-
-impl<T: DefaultLayer> Matmax<T>{
-    pub fn call(first: T, dim: Option<i32>, keepdim: bool) -> MlResult<(T, Option<T>)> {
-        Matmax { first, dim, keepdim }.forward()
-    }
-}
+use crate::backend::{Backend, Device};
+use crate::tensor::{DefaultLayer, Tensor, TensorError};
 
 impl DefaultLayer for Tensor {
     fn new(data: Vec<Vec<f32>>) -> MlResult<Self> {
