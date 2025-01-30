@@ -104,7 +104,7 @@ impl Ord for Tensor {
     }
 }
 
-pub trait DefaultLayer {
+pub trait TensorBase {
     fn new(data: Vec<Vec<f32>>)                 -> MlResult<Self> where Self: Sized;
     fn from(data: Vec<f32>, shape: &[usize])    -> MlResult<Self> where Self: Sized;
     fn shape(&self)                             -> &[usize];
@@ -124,14 +124,14 @@ pub trait BroadcastLayer {
     fn calculate_broadcast_indices(&self, other: &Self, idx: usize, shape: &[usize]) -> Option<(usize, usize)>;
 }
 
-pub trait Function<T: DefaultLayer> {
+pub trait Function<T: TensorBase> {
     type Output;
     type Gradient;
     fn forward(&self) -> Self::Output;
     fn backward(&self, grad: Self::Gradient) -> Self::Output;
 }
 
-pub trait OpsLayer<T: DefaultLayer>{
+pub trait OpsLayer<T: TensorBase>{
     type Output;
 
     fn chk_shape(&self, other: &T) -> MlResult<()>;
@@ -217,91 +217,60 @@ macro_rules! ops {
     };
 
     ($x:expr, $op:ident, $y:expr) => {
-        $op {
-            first: $x,
-            second: $y,
-        }.forward()
+        $op::new($x, $y).forward()
     };
 
     ($x:expr, $op:ident) => {
-        $op {
-            first: $x,
-        }.forward()
+        $op::new($x).forward()
     };
 }
 
 /// Structure representing an exponential operation.
-pub struct Exp<T: DefaultLayer>      { first: T }
+pub struct Exp<T: TensorBase>      { first: T }
 
 /// Structure representing a negation operation.
-pub struct Neg<T: DefaultLayer>      { first: T }
+pub struct Neg<T: TensorBase>      { first: T }
 
 /// Structure representing a square root operation.
-pub struct Sqrt<T: DefaultLayer>     { first: T }
+pub struct Sqrt<T: TensorBase>     { first: T }
 
 /// Structure representing an absolute value operation.
-pub struct Abs<T: DefaultLayer>      { first: T }
+pub struct Abs<T: TensorBase>      { first: T }
 
 /// Structure representing a squaring operation.
-pub struct Square<T: DefaultLayer>   { first: T }
+pub struct Square<T: TensorBase>   { first: T }
 
 /// Structure representing a logarithmic operation.
-pub struct Log<T: DefaultLayer>      { first: T }
+pub struct Log<T: TensorBase>      { first: T }
 
 /// Structure representing an addition operation.
-pub struct Add<T: DefaultLayer> {
-    pub first: T,
-    pub second: T
-}
+pub struct Add<T: TensorBase> { first: T, second: T }
 
 /// Structure representing a subtraction operation.
-pub struct Sub<T: DefaultLayer> {
-    pub first: T,
-    pub second: T
-}
+pub struct Sub<T: TensorBase> { first: T, second: T }
 
 /// Structure representing a multiplication operation.
-pub struct Mul<T: DefaultLayer> {
-    pub first: T,
-    pub second: T
-}
+pub struct Mul<T: TensorBase> { first: T, second: T }
 
 /// Structure representing a division operation.
-pub struct Div<T: DefaultLayer> {
-    pub first: T,
-    pub second: T
-}
+pub struct Div<T: TensorBase> { first: T, second: T }
 
 /// Structure representing a power operation.
-pub struct Pow<T: DefaultLayer> {
-    pub first: T,
-    pub power: f32
-}
+pub struct Pow<T: TensorBase> { first: T, power: f32 }
 
 /// Structure representing a matrix multiplication operation.
-pub struct Matmul<T: DefaultLayer> {
-    pub first: T,
-    pub second: T
-}
+pub struct Matmul<T: TensorBase> { first: T, second: T }
 
 /// Structure representing a Top-k operation.
-pub  struct Topk<T: DefaultLayer> {
-    pub first: T,
-    pub k: usize,
-    pub sorted: bool
-}
+pub  struct Topk<T: TensorBase> { first: T, k: usize, sorted: bool }
 
 /// Structure representing a matrix max operation along a dimension.
-pub struct Matmax<T: DefaultLayer> {
-    pub first: T,
-    pub dim: Option<i32>,
-    pub keepdim: bool
-}
+pub struct Matmax<T: TensorBase> { first: T, dim: Option<i32>, keepdim: bool }
 
 #[cfg(test)]
 mod tests {
     use crate::MlResult;
-    use crate::tensor::{Add, DefaultLayer, Div, Function, Mul, OpsLayer, Sub, Tensor};
+    use crate::tensor::{Add, TensorBase, Div, Function, Mul, OpsLayer, Sub, Tensor};
 
     pub fn assert_tensor_eq(tensor: Tensor, expected_tensor: Tensor, ) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());

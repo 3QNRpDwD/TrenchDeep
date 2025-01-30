@@ -2,9 +2,57 @@ use std::sync::Arc;
 
 use crate::{backend, MlError, MlResult};
 use crate::backend::{Backend, Device};
-use crate::tensor::{DefaultLayer, Tensor, TensorError};
+use crate::tensor::{Add, TensorBase, Div, Function, Matmax, Matmul, Mul, Pow, Sub, Tensor, TensorError, Topk};
 
-impl DefaultLayer for Tensor {
+impl<T: TensorBase> Add<T>{
+    pub fn new(first: T, second: T) -> MlResult<Self> {
+        Ok(Add { first, second })
+    }
+}
+
+impl<T: TensorBase> Sub<T>{
+    fn new(first: T, second: T) -> MlResult<Self> {
+        Ok(Sub { first, second })
+    }
+}
+
+impl<T: TensorBase> Mul<T>{
+    pub fn new(first: T, second: T) -> MlResult<Self> {
+        Ok(Mul { first, second })
+    }
+}
+
+impl<T: TensorBase> Div<T>{
+    pub fn new(first: T, second: T) -> MlResult<Self> {
+        Ok(Div { first, second })
+    }
+}
+
+impl<T: TensorBase> Pow<T>{
+    pub fn new(first: T, power: f32) -> MlResult<Self> {
+        Ok(Pow { first, power })
+    }
+}
+
+impl<T: TensorBase> Matmul<T>{
+    pub fn new(first: T, second: T) -> MlResult<Self> {
+        Ok(Matmul { first, second })
+    }
+}
+
+impl<T: TensorBase> Topk<T>{
+    pub fn new(first: T, k: usize, sorted: bool) -> MlResult<Self> {
+        Ok(Topk { first, k, sorted })
+    }
+}
+
+impl<T: TensorBase> Matmax<T>{
+    pub fn new(first: T, dim: Option<i32>, keepdim: bool) -> MlResult<Self> {
+        Ok(Matmax { first, dim, keepdim })
+    }
+}
+
+impl TensorBase for Tensor {
     fn new(data: Vec<Vec<f32>>) -> MlResult<Self> {
         let shape = vec![data.len(), data[0].len()];
         let data: Vec<f32> = data.into_iter().flatten().collect();
@@ -68,7 +116,7 @@ impl DefaultLayer for Tensor {
 }
 
 
-// impl<T: DefaultLayer> Function<T> for Functions {
+// impl<T: TensorBase Function<T> for Functions {
 //     type Output = MlResult<T>;
 //     type Gradient = f64;
 //

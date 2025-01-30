@@ -1,5 +1,5 @@
 use crate::backend::DeviceType;
-use crate::tensor::{Tensor, Matmul, DefaultLayer};
+use crate::tensor::{Tensor, Matmul, TensorBase, Function, Matmax};
 
 #[derive(Debug)]
 pub struct CpuCore;
@@ -18,12 +18,12 @@ impl CpuCore {
         let size = 1024;
         let elements = size * size;
 
-        let a: Tensor = DefaultLayer::from(vec![1.0; elements], &[size, size].to_vec()).unwrap();
-        let b: Tensor = DefaultLayer::from(vec![2.0; elements], &[size, size].to_vec()).unwrap();
+        let a: Tensor = TensorBase::from(vec![1.0; elements], &[size, size].to_vec()).unwrap();
+        let b: Tensor = TensorBase::from(vec![2.0; elements], &[size, size].to_vec()).unwrap();
 
         // Measure matrix multiplication time (more compute intensive than addition)
         let start = std::time::Instant::now();
-        let _c = Matmul::call(a, b);
+        let _c = Matmul::new(a, b)
         let duration = start.elapsed();
 
         // Calculate FLOPS:
