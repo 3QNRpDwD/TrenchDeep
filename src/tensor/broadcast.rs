@@ -1,6 +1,6 @@
 use crate::tensor::{BroadcastLayer, Tensor};
 
-impl BroadcastLayer for Tensor {
+impl<Type> BroadcastLayer for Tensor<Type> {
     fn can_broadcast(&self, other: &Self) -> bool {
         if self.shape.len() != other.shape.len() {
             return false;
@@ -33,7 +33,7 @@ impl BroadcastLayer for Tensor {
             data.push(op(self.data[self_idx], other.data[other_idx]));
         }
 
-        Some(Self { backend: self.backend, data, shape, grad: None, grad_fn: None, requires_grad: false })
+        Some(Self { data, shape, grad: None, grad_fn: None, requires_grad: false })
     }
 
     fn calculate_broadcast_indices(&self, other: &Self, idx: usize, shape: &[usize]) -> Option<(usize, usize)> {

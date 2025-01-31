@@ -1,66 +1,13 @@
-use std::sync::Arc;
+use crate::{MlError, MlResult};
+use crate::tensor::{TensorBase, Tensor, TensorError};
 
-use crate::{backend, MlError, MlResult};
-use crate::backend::{Backend, Device};
-use crate::tensor::{Add, TensorBase, Div, Function, Matmax, Matmul, Mul, Pow, Sub, Tensor, TensorError, Topk, OperatorBase, OpsArg};
 
-impl<F, S, T> OperatorBase<F, S, T> for Add<F>{
-    type Output = F;
-    fn new(first: T, second: Option<T>, _: Option<impl Into<OpsArg>>) -> Self::Output {
-        Self { first, second: second.unwrap() }
-    }
-}
-
-impl<T: TensorBase> Sub<T>{
-    fn new(first: T, second: T) -> MlResult<Self> {
-        Ok(Sub { first, second })
-    }
-}
-
-impl<T: TensorBase> Mul<T>{
-    pub fn new(first: T, second: T) -> MlResult<Self> {
-        Ok(Mul { first, second })
-    }
-}
-
-impl<T: TensorBase> Div<T>{
-    pub fn new(first: T, second: T) -> MlResult<Self> {
-        Ok(Div { first, second })
-    }
-}
-
-impl<T: TensorBase> Pow<T>{
-    pub fn new(first: T, power: f32) -> MlResult<Self> {
-        Ok(Pow { first, second: power })
-    }
-}
-
-impl<T: TensorBase> Matmul<T>{
-    pub fn new(first: T, second: T) -> MlResult<Self> {
-        Ok(Matmul { first, second })
-    }
-}
-
-impl<T: TensorBase> Topk<T>{
-    pub fn new(first: T, k: usize, sorted: bool) -> MlResult<Self> {
-        Ok(Topk { first, second: k, third: sorted })
-    }
-}
-
-impl<T: TensorBase> Matmax<T>{
-    pub fn new(first: T, dim: Option<i32>, keepdim: bool) -> MlResult<Self> {
-        Ok(Matmax { first, second: dim, third: keepdim })
-    }
-}
-
-impl TensorBase for Tensor {
-    fn new(data: Vec<Vec<f32>>) -> MlResult<Self> {
+impl<T> TensorBase<T> for Tensor<T> {
+    fn new(data: Vec<Vec<T>>) -> MlResult<Self> {
         let shape = vec![data.len(), data[0].len()];
-        let data: Vec<f32> = data.into_iter().flatten().collect();
-        let backend: Arc<dyn Backend> =  Arc::new(backend::CpuBackend::new()?);
+        let data: Vec<T> = data.into_iter().flatten().collect();
 
         Ok(Self {
-            backend,
             data,
             shape,
             grad: None,
@@ -69,7 +16,7 @@ impl TensorBase for Tensor {
         })
     }
 
-    fn from(data: Vec<f32>, shape: &[usize]) -> MlResult<Self> {
+    fn from_vec(data: Vec<T>, shape: &[usize]) -> MlResult<Self> {
         let expected_len: usize = shape.iter().product();
         if data.len() != expected_len {
             return Err(MlError::TensorError(TensorError::InvalidDataLength {
@@ -77,9 +24,8 @@ impl TensorBase for Tensor {
                 got: data.len(),
             }));
         }
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
+
         Ok(Self {
-            backend,
             data,
             shape: shape.to_vec(),
             grad: None,
@@ -92,11 +38,11 @@ impl TensorBase for Tensor {
         &self.shape
     }
 
-    fn data(&self) -> &[f32] {
+    fn data(&self) -> &[T] {
         &self.data
     }
 
-    fn get(&self, indices: &[usize]) -> Option<&f32> {
+    fn get(&self, indices: &[usize]) -> Option<&T> {
         self.data.get(self.index(indices)?)
     }
     fn index(&self, indices: &[usize]) -> Option<usize> {
@@ -111,11 +57,24 @@ impl TensorBase for Tensor {
         )
     }
 
-    fn backend(&self) -> &Arc<dyn Backend> {
-        &self.backend
+    /// Verifies if two tensors can perform element-wise operations
+    ///
+    /// # Arguments
+    /// * `other` - The tensor to compare shapes with
+    ///
+    /// # Returns
+    /// * `Ok(())` if the shapes match
+    /// * `Err(MlError::TensorError)` if shapes don't match
+    fn chk_shape(&self, other: &T) -> MlResult<()> {
+        if self.shape() != other.shape() {
+            return Err(MlError::TensorError(TensorError::InvalidShape {
+                expected: self.shape().to_vec(),
+                got: other.shape().to_vec(),
+            }));
+        }
+        Ok(())
     }
 }
-
 
 // impl<T: TensorBase Function<T> for Functions {
 //     type Output = MlResult<T>;
@@ -143,22 +102,22 @@ impl TensorBase for Tensor {
 //     }
 //     fn backward(&self, grad: Self::Gradient) -> Self::Output {
 //         match self {
-//             Functions::Abs      (F) =>  F.backword(grad),
-//             Functions::Exp      (F) =>  F.backword(grad),
-//             Functions::Log      (F) =>  F.backword(grad),
-//             Functions::Neg      (F) =>  F.backword(grad),
-//             Functions::Sqrt     (F) =>  F.backword(grad),
-//             Functions::Square   (F) =>  F.backword(grad),
+//             Functions::Abs      (F) =>  F.backward(grad),
+//             Functions::Exp      (F) =>  F.backward(grad),
+//             Functions::Log      (F) =>  F.backward(grad),
+//             Functions::Neg      (F) =>  F.backward(grad),
+//             Functions::Sqrt     (F) =>  F.backward(grad),
+//             Functions::Square   (F) =>  F.backward(grad),
 //
-//             Functions::Add      (F) =>  F.backword(grad),
-//             Functions::Sub      (F) =>  F.backword(grad),
-//             Functions::Mul      (F) =>  F.backword(grad),
-//             Functions::Div      (F) =>  F.backword(grad),
-//             Functions::Pow      (F) =>  F.backword(grad),
-//             Functions::Matmul   (F) =>  F.backword(grad),
+//             Functions::Add      (F) =>  F.backward(grad),
+//             Functions::Sub      (F) =>  F.backward(grad),
+//             Functions::Mul      (F) =>  F.backward(grad),
+//             Functions::Div      (F) =>  F.backward(grad),
+//             Functions::Pow      (F) =>  F.backward(grad),
+//             Functions::Matmul   (F) =>  F.backward(grad),
 //
-//             Functions::Topk     (F) =>  F.backword(grad),
-//             Functions::Matmax   (F) =>  F.backword(grad),
+//             Functions::Topk     (F) =>  F.backward(grad),
+//             Functions::Matmax   (F) =>  F.backward(grad),
 //         }
 //         todo!("역전파 구현하기")
 //     }

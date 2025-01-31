@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::sync::Arc;
 
-use crate::{backend::Backend, MlResult};
+use crate::{backend::Backend, MlError, MlResult};
 
 mod ops;
 mod broadcast;
@@ -20,7 +20,7 @@ mod creation;
 /// * `$op`: The operator struct that implements the `forward` method.
 ///
 /// # Returns
-/// A new tensor resulting from the unary operation.
+/// A new tensor resulting from_vec the unary operation.
 ///
 ///
 /// Handles binary operations (e.g., Add, Sub, Mul, Div).
@@ -32,7 +32,7 @@ mod creation;
 /// * `$y`: The second input tensor.
 ///
 /// # Returns
-/// A new tensor resulting from the binary operation.
+/// A new tensor resulting from_vec the binary operation.
 ///
 ///
 /// Handles ternary operations for specific operators like `Topk` and `Matmax`.
@@ -45,7 +45,7 @@ mod creation;
 /// * `$z`: The third parameter (e.g., `sorted` for `Topk`, `keepdim` for `Matmax`).
 ///
 /// # Returns
-/// A new tensor resulting from the ternary operation. For `Topk`, returns the top-k values and their indices.
+/// A new tensor resulting from_vec the ternary operation. For `Topk`, returns the top-k values and their indices.
 /// For `Matmax`, returns the maximum values and their indices (if applicable).
 #[macro_export]
 macro_rules! ops {
@@ -118,60 +118,74 @@ impl Display for TensorError {
 }
 
 #[derive(Debug, Clone)]
-pub struct Tensor {
-    backend: Arc<dyn Backend>,
-    data: Vec<f32>,
+pub struct Tensor<Type> {
+    data: Type,
     shape: Vec<usize>,
-    grad: Option<Box<Tensor>>,
-    grad_fn: Option<GradFn>,
+    grad: Option<Box<Tensor<f32>>>,
+    grad_fn: Option<GradFn<Vec<f32>>>,
     requires_grad: bool,
 }
 
-#[derive(Clone)]
-struct GradFn(Arc<dyn Fn(&Tensor) -> MlResult<()>>);
+#[derive(Debug, Clone)]
+pub struct Scalar<T> {
+    data: T,
+    shape: usize,
+}
 
-impl std::fmt::Debug for GradFn {
+// #[derive(Debug, Clone)]
+// pub struct Scalar {
+//     data: f32,
+//     shape: usize,
+// }
+
+#[derive(Clone)]
+struct GradFn<T>(Arc<dyn Fn(&Tensor<T>) -> MlResult<()>>);
+
+impl std::fmt::Debug for GradFn<Vec<f32>> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "GradFn")
     }
 }
 
 
-impl PartialEq for Tensor {
+impl<T> PartialEq for Tensor<T> {
     fn eq(&self, other: &Self) -> bool {
         self.data == other.data && self.shape == other.shape
     }
 }
 
-impl Eq for Tensor {
+impl Eq for Tensor<Vec<f32>> {
     // Todo: 구현 필요
 }
 
-impl PartialOrd for Tensor {
+impl<T> PartialOrd for Tensor<T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.data.partial_cmp(&other.data)
     }
 }
 
-impl Ord for Tensor {
+impl Ord for Tensor<Vec<f32>> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
     }
 }
 
-pub trait TensorBase {
-    fn new(data: Vec<Vec<f32>>)                 -> MlResult<Self> where Self: Sized;
-    fn from(data: Vec<f32>, shape: &[usize])    -> MlResult<Self> where Self: Sized;
-    fn shape(&self)                             -> &[usize];
-    fn data(&self)                              -> &[f32];
-    fn get(&self, indices: &[usize])            -> Option<&f32>;
-    fn index(&self, indices: &[usize])          -> Option<usize>;
-    fn backend(&self)                           -> &Arc<dyn Backend>;
+pub trait TensorBase<Type> {
+    fn new(data: Vec<Vec<Type>>)                   -> MlResult<Self>;
+    fn from_vec(data: Vec<Type>, shape: &[usize])  -> MlResult<Self>;
+    fn shape(&self)                                 -> &[usize];
+    fn data(&self)                                  -> &[Type];
+    fn get(&self, indices: &[usize])                -> Option<&Type>;
+    fn index(&self, indices: &[usize])              -> Option<usize>;
+    fn chk_shape(&self, other: &Type)               -> MlResult<()>;
 }
 
-pub trait OperatorBase<F: TensorBase, S, T> {
-    type Output;
-    fn new(first: T, second: Option<T>, third: Option<impl Into<OpsArg>>) -> Self::Output;
+pub trait Function<F, S> where F: Sized, S: Sized {
+    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>)
+                                -> Self;
+    fn forward(&self)           -> F;
+    fn backward(&self, grad: F) -> (F, F);
+    fn backend(&self)                               -> &Arc<dyn Backend>;
 }
 
 pub enum OpsArg {
@@ -181,27 +195,8 @@ pub enum OpsArg {
     // ... 기타 필요한 인자 타입들
 }
 
-pub trait Function<F: TensorBase, S, T>: OperatorBase<F, S, T> {
+pub trait OpsLayer<T: TensorBase<T>> {
     type Output;
-    type Gradient;
-    fn forward(&self) -> Self::Output;
-    fn backward(&self, grad: Self::Gradient) -> Self::Output;
-}
-
-pub trait BroadcastLayer {
-    fn can_broadcast(&self, other: &Self) -> bool;
-    fn broadcast_shape(&self, other: &Self) -> Vec<usize>;
-    fn broadcasting<F>(self, other: Self, op: F) -> Option<Self>
-    where
-        F: Fn(f32, f32) -> f32,
-        Self: Sized;
-    fn calculate_broadcast_indices(&self, other: &Self, idx: usize, shape: &[usize]) -> Option<(usize, usize)>;
-}
-
-pub trait OpsLayer<T: TensorBase>{
-    type Output;
-
-    fn chk_shape(&self, other: &T) -> MlResult<()>;
 
     // 텐서 & 스칼라 연산
     fn add_scalar(&self, scalar: f32)       -> Self::Output;
@@ -218,54 +213,64 @@ pub trait OpsLayer<T: TensorBase>{
     fn eq_scalar(&self, scalar: f32)        -> Self::Output;
 }
 
+pub trait BroadcastLayer {
+    fn can_broadcast(&self, other: &Self) -> bool;
+    fn broadcast_shape(&self, other: &Self) -> Vec<usize>;
+    fn broadcasting<F>(self, other: Self, op: F) -> Option<Self>
+    where
+        F: Fn(f32, f32) -> f32,
+        Self: Sized;
+    fn calculate_broadcast_indices(&self, other: &Self, idx: usize, shape: &[usize]) -> Option<(usize, usize)>;
+}
+
 /// Structure representing an exponential operation.
-pub struct Exp<T: TensorBase>       { first: T }
+pub struct Exp<T>     { first: T, backend: Arc<dyn Backend>}
 
 /// Structure representing a negation operation.
-pub struct Neg<T: TensorBase>       { first: T }
+pub struct Neg<T>     { first: T, backend: Arc<dyn Backend> }
 
 /// Structure representing a square root operation.
-pub struct Sqrt<T: TensorBase>      { first: T }
+pub struct Sqrt<T>    { first: T, backend: Arc<dyn Backend> }
 
 /// Structure representing an absolute value operation.
-pub struct Abs<T: TensorBase>       { first: T }
+pub struct Abs<T>     { first: T, backend: Arc<dyn Backend> }
 
 /// Structure representing a squaring operation.
-pub struct Square<T: TensorBase>    { first: T }
+pub struct Square<T>  { first: T, backend: Arc<dyn Backend> }
 
 /// Structure representing a logarithmic operation.
-pub struct Log<T: TensorBase>       { first: T }
+pub struct Log<T>     { first: T, backend: Arc<dyn Backend> }
 
 /// Structure representing an addition operation.
-pub struct Add<T: TensorBase>       { first: T, second: T }
+pub struct Add<T>     { first: T, second: T, backend: Arc<dyn Backend> }
 
 /// Structure representing a subtraction operation.
-pub struct Sub<T: TensorBase>       { first: T, second: T }
+pub struct Sub<T>     { first: T, second: T, backend: Arc<dyn Backend> }
 
 /// Structure representing a multiplication operation.
-pub struct Mul<T: TensorBase>       { first: T, second: T }
+pub struct Mul<T>     { first: T, second: T, backend: Arc<dyn Backend> }
 
 /// Structure representing a division operation.
-pub struct Div<T: TensorBase>       { first: T, second: T }
+pub struct Div<T>     { first: T, second: T, backend: Arc<dyn Backend> }
 
 /// Structure representing a power operation.
-pub struct Pow<T: TensorBase>       { first: T, second: f32 }
+pub struct Pow<T>     { first: T, second: f32, backend: Arc<dyn Backend> }
 
 /// Structure representing a matrix multiplication operation.
-pub struct Matmul<T: TensorBase>    { first: T, second: T }
+pub struct Matmul<T>  { first: T, second: T, backend: Arc<dyn Backend> }
 
 /// Structure representing a Top-k operation.
-pub struct Topk<T: TensorBase>      { first: T, second: usize, third: bool } // k: second, sorted: third
+pub struct Topk<T>    { first: T, second: usize, third: bool, backend: Arc<dyn Backend> } // k: second, sorted: third
 
 /// Structure representing a matrix max operation along a dimension.
-pub struct Matmax<T: TensorBase>    { first: T, second: Option<i32>, third: bool } // dim: second, keepdim: third
+pub struct Matmax<T>  { first: T, second: Option<i32>, third: bool, backend: Arc<dyn Backend> } // dim: second, keepdim: third
 
 #[cfg(test)]
 mod tests {
     use crate::MlResult;
     use crate::tensor::{Add, TensorBase, Div, Function, Mul, OpsLayer, Sub, Tensor};
 
-    pub fn assert_tensor_eq(tensor: Tensor, expected_tensor: Tensor, ) -> MlResult<()> {
+    pub fn assert_tensor_eq(tensor: Tensor<f64>, expected_tensor: Tensor<f64>, ) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
         Ok(())

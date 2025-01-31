@@ -1,26 +1,11 @@
-use crate::{MlError, MlResult};
-use crate::tensor::{Abs, TensorBase, Exp, Function, Log, Matmax, Matmul, Neg, OpsLayer, Pow, Sqrt, Square, TensorError, Topk};
+use std::sync::Arc;
+use crate::{backend, MlError, MlResult};
+use crate::backend::{Backend, Device};
+use crate::tensor::{Abs, TensorBase, Exp, Function, Log, Matmax, Matmul, Neg, OpsLayer, Pow, Sqrt, Square, TensorError, Topk, OpsArg, Tensor};
 
-impl<T: TensorBase> OpsLayer<T> for T {
+
+impl<T: TensorBase<f32>> OpsLayer<T> for T {
     type Output = MlResult<Self>;
-
-    /// Verifies if two tensors can perform element-wise operations
-    ///
-    /// # Arguments
-    /// * `other` - The tensor to compare shapes with
-    ///
-    /// # Returns
-    /// * `Ok(())` if the shapes match
-    /// * `Err(MlError::TensorError)` if shapes don't match
-    fn chk_shape(&self, other: &T) -> MlResult<()> {
-        if self.shape() != other.shape() {
-            return Err(MlError::TensorError(TensorError::InvalidShape {
-                expected: self.shape().to_vec(),
-                got: other.shape().to_vec(),
-            }));
-        }
-        Ok(())
-    }
 
     /// Adds a scalar to each element in the tensor
     ///
@@ -30,10 +15,10 @@ impl<T: TensorBase> OpsLayer<T> for T {
     /// # Returns
     /// A new tensor with each element being tensor_element + scalar
     fn add_scalar(&self, scalar: f32) -> Self::Output {
-        TensorBase::from(self.data().iter().map(|&x| x + scalar).collect(), self.shape())
+        TensorBase::from_vec(self.data().iter().map(|&x| x + scalar).collect(), self.shape())
     }
 
-    /// Subtracts a scalar from each element in the tensor
+    /// Subtracts a scalar from_vec each element in the tensor
     ///
     /// # Arguments
     /// * `scalar` - The scalar value to subtract
@@ -41,7 +26,7 @@ impl<T: TensorBase> OpsLayer<T> for T {
     /// # Returns
     /// A new tensor with each element being tensor_element - scalar
     fn sub_scalar(&self, scalar: f32) -> Self::Output {
-        TensorBase::from(self.data().iter().map(|&x| x - scalar).collect(), self.shape())
+        TensorBase::from_vec(self.data().iter().map(|&x| x - scalar).collect(), self.shape())
     }
 
     /// Multiplies a scalar by each element in the tensor
@@ -52,7 +37,7 @@ impl<T: TensorBase> OpsLayer<T> for T {
     /// # Returns
     /// A new tensor with each element being tensor_element * scalar
     fn mul_scalar(&self, scalar: f32) -> Self::Output {
-        TensorBase::from(self.data().iter().map(|&x| x * scalar).collect(), self.shape())
+        TensorBase::from_vec(self.data().iter().map(|&x| x * scalar).collect(), self.shape())
     }
 
     /// Divides each element in the tensor by a scalar
@@ -63,10 +48,10 @@ impl<T: TensorBase> OpsLayer<T> for T {
     /// # Returns
     /// A new tensor with each element being tensor_element / scalar
     fn div_scalar(&self, scalar: f32) -> Self::Output {
-        TensorBase::from(self.data().iter().map(|&x| x / scalar).collect(), self.shape())
+        TensorBase::from_vec(self.data().iter().map(|&x| x / scalar).collect(), self.shape())
     }
 
-    /// Subtracts a scalar from each element in the tensor
+    /// Subtracts a scalar from_vec each element in the tensor
     ///
     /// # Arguments
     /// * `scalar` - The scalar value to subtract
@@ -74,7 +59,7 @@ impl<T: TensorBase> OpsLayer<T> for T {
     /// # Returns
     /// A new tensor with each element being scalar - tensor_element
     fn scalar_sub(&self, scalar: f32) -> Self::Output {
-        TensorBase::from(self.data().iter().map(|&x| scalar - x).collect(), self.shape())
+        TensorBase::from_vec(self.data().iter().map(|&x| scalar - x).collect(), self.shape())
     }
 
     /// Divides a scalar by each element in the tensor
@@ -85,7 +70,7 @@ impl<T: TensorBase> OpsLayer<T> for T {
     /// # Returns
     /// A new tensor with each element being scalar / tensor_element
     fn scalar_div(&self, scalar: f32) -> Self::Output {
-        TensorBase::from(self.data().iter().map(|&x| scalar / x).collect(), self.shape())
+        TensorBase::from_vec(self.data().iter().map(|&x| scalar / x).collect(), self.shape())
     }
 
     /// Raises each element in the tensor to a power
@@ -96,7 +81,7 @@ impl<T: TensorBase> OpsLayer<T> for T {
     /// # Returns
     /// A new tensor with each element being tensor_element ^ exponent
     fn pow_scalar(&self, exponent: f32) -> Self::Output {
-        TensorBase::from(self.data().iter().map(|&x| x.powf(exponent)).collect(), self.shape())
+        TensorBase::from_vec(self.data().iter().map(|&x| x.powf(exponent)).collect(), self.shape())
     }
 
     /// Raises a scalar to the power of each element in the tensor
@@ -107,7 +92,7 @@ impl<T: TensorBase> OpsLayer<T> for T {
     /// # Returns
     /// A new tensor with each element being scalar ^ tensor_element
     fn scalar_pow(&self, scalar: f32) -> Self::Output{
-        TensorBase::from(self.data().iter().map(|&x| scalar.powf(x)).collect(), self.shape())
+        TensorBase::from_vec(self.data().iter().map(|&x| scalar.powf(x)).collect(), self.shape())
     }
 
     /// Compares each element in the tensor to a scalar and returns a new tensor with the result
@@ -118,37 +103,45 @@ impl<T: TensorBase> OpsLayer<T> for T {
     /// # Returns
     /// A new tensor with each element being 1.0 if tensor_element == scalar, otherwise 0.0
     fn eq_scalar(&self, scalar: f32) -> Self::Output {
-        TensorBase::from(self.data().iter().map(|&x| (x == scalar) as i32 as f32).collect(), self.shape())
+        TensorBase::from_vec(self.data().iter().map(|&x| (x == scalar) as i32 as f32).collect(), self.shape())
     }
 }
 
-impl<F: TensorBase, S, T> Function<F, S, T> for Abs<F> {
-    type Output = MlResult<F>;
-    type Gradient = f64;
+impl<F, S> Function<F, S> for Abs<F> {
+    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
+        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
+        todo!()
+    }
 
     /// Computes the absolute value of each element in the tensor.
     ///
     /// # Returns
     /// A new tensor with the absolute values of each element
-    fn forward(&self) -> Self::Output {
-        TensorBase::from(self.first.backend().exp(self.first.data()), self.first.shape())
+    fn forward(&self) -> F {
+        TensorBase::from_vec(self.first.backend().exp(self.first.data()), self.first.shape())
     }
 
-    fn backward(&self, grad: Self::Gradient) -> Self::Output {
+    fn backward(&self, grad: F) -> (F, F) {
+        todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
         todo!()
     }
 }
 
-impl<F: TensorBase, S, T> Function<F, S, T> for Exp<F> {
-    type Output = MlResult<F>;
-    type Gradient = f64;
+impl<F, S> Function<F, S> for Exp<F> {
+    fn new(first: F, _: Option<S>, _: Option<impl Into<OpsArg>>) -> Self {
+        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
+        todo!()
+    }
 
     /// Applies the exponential function to each element in the tensor
     ///
     /// # Returns
     /// A new tensor with each element being e ^ tensor_element
     fn forward(&self) -> Self::Output {
-        TensorBase::from(self.first.data().iter().map(|&x| x.abs()).collect(), self.first.shape())
+        TensorBase::from_vec(self.first.data().iter().map(|&x| x.abs()).collect(), self.first.shape())
     }
 
     fn backward(&self, grad: Self::Gradient) -> Self::Output {
@@ -156,16 +149,23 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Exp<F> {
     }
 }
 
-impl<F: TensorBase, S, T> Function<F, S, T> for Log<F> {
-    type Output = MlResult<F>;
-    type Gradient = f64;
+impl<F:, S> Function<F, S> for Log<F> {
+    fn new(first: F, _: Option<S>, _: Option<impl Into<OpsArg>>) -> Self {
+        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
+        todo!()
+
+        Self {
+            first,
+            backend,
+        }
+    }
 
     /// Applies the natural logarithm to each element in the tensor
     ///
     /// # Returns
     /// A new tensor with each element being the natural logarithm of tensor_element
     fn forward(&self) -> Self::Output {
-        TensorBase::from(self.first.data().iter().map(|&x| x.ln()).collect(), self.first.shape())
+        TensorBase::from_vec(self.first.data().iter().map(|&x| x.ln()).collect(), self.first.shape())
     }
 
     fn backward(&self, grad: Self::Gradient) -> Self::Output {
@@ -173,16 +173,18 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Log<F> {
     }
 }
 
-impl<F: TensorBase, S, T> Function<F, S, T> for Neg<F> {
-    type Output = MlResult<F>;
-    type Gradient = f64;
+impl<F, S> Function<F, S> for Neg<F> {
+    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
+        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
+        todo!()
+    }
 
     /// Negates each element in the tensor
     ///
     /// # Returns
     /// A new tensor with each element being the negation of tensor_element
     fn forward(&self) -> Self::Output {
-        TensorBase::from(self.first.data().iter().map(|&x| -x).collect(), self.first.shape())
+        TensorBase::from_vec(self.first.data().iter().map(|&x| -x).collect(), self.first.shape())
     }
 
     fn backward(&self, grad: Self::Gradient) -> Self::Output {
@@ -190,16 +192,18 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Neg<F> {
     }
 }
 
-impl<F: TensorBase, S, T> Function<F, S, T> for Sqrt<F> {
-    type Output = MlResult<F>;
-    type Gradient = f64;
+impl<F, S> Function<F, S> for Sqrt<F> {
+    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
+        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
+        todo!()
+    }
 
     /// Takes the square root of each element in the tensor
     ///
     /// # Returns
     /// A new tensor with each element being the square root of tensor_element
     fn forward(&self) -> Self::Output {
-        TensorBase::from(self.first.backend().sqrt(self.first.data()), self.first.shape())
+        TensorBase::from_vec(self.first.backend().sqrt(self.first.data()), self.first.shape())
     }
 
     fn backward(&self, grad: Self::Gradient) -> Self::Output {
@@ -207,16 +211,18 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Sqrt<F> {
     }
 }
 
-impl<F: TensorBase, S, T> Function<F, S, T> for Square<F> {
-    type Output = MlResult<F>;
-    type Gradient = f64;
+impl<F, S> Function<F, S> for Square<F> {
+    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
+        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
+        todo!()
+    }
 
     /// Returns a new tensor with the square of the elements of input
     ///
     /// # Returns
     /// A new tensor with each element being the square of the corresponding element in the input tensor
     fn forward(&self) -> Self::Output {
-        TensorBase::from(self.first.data().iter().map(|&x| x * x).collect(), self.first.shape())
+        TensorBase::from_vec(self.first.data().iter().map(|&x| x * x).collect(), self.first.shape())
     }
 
     fn backward(&self, grad: Self::Gradient) -> Self::Output {
@@ -224,9 +230,11 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Square<F> {
     }
 }
 
-impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Add<F> {
-    type Output = MlResult<F>;
-    type Gradient = f64;
+impl<F, S> Function<F, S> for crate::tensor::Add<F> {
+    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
+        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
+        todo!()
+    }
 
     /// Adds two tensors element-wise
     ///
@@ -245,11 +253,11 @@ impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Add<F> {
                     *val = self.first.data()[i * features + j] + self.second.data()[j];
                 }
             }
-            return TensorBase::from(data, self.first.shape())
+            return TensorBase::from_vec(data, self.first.shape())
         }
         match self.first.chk_shape(&self.second) {
             Err(e) => Err(e),
-            _ => TensorBase::from(
+            _ => TensorBase::from_vec(
                 self.first.backend()
                     .add(
                     self.first.data(),
@@ -265,13 +273,16 @@ impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Add<F> {
     }
 }
 
-impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Sub<F> {
-    type Output = MlResult<F>;
-    type Gradient = f64;
+impl<F, S> Function<F, S> for crate::tensor::Sub<F> {
+    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
+        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
+        todo!()
+    }
+
     /// Subtracts two tensors element-wise
     ///
     /// # Arguments
-    /// * `other` - The tensor to subtract from the current tensor
+    /// * `other` - The tensor to subtract from_vec the current tensor
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise subtraction
@@ -285,12 +296,12 @@ impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Sub<F> {
                     data[i * features + j] = self.first.data()[i * features + j] - self.second.data()[j];
                 }
             }
-            return TensorBase::from(data, &self.first.shape());
+            return TensorBase::from_vec(data, &self.first.shape());
         }
 
         match self.first.chk_shape(&self.second) {
             Err(e) => Err(e),
-            _ => TensorBase::from(self.first.backend().sub(self.first.data(), self.second.data()), self.first.shape())
+            _ => TensorBase::from_vec(self.first.backend().sub(self.first.data(), self.second.data()), self.first.shape())
         }
     }
 
@@ -299,9 +310,11 @@ impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Sub<F> {
     }
 }
 
-impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Mul<F> {
-    type Output = MlResult<F>;
-    type Gradient = f64;
+impl<F, S> Function<F, S> for crate::tensor::Mul<F> {
+    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
+        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
+        todo!()
+    }
 
     /// Multiplies two tensors element-wise
     ///
@@ -313,7 +326,7 @@ impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Mul<F> {
     fn forward(&self) -> Self::Output {
         match self.first.chk_shape(&self.second) {
             Err(e) => Err(e),
-            _ => TensorBase::from(self.first.backend().multiply(self.first.data(), self.second.data()), self.first.shape())
+            _ => TensorBase::from_vec(self.first.backend().multiply(self.first.data(), self.second.data()), self.first.shape())
         }
     }
 
@@ -322,9 +335,11 @@ impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Mul<F> {
     }
 }
 
-impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Div<F> {
-    type Output = MlResult<F>;
-    type Gradient = f64;
+impl<F, S> Function<F, S> for crate::tensor::Div<F> {
+    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
+        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
+        todo!()
+    }
 
     /// Divides two tensors element-wise
     ///
@@ -337,7 +352,7 @@ impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Div<F> {
 
         match self.first.chk_shape(&self.second) {
             Err(e) => Err(e),
-            _ => TensorBase::from(self.first.backend().div(self.first.data(), self.second.data()), self.first.shape())
+            _ => TensorBase::from_vec(self.first.backend().div(self.first.data(), self.second.data()), self.first.shape())
         }
     }
 
@@ -346,9 +361,11 @@ impl<F: TensorBase, S, T> Function<F, S, T> for crate::tensor::Div<F> {
     }
 }
 
-impl<F: TensorBase, S, T> Function<F, S, T> for Pow<F> {
-    type Output = MlResult<F>;
-    type Gradient = f64;
+impl<F, S> Function<F, S> for Pow<F> {
+    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
+        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
+        todo!()
+    }
 
     /// Raises each element in the tensor to a power
     ///
@@ -358,7 +375,7 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Pow<F> {
     /// # Returns
     /// A new tensor with each element being tensor_element ^ power
     fn forward(&self) -> Self::Output {
-        TensorBase::from(self.first.backend().pow(self.first.data(), self.second), self.first.shape())
+        TensorBase::from_vec(self.first.backend().pow(self.first.data(), self.second), self.first.shape())
     }
 
     fn backward(&self, grad: Self::Gradient) -> Self::Output {
@@ -366,9 +383,11 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Pow<F> {
     }
 }
 
-impl<F: TensorBase, S, T> Function<F, S, T> for Matmul<F> {
-    type Output = MlResult<F>;
-    type Gradient = f64;
+impl<F, S> Function<F, S> for Matmul<F> {
+    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
+        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
+        todo!()
+    }
 
     /// Performs matrix multiplication on two tensors
     ///
@@ -391,7 +410,7 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Matmul<F> {
             (1, 1) => {
                 match self.first.chk_shape(&self.second) {
                     Err(e) => Err(e),
-                    _ => TensorBase::from(
+                    _ => TensorBase::from_vec(
                         vec![self.first.data().iter().zip(self.second.data().iter()).map(|(&a, &b)| a * b).sum::<f32>()],
                         &vec![]
                     )
@@ -419,7 +438,7 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Matmul<F> {
                     }
                     data[i] = sum;
                 }
-                TensorBase::from(data, &[m].to_vec())
+                TensorBase::from_vec(data, &[m].to_vec())
             }
 
             (1, 2) => {
@@ -442,7 +461,7 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Matmul<F> {
                     }
                     data[j] = sum;
                 }
-                TensorBase::from(data, &[n].to_vec())
+                TensorBase::from_vec(data, &[n].to_vec())
             }
 
             // Case 3: Higher dimensional tensor multiplication
@@ -522,7 +541,7 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Matmul<F> {
                 shape.push(m);
                 shape.push(n);
 
-                TensorBase::from(data, &shape)
+                TensorBase::from_vec(data, &shape)
             }
         }
     }
@@ -532,9 +551,11 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Matmul<F> {
     }
 }
 
-impl<F: TensorBase, S, T> Function<F, S, T> for Topk<F> {
-    type Output = MlResult<(F, F)>;
-    type Gradient = f64;
+impl<F, S> Function<F, S> for Topk<F> {
+    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
+        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
+        todo!()
+    }
 
     /// Returns the k largest elements of the tensor along the last dimension.
     ///
@@ -601,8 +622,8 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Topk<F> {
         new_shape[last_dim] = self.second;
 
         Ok((
-            TensorBase::from(values, &new_shape)?,
-            TensorBase::from(indices, &new_shape)?,
+            TensorBase::from_vec(values, &new_shape)?,
+            TensorBase::from_vec(indices, &new_shape)?,
         ))
     }
 
@@ -611,9 +632,11 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Topk<F> {
     }
 }
 
-impl<F: TensorBase, S, T> Function<F, S, T> for Matmax<F> {
-    type Output = MlResult<(F, Option<F>)>;
-    type Gradient = f64;
+impl<F, S> Function<F, S> for Matmax<F> {
+    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
+        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
+        todo!()
+    }
 
     /// Returns the maximum value of all elements in the input tensor.
     /// If dim is specified, returns the maximum values along the given dimension.
@@ -627,11 +650,11 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Matmax<F> {
     /// If dim is specified, returns a tuple of two tensors (values, indices) containing the
     /// maximum values and their indices along the specified dimension.
     fn forward(&self) -> Self::Output {
-        match self.dim {
+        match self.second {
             None => {
                 // Find global maximum
                 let max_val = self.first.data().iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-                Ok((TensorBase::from(vec![max_val], &vec![1])?, None))
+                Ok((TensorBase::from_vec(vec![max_val], &vec![1])?, None))
 
             }
             Some(d) => {
@@ -683,8 +706,8 @@ impl<F: TensorBase, S, T> Function<F, S, T> for Matmax<F> {
                 }
 
                 Ok((
-                    TensorBase::from(max_values, &new_shape)?,
-                    Some(TensorBase::from(max_indices, &new_shape)?),
+                    TensorBase::from_vec(max_values, &new_shape)?,
+                    Some(TensorBase::from_vec(max_indices, &new_shape)?),
                 ))
             }
         }
@@ -705,13 +728,13 @@ mod tests {
     #[test]
     fn test_topk() -> MlResult<()> {
         // Test 1: Basic 1D tensor
-        let tensor: Tensor = TensorBase::from(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
+        let tensor = Tensor::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
         let (values, indices) = ops!(tensor, Topk, 3, true)?;
         assert_eq!(values.data(), &[5.0, 4.0, 3.0]);
         assert_eq!(indices.data(), &[4.0, 1.0, 2.0]);
 
         // Test 2: 2D tensor
-        let tensor: Tensor = TensorBase::from(
+        let tensor = Tensor::from_vec(
             vec![1.0, 4.0, 3.0, 2.0, 5.0, 2.0, 3.0, 1.0, 4.0, 5.0],
             &[2, 5],
         )?;
@@ -721,7 +744,7 @@ mod tests {
         assert_eq!(indices.data(), &[4.0, 1.0, 4.0, 3.0]);
 
         // Test 3: Unsorted output
-        let tensor: Tensor = TensorBase::from(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
+        let tensor = Tensor::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
         let (values, indices) = ops!(tensor, Topk, 3, false)?;
         assert_eq!(values.data(), &[4.0, 3.0, 5.0]);
         assert_eq!(indices.data(), &[1.0, 2.0, 4.0]);
@@ -759,8 +782,8 @@ mod tests {
     #[test]
     fn test_matmul_2d_2d() -> MlResult<()> {
         // Case 1: 2D * 2D Matrix Multiplication
-        let a: Tensor = TensorBase::from(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?;
-        let b: Tensor = TensorBase::from(vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0], &[3, 2])?;
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?;
+        let b = Tensor::from_vec(vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0], &[3, 2])?;
         let c = ops!(a, Matmul, b)?;
 
 
@@ -772,8 +795,8 @@ mod tests {
     #[test]
     fn test_matmul_1d_2d() -> MlResult<()> {
         // Case 2: 1D * 2D (Vector-Matrix Multiplication)
-        let a: Tensor = TensorBase::from(vec![1.0, 2.0, 3.0], &[3])?;
-        let b: Tensor = TensorBase::from(vec![4.0, 5.0, 6.0, 7.0, 8.0, 9.0], &[3, 2])?;
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0], &[3])?;
+        let b = Tensor::from_vec(vec![4.0, 5.0, 6.0, 7.0, 8.0, 9.0], &[3, 2])?;
         let c = ops!(a, Matmul, b)?;
 
         assert_eq!(c.shape(), &[2]);
@@ -784,8 +807,8 @@ mod tests {
     #[test]
     fn test_matmul_2d_1d() -> MlResult<()> {
         // Case 3: 2D * 1D (Matrix-Vector Multiplication)
-        let a: Tensor = TensorBase::from(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?;
-        let b: Tensor = TensorBase::from(vec![7.0, 8.0, 9.0], &[3])?;
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?;
+        let b = Tensor::from_vec(vec![7.0, 8.0, 9.0], &[3])?;
         let c = ops!(a, Matmul, b)?;
 
         assert_eq!(c.shape(), &[2]);
@@ -796,8 +819,8 @@ mod tests {
     #[test]
     fn test_matmul_3d_3d() -> MlResult<()> {
         // Case 4: 3D * 3D (Batch Matrix Multiplication)
-        let a: Tensor = TensorBase::from(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &[2, 2, 2])?;
-        let b: Tensor = TensorBase::from(
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &[2, 2, 2])?;
+        let b = Tensor::from_vec(
             vec![9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0],
             &[2, 2, 2],
         )?;
@@ -814,15 +837,15 @@ mod tests {
     #[test]
     fn test_matmul_invalid_shapes() -> MlResult<()> {
         // Test incompatible shapes
-        let a: Tensor = TensorBase::from(vec![1.0, 2.0, 3.0], &[3])?;
-        let b: Tensor = TensorBase::from(vec![4.0, 5.0], &[2])?;
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0], &[3])?;
+        let b = Tensor::from_vec(vec![4.0, 5.0], &[2])?;
 
         // This should return an error since the shapes are incompatible
         assert!(ops!(a, Matmul, b).is_err());
 
         // Test incompatible batch dimensions
-        let a: Tensor = TensorBase::from(vec![1.0, 2.0, 3.0, 4.0], &[2, 2])?;
-        let b: Tensor = TensorBase::from(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[3, 2])?;
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], &[2, 2])?;
+        let b = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[3, 2])?;
 
         // This should return an error since the batch dimensions don't match
         assert!(ops!(a, Matmul, b).is_err());
@@ -833,8 +856,8 @@ mod tests {
     #[test]
     fn test_matmul_1x1() -> MlResult<()> {
         // Case 5: 1x1 Matrix Multiplication
-        let a: Tensor = TensorBase::from(vec![2.0], &[1, 1])?;
-        let b: Tensor = TensorBase::from(vec![3.0], &[1, 1])?;
+        let a = Tensor::from_vec(vec![2.0], &[1, 1])?;
+        let b = Tensor::from_vec(vec![3.0], &[1, 1])?;
         let c = ops!(a, Matmul, b)?;
 
         assert_eq!(c.shape(), &[1, 1]);
@@ -845,8 +868,8 @@ mod tests {
     #[test]
     fn test_matmul_1d_1d() -> MlResult<()> {
         // Case 6: 1D * 1D (Dot Product)
-        let a: Tensor = TensorBase::from(vec![1.0, 2.0, 3.0], &[3])?;
-        let b: Tensor = TensorBase::from(vec![4.0, 5.0, 6.0], &[3])?;
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0], &[3])?;
+        let b = Tensor::from_vec(vec![4.0, 5.0, 6.0], &[3])?;
         let c = ops!(a, Matmul, b)?;
 
         assert_eq!(c.shape(), &[]); // scalar output
@@ -857,8 +880,8 @@ mod tests {
     #[test]
     fn test_matmul_3d_2d_broadcasting() -> MlResult<()> {
         // Case 7: 3D * 2D Broadcasting
-        let a: Tensor = TensorBase::from(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &[2, 2, 2])?;
-        let b: Tensor = TensorBase::from(vec![9.0, 10.0, 11.0, 12.0], &[2, 2])?;
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &[2, 2, 2])?;
+        let b = Tensor::from_vec(vec![9.0, 10.0, 11.0, 12.0], &[2, 2])?;
         let c = ops!(a, Matmul, b)?;
 
         assert_eq!(c.shape(), &[2, 2, 2]);
@@ -872,19 +895,19 @@ mod tests {
     #[test]
     fn test_matmul_4d_4d() -> MlResult<()> {
         // Case 8: 4D * 4D Batch Matrix Multiplication
-        let a: Tensor = TensorBase::from(
+        let a = Tensor::from_vec(
             vec![
                 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0,
             ],
             &[2, 2, 2, 2],
         )?;
-        let b: Tensor = TensorBase::from(
+        let b = Tensor::from_vec(
             vec![
                 5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0,
             ],
             &[2, 2, 2, 2],
         )?;
-        let c: Tensor = ops!(a, Matmul, b)?;
+        let c = ops!(a, Matmul, b)?;
 
         assert_eq!(c.shape(), &[2, 2, 2, 2]);
         let expected = vec![
@@ -898,8 +921,8 @@ mod tests {
     #[test]
     fn test_matmul_empty() -> MlResult<()> {
         // Case 9: Empty Matrix Multiplication
-        let a: Tensor = TensorBase::from(vec![], &[0, 2])?;
-        let b: Tensor = TensorBase::from(vec![], &[2, 0])?;
+        let a = Tensor::from_vec(vec![], &[0, 2])?;
+        let b = Tensor::from_vec(vec![], &[2, 0])?;
 
         // This should return an error for empty tensors
         assert!(ops!(a, Matmul, b).is_err());
@@ -909,8 +932,8 @@ mod tests {
     #[test]
     fn test_matmul_broadcast_batch_dims() -> MlResult<()> {
         // Case 10: Broadcasting with Different Batch Dimensions
-        let a: Tensor = TensorBase::from(vec![1.0, 2.0, 3.0, 4.0], &[1, 2, 2])?;
-        let b: Tensor = TensorBase::from(
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], &[1, 2, 2])?;
+        let b = Tensor::from_vec(
             vec![5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0],
             &[3, 1, 2, 2],
         )?;
