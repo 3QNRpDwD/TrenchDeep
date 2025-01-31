@@ -4,11 +4,11 @@ use crate::backend::{Backend, Device};
 use crate::tensor::{Abs, Add, Div, Exp, Log, Matmax, Matmul, Mul, Neg, Pow, Sub, Sqrt, Square, Topk, Tensor, TensorError};
 use crate::tensor::{TensorBase, Function};
 
-impl Function<f32> for Abs<'_, f32> {
+impl Function<f32> for Abs<f32> {
     type Forwarded  = MlResult<Box<dyn TensorBase<f32>>>;
     type Gradiant   = MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>;
 
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Box<dyn TensorBase<f32>>, _: Option<Box<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
             backend: Arc::new(backend::CpuBackend::new()?),
@@ -23,7 +23,7 @@ impl Function<f32> for Abs<'_, f32> {
         Tensor::<f32>::from_vec(self.backend().exp(self.tensor.data()), self.tensor.shape())
     }
 
-    fn backward(&self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&self, grad: Box<dyn TensorBase<f32>>) -> Self::Gradiant {
         todo!()
     }
 
@@ -32,11 +32,11 @@ impl Function<f32> for Abs<'_, f32> {
     }
 }
 
-impl Function<f32> for Exp<'_, f32> {
+impl Function<f32> for Exp<f32> {
     type Forwarded  = MlResult<Box<dyn TensorBase<f32>>>;
     type Gradiant   = MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>;
 
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Box<dyn TensorBase<f32>>, _: Option<Box<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
             backend: Arc::new(backend::CpuBackend::new()?),
@@ -51,7 +51,7 @@ impl Function<f32> for Exp<'_, f32> {
         Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| x.abs()).collect(), self.tensor.shape())
     }
 
-    fn backward(&self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&self, grad: Box<dyn TensorBase<f32>>) -> Self::Gradiant {
         todo!()
     }
 
@@ -60,11 +60,11 @@ impl Function<f32> for Exp<'_, f32> {
     }
 }
 
-impl Function<f32> for Log<'_, f32> {
+impl Function<f32> for Log<f32> {
     type Forwarded  = MlResult<Box<dyn TensorBase<f32>>>;
     type Gradiant   = MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>;
 
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Box<dyn TensorBase<f32>>, _: Option<Box<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
             backend: Arc::new(backend::CpuBackend::new()?),
@@ -79,7 +79,7 @@ impl Function<f32> for Log<'_, f32> {
         Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| x.ln()).collect(), self.tensor.shape())
     }
 
-    fn backward(&self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&self, grad: Box<dyn TensorBase<f32>>) -> Self::Gradiant {
         todo!()
     }
 
@@ -88,11 +88,11 @@ impl Function<f32> for Log<'_, f32> {
     }
 }
 
-impl Function<f32> for Neg<'_, f32> {
+impl Function<f32> for Neg<f32> {
     type Forwarded  = MlResult<Box<dyn TensorBase<f32>>>;
     type Gradiant   = MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>;
 
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Box<dyn TensorBase<f32>>, _: Option<Box<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
             backend: Arc::new(backend::CpuBackend::new()?),
@@ -107,7 +107,7 @@ impl Function<f32> for Neg<'_, f32> {
         Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| -x).collect(), self.tensor.shape())
     }
 
-    fn backward(&self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&self, grad: Box<dyn TensorBase<f32>>) -> Self::Gradiant {
         todo!()
     }
 
@@ -116,11 +116,11 @@ impl Function<f32> for Neg<'_, f32> {
     }
 }
 
-impl Function<f32> for Sqrt<'_, f32> {
+impl Function<f32> for Sqrt<f32> {
     type Forwarded  = MlResult<Box<dyn TensorBase<f32>>>;
     type Gradiant   = MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>;
 
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Box<dyn TensorBase<f32>>, _: Option<Box<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
             backend: Arc::new(backend::CpuBackend::new()?),
@@ -135,7 +135,7 @@ impl Function<f32> for Sqrt<'_, f32> {
         Tensor::<f32>::from_vec(self.backend().sqrt(self.tensor.data()), self.tensor.shape())
     }
 
-    fn backward(&self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&self, grad: Box<dyn TensorBase<f32>>) -> Self::Gradiant {
         todo!()
     }
 
@@ -144,11 +144,11 @@ impl Function<f32> for Sqrt<'_, f32> {
     }
 }
 
-impl Function<f32> for Square<'_, f32> {
+impl Function<f32> for Square<f32> {
     type Forwarded  = MlResult<Box<dyn TensorBase<f32>>>;
     type Gradiant   = MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>;
 
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Box<dyn TensorBase<f32>>, _: Option<Box<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
             backend: Arc::new(backend::CpuBackend::new()?),
@@ -163,7 +163,7 @@ impl Function<f32> for Square<'_, f32> {
         Tensor::<f32>::from_vec(self.tensor.data().iter().map(|x| x * x).collect(), self.tensor.shape())
     }
 
-    fn backward(&self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&self, grad: Box<dyn TensorBase<f32>>) -> Self::Gradiant {
         todo!()
     }
 
@@ -172,11 +172,11 @@ impl Function<f32> for Square<'_, f32> {
     }
 }
 
-impl Function<f32> for Add<'_, f32> {
+impl Function<f32> for Add<f32> {
     type Forwarded  = MlResult<Box<dyn TensorBase<f32>>>;
     type Gradiant   = MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>;
 
-    fn new(first: &dyn TensorBase<f32>, second: Option<&dyn TensorBase<f32>>) -> MlResult<Self>  {
+    fn new(first: Box<dyn TensorBase<f32>>, second: Option<Box<dyn TensorBase<f32>>>) -> MlResult<Self>  {
         Ok(Self {
             first_tensor: first,
             second_tensor: second.unwrap(),
@@ -203,7 +203,8 @@ impl Function<f32> for Add<'_, f32> {
             }
             return Tensor::<f32>::from_vec(data, self.first_tensor.shape())
         }
-        match self.chk_shape(&self.second_tensor) {
+
+        match self.first_tensor.chk_shape(&self.second_tensor) {
             Err(e) => Err(e),
             _ => Tensor::<f32>::from_vec(
                 self.backend()
@@ -216,7 +217,7 @@ impl Function<f32> for Add<'_, f32> {
         }
     }
 
-    fn backward(&self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&self, grad: Box<dyn TensorBase<f32>>) -> Self::Gradiant {
         todo!()
     }
 
@@ -225,11 +226,11 @@ impl Function<f32> for Add<'_, f32> {
     }
 }
 
-impl Function<f32> for Sub<'_, f32> {
+impl Function<f32> for Sub<f32> {
     type Forwarded  = MlResult<Box<dyn TensorBase<f32>>>;
     type Gradiant   = MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>;
 
-    fn new(first: &dyn TensorBase<f32>, second: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Box<dyn TensorBase<f32>>, second: Option<Box<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self {
             first_tensor: first,
             second_tensor: second.unwrap(),
@@ -257,13 +258,13 @@ impl Function<f32> for Sub<'_, f32> {
             return Tensor::<f32>::from_vec(data, &self.first_tensor.shape());
         }
 
-        match self.chk_shape(&self.second_tensor) {
+        match self.first_tensor.chk_shape(&self.second_tensor) {
             Err(e) => Err(e),
             _ => Tensor::<f32>::from_vec(self.backend().sub(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())
         }
     }
 
-    fn backward(&self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&self, grad: Box<dyn TensorBase<f32>>) -> Self::Gradiant {
         todo!()
     }
 
@@ -272,11 +273,11 @@ impl Function<f32> for Sub<'_, f32> {
     }
 }
 
-impl Function<f32> for Mul<'_, f32> {
+impl Function<f32> for Mul<f32> {
     type Forwarded  = MlResult<Box<dyn TensorBase<f32>>>;
     type Gradiant   = MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>;
 
-    fn new(first: &dyn TensorBase<f32>, second: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Box<dyn TensorBase<f32>>, second: Option<Box<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self {
             first_tensor: first,
             second_tensor: second.unwrap(),
@@ -292,13 +293,13 @@ impl Function<f32> for Mul<'_, f32> {
     /// # Returns
     /// A new tensor with the result of the element-wise multiplication
     fn forward(&self) -> Self::Forwarded {
-        match self.chk_shape(&self.second_tensor) {
+        match self.first_tensor.chk_shape(&self.second_tensor) {
             Err(e) => Err(e),
             _ => Tensor::<f32>::from_vec(self.backend().multiply(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())
         }
     }
 
-    fn backward(&self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&self, grad: Box<dyn TensorBase<f32>>) -> Self::Gradiant {
         todo!()
     }
 
@@ -307,11 +308,11 @@ impl Function<f32> for Mul<'_, f32> {
     }
 }
 
-impl Function<f32> for Div<'_, f32> {
+impl Function<f32> for Div<f32> {
     type Forwarded  = MlResult<Box<dyn TensorBase<f32>>>;
     type Gradiant   = MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>;
 
-    fn new(first: &dyn TensorBase<f32>, second: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Box<dyn TensorBase<f32>>, second: Option<Box<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self {
             first_tensor: first,
             second_tensor: second.unwrap(),
@@ -328,13 +329,13 @@ impl Function<f32> for Div<'_, f32> {
     /// A new tensor with the result of the element-wise division
     fn forward(&self) -> Self::Forwarded {
 
-        match self.chk_shape(&self.second_tensor) {
+        match self.first_tensor.chk_shape(&self.second_tensor) {
             Err(e) => Err(e),
             _ => Tensor::<f32>::from_vec(self.backend().div(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())
         }
     }
 
-    fn backward(&self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&self, grad: Box<dyn TensorBase<f32>>) -> Self::Gradiant {
         todo!()
     }
 
@@ -343,11 +344,11 @@ impl Function<f32> for Div<'_, f32> {
     }
 }
 
-impl Function<f32> for Pow<'_, f32> {
+impl Function<f32> for Pow<f32> {
     type Forwarded  = MlResult<Box<dyn TensorBase<f32>>>;
     type Gradiant   = MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>;
 
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Box<dyn TensorBase<f32>>, _: Option<Box<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
             backend: Arc::new(backend::CpuBackend::new()?),
@@ -365,7 +366,7 @@ impl Function<f32> for Pow<'_, f32> {
         Tensor::<f32>::from_vec(self.backend().pow(self.tensor.data(), self.tensor.power()), self.tensor.shape())
     }
 
-    fn backward(&self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&self, grad: Box<dyn TensorBase<f32>>) -> Self::Gradiant {
         todo!()
     }
 
@@ -374,11 +375,11 @@ impl Function<f32> for Pow<'_, f32> {
     }
 }
 
-impl Function<f32> for Matmul<'_, f32> {
+impl Function<f32> for Matmul<f32> {
     type Forwarded  = MlResult<Box<dyn TensorBase<f32>>>;
     type Gradiant   = MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>;
 
-    fn new(first: &dyn TensorBase<f32>, second: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Box<dyn TensorBase<f32>>, second: Option<Box<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self {
             first_tensor: first,
             second_tensor: second.unwrap(),
@@ -405,7 +406,7 @@ impl Function<f32> for Matmul<'_, f32> {
         match (a, b) {
             // Case 1: 1D * 1D (dot product)
             (1, 1) => {
-                match self.chk_shape(&self.second_tensor) {
+                match self.first_tensor.chk_shape(&self.second_tensor) {
                     Err(e) => Err(e),
                     _ => Tensor::<f32>::from_vec(
                         vec![self.first_tensor.data().iter().zip(self.second_tensor.data().iter()).map(|(&a, &b)| a * b).sum::<f32>()],
@@ -416,7 +417,7 @@ impl Function<f32> for Matmul<'_, f32> {
 
             // Case 2: 2D * 1D or 1D * 2D
             (2, 1) => {
-                if self.shape()[1] != self.second_tensor.shape()[0] {
+                if self.first_tensor.shape()[1] != self.second_tensor.shape()[0] {
                     return Err(MlError::TensorError(
                         TensorError::MatrixMultiplicationError {
                             left_shape: self.first_tensor.shape().to_vec(),
@@ -543,7 +544,7 @@ impl Function<f32> for Matmul<'_, f32> {
         }
     }
 
-    fn backward(&self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&self, grad: Box<dyn TensorBase<f32>>) -> Self::Gradiant {
         todo!()
     }
 
@@ -552,11 +553,11 @@ impl Function<f32> for Matmul<'_, f32> {
     }
 }
 
-impl Function<f32> for Topk<'_, f32> {
+impl Function<f32> for Topk<f32> {
     type Forwarded  = MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>;
     type Gradiant   = MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>;
 
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) ->MlResult<Self>{
+    fn new(first: Box<dyn TensorBase<f32>>, _: Option<Box<dyn TensorBase<f32>>>) ->MlResult<Self>{
         Ok(Self {
             tensor: first,
             backend : Arc::new(backend::CpuBackend::new()?),
@@ -630,7 +631,7 @@ impl Function<f32> for Topk<'_, f32> {
         Ok((Tensor::<f32>::from_vec(values, &new_shape)?, Tensor::<f32>::from_vec(indices, &new_shape)?))
     }
 
-    fn backward(&self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&self, grad: Box<dyn TensorBase<f32>>) -> Self::Gradiant {
         todo!()
     }
 
@@ -639,11 +640,11 @@ impl Function<f32> for Topk<'_, f32> {
     }
 }
 
-impl Function<f32> for Matmax<'_, f32> {
+impl Function<f32> for Matmax<f32> {
     type Forwarded  = MlResult<(Box<dyn TensorBase<f32>>, Option<Box<dyn TensorBase<f32>>>)>;
     type Gradiant   = MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>;
 
-    fn new(tensor: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) ->MlResult<Self>{
+    fn new(tensor: Box<dyn TensorBase<f32>>, _: Option<Box<dyn TensorBase<f32>>>) ->MlResult<Self>{
         Ok(Self {
             tensor,
             backend : Arc::new(backend::CpuBackend::new()?),
@@ -725,7 +726,7 @@ impl Function<f32> for Matmax<'_, f32> {
         }
     }
 
-    fn backward(&self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&self, grad: Box<dyn TensorBase<f32>>) -> Self::Gradiant {
         todo!()
     }
 
@@ -748,13 +749,13 @@ impl Function<f32> for Matmax<'_, f32> {
 impl<T: Sized> std::ops::Add<&dyn TensorBase<T>> for &dyn TensorBase<T> {
     type Output = Box<dyn TensorBase<T>>;
 
-    fn add(self, other: &Self) -> Self::Output {
+    fn add(self, other: &dyn TensorBase<T>) -> Self::Output {
 
-        Box::new(Add {
-            first_tensor: self,
-            second_tensor: other,
+        Add {
+            first_tensor: Box::new(self),
+            second_tensor: Box::new(other),
             backend: Arc::new(backend::CpuBackend::new()?),
-        }.forward()?)
+        }.forward().unwrap()
     }
 }
 
@@ -771,12 +772,12 @@ impl<T: Sized> std::ops::Add<&dyn TensorBase<T>> for &dyn TensorBase<T> {
 impl<T> std::ops::Sub<&dyn TensorBase<T>> for &dyn TensorBase<T> {
     type Output = Box<dyn TensorBase<T>>;
 
-    fn sub(self, other: &Self) -> Self::Output {
-        Box::new(Sub {
-            first_tensor: self,
-            second_tensor: other,
-            backend: Arc::new(()),
-        }.forward().unwrap()?)
+    fn sub(self, other: &dyn TensorBase<T>) -> Self::Output {
+        Sub {
+            first_tensor: Box::new(self),
+            second_tensor: Box::new(other),
+            backend: Arc::new(backend::CpuBackend::new()?),
+        }.forward().unwrap()
     }
 }
 
@@ -794,12 +795,12 @@ impl<T> std::ops::Sub<&dyn TensorBase<T>> for &dyn TensorBase<T> {
 impl<T> std::ops::Mul<&dyn TensorBase<T>> for &dyn TensorBase<T> {
     type Output = Box<dyn TensorBase<T>>;
 
-    fn mul(self, other: &Self) -> Self::Output {
-        Box::new(Mul {
-            first_tensor: self,
-            second_tensor: other,
-            backend: Arc::new(()),
-        }.forward().unwrap()?)
+    fn mul(self, other: &dyn TensorBase<T>) -> Self::Output {
+        Mul {
+            first_tensor: Box::new(self),
+            second_tensor: Box::new(other),
+            backend: Arc::new(backend::CpuBackend::new()?),
+        }.forward().unwrap()
     }
 }
 
@@ -813,12 +814,80 @@ impl<T> std::ops::Mul<&dyn TensorBase<T>> for &dyn TensorBase<T> {
 impl<T> std::ops::Div<&dyn TensorBase<T>> for &dyn TensorBase<T> {
     type Output = Box<dyn TensorBase<T>>;
 
-    fn div(self, other: &Self) -> Self::Output {
-        Box::new(Mul {
+    fn div(self, other: &dyn TensorBase<T>) -> Self::Output {
+        Mul {
+            first_tensor: Box::new(self),
+            second_tensor: Box::new(other),
+            backend: Arc::new(backend::CpuBackend::new()?),
+        }.forward().unwrap()
+    }
+}
+
+
+impl<T: Sized> std::ops::Add<Box<dyn TensorBase<T>>> for Box<dyn TensorBase<T>> {
+    type Output = Box<dyn TensorBase<T>>;
+
+    fn add(self, other: Self) -> Self::Output {
+
+        Add {
+            first_tensor: self,
+            second_tensor: other,
+            backend: Arc::new(backend::CpuBackend::new()?),
+        }.forward()
+    }
+}
+
+impl<T: Sized> std::ops::Sub<Box<dyn TensorBase<T>>> for Box<dyn TensorBase<T>> {
+    type Output = Box<dyn TensorBase<T>>;
+
+    fn sub(self, other: Self) -> Self::Output {
+        Sub {
+            first_tensor: self,
+            second_tensor: other,
+            backend: Arc::new(backend::CpuBackend::new()?)
+        }.forward().unwrap()
+    }
+}
+
+/// Multiply trait implementation for owned tensors
+///
+/// # Arguments
+/// * `_other` - The tensor to multiply with self
+///
+/// # Returns
+/// A new tensor containing the element-wise product (Hadamard product)
+///
+/// # Note
+/// * This performs element-wise multiplication, not matrix multiplication
+/// * For matrix multiplication, use `matmul()` instead
+impl<T: Sized> std::ops::Mul<Box<dyn TensorBase<T>>> for Box<dyn TensorBase<T>> {
+    type Output = Box<dyn TensorBase<T>>;
+
+    fn mul(self, other: Self) -> Self::Output {
+        Mul {
             first_tensor: self,
             second_tensor: other,
             backend: Arc::new(()),
-        }.forward().unwrap()?)
+        }.forward().unwrap()
+    }
+}
+
+/// Divide trait implementation for owned tensors
+///
+/// # Arguments
+/// * `_other` - The tensor to divide self by
+///
+/// # Returns
+/// A new tensor containing the element-wise quotient
+impl<T: Sized> std::ops::Div<Box<dyn TensorBase<T>>> for Box<dyn TensorBase<T>> {
+    type Output = Box<dyn TensorBase<T>>;
+
+    fn div(self, other: Self) -> Self::Output {
+        Mul {
+            first_tensor: self,
+            second_tensor: other,
+            backend: Arc::new(()),
+        }.forward().unwrap()
     }
 }
 
@@ -833,18 +902,16 @@ mod tests {
     #[test]
     fn test_topk() -> MlResult<()> {
         // Test 1: Basic 1D tensor
-        let tensor = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
-        let mut a = tensor.as_ref();
-        a.set_topk(3, true);
-        let (values, indices) = ops!(a, Topk<f32>);
+        let mut tensor = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
+        tensor.set_topk(3, true);
+        let (values, indices) = ops!(tensor, Topk<f32>);
         assert_eq!(values.data(), &[5.0, 4.0, 3.0]);
         assert_eq!(indices.data(), &[4.0, 1.0, 2.0]);
 
         // Test 2: 2D tensor
-        let tensor = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0, 2.0, 3.0, 1.0, 4.0, 5.0], &[2, 5], )?;
-        let mut a = tensor.as_ref();
-        a.set_topk(2, true);
-        let (values, indices) = ops!(a, Topk<f32>);
+        let mut tensor = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0, 2.0, 3.0, 1.0, 4.0, 5.0], &[2, 5], )?;
+        tensor.set_topk(2, true);
+        let (values, indices) = ops!(tensor, Topk<f32>);
         assert_eq!(values.shape(), &[2, 2]);
         assert_eq!(values.data(), &[5.0, 4.0, 5.0, 4.0]);
         assert_eq!(indices.data(), &[4.0, 1.0, 4.0, 3.0]);
@@ -852,8 +919,7 @@ mod tests {
         // Test 3: Unsorted output
         let mut tensor = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
         tensor.set_topk(3, false);
-        let a = tensor.as_ref();
-        let (values, indices) = ops!(a, Topk<f32>);
+        let (values, indices) = ops!(tensor, Topk<f32>);
         assert_eq!(values.data(), &[4.0, 3.0, 5.0]);
         assert_eq!(indices.data(), &[1.0, 2.0, 4.0]);
 
@@ -862,15 +928,14 @@ mod tests {
     #[test]
     fn test_max() -> MlResult<()> {
         // Test global maximum
-        let tensor = Tensor::<f32>::new(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]])?;
-        let mut a = tensor.as_ref();
-        a.set_matmax(None, false);
+        let mut tensor = Tensor::<f32>::new(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]])?;
+        let a = tensor.set_matmax(None, false).clone();
         let (max_all, _) = ops!(a, Matmax<f32>);
 
         assert_eq!(max_all.data(), &[6.0]);
 
         // Test maximum along dimension 0
-        a.set_matmax(Some(0), true);
+        a.set_matmax(None, false);
         let (max_dim0, indices0) = ops!(a, Matmax<f32>);
         assert_eq!(max_dim0.shape(), &[1, 3]);
         assert_eq!(max_dim0.data(), &[4.0, 5.0, 6.0]);
@@ -895,8 +960,8 @@ mod tests {
     #[test]
     fn test_matmul_2d_2d() -> MlResult<()> {
         // Case 1: 2D * 2D Matrix Multiplication
-        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?.as_ref();
-        let b = Tensor::<f32>::from_vec(vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0], &[3, 2])?.as_ref();
+        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?;
+        let b = Tensor::<f32>::from_vec(vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0], &[3, 2])?;
         let c = ops!(a, Matmul<f32>, b);
 
 
@@ -908,8 +973,8 @@ mod tests {
     #[test]
     fn test_matmul_1d_2d() -> MlResult<()> {
         // Case 2: 1D * 2D (Vector-Matrix Multiplication)
-        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0], &[3])?.as_ref();
-        let b = Tensor::<f32>::from_vec(vec![4.0, 5.0, 6.0, 7.0, 8.0, 9.0], &[3, 2])?.as_ref();
+        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0], &[3])?;
+        let b = Tensor::<f32>::from_vec(vec![4.0, 5.0, 6.0, 7.0, 8.0, 9.0], &[3, 2])?;
         let c = ops!(a, Matmul<f32>, b);
 
         assert_eq!(c.shape(), &[2]);
@@ -920,8 +985,8 @@ mod tests {
     #[test]
     fn test_matmul_2d_1d() -> MlResult<()> {
         // Case 3: 2D * 1D (Matrix-Vector Multiplication)
-        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?.as_ref();
-        let b = Tensor::<f32>::from_vec(vec![7.0, 8.0, 9.0], &[3])?.as_ref();
+        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?;
+        let b = Tensor::<f32>::from_vec(vec![7.0, 8.0, 9.0], &[3])?;
         let c = ops!(a, Matmul<f32>, b);
 
         assert_eq!(c.shape(), &[2]);
@@ -932,8 +997,8 @@ mod tests {
     #[test]
     fn test_matmul_3d_3d() -> MlResult<()> {
         // Case 4: 3D * 3D (Batch Matrix Multiplication)
-        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &[2, 2, 2])?.as_ref();
-        let b = Tensor::<f32>::from_vec(vec![9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0], &[2, 2, 2], )?.as_ref();
+        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &[2, 2, 2])?;
+        let b = Tensor::<f32>::from_vec(vec![9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0], &[2, 2, 2], )?;
         let c = ops!(a, Matmul<f32>, b);
 
         assert_eq!(c.shape(), &[2, 2, 2]);
@@ -947,15 +1012,15 @@ mod tests {
     #[test]
     fn test_matmul_invalid_shapes() -> MlResult<()> {
         // Test incompatible shapes
-        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0], &[3])?.as_ref();
-        let b = Tensor::<f32>::from_vec(vec![4.0, 5.0], &[2])?.as_ref();
+        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0], &[3])?;
+        let b = Tensor::<f32>::from_vec(vec![4.0, 5.0], &[2])?;
 
         // This should return an error since the shapes are incompatible
         assert!(ops!(a, Matmul<f32>, b).is_err());
 
         // Test incompatible batch dimensions
-        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0], &[2, 2])?.as_ref();
-        let b = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[3, 2])?.as_ref();
+        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0], &[2, 2])?;
+        let b = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[3, 2])?;
 
         // This should return an error since the batch dimensions don't match
         assert!(ops!(a, Matmul<f32>, b).is_err());
@@ -966,8 +1031,8 @@ mod tests {
     #[test]
     fn test_matmul_1x1() -> MlResult<()> {
         // Case 5: 1x1 Matrix Multiplication
-        let a = Tensor::<f32>::from_vec(vec![2.0], &[1, 1])?.as_ref();
-        let b = Tensor::<f32>::from_vec(vec![3.0], &[1, 1])?.as_ref();
+        let a = Tensor::<f32>::from_vec(vec![2.0], &[1, 1])?;
+        let b = Tensor::<f32>::from_vec(vec![3.0], &[1, 1])?;
         let c = ops!(a, Matmul<f32>, b);
 
         assert_eq!(c.shape(), &[1, 1]);
@@ -978,8 +1043,8 @@ mod tests {
     #[test]
     fn test_matmul_1d_1d() -> MlResult<()> {
         // Case 6: 1D * 1D (Dot Product)
-        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0], &[3])?.as_ref();
-        let b = Tensor::<f32>::from_vec(vec![4.0, 5.0, 6.0], &[3])?.as_ref();
+        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0], &[3])?;
+        let b = Tensor::<f32>::from_vec(vec![4.0, 5.0, 6.0], &[3])?;
         let c = ops!(a, Matmul<f32>, b);
 
         assert_eq!(c.shape(), &[]); // scalar output
@@ -990,8 +1055,8 @@ mod tests {
     #[test]
     fn test_matmul_3d_2d_broadcasting() -> MlResult<()> {
         // Case 7: 3D * 2D Broadcasting
-        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &[2, 2, 2])?.as_ref();
-        let b = Tensor::<f32>::from_vec(vec![9.0, 10.0, 11.0, 12.0], &[2, 2])?.as_ref();
+        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &[2, 2, 2])?;
+        let b = Tensor::<f32>::from_vec(vec![9.0, 10.0, 11.0, 12.0], &[2, 2])?;
         let c = ops!(a, Matmul<f32>, b);
 
         assert_eq!(c.shape(), &[2, 2, 2]);
@@ -1010,13 +1075,13 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0,
             ],
             &[2, 2, 2, 2],
-        )?.as_ref();
+        )?;
         let b = Tensor::<f32>::from_vec(
             vec![
                 5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0,
             ],
             &[2, 2, 2, 2],
-        )?.as_ref();
+        )?;
         let c = ops!(a, Matmul<f32>, b);
 
         assert_eq!(c.shape(), &[2, 2, 2, 2]);
@@ -1031,8 +1096,8 @@ mod tests {
     #[test]
     fn test_matmul_empty() -> MlResult<()> {
         // Case 9: Empty Matrix Multiplication
-        let a = Tensor::<f32>::from_vec(vec![], &[0, 2])?.as_ref();
-        let b = Tensor::<f32>::from_vec(vec![], &[2, 0])?.as_ref();
+        let a = Tensor::<f32>::from_vec(vec![], &[0, 2])?;
+        let b = Tensor::<f32>::from_vec(vec![], &[2, 0])?;
 
         // This should return an error for empty tensors
         assert!(ops!(a, Matmul<f32>, b).is_err());
@@ -1042,11 +1107,11 @@ mod tests {
     #[test]
     fn test_matmul_broadcast_batch_dims() -> MlResult<()> {
         // Case 10: Broadcasting with Different Batch Dimensions
-        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0], &[1, 2, 2])?.as_ref();
+        let a = Tensor::<f32>::from_vec(vec![1.0, 2.0, 3.0, 4.0], &[1, 2, 2])?;
         let b = Tensor::<f32>::from_vec(
             vec![5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0],
             &[3, 1, 2, 2],
-        )?.as_ref();
+        )?;
         let c = ops!(a, Matmul<f32>, b);
 
         assert_eq!(c.shape(), &[3, 1, 2, 2]);

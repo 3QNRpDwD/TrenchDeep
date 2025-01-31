@@ -95,11 +95,11 @@ impl<Type: std::fmt::Debug> TensorBase<Type> for Tensor<Type> {
     /// # Returns
     /// * `Ok(())` if the shapes match
     /// * `Err(MlError::TensorError)` if shapes don't match
-    fn chk_shape(&self, other: Box<dyn TensorBase<Type>>) -> MlResult<()> {
+    fn chk_shape(&self, other: &Box<dyn TensorBase<Type>>) -> MlResult<()> {
         if self.shape != other.as_ref().shape() {
             return Err(MlError::TensorError(TensorError::InvalidShape {
                 expected: self.shape.to_vec(),
-                got: other.as_ref().shape().to_vec(),
+                got: other.shape().to_vec(),
             }));
         }
         Ok(())

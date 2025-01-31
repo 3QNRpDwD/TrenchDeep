@@ -184,7 +184,7 @@ pub trait TensorBase<Type: Debug> {
     fn set_matmax(&mut self, dim: Option<i32>, keepdim: bool)   ;
     fn get(&self, indices: &[usize])                        -> Option<&Type>;
     fn index(&self, indices: &[usize])                      -> Option<usize>;
-    fn chk_shape(&self, other: Box<dyn TensorBase<Type>>)   -> MlResult<()>;
+    fn chk_shape(&self, other: &Box<dyn TensorBase<Type>>)   -> MlResult<()>;
     /// Enables gradient computation for the tensor
     fn requires_grad(&mut self, requires_grad: bool);
 
@@ -201,9 +201,9 @@ pub trait Function<T: Debug> {
     type Forwarded: TensorBase<T>;
     type Gradiant: TensorBase<T>;
 
-    fn new(first: &dyn TensorBase<T>, second: Option<&dyn TensorBase<T>>) -> MlResult<Self> where Self: Sized;
+    fn new(first: Box<dyn TensorBase<T>>, second: Option<Box<dyn TensorBase<T>>>) -> MlResult<Self> where Self: Sized;
     fn forward(&self) -> Self::Forwarded;
-    fn backward(&self, grad: &dyn TensorBase<T>) -> Self::Gradiant;
+    fn backward(&self, grad: Box<dyn TensorBase<T>>) -> Self::Gradiant;
     fn backend(&self) -> &Arc<dyn Backend>;
 }
 
@@ -218,46 +218,46 @@ pub trait Function<T: Debug> {
 // }
 
 /// Structure representing an exponential operation.
-pub struct Exp<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Exp<T>    { tensor: Box<dyn TensorBase<T>>, backend: Arc<dyn Backend> }
 
 /// Structure representing a negation operation.
-pub struct Neg<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Neg<T>     { tensor: Box<dyn TensorBase<T>>, backend: Arc<dyn Backend> }
 
 /// Structure representing a square root operation.
-pub struct Sqrt<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Sqrt<T>    { tensor: Box<dyn TensorBase<T>>, backend: Arc<dyn Backend> }
 
 /// Structure representing an absolute value operation.
-pub struct Abs<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Abs<T>     { tensor: Box<dyn TensorBase<T>>, backend: Arc<dyn Backend> }
 
 /// Structure representing a squaring operation.
-pub struct Square<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Square<T>  { tensor: Box<dyn TensorBase<T>>, backend: Arc<dyn Backend> }
 
 /// Structure representing a logarithmic operation.
-pub struct Log<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Log<T>     { tensor: Box<dyn TensorBase<T>>, backend: Arc<dyn Backend> }
 
 /// Structure representing a power operation.
-pub struct Pow<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Pow<T>     { tensor: Box<dyn TensorBase<T>>, backend: Arc<dyn Backend> }
 
 /// Structure representing a Top-k operation.
-pub struct Topk<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> } // k: second, sorted: third
+pub struct Topk<T>    { tensor: Box<dyn TensorBase<T>>, backend: Arc<dyn Backend> } // k: second, sorted: third
 
 /// Structure representing a matrix max operation along a dimension.
-pub struct Matmax<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> } // dim: second, keepdim: third
+pub struct Matmax<T>  { tensor: Box<dyn TensorBase<T>>, backend: Arc<dyn Backend> } // dim: second, keepdim: third
 
 /// Structure representing an addition operation.
-pub struct Add<'t, T>     { first_tensor: &'t dyn TensorBase<T>, second_tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Add<T>     { first_tensor: Box<dyn TensorBase<T>>, second_tensor: Box<dyn TensorBase<T>>, backend: Arc<dyn Backend> }
 
 /// Structure representing a subtraction operation.
-pub struct Sub<'t, T>     { first_tensor: &'t dyn TensorBase<T>, second_tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Sub<T>     { first_tensor: Box<dyn TensorBase<T>>, second_tensor: Box<dyn TensorBase<T>>, backend: Arc<dyn Backend> }
 
 /// Structure representing a multiplication operation.
-pub struct Mul<'t, T>     { first_tensor: &'t dyn TensorBase<T>, second_tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Mul<T>     { first_tensor: Box<dyn TensorBase<T>>, second_tensor: Box<dyn TensorBase<T>>, backend: Arc<dyn Backend> }
 
 /// Structure representing a division operation.
-pub struct Div<'t, T>     { first_tensor: &'t dyn TensorBase<T>, second_tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Div<T>     { first_tensor: Box<dyn TensorBase<T>>, second_tensor: Box<dyn TensorBase<T>>, backend: Arc<dyn Backend> }
 
 /// Structure representing a matrix multiplication operation.
-pub struct Matmul<'t, T>  { first_tensor: &'t dyn TensorBase<T>, second_tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Matmul<T>  { first_tensor: Box<dyn TensorBase<T>>, second_tensor: Box<dyn TensorBase<T>>, backend: Arc<dyn Backend> }
 
 #[cfg(test)]
 mod tests {
@@ -280,32 +280,32 @@ mod tests {
 
     #[test]
     fn test_add_symbol() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]])?.as_ref();
-        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]])?.as_ref();
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]])?;
+        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]])?;
         let et = Tensor::<f32>::new(vec![vec![4.0, 6.0]])?;
 
         assert_tensor_eq(first + second, et)
     }
     #[test]
     fn test_sub_symbol() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]])?.as_ref();
-        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]])?.as_ref();
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]])?;
+        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]])?;
         let et = Tensor::<f32>::new(vec![vec![-2.0, -2.0]])?;
 
         assert_tensor_eq(first - second, et)
     }
     #[test]
     fn test_mul_symbol() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]])?.as_ref();
-        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]])?.as_ref();
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]])?;
+        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]])?;
         let et = Tensor::<f32>::new(vec![vec![3.0, 8.0]])?;
 
         assert_tensor_eq(first * second, et)
     }
     #[test]
     fn test_div_symbol() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]])?.as_ref();
-        let second = Tensor::<f32>::new(vec![vec![2.0, 4.0]])?.as_ref();
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]])?;
+        let second = Tensor::<f32>::new(vec![vec![2.0, 4.0]])?;
         let et = Tensor::<f32>::new(vec![vec![0.5, 0.5]])?;
 
         assert_tensor_eq(first / second, et)
