@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use crate::{backend, MlError, MlResult};
 use crate::backend::{Backend, Device};
-use crate::tensor::{Abs, TensorBase, Exp, Function, Log, Matmax, Matmul, Neg, OpsLayer, Pow, Sqrt, Square, TensorError, Topk, OpsArg, Tensor};
-
+use crate::tensor::{Abs, Add, Div, Exp, Log, Matmax, Matmul, Mul, Neg, Pow, Sub, Sqrt, Square, Topk, Tensor, TensorError};
+use crate::tensor::{TensorBase, OpsLayer, Function};
 
 impl<T: TensorBase<f32>> OpsLayer<T> for T {
     type Output = MlResult<Self>;
@@ -108,9 +108,11 @@ impl<T: TensorBase<f32>> OpsLayer<T> for T {
 }
 
 impl<F, S> Function<F, S> for Abs<F> {
-    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
-        todo!()
+    fn new(first: F, _: Option<S>, _: Option<bool>) -> Self {
+        Self {
+            first,
+            backend: Arc::new(backend::CpuBackend::new()?),
+        }
     }
 
     /// Computes the absolute value of each element in the tensor.
@@ -126,14 +128,16 @@ impl<F, S> Function<F, S> for Abs<F> {
     }
 
     fn backend(&self) -> &Arc<dyn Backend> {
-        todo!()
+        &self.backend
     }
 }
 
 impl<F, S> Function<F, S> for Exp<F> {
-    fn new(first: F, _: Option<S>, _: Option<impl Into<OpsArg>>) -> Self {
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
-        todo!()
+    fn new(first: F, _: Option<S>, _: Option<bool>) -> Self {
+        Self {
+            first,
+            backend: Arc::new(backend::CpuBackend::new()?),
+        }
     }
 
     /// Applies the exponential function to each element in the tensor
@@ -144,19 +148,20 @@ impl<F, S> Function<F, S> for Exp<F> {
         TensorBase::from_vec(self.first.data().iter().map(|&x| x.abs()).collect(), self.first.shape())
     }
 
-    fn backward(&self, grad: Self::Gradient) -> Self::Output {
+    fn backward(&self, grad: F) -> (F, F) {
         todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
     }
 }
 
 impl<F:, S> Function<F, S> for Log<F> {
-    fn new(first: F, _: Option<S>, _: Option<impl Into<OpsArg>>) -> Self {
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
-        todo!()
-
+    fn new(first: F, _: Option<S>, _: Option<bool>) -> Self {
         Self {
             first,
-            backend,
+            backend: Arc::new(backend::CpuBackend::new()?),
         }
     }
 
@@ -168,15 +173,21 @@ impl<F:, S> Function<F, S> for Log<F> {
         TensorBase::from_vec(self.first.data().iter().map(|&x| x.ln()).collect(), self.first.shape())
     }
 
-    fn backward(&self, grad: Self::Gradient) -> Self::Output {
+    fn backward(&self, grad: F) -> (F, F) {
         todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
     }
 }
 
 impl<F, S> Function<F, S> for Neg<F> {
-    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
-        todo!()
+    fn new(first: F, _: Option<S>, _: Option<bool>) -> Self {
+        Self {
+            first,
+            backend: Arc::new(backend::CpuBackend::new()?),
+        }
     }
 
     /// Negates each element in the tensor
@@ -187,15 +198,21 @@ impl<F, S> Function<F, S> for Neg<F> {
         TensorBase::from_vec(self.first.data().iter().map(|&x| -x).collect(), self.first.shape())
     }
 
-    fn backward(&self, grad: Self::Gradient) -> Self::Output {
+    fn backward(&self, grad: F) -> (F, F) {
         todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
     }
 }
 
 impl<F, S> Function<F, S> for Sqrt<F> {
-    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
-        todo!()
+    fn new(first: F, _: Option<S>, _: Option<bool>) -> Self {
+        Self {
+            first,
+            backend: Arc::new(backend::CpuBackend::new()?),
+        }
     }
 
     /// Takes the square root of each element in the tensor
@@ -206,15 +223,21 @@ impl<F, S> Function<F, S> for Sqrt<F> {
         TensorBase::from_vec(self.first.backend().sqrt(self.first.data()), self.first.shape())
     }
 
-    fn backward(&self, grad: Self::Gradient) -> Self::Output {
+    fn backward(&self, grad: F) -> (F, F) {
         todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
     }
 }
 
 impl<F, S> Function<F, S> for Square<F> {
-    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
-        todo!()
+    fn new(first: F, _: Option<S>, _: Option<bool>) -> Self {
+        Self {
+            first,
+            backend: Arc::new(backend::CpuBackend::new()?),
+        }
     }
 
     /// Returns a new tensor with the square of the elements of input
@@ -225,15 +248,22 @@ impl<F, S> Function<F, S> for Square<F> {
         TensorBase::from_vec(self.first.data().iter().map(|&x| x * x).collect(), self.first.shape())
     }
 
-    fn backward(&self, grad: Self::Gradient) -> Self::Output {
+    fn backward(&self, grad: F) -> (F, F) {
         todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
     }
 }
 
-impl<F, S> Function<F, S> for crate::tensor::Add<F> {
-    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
-        todo!()
+impl<F, S> Function<F, S> for Add<F> {
+    fn new(first: F, second: Option<S>, _: Option<bool>) -> Self {
+        Self {
+            first,
+            second: second.unwrap(),
+            backend: Arc::new(backend::CpuBackend::new()?),
+        }
     }
 
     /// Adds two tensors element-wise
@@ -268,15 +298,22 @@ impl<F, S> Function<F, S> for crate::tensor::Add<F> {
         }
     }
 
-    fn backward(&self, grad: Self::Gradient) -> Self::Output {
+    fn backward(&self, grad: F) -> (F, F) {
         todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
     }
 }
 
-impl<F, S> Function<F, S> for crate::tensor::Sub<F> {
-    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
-        todo!()
+impl<F, S> Function<F, S> for Sub<F> {
+    fn new(first: F, second: Option<S>, _: Option<bool>) -> Self {
+        Self {
+            first,
+            second: second.unwrap(),
+            backend: Arc::new(backend::CpuBackend::new()?),
+        }
     }
 
     /// Subtracts two tensors element-wise
@@ -305,15 +342,22 @@ impl<F, S> Function<F, S> for crate::tensor::Sub<F> {
         }
     }
 
-    fn backward(&self, grad: Self::Gradient) -> Self::Output {
+    fn backward(&self, grad: F) -> (F, F) {
         todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
     }
 }
 
-impl<F, S> Function<F, S> for crate::tensor::Mul<F> {
-    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
-        todo!()
+impl<F, S> Function<F, S> for Mul<F> {
+    fn new(first: F, second: Option<S>, _: Option<bool>) -> Self {
+        Self {
+            first,
+            second: second.unwrap(),
+            backend: Arc::new(backend::CpuBackend::new()?),
+        }
     }
 
     /// Multiplies two tensors element-wise
@@ -330,15 +374,22 @@ impl<F, S> Function<F, S> for crate::tensor::Mul<F> {
         }
     }
 
-    fn backward(&self, grad: Self::Gradient) -> Self::Output {
+    fn backward(&self, grad: F) -> (F, F) {
         todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
     }
 }
 
-impl<F, S> Function<F, S> for crate::tensor::Div<F> {
-    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
-        todo!()
+impl<F, S> Function<F, S> for Div<F> {
+    fn new(first: F, second: Option<S>, _: Option<bool>) -> Self {
+        Self {
+            first,
+            second: second.unwrap(),
+            backend: Arc::new(backend::CpuBackend::new()?),
+        }
     }
 
     /// Divides two tensors element-wise
@@ -356,15 +407,22 @@ impl<F, S> Function<F, S> for crate::tensor::Div<F> {
         }
     }
 
-    fn backward(&self, grad: Self::Gradient) -> Self::Output {
+    fn backward(&self, grad: F) -> (F, F) {
         todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
     }
 }
 
 impl<F, S> Function<F, S> for Pow<F> {
-    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
-        todo!()
+    fn new(first: F, second: Option<S>, _: Option<bool>) -> Self {
+        Self {
+            first,
+            second: second.unwrap(),
+            backend: Arc::new(backend::CpuBackend::new()?),
+        }
     }
 
     /// Raises each element in the tensor to a power
@@ -378,15 +436,22 @@ impl<F, S> Function<F, S> for Pow<F> {
         TensorBase::from_vec(self.first.backend().pow(self.first.data(), self.second), self.first.shape())
     }
 
-    fn backward(&self, grad: Self::Gradient) -> Self::Output {
+    fn backward(&self, grad: F) -> (F, F) {
         todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
     }
 }
 
 impl<F, S> Function<F, S> for Matmul<F> {
-    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
-        todo!()
+    fn new(first: F, second: Option<S>, _: Option<bool>) -> Self {
+        Self {
+            first,
+            second: second.unwrap(),
+            backend: Arc::new(backend::CpuBackend::new()?),
+        }
     }
 
     /// Performs matrix multiplication on two tensors
@@ -546,15 +611,23 @@ impl<F, S> Function<F, S> for Matmul<F> {
         }
     }
 
-    fn backward(&self, grad: Self::Gradient) -> Self::Output {
+    fn backward(&self, grad: F) -> (F, F) {
         todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
     }
 }
 
 impl<F, S> Function<F, S> for Topk<F> {
-    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
-        todo!()
+    fn new(first: F, second: Option<S>, third: Option<bool>) -> Self {
+        Self {
+            first,
+            second  : second.unwrap(),
+            third   : third.unwrap(),
+            backend : Arc::new(backend::CpuBackend::new()?),
+        }
     }
 
     /// Returns the k largest elements of the tensor along the last dimension.
@@ -627,15 +700,23 @@ impl<F, S> Function<F, S> for Topk<F> {
         ))
     }
 
-    fn backward(&self, grad: Self::Gradient) -> Self::Output {
+    fn backward(&self, grad: F) -> (F, F) {
         todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
     }
 }
 
 impl<F, S> Function<F, S> for Matmax<F> {
-    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>) -> Self {
-        let backend: Arc<dyn Backend> = Arc::new(backend::CpuBackend::new()?);
-        todo!()
+    fn new(first: F, second: Option<S>, third: Option<bool>) -> Self {
+        Self {
+            first,
+            second  : second.unwrap(),
+            third   : third.unwrap(),
+            backend : Arc::new(backend::CpuBackend::new()?),
+        }
     }
 
     /// Returns the maximum value of all elements in the input tensor.
@@ -713,8 +794,12 @@ impl<F, S> Function<F, S> for Matmax<F> {
         }
     }
 
-    fn backward(&self, grad: Self::Gradient) -> Self::Output {
+    fn backward(&self, grad: F) -> (F, F) {
         todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
     }
 }
 

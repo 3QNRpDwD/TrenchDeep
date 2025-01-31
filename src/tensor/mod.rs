@@ -181,18 +181,11 @@ pub trait TensorBase<Type> {
 }
 
 pub trait Function<F, S> where F: Sized, S: Sized {
-    fn new(first: F, second: Option<S>, third: Option<impl Into<OpsArg>>)
-                                -> Self;
+    fn new(first: F, second: Option<S>, third: Option<bool>)
+                                -> MlResult<Self>;
     fn forward(&self)           -> F;
     fn backward(&self, grad: F) -> (F, F);
-    fn backend(&self)                               -> &Arc<dyn Backend>;
-}
-
-pub enum OpsArg {
-    Power(f32),
-    TopK { k: usize, sorted: bool },
-    Matmax { dim: Option<i32>, keepdim: bool },
-    // ... 기타 필요한 인자 타입들
+    fn backend(&self)           -> &Arc<dyn Backend>;
 }
 
 pub trait OpsLayer<T: TensorBase<T>> {
