@@ -24,16 +24,18 @@ impl<Type> BroadcastLayer for Tensor<Type> {
         F: Fn(f32, f32) -> f32,
         Self: Sized
     {
-        let shape: Vec<usize> = self.broadcast_shape(&other);
-        let size = shape.iter().product();
-        let mut data = Vec::with_capacity(size);
-
-        for idx in 0..size {
-            let (self_idx, other_idx) = self.calculate_broadcast_indices(&other, idx, &shape)?;
-            data.push(op(self.data[self_idx], other.data[other_idx]));
-        }
-
-        Some(Self { data, shape, grad: None, grad_fn: None, requires_grad: false })
+        // let shape: Vec<usize> = self.broadcast_shape(&other);
+        // let size = shape.iter().product();
+        // let mut data = Vec::with_capacity(size);
+        //
+        // for idx in 0..size {
+        //     let (self_idx, other_idx) = self.calculate_broadcast_indices(&other, idx, &shape)?;
+        //     data.push(op(self.data[self_idx], other.data[other_idx]));
+        // }
+        //
+        // Some(Self { data, shape, grad: None, grad_fn: None, requires_grad: false })
+        //todo!(브로드케스팅 연산 구조 변경 필요)
+        Some(self)
     }
 
     fn calculate_broadcast_indices(&self, other: &Self, idx: usize, shape: &[usize]) -> Option<(usize, usize)> {

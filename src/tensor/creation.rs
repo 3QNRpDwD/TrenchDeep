@@ -1,11 +1,10 @@
 use crate::{MlError, MlResult};
 use crate::tensor::{TensorBase, Tensor, TensorError};
 
-
-impl<T> TensorBase<T> for Tensor<T> {
-    fn new(data: Vec<Vec<T>>) -> MlResult<Self> {
+impl<Type> TensorBase<Type> for Tensor<Type> {
+    fn new(data: Vec<Vec<Type>>) -> MlResult<Self> {
         let shape = vec![data.len(), data[0].len()];
-        let data: Vec<T> = data.into_iter().flatten().collect();
+        let data: Vec<Type> = data.into_iter().flatten().collect();
 
         Ok(Self {
             data,
@@ -13,10 +12,13 @@ impl<T> TensorBase<T> for Tensor<T> {
             grad: None,
             grad_fn: None,
             requires_grad: false,
+            power: None,
+            topk: None,
+            matmax: None,
         })
     }
 
-    fn from_vec(data: Vec<T>, shape: &[usize]) -> MlResult<Self> {
+    fn from_vec(data: Vec<Type>, shape: &[usize]) -> MlResult<Self> {
         let expected_len: usize = shape.iter().product();
         if data.len() != expected_len {
             return Err(MlError::TensorError(TensorError::InvalidDataLength {
@@ -31,6 +33,9 @@ impl<T> TensorBase<T> for Tensor<T> {
             grad: None,
             grad_fn: None,
             requires_grad: false,
+            power: None,
+            topk: None,
+            matmax: None,
         })
     }
 
@@ -38,13 +43,38 @@ impl<T> TensorBase<T> for Tensor<T> {
         &self.shape
     }
 
-    fn data(&self) -> &[T] {
+    fn data(&self) -> &[Type] {
         &self.data
     }
 
-    fn get(&self, indices: &[usize]) -> Option<&T> {
+    fn power(&self) -> f32 {
+        self.power.unwrap()
+    }
+
+    fn topk(&self) -> (usize, bool) {
+        self.topk.unwrap()
+    }
+
+    fn matmax(&self) -> (Option<i32>, bool) {
+        self.matmax.unwrap()
+    }
+
+    fn set_power(&mut self, exponent: f32) {
+        self.power = Some(exponent);
+    }
+
+    fn set_topk(&mut self, k: usize, sorted: bool) {
+        self.topk = Some((k, sorted));
+    }
+
+    fn set_matmax(&mut self, dim: Option<i32>, keepdim: bool) {
+        self.matmax = Some((dim, keepdim));
+    }
+
+    fn get(&self, indices: &[usize]) -> Option<&Type> {
         self.data.get(self.index(indices)?)
     }
+
     fn index(&self, indices: &[usize]) -> Option<usize> {
         if indices.len() != self.shape.len() {
             return None;
@@ -65,14 +95,28 @@ impl<T> TensorBase<T> for Tensor<T> {
     /// # Returns
     /// * `Ok(())` if the shapes match
     /// * `Err(MlError::TensorError)` if shapes don't match
-    fn chk_shape(&self, other: &T) -> MlResult<()> {
-        if self.shape() != other.shape() {
+    fn chk_shape(&self, other: Box<dyn TensorBase<Type>>) -> MlResult<()> {
+        if self.shape != other.as_ref().shape() {
             return Err(MlError::TensorError(TensorError::InvalidShape {
-                expected: self.shape().to_vec(),
-                got: other.shape().to_vec(),
+                expected: self.shape.to_vec(),
+                got: other.as_ref().shape().to_vec(),
             }));
         }
         Ok(())
+    }
+
+    fn requires_grad(&mut self, requires: bool) {
+        self.requires_grad = requires;
+    }
+
+    // fn set_grad_fn<F>(&mut self, grad_fn: F)
+    // where
+    //     F: Fn(&Tensor<Type>) -> MlResult<()> + 'static {
+    //     self.grad_fn = Some(GradFn(Arc::new(grad_fn)));
+    // }
+
+    fn grad(&self) -> Option<&Tensor<f32>> {
+        self.grad.as_ref().map(|g| g.as_ref())
     }
 }
 
