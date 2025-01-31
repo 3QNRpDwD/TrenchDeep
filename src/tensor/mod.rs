@@ -1,5 +1,7 @@
-use std::fmt::Display;
-use std::sync::Arc;
+use std::{
+    sync::Arc,
+    fmt::{Debug, Display, Formatter, Result}
+};
 
 use crate::{backend::Backend, MlResult};
 
@@ -50,11 +52,11 @@ mod creation;
 #[macro_export]
 macro_rules! ops {
     ($x:expr, $op:path, $y:expr) => {
-        <$op as Function<$x, $y>>::new($x, Some($y), None)?.forward()?
+        <$op as Function<$x>>::new($x, Some($y)).unwrap().forward().unwrap()
     };
 
     ($x:expr, $op:path) => {
-        <$op as Function<$x, $y>>::new($x, None, None)?.forward()?
+        <$op as Function<$x>>::new($x, None).unwrap().forward().unwrap()
     };
 }
 
@@ -86,7 +88,7 @@ pub enum TensorError {
 impl std::error::Error for TensorError {}
 
 impl Display for TensorError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             TensorError::InvalidShape { expected, got } => {
                 write!(f, "Invalid shape: expected {:?}, got {:?}", expected, got)
@@ -113,33 +115,38 @@ impl Display for TensorError {
     }
 }
 
+#[derive(Clone)]
+struct GradFn<T: Debug>(Arc<dyn Fn(&Tensor<T>) -> MlResult<()>>);
+
+impl<T: Debug> Debug for GradFn<Vec<T>> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "GradFn")
+    }
+}
+
 #[derive(Debug, Clone)]
-pub struct Tensor<Type> {
+pub struct Tensor<Type: Debug> where GradFn<Vec<Type>>: Debug {
     data: Vec<Type>,
     shape: Vec<usize>,
-    grad: Option<Box<Tensor<f32>>>,
-    grad_fn: Option<GradFn<Vec<f32>>>,
+    grad: Option<Box<Tensor<Type>>>,
+    grad_fn: Option<GradFn<Vec<Type>>>,
     requires_grad: bool,
     power: Option<f32>,
     topk: Option<(usize, bool)>,
     matmax: Option<(Option<i32>, bool)>
 }
 
-#[derive(Debug, Clone)]
-pub struct Scalar<T> {
-    data: T,
-    shape: usize,
-}
-
-#[derive(Clone)]
-struct GradFn<T>(Arc<dyn Fn(&Tensor<T>) -> MlResult<()>>);
-
-impl std::fmt::Debug for GradFn<Vec<f32>> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "GradFn")
+impl<T> Debug for dyn TensorBase<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "TensorBase Debug")
     }
 }
 
+impl Display for dyn TensorBase<f32> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "TensorBase Display")
+    }
+}
 
 impl PartialEq for Tensor<f32> {
     fn eq(&self, other: &Self) -> bool {
@@ -164,9 +171,9 @@ impl Ord for Tensor<f32> {
     }
 }
 
-pub trait TensorBase<Type> {
-    fn new(data: Vec<Vec<Type>>)                            -> MlResult<Self> where Self: Sized;
-    fn from_vec(data: Vec<Type>, shape: &[usize])           -> MlResult<Self> where Self: Sized;
+pub trait TensorBase<Type: Debug> {
+    fn new(data: Vec<Vec<Type>>)                            -> MlResult<Box<dyn TensorBase<Type>>> where Self: Sized;
+    fn from_vec(data: Vec<Type>, shape: &[usize])           -> MlResult<Box<dyn TensorBase<Type>>> where Self: Sized;
     fn shape(&self)                                         -> &[usize];
     fn data(&self)                                          -> &[Type];
     fn power(&self)                                         -> f32;
@@ -187,96 +194,77 @@ pub trait TensorBase<Type> {
     //     F: Fn(&Tensor<Type>) -> MlResult<()> + 'static;
 
     /// Returns the gradient of the tensor
-   fn grad(&self) -> Option<&Tensor<f32>>;
+   fn grad(&self) -> Option<&Tensor<Type>>;
 }
 
-pub trait Function<F: TensorBase<_>, S: TensorBase<_>> {
-    type Forwarded: F;
-    type Gradiant: TensorBase<f32>;
+pub trait Function<T: Debug> {
+    type Forwarded: TensorBase<T>;
+    type Gradiant: TensorBase<T>;
 
-    fn new(first: F, second: S) -> MlResult<Self> where Self: Sized;
-
+    fn new(first: &dyn TensorBase<T>, second: Option<&dyn TensorBase<T>>) -> MlResult<Self> where Self: Sized;
     fn forward(&self) -> Self::Forwarded;
-    fn backward(&self, grad: F) -> Self::Gradiant;
+    fn backward(&self, grad: &dyn TensorBase<T>) -> Self::Gradiant;
     fn backend(&self) -> &Arc<dyn Backend>;
 }
 
-// pub trait OpsLayer<T: TensorBase<T>> {
-//     type Output;
-//
-//     // 텐서 & 스칼라 연산
-//     fn add_scalar(&self, scalar: f32)       -> Self::Output;
-//     fn sub_scalar(&self, scalar: f32)       -> Self::Output;
-//     fn mul_scalar(&self, scalar: f32)       -> Self::Output;
-//     fn div_scalar(&self, scalar: f32)       -> Self::Output;
-//
-//     // 스칼라 & 텐서 연산
-//     fn scalar_sub(&self, scalar: f32)       -> Self::Output;
-//     fn scalar_div(&self, scalar: f32)       -> Self::Output;
-//
-//     fn pow_scalar(&self, exponent: f32)     -> Self::Output;
-//     fn scalar_pow(&self, scalar: f32)       -> Self::Output;
-//     fn eq_scalar(&self, scalar: f32)        -> Self::Output;
+// pub trait BroadcastLayer {
+//     fn can_broadcast(&self, other: &Self) -> bool;
+//     fn broadcast_shape(&self, other: &Self) -> Vec<usize>;
+//     fn broadcasting<F>(self, other: Self, op: F) -> Option<Self>
+//     where
+//         F: Fn(f32, f32) -> f32,
+//         Self: Sized;
+//     fn calculate_broadcast_indices(&self, other: &Self, idx: usize, shape: &[usize]) -> Option<(usize, usize)>;
 // }
 
-pub trait BroadcastLayer {
-    fn can_broadcast(&self, other: &Self) -> bool;
-    fn broadcast_shape(&self, other: &Self) -> Vec<usize>;
-    fn broadcasting<F>(self, other: Self, op: F) -> Option<Self>
-    where
-        F: Fn(f32, f32) -> f32,
-        Self: Sized;
-    fn calculate_broadcast_indices(&self, other: &Self, idx: usize, shape: &[usize]) -> Option<(usize, usize)>;
-}
-
 /// Structure representing an exponential operation.
-pub struct Exp<T: TensorBase<_>>     { tensor: T, backend: Arc<dyn Backend>}
+pub struct Exp<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
 
 /// Structure representing a negation operation.
-pub struct Neg<T: TensorBase<_>>     { tensor: T, backend: Arc<dyn Backend> }
+pub struct Neg<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
 
 /// Structure representing a square root operation.
-pub struct Sqrt<T: TensorBase<_>>    { tensor: T, backend: Arc<dyn Backend> }
+pub struct Sqrt<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
 
 /// Structure representing an absolute value operation.
-pub struct Abs<T: TensorBase<_>>     { tensor: T, backend: Arc<dyn Backend> }
+pub struct Abs<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
 
 /// Structure representing a squaring operation.
-pub struct Square<T: TensorBase<_>>  { tensor: T, backend: Arc<dyn Backend> }
+pub struct Square<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
 
 /// Structure representing a logarithmic operation.
-pub struct Log<T: TensorBase<_>>     { tensor: T, backend: Arc<dyn Backend> }
+pub struct Log<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
 
 /// Structure representing a power operation.
-pub struct Pow<T: TensorBase<_>>     { tensor: T, backend: Arc<dyn Backend> }
+pub struct Pow<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
 
 /// Structure representing a Top-k operation.
-pub struct Topk<T: TensorBase<_>>    { tensor: T, backend: Arc<dyn Backend> } // k: second, sorted: third
+pub struct Topk<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> } // k: second, sorted: third
 
 /// Structure representing a matrix max operation along a dimension.
-pub struct Matmax<T: TensorBase<_>>  { tensor: T, backend: Arc<dyn Backend> } // dim: second, keepdim: third
+pub struct Matmax<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> } // dim: second, keepdim: third
 
 /// Structure representing an addition operation.
-pub struct Add<FT: TensorBase<_>, ST: TensorBase<_>>     { first_tensor: FT, second_tensor: ST, backend: Arc<dyn Backend> }
+pub struct Add<'t, T>     { first_tensor: &'t dyn TensorBase<T>, second_tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
 
 /// Structure representing a subtraction operation.
-pub struct Sub<FT: TensorBase<_>, ST: TensorBase<_>>     { first_tensor: FT, second_tensor: ST, backend: Arc<dyn Backend> }
+pub struct Sub<'t, T>     { first_tensor: &'t dyn TensorBase<T>, second_tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
 
 /// Structure representing a multiplication operation.
-pub struct Mul<FT: TensorBase<_>, ST: TensorBase<_>>     { first_tensor: FT, second_tensor: ST, backend: Arc<dyn Backend> }
+pub struct Mul<'t, T>     { first_tensor: &'t dyn TensorBase<T>, second_tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
 
 /// Structure representing a division operation.
-pub struct Div<FT: TensorBase<_>, ST: TensorBase<_>>     { first_tensor: FT, second_tensor: ST, backend: Arc<dyn Backend> }
+pub struct Div<'t, T>     { first_tensor: &'t dyn TensorBase<T>, second_tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
 
 /// Structure representing a matrix multiplication operation.
-pub struct Matmul<FT: TensorBase<_>, ST: TensorBase<_>>  { first_tensor: FT, second_tensor: ST, backend: Arc<dyn Backend> }
+pub struct Matmul<'t, T>  { first_tensor: &'t dyn TensorBase<T>, second_tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
 
 #[cfg(test)]
 mod tests {
     use crate::MlResult;
-    use crate::tensor::{TensorBase, Add,  Div,  Mul, Sub, Tensor};
+    use crate::tensor::{TensorBase, Tensor};
 
-    pub fn assert_tensor_eq(tensor: Tensor<f32>, expected_tensor: Tensor<f32>, ) -> MlResult<()> {
+    pub fn assert_tensor_eq(tensor: Box<dyn TensorBase<f32>>, expected_tensor: Box<dyn TensorBase<f32>>) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
         Ok(())
@@ -292,79 +280,79 @@ mod tests {
 
     #[test]
     fn test_add_symbol() -> MlResult<()> {
-        let first = Tensor::new(vec![vec![1.0, 2.0]])?;
-        let second = Tensor::new(vec![vec![3.0, 4.0]])?;
-        let et = Tensor::new(vec![vec![4.0, 6.0]])?;
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]])?.as_ref();
+        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]])?.as_ref();
+        let et = Tensor::<f32>::new(vec![vec![4.0, 6.0]])?;
 
         assert_tensor_eq(first + second, et)
     }
     #[test]
     fn test_sub_symbol() -> MlResult<()> {
-        let first = Tensor::new(vec![vec![1.0, 2.0]])?;
-        let second = Tensor::new(vec![vec![3.0, 4.0]])?;
-        let et = Tensor::new(vec![vec![-2.0, -2.0]])?;
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]])?.as_ref();
+        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]])?.as_ref();
+        let et = Tensor::<f32>::new(vec![vec![-2.0, -2.0]])?;
 
         assert_tensor_eq(first - second, et)
     }
     #[test]
     fn test_mul_symbol() -> MlResult<()> {
-        let first = Tensor::new(vec![vec![1.0, 2.0]])?;
-        let second = Tensor::new(vec![vec![3.0, 4.0]])?;
-        let et = Tensor::new(vec![vec![3.0, 8.0]])?;
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]])?.as_ref();
+        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]])?.as_ref();
+        let et = Tensor::<f32>::new(vec![vec![3.0, 8.0]])?;
 
         assert_tensor_eq(first * second, et)
     }
     #[test]
     fn test_div_symbol() -> MlResult<()> {
-        let first = Tensor::new(vec![vec![1.0, 2.0]])?;
-        let second = Tensor::new(vec![vec![2.0, 4.0]])?;
-        let et = Tensor::new(vec![vec![0.5, 0.5]])?;
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]])?.as_ref();
+        let second = Tensor::<f32>::new(vec![vec![2.0, 4.0]])?.as_ref();
+        let et = Tensor::<f32>::new(vec![vec![0.5, 0.5]])?;
 
         assert_tensor_eq(first / second, et)
     }
 
-    #[test]
-    fn tensor_ops_add_scalar() -> MlResult<()> {
-        let first = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
-        let et = Tensor::new(vec![vec![3.0, 4.0]]).unwrap();
-
-        assert_tensor_eq(ops!(first, Add, 2.0), et)
-    }
-    #[test]
-    fn tensor_ops_sub_scalar() -> MlResult<()> {
-        let first = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
-        let et = Tensor::new(vec![vec![-1.0, 0.0]]).unwrap();
-
-        assert_tensor_eq(ops!(first, Sub, 2.0), et)
-    }
-    #[test]
-    fn tensor_ops_mul_scalar() -> MlResult<()> {
-        let first = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
-        let et = Tensor::new(vec![vec![2.0, 4.0]]).unwrap();
-
-        assert_tensor_eq(ops!(first, Mul, 2.0), et)
-    }
-    #[test]
-    fn tensor_ops_div_scalar() -> MlResult<()> {
-        let first = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
-        let et = Tensor::new(vec![vec![0.5, 1.0]]).unwrap();
-
-        assert_tensor_eq(ops!(first, Div, 2.0), et)
-    }
-
-    #[test]
-    fn tensor_ops_scalar_sub() -> MlResult<()> {
-        let first = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
-        let et = Tensor::new(vec![vec![1.0, 0.0]]).unwrap();
-
-        assert_tensor_eq(ops!(2.0, Sub, first), et)
-
-    }
-    #[test]
-    fn tensor_ops_scalar_div() -> MlResult<()> {
-        let first = Tensor::new(vec![vec![1.0, 2.0]]).unwrap();
-        let et = Tensor::new(vec![vec![2.0, 1.0]]).unwrap();
-
-        assert_tensor_eq(ops!(2.0, Div, first), et)
-    }
+    // #[test]
+    // fn tensor_ops_add_scalar() -> MlResult<()> {
+    //     let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
+    //     let et = Tensor::<f32>::new(vec![vec![3.0, 4.0]]).unwrap();
+    //
+    //     assert_tensor_eq(first + 2.0, et)
+    // }
+    // #[test]
+    // fn tensor_ops_sub_scalar() -> MlResult<()> {
+    //     let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
+    //     let et = Tensor::<f32>::new(vec![vec![-1.0, 0.0]]).unwrap();
+    //
+    //     assert_tensor_eq(first - 2.0, et)
+    // }
+    // #[test]
+    // fn tensor_ops_mul_scalar() -> MlResult<()> {
+    //     let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
+    //     let et = Tensor::<f32>::new(vec![vec![2.0, 4.0]]).unwrap();
+    //
+    //     assert_tensor_eq(first - 2.0, et)
+    // }
+    // #[test]
+    // fn tensor_ops_div_scalar() -> MlResult<()> {
+    //     let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
+    //     let et = Tensor::<f32>::new(vec![vec![0.5, 1.0]]).unwrap();
+    //
+    //     assert_tensor_eq(first / 2.0, et)
+    // }
+    //
+    // #[test]
+    // fn tensor_ops_scalar_sub() -> MlResult<()> {
+    //     let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
+    //     let et = Tensor::<f32>::new(vec![vec![1.0, 0.0]]).unwrap();
+    //
+    //     assert_tensor_eq(2.0 - first, et)
+    //
+    // }
+    // #[test]
+    // fn tensor_ops_scalar_div() -> MlResult<()> {
+    //     let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
+    //     let et = Tensor::<f32>::new(vec![vec![2.0, 1.0]]).unwrap();
+    //
+    //     assert_tensor_eq(2.0 - first, et)
+    // }
 }

@@ -1,12 +1,12 @@
 use crate::{MlError, MlResult};
 use crate::tensor::{TensorBase, Tensor, TensorError};
 
-impl<Type> TensorBase<Type> for Tensor<Type> {
-    fn new(data: Vec<Vec<Type>>) -> MlResult<Self> {
+impl<Type: std::fmt::Debug> TensorBase<Type> for Tensor<Type> {
+    fn new(data: Vec<Vec<Type>>) -> MlResult<Box<dyn TensorBase<Type>>>  {
         let shape = vec![data.len(), data[0].len()];
         let data: Vec<Type> = data.into_iter().flatten().collect();
 
-        Ok(Self {
+        Ok(Box::new(Self {
             data,
             shape,
             grad: None,
@@ -15,10 +15,10 @@ impl<Type> TensorBase<Type> for Tensor<Type> {
             power: None,
             topk: None,
             matmax: None,
-        })
+        }))
     }
 
-    fn from_vec(data: Vec<Type>, shape: &[usize]) -> MlResult<Self> {
+    fn from_vec(data: Vec<Type>, shape: &[usize]) -> MlResult<Box<dyn TensorBase<Type>>> {
         let expected_len: usize = shape.iter().product();
         if data.len() != expected_len {
             return Err(MlError::TensorError(TensorError::InvalidDataLength {
@@ -27,7 +27,7 @@ impl<Type> TensorBase<Type> for Tensor<Type> {
             }));
         }
 
-        Ok(Self {
+        Ok(Box::new(Self {
             data,
             shape: shape.to_vec(),
             grad: None,
@@ -36,7 +36,7 @@ impl<Type> TensorBase<Type> for Tensor<Type> {
             power: None,
             topk: None,
             matmax: None,
-        })
+        }))
     }
 
     fn shape(&self) -> &[usize] {
@@ -115,7 +115,7 @@ impl<Type> TensorBase<Type> for Tensor<Type> {
     //     self.grad_fn = Some(GradFn(Arc::new(grad_fn)));
     // }
 
-    fn grad(&self) -> Option<&Tensor<f32>> {
+    fn grad(&self) -> Option<&Tensor<Type>> {
         self.grad.as_ref().map(|g| g.as_ref())
     }
 }

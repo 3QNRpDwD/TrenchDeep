@@ -19,12 +19,12 @@ impl CpuCore {
         let size = 1024;
         let elements = size * size;
 
-        let a = Tensor::from_vec(vec![1.0; elements], &[size, size].to_vec()).unwrap();
-        let b = Tensor::from_vec(vec![2.0; elements], &[size, size].to_vec()).unwrap();
+        let a = Tensor::from_vec(vec![1.0; elements], &[size, size].to_vec()).unwrap().as_ref();
+        let b = Tensor::from_vec(vec![2.0; elements], &[size, size].to_vec()).unwrap().as_ref();
 
         // Measure matrix multiplication time (more compute intensive than addition)
         let start = std::time::Instant::now();
-        let _c = ops!(a, Matmul, b);
+        let _c = ops!(a, Matmul<f32>, b);
         let duration = start.elapsed();
 
         // Calculate FLOPS:
