@@ -1,2 +1,2 @@
-# MIT
-My mInecraft gpT M-I-T
+# TrenchDeep
+A personalized deep learning management framework for ultimate convenience
