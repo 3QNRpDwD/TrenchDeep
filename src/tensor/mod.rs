@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::sync::Arc;
 
-use crate::{backend::Backend, MlError, MlResult};
+use crate::{backend::Backend, MlResult};
 
 mod ops;
 mod broadcast;
@@ -186,6 +186,12 @@ pub trait Function<F, S> where F: Sized, S: Sized {
     fn forward(&self)           -> F;
     fn backward(&self, grad: F) -> (F, F);
     fn backend(&self)           -> &Arc<dyn Backend>;
+}
+
+trait ScalarOp<T> {
+    fn apply(a: &T, b: f32) -> T;
+    fn grad_self(grad: &T) -> T;
+    fn grad_scalar(grad: &T) -> f32;
 }
 
 pub trait OpsLayer<T: TensorBase<T>> {
