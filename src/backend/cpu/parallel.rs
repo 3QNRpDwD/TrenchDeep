@@ -6,7 +6,6 @@ pub struct ParallelExecutor {
     thread_count: usize,
 }
 
-#[cfg(not(feature = "rayon"))]
 impl ParallelExecutor {
     pub fn new() -> Self {
         let thread_count = thread::available_parallelism()

@@ -1,12 +1,12 @@
 use crate::{MlError, MlResult};
 use crate::tensor::{TensorBase, Tensor, TensorError};
 
-impl<Type: std::fmt::Debug> TensorBase<Type> for Tensor<Type> {
-    fn new(data: Vec<Vec<Type>>) -> MlResult<Box<dyn TensorBase<Type>>>  {
+impl TensorBase<f32> for Tensor<f32> {
+    fn new(data: Vec<Vec<f32>>) -> Box<dyn TensorBase<f32>>  {
         let shape = vec![data.len(), data[0].len()];
-        let data: Vec<Type> = data.into_iter().flatten().collect();
+        let data: Vec<f32> = data.into_iter().flatten().collect();
 
-        Ok(Box::new(Self {
+        Box::new(Self {
             data,
             shape,
             grad: None,
@@ -15,10 +15,10 @@ impl<Type: std::fmt::Debug> TensorBase<Type> for Tensor<Type> {
             power: None,
             topk: None,
             matmax: None,
-        }))
+        })
     }
 
-    fn from_vec(data: Vec<Type>, shape: &[usize]) -> MlResult<Box<dyn TensorBase<Type>>> {
+    fn from_vec(data: Vec<f32>, shape: &[usize]) -> MlResult<Box<dyn TensorBase<f32>>> {
         let expected_len: usize = shape.iter().product();
         if data.len() != expected_len {
             return Err(MlError::TensorError(TensorError::InvalidDataLength {
@@ -43,7 +43,7 @@ impl<Type: std::fmt::Debug> TensorBase<Type> for Tensor<Type> {
         &self.shape
     }
 
-    fn data(&self) -> &[Type] {
+    fn data(&self) -> &[f32] {
         &self.data
     }
 
@@ -71,7 +71,7 @@ impl<Type: std::fmt::Debug> TensorBase<Type> for Tensor<Type> {
         self.matmax = Some((dim, keepdim));
     }
 
-    fn get(&self, indices: &[usize]) -> Option<&Type> {
+    fn get(&self, indices: &[usize]) -> Option<&f32> {
         self.data.get(self.index(indices)?)
     }
 
@@ -95,8 +95,8 @@ impl<Type: std::fmt::Debug> TensorBase<Type> for Tensor<Type> {
     /// # Returns
     /// * `Ok(())` if the shapes match
     /// * `Err(MlError::TensorError)` if shapes don't match
-    fn chk_shape(&self, other: &Box<dyn TensorBase<Type>>) -> MlResult<()> {
-        if self.shape != other.as_ref().shape() {
+    fn chk_shape(&self, other: &dyn TensorBase<f32>) -> MlResult<()> {
+        if self.shape != other.shape() {
             return Err(MlError::TensorError(TensorError::InvalidShape {
                 expected: self.shape.to_vec(),
                 got: other.shape().to_vec(),
@@ -111,11 +111,11 @@ impl<Type: std::fmt::Debug> TensorBase<Type> for Tensor<Type> {
 
     // fn set_grad_fn<F>(&mut self, grad_fn: F)
     // where
-    //     F: Fn(&Tensor<Type>) -> MlResult<()> + 'static {
+    //     F: Fn(&Tensor<f32>) -> MlResult<()> + 'static {
     //     self.grad_fn = Some(GradFn(Arc::new(grad_fn)));
     // }
 
-    fn grad(&self) -> Option<&Tensor<Type>> {
+    fn grad(&self) -> Option<&Tensor<f32>> {
         self.grad.as_ref().map(|g| g.as_ref())
     }
 }

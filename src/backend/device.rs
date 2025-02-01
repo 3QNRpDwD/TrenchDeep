@@ -53,7 +53,6 @@ impl DeviceManager {
 
                 // Select default device based on priority and availability
                 let device_type = {
-                    #[cfg(not(any(feature = "cuda", feature = "vulkan", feature = "mps")))]
                     {
                         DeviceType::Cpu
                     }
