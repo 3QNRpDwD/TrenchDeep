@@ -115,7 +115,7 @@ impl TensorBase<f32> for Tensor<f32> {
     //     self.grad_fn = Some(GradFn(Arc::new(grad_fn)));
     // }
 
-    fn grad(&self) -> Option<&Tensor<f32>> {
+    fn grad(&self) -> Option<&dyn TensorBase<f32>> {
         self.grad.as_ref().map(|g| g.as_ref())
     }
 }

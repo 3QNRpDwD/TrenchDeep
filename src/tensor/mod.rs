@@ -124,21 +124,19 @@ impl Display for TensorError {
     }
 }
 
-#[derive(Clone)]
-struct GradFn<T: Debug + 'static>(Arc<dyn Fn(&Tensor<T>) -> MlResult<()>>);
-
-impl<T: Debug> Debug for GradFn<Vec<T>> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "GradFn")
-    }
-}
-
 #[derive(Debug)]
-pub struct Tensor<Type: Debug + 'static> where GradFn<Vec<Type>>: Debug {
+pub struct Tensor<Type: Debug + 'static>
+{
     data: Vec<Type>,
     shape: Vec<usize>,
-    grad: Option<Box<Tensor<Type>>>,
-    grad_fn: Option<GradFn<Vec<Type>>>,
+    grad: Option<Box<dyn TensorBase<Type>>>,
+    grad_fn:
+        Option<Box<dyn Function<
+            'static,
+            Type,
+            Forwarded=MlResult<Box<dyn TensorBase<Type>>>,
+            Gradiant=MlResult<(Box<dyn TensorBase<Type>>, Box<dyn TensorBase<Type>>)>
+        >>>,
     requires_grad: bool,
     power: Option<f32>,
     topk: Option<(usize, bool)>,
@@ -148,12 +146,6 @@ pub struct Tensor<Type: Debug + 'static> where GradFn<Vec<Type>>: Debug {
 impl<T> Debug for dyn TensorBase<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(f, "TensorBase Debug")
-    }
-}
-
-impl Display for dyn TensorBase<f32> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "TensorBase Display")
     }
 }
 
@@ -180,7 +172,7 @@ impl Ord for Tensor<f32> {
     }
 }
 
-pub trait TensorBase<Type: Debug + Display + 'static> {
+pub trait TensorBase<Type: Debug + 'static> {
     fn new(data: Vec<Vec<Type>>)                            -> Box<dyn TensorBase<Type>> where Self: Sized;
     fn from_vec(data: Vec<Type>, shape: &[usize])           -> MlResult<Box<dyn TensorBase<Type>>> where Self: Sized;
     fn shape(&self)                                         -> &[usize];
@@ -193,7 +185,7 @@ pub trait TensorBase<Type: Debug + Display + 'static> {
     fn set_matmax(&mut self, dim: Option<i32>, keepdim: bool)   ;
     fn get(&self, indices: &[usize])                        -> Option<&Type>;
     fn index(&self, indices: &[usize])                      -> Option<usize>;
-    fn chk_shape(&self, other: &dyn TensorBase<Type>)   -> MlResult<()>;
+    fn chk_shape(&self, other: &dyn TensorBase<Type>)       -> MlResult<()>;
     /// Enables gradient computation for the tensor
     fn requires_grad(&mut self, requires_grad: bool);
 
@@ -203,10 +195,10 @@ pub trait TensorBase<Type: Debug + Display + 'static> {
     //     F: Fn(&Tensor<Type>) -> MlResult<()> + 'static;
 
     /// Returns the gradient of the tensor
-   fn grad(&self) -> Option<&Tensor<Type>>;
+   fn grad(&self) -> Option<&dyn TensorBase<Type>>;
 }
 
-pub trait Function<'t, T: Debug + Display + Clone> {
+pub trait Function<'t, T: Debug + Clone> {
     type Forwarded;
     type Gradiant;
 
@@ -215,6 +207,13 @@ pub trait Function<'t, T: Debug + Display + Clone> {
     fn backward(&self, grad: Box<dyn TensorBase<T>>) -> Self::Gradiant;
     fn backend(&self) -> &Arc<dyn Backend>;
 }
+
+impl<T> Debug for dyn Function<'_, T, Forwarded=MlResult<Box<dyn TensorBase<T>>>, Gradiant=MlResult<(Box<dyn TensorBase<T>>, Box<dyn TensorBase<T>>)>> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "Function Debug")
+    }
+}
+
 
 // pub trait BroadcastLayer {
 //     fn can_broadcast(&self, other: &Self) -> bool;
