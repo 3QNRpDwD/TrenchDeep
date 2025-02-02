@@ -24,7 +24,7 @@ impl CpuCore {
 
         // Measure matrix multiplication time (more compute intensive than addition)
         let start = std::time::Instant::now();
-        let _c = ops!(a, Matmul, b);
+        let _c = ops!(a.as_ref(), Matmul, b.as_ref());
         let duration = start.elapsed();
 
         // Calculate FLOPS:

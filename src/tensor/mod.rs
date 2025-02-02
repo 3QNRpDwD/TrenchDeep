@@ -9,58 +9,63 @@ mod ops;
 mod broadcast;
 mod creation;
 
-/// A macro for simplifying tensor operations in Rust.
-///
-/// This macro provides a convenient way to perform unary, binary, and ternary operations
-/// on tensors using custom operator structures. The macro matches different patterns
-/// to handle various use cases for tensor computations.
-/// Handles unary operations (e.g., Neg, Abs, Sqrt).
-///
-/// # Arguments
-///
-/// * `$x`: The input tensor.
-/// * `$op`: The operator struct that implements the `forward` method.
-///
-/// # Returns
-/// A new tensor resulting from_vec the unary operation.
-///
-///
-/// Handles binary operations (e.g., Add, Sub, Mul, Div).
-///
-/// # Arguments
-///
-/// * `$x`: The first input tensor.
-/// * `$op`: The operator struct that implements the `forward` method.
-/// * `$y`: The second input tensor.
-///
-/// # Returns
-/// A new tensor resulting from_vec the binary operation.
-///
-///
-/// Handles ternary operations for specific operators like `Topk` and `Matmax`.
-///
-/// # Arguments
-///
-/// * `$x`: The first input tensor.
-/// * `$op`: The operator struct (`Topk` or `Matmax`) that implements the `forward` method.
-/// * `$y`: The second parameter (e.g., `k` for `Topk`, `dim` for `Matmax`).
-/// * `$z`: The third parameter (e.g., `sorted` for `Topk`, `keepdim` for `Matmax`).
-///
-/// # Returns
-/// A new tensor resulting from_vec the ternary operation. For `Topk`, returns the top-k values and their indices.
-/// For `Matmax`, returns the maximum values and their indices (if applicable).
+
 #[macro_export]
 macro_rules! ops {
     ($x:expr, Matmul, $y:expr) => {
-        Matmul::new($x.as_ref(), Some($y.as_ref())).unwrap().forward()
+        Matmul::new($x, Some($y)).unwrap().forward()
     };
 
     ($x:expr, Topk) => {
-        Topk::new($x.as_ref(), None).unwrap().forward()
+        Topk::new($x, None).unwrap().forward()
     };
 
     ($x:expr, Matmax) => {
-        Matmax::new($x.as_ref(), None).unwrap().forward()
+        Matmax::new($x, None).unwrap().forward()
+    };
+
+    ($x:expr, Add, $y:expr) => {
+        Add::new($x, Some($y)).unwrap().forward()
+    };
+
+    ($x:expr, Sub, $y:expr) => {
+        Sub::new($x, Some($y)).unwrap().forward()
+    };
+
+    ($x:expr, Mul, $y:expr) => {
+        Mul::new($x, Some($y)).unwrap().forward()
+    };
+
+    ($x:expr, Div, $y:expr) => {
+        Div::new($x, Some($y)).unwrap().forward()
+    };
+
+    ($x:expr, Exp) => {
+        Exp::new($x, None).unwrap().forward()
+    };
+
+    ($x:expr, Neg) => {
+        Neg::new($x, None).unwrap().forward()
+    };
+
+    ($x:expr, Sqrt) => {
+        Sqrt::new($x, None).unwrap().forward()
+    };
+
+    ($x:expr, Abs) => {
+        Abs::new($x, None).unwrap().forward()
+    };
+
+    ($x:expr, Square) => {
+        Square::new($x, None).unwrap().forward()
+    };
+
+    ($x:expr, Log) => {
+        Log::new($x, None).unwrap().forward()
+    };
+
+    ($x:expr, Pow) => {
+        Pow::new($x, None).unwrap().forward()
     };
 }
 
@@ -201,11 +206,11 @@ pub trait TensorBase<Type: Debug + Display + 'static> {
    fn grad(&self) -> Option<&Tensor<Type>>;
 }
 
-pub trait Function<T: Debug + Display + Clone> {
+pub trait Function<'t, T: Debug + Display + Clone> {
     type Forwarded;
     type Gradiant;
 
-    fn new(first: &dyn TensorBase<T>, second: Option<&dyn TensorBase<T>>) -> MlResult<Self> where Self: Sized;
+    fn new(first: &'t dyn TensorBase<T>, second: Option<&'t dyn TensorBase<T>>) -> MlResult<Self> where Self: Sized;
     fn forward(&self) -> Self::Forwarded;
     fn backward(&self, grad: Box<dyn TensorBase<T>>) -> Self::Gradiant;
     fn backend(&self) -> &Arc<dyn Backend>;
@@ -266,7 +271,7 @@ pub struct Matmul<'t, T>  { first_tensor: &'t dyn TensorBase<T>, second_tensor: 
 #[cfg(test)]
 mod tests {
     use crate::MlResult;
-    use crate::tensor::{TensorBase, Tensor};
+    use crate::tensor::*;
 
     pub fn assert_tensor_eq(tensor: Box<dyn TensorBase<f32>>, expected_tensor: Box<dyn TensorBase<f32>>) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
@@ -313,6 +318,96 @@ mod tests {
         let et = Tensor::<f32>::new(vec![vec![0.5, 0.5]]);
 
         assert_tensor_eq(first / second, et)
+    }
+
+    #[test]
+    fn test_macro_matmul() {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![3.0], vec![4.0]]);
+        let result = ops!(first.as_ref(), Matmul, second.as_ref()).unwrap();
+        assert_eq!(result.data(), vec![11.0]);
+    }
+
+    #[test]
+    fn test_macro_add() {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![3.0, 4.0]]);
+        let result = ops!(first.as_ref(), Add, second.as_ref()).unwrap();
+        assert_eq!(result.data(), vec![4.0, 6.0]);
+    }
+
+    #[test]
+    fn test_macro_sub() {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![3.0, 4.0]]);
+        let result = ops!(first.as_ref(), Sub, second.as_ref()).unwrap();
+        assert_eq!(result.data(), vec![-2.0, -2.0]);
+    }
+
+    #[test]
+    fn test_macro_mul() {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![3.0, 4.0]]);
+        let result = ops!(first.as_ref(), Mul, second.as_ref()).unwrap();
+        assert_eq!(result.data(), vec![3.0, 8.0]);
+    }
+
+    #[test]
+    fn test_macro_div() {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![2.0, 4.0]]);
+        let result = ops!(first.as_ref(), Div, second.as_ref()).unwrap();
+        assert_eq!(result.data(), vec![0.5, 0.5]);
+    }
+
+    #[test]
+    fn test_macro_exp() {
+        let tensor = Tensor::new(vec![vec![1.0, 2.0]]);
+        let result = ops!(tensor.as_ref(), Exp).unwrap();
+        assert_eq!(result.data(), vec![std::f32::consts::E, 7.389056]);
+    }
+
+    #[test]
+    fn test_macro_neg() {
+        let tensor = Tensor::new(vec![vec![1.0, -2.0]]);
+        let result = ops!(tensor.as_ref(), Neg).unwrap();
+        assert_eq!(result.data(), vec![-1.0, 2.0]);
+    }
+
+    #[test]
+    fn test_macro_sqrt() {
+        let tensor = Tensor::new(vec![vec![1.0, 4.0]]);
+        let result = ops!(tensor.as_ref(), Sqrt).unwrap();
+        assert_eq!(result.data(), vec![1.0, 2.0]);
+    }
+
+    #[test]
+    fn test_macro_abs() {
+        let tensor = Tensor::new(vec![vec![1.0, -2.0]]);
+        let result = ops!(tensor.as_ref(), Abs).unwrap();
+        assert_eq!(result.data(), vec![1.0, 2.0]);
+    }
+
+    #[test]
+    fn test_macro_square() {
+        let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
+        let result = ops!(tensor.as_ref(), Square).unwrap();
+        assert_eq!(result.data(), vec![4.0, 9.0]);
+    }
+
+    #[test]
+    fn test_macro_log() {
+        let tensor = Tensor::new(vec![vec![1.0, std::f32::consts::E]]);
+        let result = ops!(tensor.as_ref(), Log).unwrap();
+        assert_eq!(result.data(), vec![0.0, 0.99999994]);
+    }
+
+    #[test]
+    fn test_macro_pow() {
+        let mut tensor = Tensor::new(vec![vec![2.0, 3.0]]);
+        tensor.set_power(2.0);
+        let result = ops!(tensor.as_ref(), Pow).unwrap();
+        assert_eq!(result.data(), vec![4.0, 9.0]);
     }
 
     // #[test]
