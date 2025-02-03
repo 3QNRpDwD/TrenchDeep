@@ -1,5 +1,5 @@
 use crate::{MlError, MlResult};
-use crate::tensor::{TensorBase, Tensor, TensorError};
+use crate::tensor::{TensorBase, Tensor, TensorError, Function};
 
 impl TensorBase<f32> for Tensor<f32> {
     fn new(data: Vec<Vec<f32>>) -> Box<dyn TensorBase<f32>>  {
@@ -107,6 +107,12 @@ impl TensorBase<f32> for Tensor<f32> {
 
     fn requires_grad(&mut self, requires: bool) {
         self.requires_grad = requires;
+    }
+
+    fn set_grad_fn(&mut self, grad_fn: Box<dyn Function<'static, f32,
+        Forwarded=MlResult<Box<dyn TensorBase<f32>>>,
+        Gradiant=MlResult<(Box<dyn TensorBase<f32>>, Box<dyn TensorBase<f32>>)>>>) {
+        self.grad_fn = Some(grad_fn);
     }
 
     // fn set_grad_fn<F>(&mut self, grad_fn: F)

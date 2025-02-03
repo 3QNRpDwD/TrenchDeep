@@ -811,7 +811,7 @@ impl std::ops::Add<Box<dyn TensorBase<f32>>> for Box<dyn TensorBase<f32>> {
     type Output = Box<dyn TensorBase<f32>>;
 
     fn add(self, other: Self) -> Self::Output {
-        Add::<f32>::new(self.as_ref(), Some(other.as_ref())).unwrap().forward().unwrap()
+        self.as_ref().add(other.as_ref())
     }
 }
 
@@ -819,7 +819,7 @@ impl std::ops::Sub<Box<dyn TensorBase<f32>>> for Box<dyn TensorBase<f32>> {
     type Output = Box<dyn TensorBase<f32>>;
 
     fn sub(self, other: Self) -> Self::Output {
-        Sub::<f32>::new(self.as_ref(), Some(other.as_ref())).unwrap().forward().unwrap()
+        self.as_ref().sub(other.as_ref())
     }
 }
 
@@ -838,7 +838,7 @@ impl std::ops::Mul<Box<dyn TensorBase<f32>>> for Box<dyn TensorBase<f32>> {
     type Output = Box<dyn TensorBase<f32>>;
 
     fn mul(self, other: Self) -> Self::Output {
-        Mul::<f32>::new(self.as_ref(), Some(other.as_ref())).unwrap().forward().unwrap()
+        self.as_ref().mul(other.as_ref())
     }
 }
 
@@ -853,7 +853,7 @@ impl std::ops::Div<Box<dyn TensorBase<f32>>> for Box<dyn TensorBase<f32>> {
     type Output = Box<dyn TensorBase<f32>>;
 
     fn div(self, other: Self) -> Self::Output {
-        Div::<f32>::new(self.as_ref(), Some(other.as_ref())).unwrap().forward().unwrap()
+        self.as_ref().div(other.as_ref())
     }
 }
 
