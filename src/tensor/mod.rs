@@ -130,14 +130,8 @@ pub struct Tensor<Type: Debug + 'static>
 {
     data: Vec<Type>,
     shape: Vec<usize>,
-    grad: Option<Box<dyn TensorBase<Type>>>,
-    grad_fn:
-        Option<Box<dyn Function<
-            'static,
-            Type,
-            Forwarded=MlResult<Box<dyn TensorBase<Type>>>,
-            Gradiant=MlResult<(Box<dyn TensorBase<Type>>, Box<dyn TensorBase<Type>>)>
-        >>>,
+    grad:  Option<Type>, // Option<Box<dyn TensorBase<Type>>>,
+    grad_fn: Option<Type>, // Option<&'static dyn Function<'static, Type>>,
     requires_grad: bool,
     power: Option<f32>,
     topk: Option<(usize, bool)>,
@@ -184,14 +178,11 @@ pub trait TensorBase<Type: Debug + 'static> {
     /// Enables gradient computation for the tensor
     fn requires_grad(&mut self, requires_grad: bool);
 
-    /// Sets the gradient function for the tensor
-    fn set_grad_fn(&mut self, grad_fn: Box<dyn Function<'static, Type,
-        Forwarded=MlResult<Box<dyn TensorBase<Type>>>,
-        Gradiant=MlResult<(Box<dyn TensorBase<Type>>, Box<dyn TensorBase<Type>>)>>>
-    );
+    //// Sets the gradient function for the tensor
+    // fn set_grad_fn(&mut self, grad_fn: &dyn Function<'static, Type>);
 
-    /// Returns the gradient of the tensor
-   fn grad(&self) -> Option<&dyn TensorBase<Type>>;
+    //// Returns the gradient of the tensor
+   // fn grad(&self) -> Option<&dyn TensorBase<Type>>;
 }
 
 impl<T> Debug for dyn TensorBase<T> {
@@ -200,21 +191,28 @@ impl<T> Debug for dyn TensorBase<T> {
     }
 }
 
+pub struct Variable<T> {
+    first: Box<dyn TensorBase<T>>,
+    second: Option<Box<dyn TensorBase<T>>>,
+}
+
 pub trait Function<'t, T: Debug + Clone> {
     type Forwarded;
     type Gradiant;
 
     fn new(first: &'t dyn TensorBase<T>, second: Option<&'t dyn TensorBase<T>>) -> MlResult<Self> where Self: Sized;
-    fn forward(&self) -> Self::Forwarded;
-    fn backward(&self, grad: Box<dyn TensorBase<T>>) -> Self::Gradiant;
+    // fn forward(&self) -> Self::Forwarded;
+    // fn backward(&self, grad: Box<dyn TensorBase<T>>) -> Self::Gradiant;
+    fn forward(&mut self) ->  Self::Forwarded;
+    fn backward(&mut self, grad: &'t dyn TensorBase<T>) -> Self::Gradiant;
     fn backend(&self) -> &Arc<dyn Backend>;
 }
 
-impl<T> Debug for dyn Function<'_, T, Forwarded=MlResult<Box<dyn TensorBase<T>>>, Gradiant=MlResult<(Box<dyn TensorBase<T>>, Box<dyn TensorBase<T>>)>> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "Function Debug")
-    }
-}
+// impl<T> Debug for dyn Function<'_, T, Forwarded=(), Gradiant=()> {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+//         write!(f, "Function Debug")
+//     }
+// }
 
 
 // pub trait BroadcastLayer {
@@ -227,68 +225,79 @@ impl<T> Debug for dyn Function<'_, T, Forwarded=MlResult<Box<dyn TensorBase<T>>>
 //     fn calculate_broadcast_indices(&self, other: &Self, idx: usize, shape: &[usize]) -> Option<(usize, usize)>;
 // }
 
-#[derive(Clone)]
 /// Structure representing an exponential operation.
-pub struct Exp<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Exp<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<Box<dyn TensorBase<T>>> }
 
-#[derive(Clone)]
 /// Structure representing a negation operation.
-pub struct Neg<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Neg<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<Box<dyn TensorBase<T>>> }
 
-#[derive(Clone)]
 /// Structure representing a square root operation.
-pub struct Sqrt<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Sqrt<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<Box<dyn TensorBase<T>>> }
 
-#[derive(Clone)]
 /// Structure representing an absolute value operation.
-pub struct Abs<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Abs<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<Box<dyn TensorBase<T>>> }
 
-#[derive(Clone)]
 /// Structure representing a squaring operation.
-pub struct Square<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Square<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<Box<dyn TensorBase<T>>> }
 
-#[derive(Clone)]
 /// Structure representing a logarithmic operation.
-pub struct Log<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Log<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<Box<dyn TensorBase<T>>> }
 
-#[derive(Clone)]
 /// Structure representing a power operation.
-pub struct Pow<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Pow<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<Box<dyn TensorBase<T>>> }
 
-#[derive(Clone)]
 /// Structure representing a Top-k operation.
-pub struct Topk<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> } // k: second, sorted: third
+pub struct Topk<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<(Box<dyn TensorBase<T>>, Box<dyn TensorBase<T>>)> } // k: second, sorted: third
 
-#[derive(Clone)]
 /// Structure representing a matrix max operation along a dimension.
-pub struct Matmax<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> } // dim: second, keepdim: third
+pub struct Matmax<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<(Box<dyn TensorBase<T>>, Box<dyn TensorBase<T>>)> } // dim: second, keepdim: third
 
-#[derive(Clone)]
 /// Structure representing an addition operation.
-pub struct Add<'t, T>     { first_tensor: &'t dyn TensorBase<T>, second_tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Add<'t, T>     {
+    first_tensor: &'t dyn TensorBase<T>,
+    second_tensor: &'t dyn TensorBase<T>,
+    backend: Arc<dyn Backend>,
+    output: Option<Box<dyn TensorBase<T>>>
+}
 
-#[derive(Clone)]
 /// Structure representing a subtraction operation.
-pub struct Sub<'t, T>     { first_tensor: &'t dyn TensorBase<T>, second_tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Sub<'t, T>     {
+    first_tensor: &'t dyn TensorBase<T>,
+    second_tensor: &'t dyn TensorBase<T>,
+    backend: Arc<dyn Backend>,
+    output: Option<Box<dyn TensorBase<T>>>
+}
 
-#[derive(Clone)]
 /// Structure representing a multiplication operation.
-pub struct Mul<'t, T>     { first_tensor: &'t dyn TensorBase<T>, second_tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Mul<'t, T> {
+    first_tensor: &'t dyn TensorBase<T>,
+    second_tensor: &'t dyn TensorBase<T>,
+    backend: Arc<dyn Backend>,
+    output: Option<Box<dyn TensorBase<T>>>
+}
 
-#[derive(Clone)]
 /// Structure representing a division operation.
-pub struct Div<'t, T>     { first_tensor: &'t dyn TensorBase<T>, second_tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Div<'t, T> {
+    first_tensor: &'t dyn TensorBase<T>,
+    second_tensor: &'t dyn TensorBase<T>,
+    backend: Arc<dyn Backend>,
+    output: Option<Box<dyn TensorBase<T>>>
+}
 
-#[derive(Clone)]
 /// Structure representing a matrix multiplication operation.
-pub struct Matmul<'t, T>  { first_tensor: &'t dyn TensorBase<T>, second_tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend> }
+pub struct Matmul<'t, T> {
+    first_tensor: &'t dyn TensorBase<T>,
+    second_tensor: &'t dyn TensorBase<T>,
+    backend: Arc<dyn Backend>,
+    output: Option<Box<dyn TensorBase<T>>>
+}
 
 #[cfg(test)]
 mod tests {
     use crate::MlResult;
     use crate::tensor::*;
 
-    pub fn assert_tensor_eq(tensor: Box<dyn TensorBase<f32>>, expected_tensor: Box<dyn TensorBase<f32>>) -> MlResult<()> {
+    pub fn assert_tensor_eq(tensor: &dyn TensorBase<f32>, expected_tensor: Box<dyn TensorBase<f32>>) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
         Ok(())
