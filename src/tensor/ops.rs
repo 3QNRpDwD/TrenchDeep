@@ -20,12 +20,14 @@ impl<'t> Function<'t, f32> for Abs<'t, f32> {
     ///
     /// # Returns
     /// A new tensor with the absolute values of each element
-    fn forward(&mut self) -> Self::Forwarded {
-        self.output = Some(Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| x.abs()).collect(), self.tensor.shape())?);
+    fn forward(&'t mut self) -> Self::Forwarded {
+        if self.output.is_none() {
+            self.output = Some(Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| x.abs()).collect(), self.tensor.shape())?);
+        }
         Ok(self.output.as_ref().unwrap().as_ref())
     }
 
-    fn backward(&mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
 
@@ -50,12 +52,14 @@ impl<'t> Function<'t, f32> for Exp<'t, f32> {
     ///
     /// # Returns
     /// A new tensor with each element being e ^ tensor_element
-    fn forward(&mut self) -> Self::Forwarded {
-        self.output = Some(Tensor::<f32>::from_vec(self.backend.exp(&self.tensor.data()), self.tensor.shape())?);
+    fn forward(&'t mut self) -> Self::Forwarded {
+        if self.output.is_none() {
+            self.output = Some(Tensor::<f32>::from_vec(self.backend.exp(&self.tensor.data()), self.tensor.shape())?);
+        }
         Ok(self.output.as_ref().unwrap().as_ref())
     }
 
-    fn backward(&mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
 
@@ -80,13 +84,15 @@ impl<'t> Function<'t, f32> for Log<'t, f32> {
     ///
     /// # Returns
     /// A new tensor with each element being the natural logarithm of tensor_element
-    fn forward(&mut self) -> Self::Forwarded {
-        self.output = Some(Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| x.ln()).collect(), self.tensor.shape())?);
+    fn forward(&'t mut self) -> Self::Forwarded {
+        if self.output.is_none() {
+            self.output = Some(Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| x.ln()).collect(), self.tensor.shape())?);
+        }
         Ok(self.output.as_ref().unwrap().as_ref())
 
     }
 
-    fn backward(&mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
 
@@ -111,12 +117,14 @@ impl<'t> Function<'t, f32> for Neg<'t, f32> {
     ///
     /// # Returns
     /// A new tensor with each element being the negation of tensor_element
-    fn forward(&mut self) -> Self::Forwarded {
-        self.output = Some(Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| -x).collect(), self.tensor.shape())?);
+    fn forward(&'t mut self) -> Self::Forwarded {
+        if self.output.is_none() {
+            self.output = Some(Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| -x).collect(), self.tensor.shape())?);
+        }
         Ok(self.output.as_ref().unwrap().as_ref())
     }
 
-    fn backward(&mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
 
@@ -141,12 +149,14 @@ impl<'t> Function<'t, f32> for Sqrt<'t, f32> {
     ///
     /// # Returns
     /// A new tensor with each element being the square root of tensor_element
-    fn forward(&mut self) -> Self::Forwarded {
-        self.output = Some(Tensor::<f32>::from_vec(self.backend().sqrt(self.tensor.data()), self.tensor.shape())?);
+    fn forward(&'t mut self) -> Self::Forwarded {
+        if self.output.is_none() {
+            self.output = Some(Tensor::<f32>::from_vec(self.backend().sqrt(self.tensor.data()), self.tensor.shape())?);
+        }
         Ok(self.output.as_ref().unwrap().as_ref())
     }
 
-    fn backward(&mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
 
@@ -171,12 +181,14 @@ impl<'t> Function<'t, f32> for Square<'t, f32> {
     ///
     /// # Returns
     /// A new tensor with each element being the square of the corresponding element in the input tensor
-    fn forward(&mut self) -> Self::Forwarded {
-        self.output = Some(Tensor::<f32>::from_vec(self.tensor.data().iter().map(|x| x * x).collect(), self.tensor.shape())?);
+    fn forward(&'t mut self) -> Self::Forwarded {
+        if self.output.is_none() {
+            self.output = Some(Tensor::<f32>::from_vec(self.tensor.data().iter().map(|x| x * x).collect(), self.tensor.shape())?);
+        }
         Ok(self.output.as_ref().unwrap().as_ref())
     }
 
-    fn backward(&mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
 
@@ -205,34 +217,31 @@ impl<'t> Function<'t, f32> for Add<'t, f32> {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise addition
-    fn forward(&mut self) -> Self::Forwarded {
-        if self.first_tensor.shape().len() == 2 && self.second_tensor.shape().len() == 1 && self.first_tensor.shape()[1] == self.second_tensor.shape()[0] {
-            let (_, features) = (self.first_tensor.shape()[0], self.first_tensor.shape()[1]);
-            let mut data = vec![0.0; self.first_tensor.data().len()];
+    fn forward(&'t mut self) -> Self::Forwarded {
+        if self.output.is_none() {
+            if self.first_tensor.shape().len() == 2 && self.second_tensor.shape().len() == 1 && self.first_tensor.shape()[1] == self.second_tensor.shape()[0] {
+                let (_, features) = (self.first_tensor.shape()[0], self.first_tensor.shape()[1]);
+                let mut data = vec![0.0; self.first_tensor.data().len()];
 
-            for (i, chunk) in data.chunks_mut(features).enumerate() {
-                for (j, val) in chunk.iter_mut().enumerate() {
-                    *val = self.first_tensor.data()[i * features + j] + self.second_tensor.data()[j];
+                for (i, chunk) in data.chunks_mut(features).enumerate() {
+                    for (j, val) in chunk.iter_mut().enumerate() {
+                        *val = self.first_tensor.data()[i * features + j] + self.second_tensor.data()[j];
+                    }
+                }
+                self.output = Some(Tensor::<f32>::from_vec(data, self.first_tensor.shape())?);
+            }
+
+            match self.first_tensor.chk_shape(self.second_tensor) {
+                Err(e) => return Err(e),
+                _ => {
+                    self.output = Some(Tensor::<f32>::from_vec(self.backend().add(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())?);
                 }
             }
-            self.output = Some(Tensor::<f32>::from_vec(data, self.first_tensor.shape())?);
-            return Ok(self.output.as_ref().unwrap().as_ref())
         }
-
-        match self.first_tensor.chk_shape(self.second_tensor) {
-            Err(e) => Err(e),
-            _ => {
-                self.output = Some(Tensor::<f32>::from_vec(
-                    self.backend().add(
-                            self.first_tensor.data(),
-                            self.second_tensor.data()
-                    ), self.first_tensor.shape())?);
-                Ok(self.output.as_ref().unwrap().as_ref())
-            }
-        }
+        Ok(self.output.as_ref().unwrap().as_ref())
     }
 
-    fn backward(&mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
 
@@ -261,30 +270,31 @@ impl<'t> Function<'t, f32> for Sub<'t, f32> {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise subtraction
-    fn forward(&mut self) -> Self::Forwarded {
-        if self.first_tensor.shape().len() == 2 && self.second_tensor.shape().len() == 1 && self.first_tensor.shape()[1] == self.second_tensor.shape()[0] {
-            let (batch_size, features) = (self.first_tensor.shape()[0], self.first_tensor.shape()[1]);
-            let mut data = vec![0.0; self.first_tensor.data().len()];
+    fn forward(&'t mut self) -> Self::Forwarded {
+        if self.output.is_none() {
+            if self.first_tensor.shape().len() == 2 && self.second_tensor.shape().len() == 1 && self.first_tensor.shape()[1] == self.second_tensor.shape()[0] {
+                let (batch_size, features) = (self.first_tensor.shape()[0], self.first_tensor.shape()[1]);
+                let mut data = vec![0.0; self.first_tensor.data().len()];
 
-            for i in 0..batch_size {
-                for j in 0..features {
-                    data[i * features + j] = self.first_tensor.data()[i * features + j] - self.second_tensor.data()[j];
+                for i in 0..batch_size {
+                    for j in 0..features {
+                        data[i * features + j] = self.first_tensor.data()[i * features + j] - self.second_tensor.data()[j];
+                    }
+                }
+                self.output = Some(Tensor::<f32>::from_vec(data, &self.first_tensor.shape())?);
+            }
+
+            match self.first_tensor.chk_shape(self.second_tensor) {
+                Err(e) => return Err(e),
+                _ => {
+                    self.output = Some(Tensor::<f32>::from_vec(self.backend().sub(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())?)
                 }
             }
-            self.output = Some(Tensor::<f32>::from_vec(data, &self.first_tensor.shape())?);
-            return Ok(self.output.as_ref().unwrap().as_ref())
         }
-
-        match self.first_tensor.chk_shape(self.second_tensor) {
-            Err(e) => Err(e),
-            _ => {
-                self.output = Some(Tensor::<f32>::from_vec(self.backend().sub(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())?);
-                Ok(self.output.as_ref().unwrap().as_ref())
-            }
-        }
+        Ok(self.output.as_ref().unwrap().as_ref())
     }
 
-    fn backward(&mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
 
@@ -313,17 +323,19 @@ impl<'t> Function<'t, f32> for Mul<'t, f32> {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise multiplication
-    fn forward(&mut self) -> Self::Forwarded {
-        match self.first_tensor.chk_shape(self.second_tensor) {
-            Err(e) => Err(e),
-            _ => {
-                self.output = Some(Tensor::<f32>::from_vec(self.backend().multiply(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())?);
-                Ok(self.output.as_ref().unwrap().as_ref())
+    fn forward(&'t mut self) -> Self::Forwarded {
+        if self.output.is_none() {
+            match self.first_tensor.chk_shape(self.second_tensor) {
+                Err(e) => return Err(e),
+                _ => {
+                    self.output = Some(Tensor::<f32>::from_vec(self.backend().multiply(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())?);
+                }
             }
         }
+        Ok(self.output.as_ref().unwrap().as_ref())
     }
 
-    fn backward(&mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
 
@@ -351,18 +363,19 @@ impl<'t> Function<'t, f32> for Div<'t, f32> {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise division
-    fn forward(&mut self) -> Self::Forwarded {
-
-        match self.first_tensor.chk_shape(self.second_tensor) {
-            Err(e) => Err(e),
-            _ => {
-                self.output = Some(Tensor::<f32>::from_vec(self.backend().div(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())?);
-                Ok(self.output.as_ref().unwrap().as_ref())
+    fn forward(&'t mut self) -> Self::Forwarded {
+        if self.output.is_none() {
+            match self.first_tensor.chk_shape(self.second_tensor) {
+                Err(e) => return Err(e),
+                _ => {
+                    self.output = Some(Tensor::<f32>::from_vec(self.backend().div(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())?);
+                }
             }
         }
+        Ok(self.output.as_ref().unwrap().as_ref())
     }
 
-    fn backward(&mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
 
@@ -390,12 +403,14 @@ impl<'t> Function<'t, f32> for Pow<'t, f32> {
     ///
     /// # Returns
     /// A new tensor with each element being tensor_element ^ power
-    fn forward(&mut self) -> Self::Forwarded {
-        self.output = Some(Tensor::<f32>::from_vec(self.backend().pow(self.tensor.data(), self.tensor.power()), self.tensor.shape())?);
+    fn forward(&'t mut self) -> Self::Forwarded {
+        if self.output.is_none() {
+            self.output = Some(Tensor::<f32>::from_vec(self.backend().pow(self.tensor.data(), self.tensor.power()), self.tensor.shape())?);
+        }
         Ok(self.output.as_ref().unwrap().as_ref())
     }
 
-    fn backward(&mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
 
@@ -425,162 +440,161 @@ impl<'t> Function<'t, f32> for Matmul<'t, f32> {
     /// # Returns
     /// A new tensor with the result of the matrix multiplication
     // Handle empty tensors
-    fn forward(&mut self) -> Self::Forwarded {
-        if self.first_tensor.data().is_empty() || self.second_tensor.data().is_empty() {
-            return Err(MlError::TensorError(TensorError::EmptyTensor));
-        }
-
-        let a = self.first_tensor.shape().len();
-        let b = self.second_tensor.shape().len();
-
-        match (a, b) {
-            // Case 1: 1D * 1D (dot product)
-            (1, 1) => {
-                match self.first_tensor.chk_shape(self.second_tensor) {
-                    Err(e) => Err(e),
-                    _ => {
-                        self.output = Some(Tensor::<f32>::from_vec(
-                            vec![self.first_tensor.data().iter().zip(self.second_tensor.data().iter()).map(|(&a, &b)| a * b).sum::<f32>()],
-                            &vec![]
-                        )?);
-                        Ok(self.output.as_ref().unwrap().as_ref())
-                    }
-                }
+    fn forward(&'t mut self) -> Self::Forwarded {
+        if self.output.is_none() {
+            if self.first_tensor.data().is_empty() || self.second_tensor.data().is_empty() {
+                return Err(MlError::TensorError(TensorError::EmptyTensor));
             }
 
-            // Case 2: 2D * 1D or 1D * 2D
-            (2, 1) => {
-                if self.first_tensor.shape()[1] != self.second_tensor.shape()[0] {
-                    return Err(MlError::TensorError(
-                        TensorError::MatrixMultiplicationError {
-                            left_shape: self.first_tensor.shape().to_vec(),
-                            right_shape: self.second_tensor.shape().to_vec(),
-                        },
-                    ));
-                }
-                let m = self.first_tensor.shape()[0];
-                let k = self.first_tensor.shape()[1];
-                let mut data = vec![0.0; m];
+            let a = self.first_tensor.shape().len();
+            let b = self.second_tensor.shape().len();
 
-                for i in 0..m {
-                    let mut sum = 0.0;
-                    for j in 0..k {
-                        sum += self.first_tensor.data()[i * k + j] * self.second_tensor.data()[j];
-                    }
-                    data[i] = sum;
-                }
-                self.output = Some(Tensor::<f32>::from_vec(data, &[m].to_vec())?);
-                Ok(self.output.as_ref().unwrap().as_ref())
-            }
-
-            (1, 2) => {
-                if self.first_tensor.shape()[0] != self.second_tensor.shape()[0] {
-                    return Err(MlError::TensorError(
-                        TensorError::MatrixMultiplicationError {
-                            left_shape: self.first_tensor.shape().to_vec(),
-                            right_shape: self.second_tensor.shape().to_vec(),
-                        },
-                    ));
-                }
-                let k = self.first_tensor.shape()[0];
-                let n = self.second_tensor.shape()[1];
-                let mut data = vec![0.0; n];
-
-                for j in 0..n {
-                    let mut sum = 0.0;
-                    for i in 0..k {
-                        sum += self.first_tensor.data()[i] * self.second_tensor.data()[i * n + j];
-                    }
-                    data[j] = sum;
-                }
-                self.output = Some(Tensor::<f32>::from_vec(data, &[n].to_vec())?);
-                Ok(self.output.as_ref().unwrap().as_ref())
-            }
-
-            // Case 3: Higher dimensional tensor multiplication
-            (a, b) => {
-                // Get batch dimensions
-                let batch_size = if a > 2 {
-                    self.first_tensor.shape()[..a - 2].iter().product()
-                } else {
-                    1
-                };
-                let m = self.first_tensor.shape()[a - 2];
-                let k = self.first_tensor.shape()[a - 1];
-                let n = self.second_tensor.shape()[b - 1];
-
-                if k != self.second_tensor.shape()[b - 2] {
-                    return Err(MlError::TensorError(
-                        TensorError::MatrixMultiplicationError {
-                            left_shape: self.first_tensor.shape().to_vec(),
-                            right_shape: self.second_tensor.shape().to_vec(),
-                        },
-                    ));
-                }
-
-                // Handle broadcasting for batch dimensions
-                let other_batch_size = if b > 2 {
-                    self.second_tensor.shape()[..b - 2].iter().product()
-                } else {
-                    1
-                };
-
-                let output_batch_size = if batch_size == 1 {
-                    other_batch_size
-                } else if other_batch_size == 1 {
-                    batch_size
-                } else if batch_size == other_batch_size {
-                    batch_size
-                } else {
-                    return Err(MlError::TensorError(
-                        TensorError::MatrixMultiplicationError {
-                            left_shape: self.first_tensor.shape().to_vec(),
-                            right_shape: self.second_tensor.shape().to_vec()
-                        },
-                    ));
-                };
-
-                let mut data = vec![0.0; output_batch_size * m * n];
-
-                for batch in 0..output_batch_size {
-                    let batch1 = if batch_size == 1 { 0 } else { batch };
-                    let batch2 = if other_batch_size == 1 { 0 } else { batch };
-
-                    let start1 = batch1 * m * k;
-                    let start2 = batch2 * k * n;
-                    let result_start = batch * m * n;
-
-                    for i in 0..m {
-                        for j in 0..n {
-                            let mut sum = 0.0;
-                            for l in 0..k {
-                                sum +=
-                                    self.first_tensor.data()[start1 + i * k + l] * self.second_tensor.data()[start2 + l * n + j];
-                            }
-                            data[result_start + i * n + j] = sum;
+            match (a, b) {
+                // Case 1: 1D * 1D (dot product)
+                (1, 1) => {
+                    match self.first_tensor.chk_shape(self.second_tensor) {
+                        Err(e) => return Err(e),
+                        _ => {
+                            self.output = Some(Tensor::<f32>::from_vec(
+                                vec![self.first_tensor.data().iter().zip(self.second_tensor.data().iter()).map(|(&a, &b)| a * b).sum::<f32>()],
+                                &vec![]
+                            )?)
                         }
                     }
                 }
 
-                // Construct output shape
-                let mut shape = Vec::new();
-                if a > 2 || b > 2 {
-                    if batch_size > 1 {
-                        shape.extend_from_slice(&self.first_tensor.shape()[..a - 2]);
-                    } else {
-                        shape.extend_from_slice(&self.second_tensor.shape()[..b - 2]);
+                // Case 2: 2D * 1D or 1D * 2D
+                (2, 1) => {
+                    if self.first_tensor.shape()[1] != self.second_tensor.shape()[0] {
+                        return Err(MlError::TensorError(
+                            TensorError::MatrixMultiplicationError {
+                                left_shape: self.first_tensor.shape().to_vec(),
+                                right_shape: self.second_tensor.shape().to_vec(),
+                            },
+                        ));
                     }
-                }
-                shape.push(m);
-                shape.push(n);
+                    let m = self.first_tensor.shape()[0];
+                    let k = self.first_tensor.shape()[1];
+                    let mut data = vec![0.0; m];
 
-                self.output = Some(Tensor::<f32>::from_vec(data, &shape)?);
-                Ok(self.output.as_ref().unwrap().as_ref())
+                    for i in 0..m {
+                        let mut sum = 0.0;
+                        for j in 0..k {
+                            sum += self.first_tensor.data()[i * k + j] * self.second_tensor.data()[j];
+                        }
+                        data[i] = sum;
+                    }
+                    self.output = Some(Tensor::<f32>::from_vec(data, &[m].to_vec())?);
+                }
+
+                (1, 2) => {
+                    if self.first_tensor.shape()[0] != self.second_tensor.shape()[0] {
+                        return Err(MlError::TensorError(
+                            TensorError::MatrixMultiplicationError {
+                                left_shape: self.first_tensor.shape().to_vec(),
+                                right_shape: self.second_tensor.shape().to_vec(),
+                            },
+                        ));
+                    }
+                    let k = self.first_tensor.shape()[0];
+                    let n = self.second_tensor.shape()[1];
+                    let mut data = vec![0.0; n];
+
+                    for j in 0..n {
+                        let mut sum = 0.0;
+                        for i in 0..k {
+                            sum += self.first_tensor.data()[i] * self.second_tensor.data()[i * n + j];
+                        }
+                        data[j] = sum;
+                    }
+                    self.output = Some(Tensor::<f32>::from_vec(data, &[n].to_vec())?);
+                }
+
+                // Case 3: Higher dimensional tensor multiplication
+                (a, b) => {
+                    // Get batch dimensions
+                    let batch_size = if a > 2 {
+                        self.first_tensor.shape()[..a - 2].iter().product()
+                    } else {
+                        1
+                    };
+                    let m = self.first_tensor.shape()[a - 2];
+                    let k = self.first_tensor.shape()[a - 1];
+                    let n = self.second_tensor.shape()[b - 1];
+
+                    if k != self.second_tensor.shape()[b - 2] {
+                        return Err(MlError::TensorError(
+                            TensorError::MatrixMultiplicationError {
+                                left_shape: self.first_tensor.shape().to_vec(),
+                                right_shape: self.second_tensor.shape().to_vec(),
+                            },
+                        ));
+                    }
+
+                    // Handle broadcasting for batch dimensions
+                    let other_batch_size = if b > 2 {
+                        self.second_tensor.shape()[..b - 2].iter().product()
+                    } else {
+                        1
+                    };
+
+                    let output_batch_size = if batch_size == 1 {
+                        other_batch_size
+                    } else if other_batch_size == 1 {
+                        batch_size
+                    } else if batch_size == other_batch_size {
+                        batch_size
+                    } else {
+                        return Err(MlError::TensorError(
+                            TensorError::MatrixMultiplicationError {
+                                left_shape: self.first_tensor.shape().to_vec(),
+                                right_shape: self.second_tensor.shape().to_vec()
+                            },
+                        ));
+                    };
+
+                    let mut data = vec![0.0; output_batch_size * m * n];
+
+                    for batch in 0..output_batch_size {
+                        let batch1 = if batch_size == 1 { 0 } else { batch };
+                        let batch2 = if other_batch_size == 1 { 0 } else { batch };
+
+                        let start1 = batch1 * m * k;
+                        let start2 = batch2 * k * n;
+                        let result_start = batch * m * n;
+
+                        for i in 0..m {
+                            for j in 0..n {
+                                let mut sum = 0.0;
+                                for l in 0..k {
+                                    sum +=
+                                        self.first_tensor.data()[start1 + i * k + l] * self.second_tensor.data()[start2 + l * n + j];
+                                }
+                                data[result_start + i * n + j] = sum;
+                            }
+                        }
+                    }
+
+                    // Construct output shape
+                    let mut shape = Vec::new();
+                    if a > 2 || b > 2 {
+                        if batch_size > 1 {
+                            shape.extend_from_slice(&self.first_tensor.shape()[..a - 2]);
+                        } else {
+                            shape.extend_from_slice(&self.second_tensor.shape()[..b - 2]);
+                        }
+                    }
+                    shape.push(m);
+                    shape.push(n);
+                    self.output = Some(Tensor::<f32>::from_vec(data, &shape)?);
+                }
             }
         }
+        Ok(self.output.as_ref().unwrap().as_ref())
     }
 
-    fn backward(&mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
+
+    fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
 
@@ -593,10 +607,10 @@ impl<'t> Function<'t, f32> for Topk<'t, f32> {
     type Forwarded = MlResult<(&'t dyn TensorBase<f32>, &'t dyn TensorBase<f32>)>;
     type Gradiant = ();
 
-    fn new(first: &'t dyn TensorBase<f32>, _: Option<&'t dyn TensorBase<f32>>) ->MlResult<Self>{
+    fn new(first: &'t dyn TensorBase<f32>, _: Option<&'t dyn TensorBase<f32>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
-            backend : Arc::new(backend::CpuBackend::new()?),
+            backend: Arc::new(backend::CpuBackend::new()?),
             output: None
         })
     }
@@ -609,67 +623,68 @@ impl<'t> Function<'t, f32> for Topk<'t, f32> {
     ///
     /// # Returns
     /// A tuple of two tensors (values, indices) containing the top k values and their indices
-    fn forward(&mut self) -> Self::Forwarded {
-        if self.tensor.topk().0 == 0 {
-            return Err(MlError::TensorError(TensorError::InvalidOperation {
-                op: "topk",
-                reason: "k must be greater than 0".to_string(),
-            }));
-        }
-
-        let last_dim = self.tensor.shape().len() - 1;
-        let last_dim_size = self.tensor.shape()[last_dim];
-
-        if self.tensor.topk().0 > last_dim_size {
-            return Err(MlError::TensorError(TensorError::InvalidOperation {
-                op: "topk",
-                reason: format!(
-                    "k ({}) cannot be larger than last dimension size ({})",
-                    self.tensor.topk().0, last_dim_size
-                ),
-            }));
-        }
-
-
-        let slice_size = last_dim_size;
-        let num_slices: usize = self.tensor.shape()[..last_dim].iter().product();
-        let mut values = Vec::with_capacity(num_slices * self.tensor.topk().0);
-        let mut indices = Vec::with_capacity(num_slices * self.tensor.topk().0);
-
-
-        for slice_idx in 0..num_slices {
-            let start_idx = slice_idx * slice_size;
-            let end_idx = start_idx + slice_size;
-            let slice_data = &self.tensor.data()[start_idx..end_idx];
-            let mut pairs: Vec<(f32, usize)> = slice_data
-                .iter()
-                .copied()
-                .enumerate()
-                .map(|(i, v)| (v, i))
-                .collect();
-
-
-            pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-
-
-            let top_k = &pairs[..self.tensor.topk().0];
-            let mut selected = top_k.to_vec();
-            if !self.tensor.topk().1 {
-                selected.sort_by_key(|pair| pair.1);
+    fn forward(&'t mut self) -> Self::Forwarded {
+        if self.output.is_none() { if self.tensor.topk().0 == 0 {
+                return Err(MlError::TensorError(TensorError::InvalidOperation {
+                    op: "topk",
+                    reason: "k must be greater than 0".to_string(),
+                }));
             }
 
-            values.extend(selected.iter().map(|pair| pair.0));
-            indices.extend(selected.iter().map(|pair| pair.1 as f32));
+            let last_dim = self.tensor.shape().len() - 1;
+            let last_dim_size = self.tensor.shape()[last_dim];
+
+            if self.tensor.topk().0 > last_dim_size {
+                return Err(MlError::TensorError(TensorError::InvalidOperation {
+                    op: "topk",
+                    reason: format!(
+                        "k ({}) cannot be larger than last dimension size ({})",
+                        self.tensor.topk().0, last_dim_size
+                    ),
+                }));
+            }
+
+
+            let slice_size = last_dim_size;
+            let num_slices: usize = self.tensor.shape()[..last_dim].iter().product();
+            let mut values = Vec::with_capacity(num_slices * self.tensor.topk().0);
+            let mut indices = Vec::with_capacity(num_slices * self.tensor.topk().0);
+
+
+            for slice_idx in 0..num_slices {
+                let start_idx = slice_idx * slice_size;
+                let end_idx = start_idx + slice_size;
+                let slice_data = &self.tensor.data()[start_idx..end_idx];
+                let mut pairs: Vec<(f32, usize)> = slice_data
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .map(|(i, v)| (v, i))
+                    .collect();
+
+
+                pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+
+
+                let top_k = &pairs[..self.tensor.topk().0];
+                let mut selected = top_k.to_vec();
+                if !self.tensor.topk().1 {
+                    selected.sort_by_key(|pair| pair.1);
+                }
+
+                values.extend(selected.iter().map(|pair| pair.0));
+                indices.extend(selected.iter().map(|pair| pair.1 as f32));
+            }
+
+            let mut new_shape = self.tensor.shape().to_vec();
+            new_shape[last_dim] = self.tensor.topk().0;
+
+            self.output = Some((Tensor::<f32>::from_vec(values, &new_shape)?, Tensor::<f32>::from_vec(indices, &new_shape)?));
         }
-
-        let mut new_shape = self.tensor.shape().to_vec();
-        new_shape[last_dim] = self.tensor.topk().0;
-
-        self.output = Some((Tensor::<f32>::from_vec(values, &new_shape)?, Tensor::<f32>::from_vec(indices, &new_shape)?));
         Ok((self.output.as_ref().unwrap().0.as_ref(), self.output.as_ref().unwrap().1.as_ref()))
     }
 
-    fn backward(&mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
 
@@ -701,73 +716,70 @@ impl<'t> Function<'t, f32> for Matmax<'t, f32> {
     /// If dim is None, returns a tensor with a single element containing the maximum value.
     /// If dim is specified, returns a tuple of two tensors (values, indices) containing the
     /// maximum values and their indices along the specified dimension.
-    fn forward(&mut self) -> Self::Forwarded {
-        match self.tensor.matmax().0 {
-            None => {
-                // Find global maximum
-                let max_val = self.tensor.data().iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-                self.output = Some((Tensor::<f32>::from_vec(vec![max_val], &vec![1])?, Tensor::<f32>::new(vec![])));
-                Ok((self.output.as_ref().unwrap().0.as_ref(), self.output.as_ref().unwrap().1.as_ref()))
-
-            }
-            Some(d) => {
-                let dim = if d < 0 {
-                    (self.tensor.shape().len() as i32 + d) as usize
-                } else {
-                    d as usize
-                };
-
-                if dim >= self.tensor.shape().len() {
-                    return Err(MlError::TensorError(TensorError::InvalidAxis {
-                        axis: dim,
-                        shape: self.tensor.shape().to_vec(),
-                    }));
+    fn forward(&'t mut self) -> Self::Forwarded {
+        if self.output.is_none() {
+            match self.tensor.matmax().0 {
+                None => {
+                    // Find global maximum
+                    let max_val = self.tensor.data().iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+                    self.output = Some((Tensor::<f32>::from_vec(vec![max_val], &vec![1])?, Tensor::<f32>::new(vec![])));
                 }
+                Some(d) => {
+                    let dim = if d < 0 {
+                        (self.tensor.shape().len() as i32 + d) as usize
+                    } else {
+                        d as usize
+                    };
 
-                let mut new_shape = self.tensor.shape().to_vec();
-                if !self.tensor.matmax().1 {
-                    new_shape.remove(dim);
-                } else {
-                    new_shape[dim] = 1;
-                }
-
-                let stride: usize = self.tensor.shape()[dim + 1..].iter().product();
-                let outer_stride: usize = self.tensor.shape()[dim..].iter().product();
-                let outer_dims: usize = self.tensor.shape()[..dim].iter().product();
-                let dim_size = self.tensor.shape()[dim];
-
-                let mut max_values = Vec::with_capacity(self.tensor.data().len() / dim_size);
-                let mut max_indices = Vec::with_capacity(self.tensor.data().len() / dim_size);
-
-                for i in 0..outer_dims {
-                    for j in 0..stride {
-                        let mut max_val = f32::NEG_INFINITY;
-                        let mut max_idx = 0;
-
-                        for k in 0..dim_size {
-                            let idx = i * outer_stride + k * stride + j;
-                            let val = self.tensor.data()[idx];
-                            if val > max_val {
-                                max_val = val;
-                                max_idx = k;
-                            }
-                        }
-
-                        max_values.push(max_val);
-                        max_indices.push(max_idx as f32);
+                    if dim >= self.tensor.shape().len() {
+                        return Err(MlError::TensorError(TensorError::InvalidAxis {
+                            axis: dim,
+                            shape: self.tensor.shape().to_vec(),
+                        }));
                     }
-                }
 
-                self.output = Some((Tensor::<f32>::from_vec(max_values, &new_shape)?, Tensor::<f32>::from_vec(max_indices, &new_shape)?));
-                Ok((
-                    self.output.as_ref().unwrap().0.as_ref(),
-                    self.output.as_ref().unwrap().1.as_ref(),
-                ))
+                    let mut new_shape = self.tensor.shape().to_vec();
+                    if !self.tensor.matmax().1 {
+                        new_shape.remove(dim);
+                    } else {
+                        new_shape[dim] = 1;
+                    }
+
+                    let stride: usize = self.tensor.shape()[dim + 1..].iter().product();
+                    let outer_stride: usize = self.tensor.shape()[dim..].iter().product();
+                    let outer_dims: usize = self.tensor.shape()[..dim].iter().product();
+                    let dim_size = self.tensor.shape()[dim];
+
+                    let mut max_values = Vec::with_capacity(self.tensor.data().len() / dim_size);
+                    let mut max_indices = Vec::with_capacity(self.tensor.data().len() / dim_size);
+
+                    for i in 0..outer_dims {
+                        for j in 0..stride {
+                            let mut max_val = f32::NEG_INFINITY;
+                            let mut max_idx = 0;
+
+                            for k in 0..dim_size {
+                                let idx = i * outer_stride + k * stride + j;
+                                let val = self.tensor.data()[idx];
+                                if val > max_val {
+                                    max_val = val;
+                                    max_idx = k;
+                                }
+                            }
+
+                            max_values.push(max_val);
+                            max_indices.push(max_idx as f32);
+                        }
+                    }
+
+                    self.output = Some((Tensor::<f32>::from_vec(max_values, &new_shape)?, Tensor::<f32>::from_vec(max_indices, &new_shape)?));
+                }
             }
         }
+        Ok((self.output.as_ref().unwrap().0.as_ref(), self.output.as_ref().unwrap().1.as_ref()))
     }
 
-    fn backward(&mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
 

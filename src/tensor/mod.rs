@@ -203,8 +203,8 @@ pub trait Function<'t, T: Debug + Clone> {
     fn new(first: &'t dyn TensorBase<T>, second: Option<&'t dyn TensorBase<T>>) -> MlResult<Self> where Self: Sized;
     // fn forward(&self) -> Self::Forwarded;
     // fn backward(&self, grad: Box<dyn TensorBase<T>>) -> Self::Gradiant;
-    fn forward(&mut self) ->  Self::Forwarded;
-    fn backward(&mut self, grad: &'t dyn TensorBase<T>) -> Self::Gradiant;
+    fn forward(&'t mut self) ->  Self::Forwarded;
+    fn backward(&'t mut self, grad: &'t dyn TensorBase<T>) -> Self::Gradiant;
     fn backend(&self) -> &Arc<dyn Backend>;
 }
 
