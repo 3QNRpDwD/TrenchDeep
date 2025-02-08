@@ -130,12 +130,15 @@ pub struct Tensor<Type: Debug + 'static>
 {
     data: Vec<Type>,
     shape: Vec<usize>,
-    grad:  Option<Type>, // Option<Box<dyn TensorBase<Type>>>,
-    grad_fn: Option<Type>, // Option<&'static dyn Function<'static, Type>>,
-    requires_grad: bool,
     power: Option<f32>,
     topk: Option<(usize, bool)>,
-    matmax: Option<(Option<i32>, bool)>
+    matmax: Option<(Option<i32>, bool)>,
+
+    #[cfg(feature = "enable-backpropagation")]
+    grad:  Option<Type>, // Option<Box<dyn TensorBase<Type>>>,
+    #[cfg(feature = "enable-backpropagation")]
+    grad_fn: Option<Type>, // Option<&'static dyn Function<'static, Type>>,
+    requires_grad: bool
 }
 
 impl PartialEq for Tensor<f32> {
@@ -175,14 +178,18 @@ pub trait TensorBase<Type: Debug + 'static> {
     fn get(&self, indices: &[usize])                        -> Option<&Type>;
     fn index(&self, indices: &[usize])                      -> Option<usize>;
     fn chk_shape(&self, other: &dyn TensorBase<Type>)       -> MlResult<()>;
+
+    #[cfg(feature = "enable-backpropagation")]
     /// Enables gradient computation for the tensor
     fn requires_grad(&mut self, requires_grad: bool);
 
+    #[cfg(feature = "enable-backpropagation")]
     //// Sets the gradient function for the tensor
-    // fn set_grad_fn(&mut self, grad_fn: &dyn Function<'static, Type>);
+    fn set_grad_fn(&mut self, grad_fn: &dyn Function<'static, Type>);
 
+    #[cfg(feature = "enable-backpropagation")]
     //// Returns the gradient of the tensor
-   // fn grad(&self) -> Option<&dyn TensorBase<Type>>;
+   fn grad(&self) -> Option<&dyn TensorBase<Type>>;
 }
 
 impl<T> Debug for dyn TensorBase<T> {
@@ -191,19 +198,17 @@ impl<T> Debug for dyn TensorBase<T> {
     }
 }
 
-pub struct Variable<T> {
-    first: Box<dyn TensorBase<T>>,
-    second: Option<Box<dyn TensorBase<T>>>,
-}
-
 pub trait Function<'t, T: Debug + Clone> {
+    #[cfg(not(feature = "enable-backpropagation"))]
     type Forwarded;
+    #[cfg(feature = "enable-backpropagation")]
+    type Forwarded;
+    #[cfg(feature = "enable-backpropagation")]
     type Gradiant;
 
     fn new(first: &'t dyn TensorBase<T>, second: Option<&'t dyn TensorBase<T>>) -> MlResult<Self> where Self: Sized;
-    // fn forward(&self) -> Self::Forwarded;
-    // fn backward(&self, grad: Box<dyn TensorBase<T>>) -> Self::Gradiant;
     fn forward(&'t mut self) ->  Self::Forwarded;
+    #[cfg(feature = "enable-backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<T>) -> Self::Gradiant;
     fn backend(&self) -> &Arc<dyn Backend>;
 }
@@ -226,37 +231,65 @@ pub trait Function<'t, T: Debug + Clone> {
 // }
 
 /// Structure representing an exponential operation.
-pub struct Exp<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<Box<dyn TensorBase<T>>> }
+pub struct Exp<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
+    #[cfg(feature = "enable-backpropagation")]
+    output: Option<Box<dyn TensorBase<T>>>
+}
 
 /// Structure representing a negation operation.
-pub struct Neg<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<Box<dyn TensorBase<T>>> }
+pub struct Neg<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
+    #[cfg(feature = "enable-backpropagation")]
+    output: Option<Box<dyn TensorBase<T>>>
+}
 
 /// Structure representing a square root operation.
-pub struct Sqrt<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<Box<dyn TensorBase<T>>> }
+pub struct Sqrt<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
+    #[cfg(feature = "enable-backpropagation")]
+    output: Option<Box<dyn TensorBase<T>>>
+}
 
 /// Structure representing an absolute value operation.
-pub struct Abs<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<Box<dyn TensorBase<T>>> }
+pub struct Abs<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
+    #[cfg(feature = "enable-backpropagation")]
+    output: Option<Box<dyn TensorBase<T>>>
+}
 
 /// Structure representing a squaring operation.
-pub struct Square<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<Box<dyn TensorBase<T>>> }
+pub struct Square<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
+    #[cfg(feature = "enable-backpropagation")]
+    output: Option<Box<dyn TensorBase<T>>>
+}
 
 /// Structure representing a logarithmic operation.
-pub struct Log<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<Box<dyn TensorBase<T>>> }
+pub struct Log<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
+    #[cfg(feature = "enable-backpropagation")]
+    output: Option<Box<dyn TensorBase<T>>>
+}
 
 /// Structure representing a power operation.
-pub struct Pow<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<Box<dyn TensorBase<T>>> }
+pub struct Pow<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
+    #[cfg(feature = "enable-backpropagation")]
+    output: Option<Box<dyn TensorBase<T>>>
+}
 
 /// Structure representing a Top-k operation.
-pub struct Topk<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<(Box<dyn TensorBase<T>>, Box<dyn TensorBase<T>>)> } // k: second, sorted: third
+pub struct Topk<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
+    #[cfg(feature = "enable-backpropagation")]
+    output: Option<(Box<dyn TensorBase<T>>, Box<dyn TensorBase<T>>)>
+} // k: second, sorted: third
 
 /// Structure representing a matrix max operation along a dimension.
-pub struct Matmax<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>, output: Option<(Box<dyn TensorBase<T>>, Box<dyn TensorBase<T>>)> } // dim: second, keepdim: third
+pub struct Matmax<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
+    #[cfg(feature = "enable-backpropagation")]
+    output: Option<(Box<dyn TensorBase<T>>, Box<dyn TensorBase<T>>)>
+} // dim: second, keepdim: third
 
 /// Structure representing an addition operation.
 pub struct Add<'t, T>     {
     first_tensor: &'t dyn TensorBase<T>,
     second_tensor: &'t dyn TensorBase<T>,
     backend: Arc<dyn Backend>,
+    #[cfg(feature = "enable-backpropagation")]
     output: Option<Box<dyn TensorBase<T>>>
 }
 
@@ -265,6 +298,7 @@ pub struct Sub<'t, T>     {
     first_tensor: &'t dyn TensorBase<T>,
     second_tensor: &'t dyn TensorBase<T>,
     backend: Arc<dyn Backend>,
+    #[cfg(feature = "enable-backpropagation")]
     output: Option<Box<dyn TensorBase<T>>>
 }
 
@@ -273,6 +307,7 @@ pub struct Mul<'t, T> {
     first_tensor: &'t dyn TensorBase<T>,
     second_tensor: &'t dyn TensorBase<T>,
     backend: Arc<dyn Backend>,
+    #[cfg(feature = "enable-backpropagation")]
     output: Option<Box<dyn TensorBase<T>>>
 }
 
@@ -281,6 +316,7 @@ pub struct Div<'t, T> {
     first_tensor: &'t dyn TensorBase<T>,
     second_tensor: &'t dyn TensorBase<T>,
     backend: Arc<dyn Backend>,
+    #[cfg(feature = "enable-backpropagation")]
     output: Option<Box<dyn TensorBase<T>>>
 }
 
@@ -289,6 +325,7 @@ pub struct Matmul<'t, T> {
     first_tensor: &'t dyn TensorBase<T>,
     second_tensor: &'t dyn TensorBase<T>,
     backend: Arc<dyn Backend>,
+    #[cfg(feature = "enable-backpropagation")]
     output: Option<Box<dyn TensorBase<T>>>
 }
 

@@ -6,12 +6,14 @@ use crate::tensor::{TensorBase, Function};
 
 impl<'t> Function<'t, f32> for Abs<'t, f32> {
     type Forwarded = MlResult<&'t dyn TensorBase<f32>>;
+    #[cfg(feature = "enable-backpropagation")]
     type Gradiant = ();
 
     fn new(first: &'t dyn TensorBase<f32>, _: Option<&'t dyn TensorBase<f32>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
             backend: Arc::new(backend::CpuBackend::new()?),
+            #[cfg(feature = "enable-backpropagation")]
             output: None
         })
     }
@@ -21,14 +23,21 @@ impl<'t> Function<'t, f32> for Abs<'t, f32> {
     /// # Returns
     /// A new tensor with the absolute values of each element
     fn forward(&'t mut self) -> Self::Forwarded {
-        if self.output.is_none() {
-            self.output = Some(Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| x.abs()).collect(), self.tensor.shape())?);
+        let tensor = Some(Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| x.abs()).collect(), self.tensor.shape())?);
+        if cfg!(feature = "enable-backpropagation") {
+            if self.output.is_none() {
+                self.output = tensor;
+            }
+            return Ok(self.output.as_ref().unwrap().as_ref())
         }
-        Ok(self.output.as_ref().unwrap().as_ref())
+        return Ok(tensor)
     }
 
+    #[cfg(feature = "enable-backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
-        todo!()
+        if cfg!(feature = "enable-backpropagation") {
+
+        }
     }
 
     fn backend(&self) -> &Arc<dyn Backend> {
@@ -38,12 +47,14 @@ impl<'t> Function<'t, f32> for Abs<'t, f32> {
 
 impl<'t> Function<'t, f32> for Exp<'t, f32> {
     type Forwarded = MlResult<&'t dyn TensorBase<f32>>;
+    #[cfg(feature = "enable-backpropagation")]
     type Gradiant = ();
 
     fn new(first: &'t dyn TensorBase<f32>, _: Option<&'t dyn TensorBase<f32>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
             backend: Arc::new(backend::CpuBackend::new()?),
+            #[cfg(feature = "enable-backpropagation")]
             output: None
         })
     }
@@ -59,6 +70,7 @@ impl<'t> Function<'t, f32> for Exp<'t, f32> {
         Ok(self.output.as_ref().unwrap().as_ref())
     }
 
+    #[cfg(feature = "enable-backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
@@ -70,12 +82,14 @@ impl<'t> Function<'t, f32> for Exp<'t, f32> {
 
 impl<'t> Function<'t, f32> for Log<'t, f32> {
     type Forwarded = MlResult<&'t dyn TensorBase<f32>>;
+    #[cfg(feature = "enable-backpropagation")]
     type Gradiant = ();
 
     fn new(first: &'t dyn TensorBase<f32>, _: Option<&'t dyn TensorBase<f32>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
             backend: Arc::new(backend::CpuBackend::new()?),
+            #[cfg(feature = "enable-backpropagation")]
             output: None
         })
     }
@@ -92,6 +106,7 @@ impl<'t> Function<'t, f32> for Log<'t, f32> {
 
     }
 
+    #[cfg(feature = "enable-backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
@@ -103,12 +118,14 @@ impl<'t> Function<'t, f32> for Log<'t, f32> {
 
 impl<'t> Function<'t, f32> for Neg<'t, f32> {
     type Forwarded = MlResult<&'t dyn TensorBase<f32>>;
+    #[cfg(feature = "enable-backpropagation")]
     type Gradiant = ();
 
     fn new(first: &'t dyn TensorBase<f32>, _: Option<&'t dyn TensorBase<f32>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
             backend: Arc::new(backend::CpuBackend::new()?),
+            #[cfg(feature = "enable-backpropagation")]
             output: None
         })
     }
@@ -124,6 +141,7 @@ impl<'t> Function<'t, f32> for Neg<'t, f32> {
         Ok(self.output.as_ref().unwrap().as_ref())
     }
 
+    #[cfg(feature = "enable-backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
@@ -135,12 +153,15 @@ impl<'t> Function<'t, f32> for Neg<'t, f32> {
 
 impl<'t> Function<'t, f32> for Sqrt<'t, f32> {
     type Forwarded = MlResult<&'t dyn TensorBase<f32>>;
+
+    #[cfg(feature = "enable-backpropagation")]
     type Gradiant = ();
 
     fn new(first: &'t dyn TensorBase<f32>, _: Option<&'t dyn TensorBase<f32>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
             backend: Arc::new(backend::CpuBackend::new()?),
+            #[cfg(feature = "enable-backpropagation")]
             output: None
         })
     }
@@ -156,6 +177,7 @@ impl<'t> Function<'t, f32> for Sqrt<'t, f32> {
         Ok(self.output.as_ref().unwrap().as_ref())
     }
 
+    #[cfg(feature = "enable-backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
@@ -167,12 +189,14 @@ impl<'t> Function<'t, f32> for Sqrt<'t, f32> {
 
 impl<'t> Function<'t, f32> for Square<'t, f32> {
     type Forwarded = MlResult<&'t dyn TensorBase<f32>>;
+    #[cfg(feature = "enable-backpropagation")]
     type Gradiant = ();
 
     fn new(first: &'t dyn TensorBase<f32>, _: Option<&'t dyn TensorBase<f32>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
             backend: Arc::new(backend::CpuBackend::new()?),
+            #[cfg(feature = "enable-backpropagation")]
             output: None
         })
     }
@@ -188,6 +212,7 @@ impl<'t> Function<'t, f32> for Square<'t, f32> {
         Ok(self.output.as_ref().unwrap().as_ref())
     }
 
+    #[cfg(feature = "enable-backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
@@ -199,6 +224,7 @@ impl<'t> Function<'t, f32> for Square<'t, f32> {
 
 impl<'t> Function<'t, f32> for Add<'t, f32> {
     type Forwarded = MlResult<&'t dyn TensorBase<f32>>;
+    #[cfg(feature = "enable-backpropagation")]
     type Gradiant = ();
 
     fn new(first: &'t dyn TensorBase<f32>, second: Option<&'t dyn TensorBase<f32>>) -> MlResult<Self>  {
@@ -206,6 +232,7 @@ impl<'t> Function<'t, f32> for Add<'t, f32> {
             first_tensor: first,
             second_tensor: second.unwrap(),
             backend: Arc::new(backend::CpuBackend::new()?),
+            #[cfg(feature = "enable-backpropagation")]
             output: None
         })
     }
@@ -241,6 +268,7 @@ impl<'t> Function<'t, f32> for Add<'t, f32> {
         Ok(self.output.as_ref().unwrap().as_ref())
     }
 
+    #[cfg(feature = "enable-backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
@@ -252,6 +280,7 @@ impl<'t> Function<'t, f32> for Add<'t, f32> {
 
 impl<'t> Function<'t, f32> for Sub<'t, f32> {
     type Forwarded = MlResult<&'t dyn TensorBase<f32>>;
+    #[cfg(feature = "enable-backpropagation")]
     type Gradiant = ();
 
     fn new(first: &'t dyn TensorBase<f32>, second: Option<&'t dyn TensorBase<f32>>) -> MlResult<Self> {
@@ -259,6 +288,7 @@ impl<'t> Function<'t, f32> for Sub<'t, f32> {
             first_tensor: first,
             second_tensor: second.unwrap(),
             backend: Arc::new(backend::CpuBackend::new()?),
+            #[cfg(feature = "enable-backpropagation")]
             output: None
         })
     }
@@ -294,6 +324,7 @@ impl<'t> Function<'t, f32> for Sub<'t, f32> {
         Ok(self.output.as_ref().unwrap().as_ref())
     }
 
+    #[cfg(feature = "enable-backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
@@ -305,6 +336,7 @@ impl<'t> Function<'t, f32> for Sub<'t, f32> {
 
 impl<'t> Function<'t, f32> for Mul<'t, f32> {
     type Forwarded = MlResult<&'t dyn TensorBase<f32>>;
+    #[cfg(feature = "enable-backpropagation")]
     type Gradiant = ();
 
     fn new(first: &'t dyn TensorBase<f32>, second: Option<&'t dyn TensorBase<f32>>) -> MlResult<Self> {
@@ -312,6 +344,7 @@ impl<'t> Function<'t, f32> for Mul<'t, f32> {
             first_tensor: first,
             second_tensor: second.unwrap(),
             backend: Arc::new(backend::CpuBackend::new()?),
+            #[cfg(feature = "enable-backpropagation")]
             output: None
         })
     }
@@ -335,6 +368,7 @@ impl<'t> Function<'t, f32> for Mul<'t, f32> {
         Ok(self.output.as_ref().unwrap().as_ref())
     }
 
+    #[cfg(feature = "enable-backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
@@ -346,12 +380,14 @@ impl<'t> Function<'t, f32> for Mul<'t, f32> {
 
 impl<'t> Function<'t, f32> for Div<'t, f32> {
     type Forwarded = MlResult<&'t dyn TensorBase<f32>>;
+    #[cfg(feature = "enable-backpropagation")]
     type Gradiant = ();
     fn new(first: &'t dyn TensorBase<f32>, second: Option<&'t dyn TensorBase<f32>>) -> MlResult<Self> {
         Ok(Self {
             first_tensor: first,
             second_tensor: second.unwrap(),
             backend: Arc::new(backend::CpuBackend::new()?),
+            #[cfg(feature = "enable-backpropagation")]
             output: None
         })
     }
@@ -375,6 +411,7 @@ impl<'t> Function<'t, f32> for Div<'t, f32> {
         Ok(self.output.as_ref().unwrap().as_ref())
     }
 
+    #[cfg(feature = "enable-backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
@@ -386,12 +423,14 @@ impl<'t> Function<'t, f32> for Div<'t, f32> {
 
 impl<'t> Function<'t, f32> for Pow<'t, f32> {
     type Forwarded = MlResult<&'t dyn TensorBase<f32>>;
+    #[cfg(feature = "enable-backpropagation")]
     type Gradiant = ();
 
     fn new(first: &'t dyn TensorBase<f32>, _: Option<&'t dyn TensorBase<f32>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
             backend: Arc::new(backend::CpuBackend::new()?),
+            #[cfg(feature = "enable-backpropagation")]
             output: None
         })
     }
@@ -410,6 +449,7 @@ impl<'t> Function<'t, f32> for Pow<'t, f32> {
         Ok(self.output.as_ref().unwrap().as_ref())
     }
 
+    #[cfg(feature = "enable-backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
@@ -421,6 +461,7 @@ impl<'t> Function<'t, f32> for Pow<'t, f32> {
 
 impl<'t> Function<'t, f32> for Matmul<'t, f32> {
     type Forwarded = MlResult<&'t dyn TensorBase<f32>>;
+    #[cfg(feature = "enable-backpropagation")]
     type Gradiant = ();
 
     fn new(first: &'t dyn TensorBase<f32>, second: Option<&'t dyn TensorBase<f32>>) -> MlResult<Self> {
@@ -428,6 +469,7 @@ impl<'t> Function<'t, f32> for Matmul<'t, f32> {
             first_tensor: first,
             second_tensor: second.unwrap(),
             backend: Arc::new(backend::CpuBackend::new()?),
+            #[cfg(feature = "enable-backpropagation")]
             output: None
         })
     }
@@ -594,6 +636,7 @@ impl<'t> Function<'t, f32> for Matmul<'t, f32> {
     }
 
 
+    #[cfg(feature = "enable-backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
@@ -605,12 +648,14 @@ impl<'t> Function<'t, f32> for Matmul<'t, f32> {
 
 impl<'t> Function<'t, f32> for Topk<'t, f32> {
     type Forwarded = MlResult<(&'t dyn TensorBase<f32>, &'t dyn TensorBase<f32>)>;
+    #[cfg(feature = "enable-backpropagation")]
     type Gradiant = ();
 
     fn new(first: &'t dyn TensorBase<f32>, _: Option<&'t dyn TensorBase<f32>>) -> MlResult<Self> {
         Ok(Self {
             tensor: first,
             backend: Arc::new(backend::CpuBackend::new()?),
+            #[cfg(feature = "enable-backpropagation")]
             output: None
         })
     }
@@ -684,6 +729,7 @@ impl<'t> Function<'t, f32> for Topk<'t, f32> {
         Ok((self.output.as_ref().unwrap().0.as_ref(), self.output.as_ref().unwrap().1.as_ref()))
     }
 
+    #[cfg(feature = "enable-backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }
@@ -695,12 +741,14 @@ impl<'t> Function<'t, f32> for Topk<'t, f32> {
 
 impl<'t> Function<'t, f32> for Matmax<'t, f32> {
     type Forwarded = MlResult<(&'t dyn TensorBase<f32>, &'t dyn TensorBase<f32>)>;
+    #[cfg(feature = "enable-backpropagation")]
     type Gradiant = ();
 
     fn new(tensor: &'t dyn TensorBase<f32>, _: Option<&'t dyn TensorBase<f32>>) ->MlResult<Self>{
         Ok(Self {
             tensor,
             backend : Arc::new(backend::CpuBackend::new()?),
+            #[cfg(feature = "enable-backpropagation")]
             output: None
         })
     }
@@ -779,6 +827,7 @@ impl<'t> Function<'t, f32> for Matmax<'t, f32> {
         Ok((self.output.as_ref().unwrap().0.as_ref(), self.output.as_ref().unwrap().1.as_ref()))
     }
 
+    #[cfg(feature = "enable-backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
         todo!()
     }

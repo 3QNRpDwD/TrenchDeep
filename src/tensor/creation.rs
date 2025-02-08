@@ -9,12 +9,16 @@ impl TensorBase<f32> for Tensor<f32> {
         Box::new(Self {
             data,
             shape,
-            grad: None,
-            grad_fn: None,
-            requires_grad: false,
             power: None,
             topk: None,
             matmax: None,
+
+            #[cfg(feature = "enable-backpropagation")]
+            grad: None,
+            #[cfg(feature = "enable-backpropagation")]
+            grad_fn: None,
+            #[cfg(feature = "enable-backpropagation")]
+            requires_grad: false,
         })
     }
 
@@ -30,12 +34,16 @@ impl TensorBase<f32> for Tensor<f32> {
         Ok(Box::new(Self {
             data,
             shape: shape.to_vec(),
-            grad: None,
-            grad_fn: None,
-            requires_grad: false,
             power: None,
             topk: None,
             matmax: None,
+
+            #[cfg(feature = "enable-backpropagation")]
+            grad: None,
+            #[cfg(feature = "enable-backpropagation")]
+            grad_fn: None,
+            #[cfg(feature = "enable-backpropagation")]
+            requires_grad: false,
         }))
     }
 
@@ -105,17 +113,20 @@ impl TensorBase<f32> for Tensor<f32> {
         Ok(())
     }
 
+    #[cfg(feature = "enable-backpropagation")]
     fn requires_grad(&mut self, requires: bool) {
         self.requires_grad = requires;
     }
 
-    // fn set_grad_fn(&mut self, grad_fn: &dyn Function<'static, f32>) {
-    //     self.grad_fn = Some(grad_fn);
-    // }
+    #[cfg(feature = "enable-backpropagation")]
+    fn set_grad_fn(&mut self, grad_fn: &dyn Function<'static, f32>) {
+        self.grad_fn = Some(grad_fn);
+    }
 
-    // fn grad(&self) -> Option<&dyn TensorBase<f32>> {
-    //     self.grad.as_ref().map(|g| g.as_ref())
-    // }
+    #[cfg(feature = "enable-backpropagation")]
+    fn grad(&self) -> Option<&dyn TensorBase<f32>> {
+        self.grad.as_ref().map(|g| g.as_ref())
+    }
 }
 
 // impl<T: TensorBase Function<T> for Functions {
