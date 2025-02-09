@@ -12,60 +12,62 @@ mod creation;
 
 #[macro_export]
 macro_rules! ops {
-    ($x:expr, Matmul, $y:expr) => {
-        Matmul::new($x, Some($y)).unwrap().forward()
+    ($tensor:expr, Matmul, $second_tensor:expr) => {
+        Matmul::new($tensor, Some($second_tensor)).unwrap().forward()
     };
 
-    ($x:expr, Topk) => {
-        Topk::new($x, None).unwrap().forward()
+    ($tensor:expr, Topk, $k:expr, $sorted:expr) => {{
+        $tensor.set_topk($k, $sorted);
+        Topk::new($tensor, None).unwrap().forward()
+    }};
+
+    ($tensor:expr, Matmax, $dim:expr, $keepdim:expr) => {{
+        $tensor.set_matmax($dim, $keepdim);
+        Matmax::new($tensor, None).unwrap().forward()
+    }};
+
+    ($tensor:expr, Add, $second_tensor:expr) => {
+        Add::new($tensor, Some($second_tensor)).unwrap().forward()
     };
 
-    ($x:expr, Matmax) => {
-        Matmax::new($x, None).unwrap().forward()
+    ($tensor:expr, Sub, $second_tensor:expr) => {
+        Sub::new($tensor, Some($second_tensor)).unwrap().forward()
     };
 
-    ($x:expr, Add, $y:expr) => {
-        Add::new($x, Some($y)).unwrap().forward()
+    ($tensor:expr, Mul, $second_tensor:expr) => {
+        Mul::new($tensor, Some($second_tensor)).unwrap().forward()
     };
 
-    ($x:expr, Sub, $y:expr) => {
-        Sub::new($x, Some($y)).unwrap().forward()
+    ($tensor:expr, Div, $second_tensor:expr) => {
+        Div::new($tensor, Some($second_tensor)).unwrap().forward()
     };
 
-    ($x:expr, Mul, $y:expr) => {
-        Mul::new($x, Some($y)).unwrap().forward()
+    ($tensor:expr, Exp) => {
+        Exp::new($tensor, None).unwrap().forward()
     };
 
-    ($x:expr, Div, $y:expr) => {
-        Div::new($x, Some($y)).unwrap().forward()
+    ($tensor:expr, Neg) => {
+        Neg::new($tensor, None).unwrap().forward()
     };
 
-    ($x:expr, Exp) => {
-        Exp::new($x, None).unwrap().forward()
+    ($tensor:expr, Sqrt) => {
+        Sqrt::new($tensor, None).unwrap().forward()
     };
 
-    ($x:expr, Neg) => {
-        Neg::new($x, None).unwrap().forward()
+    ($tensor:expr, Abs) => {
+        Abs::new($tensor, None).unwrap().forward()
     };
 
-    ($x:expr, Sqrt) => {
-        Sqrt::new($x, None).unwrap().forward()
+    ($tensor:expr, Square) => {
+        Square::new($tensor, None).unwrap().forward()
     };
 
-    ($x:expr, Abs) => {
-        Abs::new($x, None).unwrap().forward()
+    ($tensor:expr, Log) => {
+        Log::new($tensor, None).unwrap().forward()
     };
 
-    ($x:expr, Square) => {
-        Square::new($x, None).unwrap().forward()
-    };
-
-    ($x:expr, Log) => {
-        Log::new($x, None).unwrap().forward()
-    };
-
-    ($x:expr, Pow) => {
-        Pow::new($x, None).unwrap().forward()
+    ($tensor:expr, Pow) => {
+        Pow::new($tensor, None).unwrap().forward()
     };
 }
 
@@ -133,12 +135,12 @@ pub struct Tensor<Type: Debug + 'static>
     power: Option<f32>,
     topk: Option<(usize, bool)>,
     matmax: Option<(Option<i32>, bool)>,
+    requires_grad: bool,
 
     #[cfg(feature = "enable-backpropagation")]
-    grad:  Option<Type>, // Option<Box<dyn TensorBase<Type>>>,
+    grad: Option<Box<dyn TensorBase<Type>>>,
     #[cfg(feature = "enable-backpropagation")]
-    grad_fn: Option<Type>, // Option<&'static dyn Function<'static, Type>>,
-    requires_grad: bool
+    grad_fn: Option<&'static dyn Function<'static, Type, Forwarded=(), Gradiant=()>>
 }
 
 impl PartialEq for Tensor<f32> {
@@ -181,11 +183,11 @@ pub trait TensorBase<Type: Debug + 'static> {
 
     #[cfg(feature = "enable-backpropagation")]
     /// Enables gradient computation for the tensor
-    fn requires_grad(&mut self, requires_grad: bool);
+    fn requires_grad(&self) -> bool;
 
     #[cfg(feature = "enable-backpropagation")]
     //// Sets the gradient function for the tensor
-    fn set_grad_fn(&mut self, grad_fn: &dyn Function<'static, Type>);
+    fn set_grad_fn(&mut self, grad_fn: &dyn Function<'static, Type, Forwarded=(), Gradiant=()>);
 
     #[cfg(feature = "enable-backpropagation")]
     //// Returns the gradient of the tensor
@@ -199,9 +201,6 @@ impl<T> Debug for dyn TensorBase<T> {
 }
 
 pub trait Function<'t, T: Debug + Clone> {
-    #[cfg(not(feature = "enable-backpropagation"))]
-    type Forwarded;
-    #[cfg(feature = "enable-backpropagation")]
     type Forwarded;
     #[cfg(feature = "enable-backpropagation")]
     type Gradiant;
@@ -233,43 +232,43 @@ pub trait Function<'t, T: Debug + Clone> {
 /// Structure representing an exponential operation.
 pub struct Exp<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable-backpropagation")]
-    output: Option<Box<dyn TensorBase<T>>>
+    output: Option<&'t dyn TensorBase<T>>
 }
 
 /// Structure representing a negation operation.
 pub struct Neg<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable-backpropagation")]
-    output: Option<Box<dyn TensorBase<T>>>
+    output: Option<&'t dyn TensorBase<T>>
 }
 
 /// Structure representing a square root operation.
 pub struct Sqrt<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable-backpropagation")]
-    output: Option<Box<dyn TensorBase<T>>>
+    output: Option<&'t dyn TensorBase<T>>
 }
 
 /// Structure representing an absolute value operation.
 pub struct Abs<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable-backpropagation")]
-    output: Option<Box<dyn TensorBase<T>>>
+    output: Option<&'t dyn TensorBase<T>>
 }
 
 /// Structure representing a squaring operation.
 pub struct Square<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable-backpropagation")]
-    output: Option<Box<dyn TensorBase<T>>>
+    output: Option<&'t dyn TensorBase<T>>
 }
 
 /// Structure representing a logarithmic operation.
 pub struct Log<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable-backpropagation")]
-    output: Option<Box<dyn TensorBase<T>>>
+    output: Option<&'t dyn TensorBase<T>>
 }
 
 /// Structure representing a power operation.
 pub struct Pow<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable-backpropagation")]
-    output: Option<Box<dyn TensorBase<T>>>
+    output: Option<&'t dyn TensorBase<T>>
 }
 
 /// Structure representing a Top-k operation.
@@ -290,7 +289,7 @@ pub struct Add<'t, T>     {
     second_tensor: &'t dyn TensorBase<T>,
     backend: Arc<dyn Backend>,
     #[cfg(feature = "enable-backpropagation")]
-    output: Option<Box<dyn TensorBase<T>>>
+    output: Option<&'t dyn TensorBase<T>>
 }
 
 /// Structure representing a subtraction operation.
@@ -299,7 +298,7 @@ pub struct Sub<'t, T>     {
     second_tensor: &'t dyn TensorBase<T>,
     backend: Arc<dyn Backend>,
     #[cfg(feature = "enable-backpropagation")]
-    output: Option<Box<dyn TensorBase<T>>>
+    output: Option<&'t dyn TensorBase<T>>
 }
 
 /// Structure representing a multiplication operation.
@@ -308,7 +307,7 @@ pub struct Mul<'t, T> {
     second_tensor: &'t dyn TensorBase<T>,
     backend: Arc<dyn Backend>,
     #[cfg(feature = "enable-backpropagation")]
-    output: Option<Box<dyn TensorBase<T>>>
+    output: Option<&'t dyn TensorBase<T>>
 }
 
 /// Structure representing a division operation.
@@ -317,7 +316,7 @@ pub struct Div<'t, T> {
     second_tensor: &'t dyn TensorBase<T>,
     backend: Arc<dyn Backend>,
     #[cfg(feature = "enable-backpropagation")]
-    output: Option<Box<dyn TensorBase<T>>>
+    output: Option<&'t dyn TensorBase<T>>
 }
 
 /// Structure representing a matrix multiplication operation.
@@ -326,7 +325,7 @@ pub struct Matmul<'t, T> {
     second_tensor: &'t dyn TensorBase<T>,
     backend: Arc<dyn Backend>,
     #[cfg(feature = "enable-backpropagation")]
-    output: Option<Box<dyn TensorBase<T>>>
+    output: Option<&'t dyn TensorBase<T>>
 }
 
 #[cfg(test)]
@@ -334,7 +333,7 @@ mod tests {
     use crate::MlResult;
     use crate::tensor::*;
 
-    pub fn assert_tensor_eq(tensor: &dyn TensorBase<f32>, expected_tensor: Box<dyn TensorBase<f32>>) -> MlResult<()> {
+    pub fn assert_tensor_eq(tensor: Box<dyn TensorBase<f32>>, expected_tensor: Box<dyn TensorBase<f32>>) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
         Ok(())

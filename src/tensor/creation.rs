@@ -12,13 +12,12 @@ impl TensorBase<f32> for Tensor<f32> {
             power: None,
             topk: None,
             matmax: None,
+            requires_grad: cfg!(feature = "enable-backpropagation"),
 
             #[cfg(feature = "enable-backpropagation")]
             grad: None,
             #[cfg(feature = "enable-backpropagation")]
             grad_fn: None,
-            #[cfg(feature = "enable-backpropagation")]
-            requires_grad: false,
         })
     }
 
@@ -37,13 +36,12 @@ impl TensorBase<f32> for Tensor<f32> {
             power: None,
             topk: None,
             matmax: None,
+            requires_grad: cfg!(feature = "enable-backpropagation"),
 
             #[cfg(feature = "enable-backpropagation")]
             grad: None,
             #[cfg(feature = "enable-backpropagation")]
             grad_fn: None,
-            #[cfg(feature = "enable-backpropagation")]
-            requires_grad: false,
         }))
     }
 
@@ -114,12 +112,12 @@ impl TensorBase<f32> for Tensor<f32> {
     }
 
     #[cfg(feature = "enable-backpropagation")]
-    fn requires_grad(&mut self, requires: bool) {
-        self.requires_grad = requires;
+    fn requires_grad(&self) -> bool {
+        self.requires_grad
     }
 
     #[cfg(feature = "enable-backpropagation")]
-    fn set_grad_fn(&mut self, grad_fn: &dyn Function<'static, f32>) {
+    fn set_grad_fn(&mut self, grad_fn: &dyn crate::tensor::Function<'static, f32, Forwarded=(), Gradiant=()>) {
         self.grad_fn = Some(grad_fn);
     }
 
