@@ -89,14 +89,23 @@ impl TensorBase<f32> for Tensor<f32> {
     }
 
     fn power(&self) -> f32 {
+        if self.power.is_none() {
+            return 1.0;
+        }
         self.power.unwrap()
     }
 
     fn topk(&self) -> (usize, bool) {
+        if self.topk.is_none() {
+            return (0, false);
+        }
         self.topk.unwrap()
     }
 
     fn matmax(&self) -> (Option<i32>, bool) {
+        if self.matmax.is_none() {
+            return (None, false)
+        }
         self.matmax.unwrap()
     }
 
@@ -146,7 +155,6 @@ impl TensorBase<f32> for Tensor<f32> {
         Ok(())
     }
 
-    #[cfg(feature = "enable-backpropagation")]
     fn requires_grad(&self) -> bool {
         self.requires_grad
     }
