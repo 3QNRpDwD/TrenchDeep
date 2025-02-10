@@ -225,7 +225,7 @@ pub trait TensorBase<Type: Debug + 'static> {
 impl Debug for Box<dyn TensorBase<f32>> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
-            f, "TensorBase<f32> Debug - data: {:?}, shape: {:?}, power: {:?}, topk: {:?}, matmax: {:?},requires_grad: {:?} ",
+            f, "TensorBase<f32> Debug - data: {:?}, shape: {:?}, power: {:?}, topk: {:?}, matmax: {:?}, requires_grad: {:?} ",
                self.data(), self.shape(), self.power(), self.topk(), self.matmax(), self.requires_grad()
         )
     }
@@ -365,8 +365,6 @@ mod tests {
     use crate::tensor::*;
 
     pub fn assert_tensor_eq(tensor: &Box<dyn TensorBase<f32>>, expected_tensor: &Box<dyn TensorBase<f32>>) -> MlResult<()> {
-        println!("tensor            : {:?}", tensor);
-        println!("expected_tensor   : {:?}", expected_tensor);
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
         Ok(())
