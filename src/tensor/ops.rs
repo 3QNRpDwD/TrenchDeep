@@ -932,17 +932,6 @@ impl std::ops::Sub<Box<dyn TensorBase<f32>>> for Box<dyn TensorBase<f32>> {
     }
 }
 
-/// Multiply trait implementation for owned tensors
-///
-/// # Arguments
-/// * `_other` - The tensor to multiply with self
-///
-/// # Returns
-/// A new tensor containing the element-wise product (Hadamard product)
-///
-/// # Note
-/// * This performs element-wise multiplication, not matrix multiplication
-/// * For matrix multiplication, use `matmul()` instead
 impl std::ops::Mul<Box<dyn TensorBase<f32>>> for Box<dyn TensorBase<f32>> {
     type Output = Box<dyn TensorBase<f32>>;
 
@@ -951,13 +940,6 @@ impl std::ops::Mul<Box<dyn TensorBase<f32>>> for Box<dyn TensorBase<f32>> {
     }
 }
 
-/// Divide trait implementation for owned tensors
-///
-/// # Arguments
-/// * `_other` - The tensor to divide self by
-///
-/// # Returns
-/// A new tensor containing the element-wise quotient
 impl std::ops::Div<Box<dyn TensorBase<f32>>> for Box<dyn TensorBase<f32>> {
     type Output = Box<dyn TensorBase<f32>>;
 

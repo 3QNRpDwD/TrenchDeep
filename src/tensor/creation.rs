@@ -5,8 +5,24 @@ use crate::tensor::{TensorBase, Tensor, TensorError};
 impl  Tensor<f32> {
     pub fn zeros() -> Box<dyn TensorBase<f32>> {
         Box::new(Self {
-            data: vec![0.0],
-            shape: vec![0],
+            data: vec![],
+            shape: vec![],
+            power: None,
+            topk: None,
+            matmax: None,
+            requires_grad: false,
+
+            #[cfg(feature = "enable-backpropagation")]
+            grad: None,
+            #[cfg(feature = "enable-backpropagation")]
+            grad_fn: None,
+        })
+    }
+
+    pub fn scalar(scalar: f32) -> Box<dyn TensorBase<f32>> {
+        Box::new(Self {
+            data: vec![scalar],
+            shape: vec![1],
             power: None,
             topk: None,
             matmax: None,

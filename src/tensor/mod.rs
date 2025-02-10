@@ -72,6 +72,35 @@ macro_rules! ops {
     }};
 }
 
+macro_rules! scalar_ops {
+    ($tensor:expr, Add, $scalar:expr) => {
+        Tensor::from_vec($tensor.data().iter().map(|&x| x + $scalar).collect(), &$tensor.shape())
+        // 텐서 내부 데이터는 불변으로 두려면 새 텐서를 만들어야한다..
+        // 성능 이슈가 발생할거야
+        // 텐서의 데이터를 수정할수 있는 메서드를 만들어야하나?
+    };
+
+    ($tensor:expr, Sub, $scalar:expr) => {
+        Tensor::from_vec($tensor.data().iter().map(|&x| x - $scalar).collect(), &$tensor.shape())
+    };
+
+    ($tensor:expr, Mul, $scalar:expr) => {
+        Tensor::from_vec($tensor.data().iter().map(|&x| x * $scalar).collect(), &$tensor.shape())
+    };
+
+    ($tensor:expr, Div, $scalar:expr) => {
+        Tensor::from_vec($tensor.data().iter().map(|&x| x / $scalar).collect(), &$tensor.shape())
+    };
+
+    ($scalar:expr, buS, $tensor:expr) => {
+        Tensor::from_vec($tensor.data().iter().map(|&x| $scalar - x).collect(), &$tensor.shape())
+    };
+
+    ($scalar:expr, viD, $tensor:expr) => {
+        Tensor::from_vec($tensor.data().iter().map(|&x| $scalar / x).collect(), &$tensor.shape())
+    };
+}
+
 #[derive(Debug, Clone)]
 pub enum TensorError {
     InvalidShape {
@@ -452,46 +481,53 @@ mod tests {
 
     #[test]
     fn tensor_ops_add_scalar() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
-        let et = Tensor::<f32>::new(vec![vec![3.0, 4.0]]).unwrap();
-
-        assert_tensor_eq(first + 2.0, et)
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
+        let et = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
+        let result = scalar_ops!(first.as_ref(), Add, 2.0)?;
+        // 텐서와 스칼라의 차원이 맞지 않아, 오류 발생.
+        // 스칼라 연산 메서드를 따로 구현하야하나?
+        assert_tensor_eq(&result, &et)
     }
     #[test]
     fn tensor_ops_sub_scalar() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
-        let et = Tensor::<f32>::new(vec![vec![-1.0, 0.0]]).unwrap();
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
+        let et = Tensor::<f32>::new(vec![vec![-1.0, 0.0]]);
+        let result = scalar_ops!(first.as_ref(), Sub, 2.0)?;
 
-        assert_tensor_eq(first - 2.0, et)
+        assert_tensor_eq(&result, &et)
     }
     #[test]
     fn tensor_ops_mul_scalar() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
-        let et = Tensor::<f32>::new(vec![vec![2.0, 4.0]]).unwrap();
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
+        let et = Tensor::<f32>::new(vec![vec![2.0, 4.0]]);
+        let result = scalar_ops!(first.as_ref(), Mul , 2.0)?;
 
-        assert_tensor_eq(first - 2.0, et)
+        assert_tensor_eq(&result, &et)
     }
     #[test]
     fn tensor_ops_div_scalar() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
-        let et = Tensor::<f32>::new(vec![vec![0.5, 1.0]]).unwrap();
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
+        let et = Tensor::<f32>::new(vec![vec![0.5, 1.0]]);
+        let result = scalar_ops!(first.as_ref(), Div , 2.0)?;
 
-        assert_tensor_eq(first / 2.0, et)
+        assert_tensor_eq(&result, &et)
     }
 
     #[test]
     fn tensor_ops_scalar_sub() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
-        let et = Tensor::<f32>::new(vec![vec![1.0, 0.0]]).unwrap();
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
+        let et = Tensor::<f32>::new(vec![vec![1.0, 0.0]]);
+        let result = scalar_ops!(2.0, buS , first.as_ref())?;
 
-        assert_tensor_eq(2.0 - first, et)
+        assert_tensor_eq(&result, &et)
 
     }
     #[test]
     fn tensor_ops_scalar_div() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
-        let et = Tensor::<f32>::new(vec![vec![2.0, 1.0]]).unwrap();
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
+        let et = Tensor::<f32>::new(vec![vec![2.0, 1.0]]);
+        let result = scalar_ops!(2.0, viD , first.as_ref())?;
 
-        assert_tensor_eq(2.0 - first, et)
+        assert_tensor_eq(&result, &et)
     }
 }
