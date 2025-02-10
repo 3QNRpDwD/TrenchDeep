@@ -10,11 +10,11 @@ impl  Tensor<f32> {
             power: None,
             topk: None,
             matmax: None,
-            requires_grad: false,
+            requires_grad: cfg!(feature = "enable_backpropagation"),
 
-            #[cfg(feature = "enable-backpropagation")]
+            #[cfg(feature = "enable_backpropagation")]
             grad: None,
-            #[cfg(feature = "enable-backpropagation")]
+            #[cfg(feature = "enable_backpropagation")]
             grad_fn: None,
         })
     }
@@ -26,11 +26,11 @@ impl  Tensor<f32> {
             power: None,
             topk: None,
             matmax: None,
-            requires_grad: false,
+            requires_grad: cfg!(feature = "enable_backpropagation"),
 
-            #[cfg(feature = "enable-backpropagation")]
+            #[cfg(feature = "enable_backpropagation")]
             grad: None,
-            #[cfg(feature = "enable-backpropagation")]
+            #[cfg(feature = "enable_backpropagation")]
             grad_fn: None,
         })
     }
@@ -40,6 +40,7 @@ impl TensorBase<f32> for Tensor<f32> {
     fn new(data: Vec<Vec<f32>>) -> Box<dyn TensorBase<f32>>  {
         let shape = vec![data.len(), data[0].len()];
         let data: Vec<f32> = data.into_iter().flatten().collect();
+        println!("{}", cfg!(enable_backpropagation));
 
         Box::new(Self {
             data,
@@ -47,11 +48,11 @@ impl TensorBase<f32> for Tensor<f32> {
             power: None,
             topk: None,
             matmax: None,
-            requires_grad: cfg!(feature = "enable-backpropagation"),
+            requires_grad: cfg!(feature = "enable_backpropagation"),
 
-            #[cfg(feature = "enable-backpropagation")]
+            #[cfg(feature = "enable_backpropagation")]
             grad: None,
-            #[cfg(feature = "enable-backpropagation")]
+            #[cfg(feature = "enable_backpropagation")]
             grad_fn: None,
         })
     }
@@ -71,11 +72,11 @@ impl TensorBase<f32> for Tensor<f32> {
             power: None,
             topk: None,
             matmax: None,
-            requires_grad: cfg!(feature = "enable-backpropagation"),
+            requires_grad: cfg!(feature = "enable_backpropagation"),
 
-            #[cfg(feature = "enable-backpropagation")]
+            #[cfg(feature = "enable_backpropagation")]
             grad: None,
-            #[cfg(feature = "enable-backpropagation")]
+            #[cfg(feature = "enable_backpropagation")]
             grad_fn: None,
         }))
     }
@@ -159,12 +160,12 @@ impl TensorBase<f32> for Tensor<f32> {
         self.requires_grad
     }
 
-    #[cfg(feature = "enable-backpropagation")]
+    #[cfg(feature = "enable_backpropagation")]
     fn set_grad_fn(&mut self, grad_fn: &dyn crate::tensor::Function<'static, f32, Forwarded=(), Gradiant=()>) {
         self.grad_fn = Some(grad_fn);
     }
 
-    #[cfg(feature = "enable-backpropagation")]
+    #[cfg(feature = "enable_backpropagation")]
     fn grad(&self) -> Option<&dyn TensorBase<f32>> {
         self.grad.as_ref().map(|g| g.as_ref())
     }
