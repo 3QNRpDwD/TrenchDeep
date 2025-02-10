@@ -772,7 +772,7 @@ impl<'t> Function<'t, f32> for Matmax<'t, f32> {
             None => {
                 // Find global maximum
                 let max_val = self.tensor.data().iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-                (Tensor::<f32>::from_vec(vec![max_val], &vec![1])?, Tensor::<f32>::new(vec![]))
+                (Tensor::<f32>::from_vec(vec![max_val], &vec![1])?, Tensor::<f32>::zeros())
                 // 빈 data 때문에
                 // thread 'tensor::ops::tests::test_max' panicked at src\tensor\creation.rs:6:42:
                 // index out of bounds: the len is 0 but the index is 0

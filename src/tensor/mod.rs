@@ -66,9 +66,10 @@ macro_rules! ops {
         Log::new($tensor, None).unwrap().forward()
     };
 
-    ($tensor:expr, Pow) => {
+    ($tensor:expr, Pow, $exponent:expr) => {{
+        $tensor.set_power($exponent);
         Pow::new($tensor, None).unwrap().forward()
-    };
+    }};
 }
 
 #[derive(Debug, Clone)]
@@ -333,7 +334,7 @@ mod tests {
     use crate::MlResult;
     use crate::tensor::*;
 
-    pub fn assert_tensor_eq(tensor: Box<dyn TensorBase<f32>>, expected_tensor: Box<dyn TensorBase<f32>>) -> MlResult<()> {
+    pub fn assert_tensor_eq(tensor: &Box<dyn TensorBase<f32>>, expected_tensor: &Box<dyn TensorBase<f32>>) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
         Ok(())
@@ -348,36 +349,48 @@ mod tests {
     }
 
     #[test]
-    fn test_add_symbol() -> MlResult<()> {
+    fn test_add() -> MlResult<()> {
         let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
+        let m_add = ops!(first.as_ref(), Add, second.as_ref())?;
+        let s_add = first + second;
         let et = Tensor::<f32>::new(vec![vec![4.0, 6.0]]);
 
-        assert_tensor_eq(first + second, et)
+        assert_tensor_eq(&m_add, &et)?;
+        assert_tensor_eq(&s_add, &et)
     }
     #[test]
-    fn test_sub_symbol() -> MlResult<()> {
+    fn test_sub() -> MlResult<()> {
         let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
+        let m_sub = ops!(first.as_ref(), Sub, second.as_ref())?;
+        let s_sub = first - second;
         let et = Tensor::<f32>::new(vec![vec![-2.0, -2.0]]);
 
-        assert_tensor_eq(first - second, et)
+        assert_tensor_eq(&m_sub, &et)?;
+        assert_tensor_eq(&s_sub, &et)
     }
     #[test]
     fn test_mul_symbol() -> MlResult<()> {
         let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
+        let m_mul = ops!(first.as_ref(), Mul, second.as_ref())?;
+        let s_mul = first * second;
         let et = Tensor::<f32>::new(vec![vec![3.0, 8.0]]);
 
-        assert_tensor_eq(first * second, et)
+        assert_tensor_eq(&m_mul, &et)?;
+        assert_tensor_eq(&s_mul, &et)
     }
     #[test]
     fn test_div_symbol() -> MlResult<()> {
         let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::<f32>::new(vec![vec![2.0, 4.0]]);
+        let m_div = ops!(first.as_ref(), Div, second.as_ref())?;
+        let s_div = first / second;
         let et = Tensor::<f32>::new(vec![vec![0.5, 0.5]]);
 
-        assert_tensor_eq(first / second, et)
+        assert_tensor_eq(&m_div, &et)?;
+        assert_tensor_eq(&s_div, &et)
     }
 
     #[test]
@@ -386,38 +399,6 @@ mod tests {
         let second = Tensor::new(vec![vec![3.0], vec![4.0]]);
         let result = ops!(first.as_ref(), Matmul, second.as_ref()).unwrap();
         assert_eq!(result.data(), vec![11.0]);
-    }
-
-    #[test]
-    fn test_macro_add() {
-        let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let second = Tensor::new(vec![vec![3.0, 4.0]]);
-        let result = ops!(first.as_ref(), Add, second.as_ref()).unwrap();
-        assert_eq!(result.data(), vec![4.0, 6.0]);
-    }
-
-    #[test]
-    fn test_macro_sub() {
-        let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let second = Tensor::new(vec![vec![3.0, 4.0]]);
-        let result = ops!(first.as_ref(), Sub, second.as_ref()).unwrap();
-        assert_eq!(result.data(), vec![-2.0, -2.0]);
-    }
-
-    #[test]
-    fn test_macro_mul() {
-        let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let second = Tensor::new(vec![vec![3.0, 4.0]]);
-        let result = ops!(first.as_ref(), Mul, second.as_ref()).unwrap();
-        assert_eq!(result.data(), vec![3.0, 8.0]);
-    }
-
-    #[test]
-    fn test_macro_div() {
-        let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let second = Tensor::new(vec![vec![2.0, 4.0]]);
-        let result = ops!(first.as_ref(), Div, second.as_ref()).unwrap();
-        assert_eq!(result.data(), vec![0.5, 0.5]);
     }
 
     #[test]
@@ -465,53 +446,52 @@ mod tests {
     #[test]
     fn test_macro_pow() {
         let mut tensor = Tensor::new(vec![vec![2.0, 3.0]]);
-        tensor.set_power(2.0);
-        let result = ops!(tensor.as_ref(), Pow).unwrap();
+        let result = ops!(tensor.as_mut(), Pow, 2.0).unwrap();
         assert_eq!(result.data(), vec![4.0, 9.0]);
     }
 
-    // #[test]
-    // fn tensor_ops_add_scalar() -> MlResult<()> {
-    //     let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
-    //     let et = Tensor::<f32>::new(vec![vec![3.0, 4.0]]).unwrap();
-    //
-    //     assert_tensor_eq(first + 2.0, et)
-    // }
-    // #[test]
-    // fn tensor_ops_sub_scalar() -> MlResult<()> {
-    //     let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
-    //     let et = Tensor::<f32>::new(vec![vec![-1.0, 0.0]]).unwrap();
-    //
-    //     assert_tensor_eq(first - 2.0, et)
-    // }
-    // #[test]
-    // fn tensor_ops_mul_scalar() -> MlResult<()> {
-    //     let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
-    //     let et = Tensor::<f32>::new(vec![vec![2.0, 4.0]]).unwrap();
-    //
-    //     assert_tensor_eq(first - 2.0, et)
-    // }
-    // #[test]
-    // fn tensor_ops_div_scalar() -> MlResult<()> {
-    //     let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
-    //     let et = Tensor::<f32>::new(vec![vec![0.5, 1.0]]).unwrap();
-    //
-    //     assert_tensor_eq(first / 2.0, et)
-    // }
-    //
-    // #[test]
-    // fn tensor_ops_scalar_sub() -> MlResult<()> {
-    //     let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
-    //     let et = Tensor::<f32>::new(vec![vec![1.0, 0.0]]).unwrap();
-    //
-    //     assert_tensor_eq(2.0 - first, et)
-    //
-    // }
-    // #[test]
-    // fn tensor_ops_scalar_div() -> MlResult<()> {
-    //     let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
-    //     let et = Tensor::<f32>::new(vec![vec![2.0, 1.0]]).unwrap();
-    //
-    //     assert_tensor_eq(2.0 - first, et)
-    // }
+    #[test]
+    fn tensor_ops_add_scalar() -> MlResult<()> {
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
+        let et = Tensor::<f32>::new(vec![vec![3.0, 4.0]]).unwrap();
+
+        assert_tensor_eq(first + 2.0, et)
+    }
+    #[test]
+    fn tensor_ops_sub_scalar() -> MlResult<()> {
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
+        let et = Tensor::<f32>::new(vec![vec![-1.0, 0.0]]).unwrap();
+
+        assert_tensor_eq(first - 2.0, et)
+    }
+    #[test]
+    fn tensor_ops_mul_scalar() -> MlResult<()> {
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
+        let et = Tensor::<f32>::new(vec![vec![2.0, 4.0]]).unwrap();
+
+        assert_tensor_eq(first - 2.0, et)
+    }
+    #[test]
+    fn tensor_ops_div_scalar() -> MlResult<()> {
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
+        let et = Tensor::<f32>::new(vec![vec![0.5, 1.0]]).unwrap();
+
+        assert_tensor_eq(first / 2.0, et)
+    }
+
+    #[test]
+    fn tensor_ops_scalar_sub() -> MlResult<()> {
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
+        let et = Tensor::<f32>::new(vec![vec![1.0, 0.0]]).unwrap();
+
+        assert_tensor_eq(2.0 - first, et)
+
+    }
+    #[test]
+    fn tensor_ops_scalar_div() -> MlResult<()> {
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]).unwrap();
+        let et = Tensor::<f32>::new(vec![vec![2.0, 1.0]]).unwrap();
+
+        assert_tensor_eq(2.0 - first, et)
+    }
 }

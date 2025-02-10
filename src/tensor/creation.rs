@@ -1,6 +1,25 @@
 use crate::{MlError, MlResult};
 use crate::tensor::{TensorBase, Tensor, TensorError};
 
+
+impl  Tensor<f32> {
+    pub fn zeros() -> Box<dyn TensorBase<f32>> {
+        Box::new(Self {
+            data: vec![0.0],
+            shape: vec![0],
+            power: None,
+            topk: None,
+            matmax: None,
+            requires_grad: false,
+
+            #[cfg(feature = "enable-backpropagation")]
+            grad: None,
+            #[cfg(feature = "enable-backpropagation")]
+            grad_fn: None,
+        })
+    }
+}
+
 impl TensorBase<f32> for Tensor<f32> {
     fn new(data: Vec<Vec<f32>>) -> Box<dyn TensorBase<f32>>  {
         let shape = vec![data.len(), data[0].len()];
