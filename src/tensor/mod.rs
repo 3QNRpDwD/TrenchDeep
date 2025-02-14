@@ -157,7 +157,6 @@ impl Display for TensorError {
     }
 }
 
-#[derive(Debug)]
 pub struct Tensor<Type: Debug + 'static>
 {
     data: Vec<Type>,
@@ -170,7 +169,7 @@ pub struct Tensor<Type: Debug + 'static>
     #[cfg(feature = "enable_backpropagation")]
     grad: Option<Box<dyn TensorBase<Type>>>,
     #[cfg(feature = "enable_backpropagation")]
-    grad_fn: Option<&'static dyn Function<'static, Type, Forwarded=(), Gradiant=()>>
+    grad_fn: Option<Box<dyn Function<'static, Type, Forwarded=(), Gradiant=()>>>
 }
 
 impl PartialEq for Tensor<f32> {
@@ -215,7 +214,7 @@ pub trait TensorBase<Type: Debug + 'static> {
 
     #[cfg(feature = "enable_backpropagation")]
     //// Sets the gradient function for the tensor
-    fn set_grad_fn(&mut self, grad_fn: &dyn Function<'static, Type, Forwarded=(), Gradiant=()>);
+    fn set_grad_fn(&mut self, grad_fn: Box<dyn Function<'static, Type, Forwarded=(), Gradiant=()>>);
 
     #[cfg(feature = "enable_backpropagation")]
     //// Returns the gradient of the tensor
@@ -305,13 +304,13 @@ pub struct Pow<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Back
 /// Structure representing a Top-k operation.
 pub struct Topk<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<(Box<dyn TensorBase<T>>, Box<dyn TensorBase<T>>)>
+    output: Option<(&'t dyn TensorBase<T>, &'t dyn TensorBase<T>)>
 } // k: second, sorted: third
 
 /// Structure representing a matrix max operation along a dimension.
 pub struct Matmax<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<(Box<dyn TensorBase<T>>, Box<dyn TensorBase<T>>)>
+    output: Option<(&'t dyn TensorBase<T>, &'t dyn TensorBase<T>)>
 } // dim: second, keepdim: third
 
 /// Structure representing an addition operation.
@@ -365,7 +364,6 @@ mod tests {
     use crate::tensor::*;
 
     pub fn assert_tensor_eq(tensor: &Box<dyn TensorBase<f32>>, expected_tensor: &Box<dyn TensorBase<f32>>) -> MlResult<()> {
-        println!("{:?}", tensor);
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
         Ok(())

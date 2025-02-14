@@ -40,7 +40,6 @@ impl TensorBase<f32> for Tensor<f32> {
     fn new(data: Vec<Vec<f32>>) -> Box<dyn TensorBase<f32>>  {
         let shape = vec![data.len(), data[0].len()];
         let data: Vec<f32> = data.into_iter().flatten().collect();
-        println!("{}", cfg!(enable_backpropagation));
 
         Box::new(Self {
             data,
@@ -161,7 +160,7 @@ impl TensorBase<f32> for Tensor<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn set_grad_fn(&mut self, grad_fn: &dyn crate::tensor::Function<'static, f32, Forwarded=(), Gradiant=()>) {
+    fn set_grad_fn(&mut self, grad_fn: Box<dyn crate::tensor::Function<'static, f32, Forwarded=(), Gradiant=()>>) {
         self.grad_fn = Some(grad_fn);
     }
 

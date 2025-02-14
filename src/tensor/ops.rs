@@ -25,7 +25,7 @@ impl<'t> Function<'t, f32> for Abs<'t, f32> {
     fn forward(&'t mut self) -> Self::Forwarded {
         let tensor = Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| x.abs()).collect(), self.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
-        self.output.get_or_insert(tensor.as_ref());
+        self.output.get_or_insert(tensor);
         Ok(tensor)
     }
 
@@ -728,7 +728,7 @@ impl<'t> Function<'t, f32> for Topk<'t, f32> {
 
             let tensor = (Tensor::<f32>::from_vec(values, &new_shape)?, Tensor::<f32>::from_vec(indices, &new_shape)?);
             #[cfg(feature = "enable_backpropagation")]
-            self.output.get_or_insert(tensor.as_ref());
+            self.output.get_or_insert((tensor.0.as_ref(), tensor.1.as_ref()));
             Ok(tensor)
     }
 
@@ -830,7 +830,7 @@ impl<'t> Function<'t, f32> for Matmax<'t, f32> {
             }
         };
         #[cfg(feature = "enable_backpropagation")]
-        self.output.get_or_insert(tensor.as_ref());
+        self.output.get_or_insert((tensor.0.as_ref(), tensor.1.as_ref()));
         Ok(tensor)
     }
 
