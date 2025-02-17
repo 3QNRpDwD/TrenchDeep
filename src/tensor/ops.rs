@@ -25,15 +25,13 @@ impl<'t> Function<'t, f32> for Abs<'t, f32> {
     fn forward(&'t mut self) -> Self::Forwarded {
         let tensor = Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| x.abs()).collect(), self.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
-        self.output.get_or_insert(tensor);
+        self.output = Some(tensor.as_ref());
         Ok(tensor)
     }
 
     #[cfg(feature = "enable_backpropagation")]
     fn backward(&'t mut self, grad: &'t dyn TensorBase<f32>) -> Self::Gradiant {
-        if cfg!(feature = "enable_backpropagation") {
-
-        }
+        todo!()
     }
 
     fn backend(&self) -> &Arc<dyn Backend> {
@@ -62,7 +60,7 @@ impl<'t> Function<'t, f32> for Exp<'t, f32> {
     fn forward(&'t mut self) -> Self::Forwarded {
         let tensor = Tensor::<f32>::from_vec(self.backend.exp(&self.tensor.data()), self.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
-        self.output.get_or_insert(tensor.as_ref());
+        self.output = Some(tensor.as_ref());
         Ok(tensor)
     }
 
@@ -97,7 +95,7 @@ impl<'t> Function<'t, f32> for Log<'t, f32> {
     fn forward(&'t mut self) -> Self::Forwarded {
         let tensor = Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| x.ln()).collect(), self.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
-        self.output.get_or_insert(tensor.as_ref());
+        self.output = Some(tensor.as_ref());
         Ok(tensor)
     }
 
@@ -132,7 +130,7 @@ impl<'t> Function<'t, f32> for Neg<'t, f32> {
     fn forward(&'t mut self) -> Self::Forwarded {
         let tensor = Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| -x).collect(), self.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
-        self.output.get_or_insert(tensor.as_ref());
+        self.output = Some(tensor.as_ref());
         Ok(tensor)
     }
 
@@ -168,7 +166,7 @@ impl<'t> Function<'t, f32> for Sqrt<'t, f32> {
     fn forward(&'t mut self) -> Self::Forwarded {
         let tensor = Tensor::<f32>::from_vec(self.backend().sqrt(self.tensor.data()), self.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
-        self.output.get_or_insert(tensor.as_ref());
+        self.output = Some(tensor.as_ref());
         Ok(tensor)
     }
 
@@ -203,7 +201,7 @@ impl<'t> Function<'t, f32> for Square<'t, f32> {
     fn forward(&'t mut self) -> Self::Forwarded {
         let tensor = Tensor::<f32>::from_vec(self.tensor.data().iter().map(|x| x * x).collect(), self.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
-        self.output.get_or_insert(tensor.as_ref());
+        self.output = Some(tensor.as_ref());
         Ok(tensor)
     }
 
@@ -251,7 +249,7 @@ impl<'t> Function<'t, f32> for Add<'t, f32> {
             }
              let tensor = Tensor::<f32>::from_vec(data, self.first_tensor.shape())?;
             #[cfg(feature = "enable_backpropagation")]
-            self.output.get_or_insert(tensor.as_ref());
+            self.output = Some(tensor.as_ref());
             return Ok(tensor)
         }
 
@@ -260,7 +258,7 @@ impl<'t> Function<'t, f32> for Add<'t, f32> {
             _ => {
                 let tensor = Tensor::<f32>::from_vec(self.backend().add(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())?;
                 #[cfg(feature = "enable_backpropagation")]
-                self.output.get_or_insert(tensor.as_ref());
+                self.output = Some(tensor.as_ref());
                 Ok(tensor)
             }
         }
@@ -311,7 +309,7 @@ impl<'t> Function<'t, f32> for Sub<'t, f32> {
             }
             tensor = Tensor::<f32>::from_vec(data, &self.first_tensor.shape())?;
             #[cfg(feature = "enable_backpropagation")]
-            self.output.get_or_insert(tensor.as_ref());
+            self.output = Some(tensor.as_ref());
             return Ok(tensor)
         }
 
@@ -320,7 +318,7 @@ impl<'t> Function<'t, f32> for Sub<'t, f32> {
             _ => {
                 tensor = Tensor::<f32>::from_vec(self.backend().sub(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())?;
                 #[cfg(feature = "enable_backpropagation")]
-                self.output.get_or_insert(tensor.as_ref());
+                self.output = Some(tensor.as_ref());
                 Ok(tensor)
             }
         }
@@ -364,7 +362,7 @@ impl<'t> Function<'t, f32> for Mul<'t, f32> {
             _ => {
                 let tensor = Tensor::<f32>::from_vec(self.backend().multiply(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())?;
                 #[cfg(feature = "enable_backpropagation")]
-                self.output.get_or_insert(tensor.as_ref());
+                self.output = Some(tensor.as_ref());
                 Ok(tensor)
             }
         }
@@ -407,7 +405,7 @@ impl<'t> Function<'t, f32> for Div<'t, f32> {
             _ => {
                  let tensor = Tensor::<f32>::from_vec(self.backend().div(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())?;
                 #[cfg(feature = "enable_backpropagation")]
-                self.output.get_or_insert(tensor.as_ref());
+                self.output = Some(tensor.as_ref());
                 return Ok(tensor)
             }
         }
@@ -447,7 +445,7 @@ impl<'t> Function<'t, f32> for Pow<'t, f32> {
     fn forward(&'t mut self) -> Self::Forwarded {
         let tensor = Tensor::<f32>::from_vec(self.backend().pow(self.tensor.data(), self.tensor.power()), self.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
-        self.output.get_or_insert(tensor.as_ref());
+        self.output = Some(tensor.as_ref());
         Ok(tensor)
     }
 
@@ -633,7 +631,7 @@ impl<'t> Function<'t, f32> for Matmul<'t, f32> {
             }
         };
         #[cfg(feature = "enable_backpropagation")]
-        self.output.get_or_insert(tensor.as_ref());
+        self.output = Some(tensor.as_ref());
         Ok(tensor)
     }
 

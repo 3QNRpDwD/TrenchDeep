@@ -9,7 +9,59 @@ mod ops;
 mod broadcast;
 mod creation;
 
-
+/// 다양한 텐서 연산을 위한 편리한 매크로를 제공합니다.
+///
+/// 이 매크로는 일반적인 텐서 연산을 수행하는 과정을 단순화하여
+/// 더 편리한 문법을 제공합니다. 단항 연산과 이항 연산을 모두 지원합니다.
+///
+/// # supported operator
+/// 이 매크로는 다음과 같은 연산들을 지원합니다:
+/// - 이항 연산: `Matmul`, `Add`, `Sub`, `Mul`, `Div`
+/// - 단항 연산: `Exp`, `Neg`, `Sqrt`, `Abs`, `Square`, `Log`
+/// - 특수 연산: `Topk`, `Matmax`, `Pow`
+///
+/// # Examples
+///
+/// ```rust
+/// use MIT::{ops, tensor::{Tensor, TensorBase}};
+///
+/// let tensor1 = Tensor::<f32>::new(vec![vec![1.0, 2.0, 3.0]]);
+/// let tensor2 = Tensor::<f32>::new(vec![vec![3.0, 2.0, 1.0]]);
+///
+/// // 기본 산술 연산
+/// let result = ops!(tensor1.as_ref(), Add, tensor2.as_ref())?;
+/// let result = ops!(tensor1.as_ref(), Mul, tensor2.as_ref())?;
+///
+/// // 단항 연산
+/// let result = ops!(tensor1.as_ref(), Sqrt)?;
+/// let result = ops!(tensor1.as_ref(), Log)?;
+///
+/// // 특수 연산
+/// let result = ops!(tensor1.as_ref(), Topk, 5, true)?; // 상위 5개 요소, 정렬됨
+/// let result = ops!(tensor1.as_ref(), Pow, 2.0)?; // 텐서의 제곱
+/// ```
+///
+/// # Parameters
+/// - 첫 번째 매개변수는 항상 입력 텐서입니다
+/// - 이항 연산의 경우, 두 번째는 연산 타입이고 세 번째는 두 번째 텐서입니다
+/// - 단항 연산의 경우, 첫 텐서와 연산 타입만 필요합니다
+/// - 특수 연산은 추가 매개변수가 필요할 수 있습니다 (예: Topk의 k값, Pow의 지수)
+///
+/// # Return
+/// 지정된 연산의 순전파(forward) 결과를 반환합니다.
+///
+/// # Panic
+/// 연산 초기화가 실패할 경우 패닉이 발생합니다 (`unwrap()`으로 감싸져 있음).
+/// 이러한 에러를 직접 처리해야 하는 경우, 기본 메서드를 직접 사용하는 것을 고려하세요.
+///
+/// # Implementation Details
+/// - 모든 연산은 원본 텐서의 형상(shape)을 유지합니다.
+/// - 새로운 텐서를 생성하여 결과를 반환하므로, 원본 텐서는 변경되지 않습니다.
+///
+/// # Performance Considerations
+/// 매 연산 시 새로운 텐서를 생성하므로
+/// 대규모 텐서 연산 시 메모리 할당 오버헤드가 발생할 수 있습니다.
+/// 고성능 연산이 필요한 경우 in-place 연산을 지원하는 별도 메서드 구현을 권장합니다.
 #[macro_export]
 macro_rules! ops {
     ($tensor:expr, Matmul, $second_tensor:expr) => {
@@ -72,12 +124,67 @@ macro_rules! ops {
     }};
 }
 
+
+/// 텐서와 스칼라 값 사이의 연산을 위한 매크로를 제공합니다.
+///
+/// # supported operator
+/// ## 정방향 연산 (텐서 op 스칼라)
+/// - `Add`: 텐서의 각 요소에 스칼라 값을 더함
+/// - `Sub`: 텐서의 각 요소에서 스칼라 값을 뺌
+/// - `Mul`: 텐서의 각 요소에 스칼라 값을 곱함
+/// - `Div`: 텐서의 각 요소를 스칼라 값으로 나눔
+///
+/// ## 역방향 연산 (스칼라 op 텐서)
+/// - `buS`: 스칼라 값에서 텐서의 각 요소를 뺌
+/// - `viD`: 스칼라 값을 텐서의 각 요소로 나눔
+///
+/// # Examples
+///
+/// ```rust
+/// use MIT::{scalar_ops, tensor::{Tensor, TensorBase}};
+///
+/// let tensor = Tensor::new(vec![vec![1.0, 2.0, 3.0]]);
+///
+/// // 정방향 연산 예시
+/// let result = scalar_ops!(tensor.as_ref(), Add, 2.0); // 모든 요소에 2.0을 더함
+/// let result = scalar_ops!(tensor.as_ref(), Mul, 3.0); // 모든 요소에 3.0을 곱함
+///
+/// // 역방향 연산 예시
+/// let result = scalar_ops!(5.0, buS, tensor.as_ref()); // 5.0에서 각 요소를 뺌
+/// let result = scalar_ops!(1.0, viD, tensor.as_ref()); // 1.0을 각 요소로 나눔
+/// ```
+///
+/// # Return
+/// 지정된 연산의 순전파(forward) 결과를 반환합니다.
+///
+/// # Panic
+/// 연산 초기화가 실패할 경우 패닉이 발생합니다 (`unwrap()`으로 감싸져 있음).
+/// 이러한 에러를 직접 처리해야 하는 경우, 기본 메서드를 직접 사용하는 것을 고려하세요.
+///
+/// # Implementation Details
+/// - 모든 연산은 원본 텐서의 형상(shape)을 유지합니다.
+/// - 새로운 텐서를 생성하여 결과를 반환하므로, 원본 텐서는 변경되지 않습니다.
+/// - Iterator와 map을 사용하여 각 요소에 대한 연산을 수행합니다.
+///
+/// # Performance Considerations
+/// 이 매크로는 모든 연산에서 새로운 텐서를 생성합니다. 이는 텐서의 불변성을 유지하기 위한 것이지만,
+/// 대규모 데이터나 빈번한 연산이 필요한 경우 성능 저하가 발생할 수 있습니다.
+/// 성능이 중요한 경우, 텐서의 내부 데이터를 직접 수정하는 방식을 고려해야 할 수 있습니다.
+///
+/// # Optimization Considerations
+/// 현재 구현은 다음과 같은 특징이 있습니다:
+/// - 매 연산마다 새로운 벡터와 텐서를 할당합니다.
+/// - 대규모 데이터셋에서는 메모리 사용량이 증가할 수 있습니다.
+/// - 연속적인 연산의 경우 성능 저하가 누적될 수 있습니다.
+///
+/// 향후 개선을 위해 다음과 같은 방안을 고려할 수 있습니다:
+/// - 텐서의 내부 데이터를 직접 수정하는 메서드 추가
+/// - 임시 버퍼를 재사용하는 방식 도입
+/// - SIMD 최적화 적용
+#[macro_export]
 macro_rules! scalar_ops {
     ($tensor:expr, Add, $scalar:expr) => {
         Tensor::from_vec($tensor.data().iter().map(|&x| x + $scalar).collect(), &$tensor.shape())
-        // 텐서 내부 데이터는 불변으로 두려면 새 텐서를 만들어야한다..
-        // 성능 이슈가 발생할거야
-        // 텐서의 데이터를 수정할수 있는 메서드를 만들어야하나?
     };
 
     ($tensor:expr, Sub, $scalar:expr) => {

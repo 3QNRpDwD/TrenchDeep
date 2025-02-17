@@ -1,8 +1,8 @@
 use std::fmt::{Display, Formatter};
 use crate::tensor::TensorError;
 
-mod tensor;
-mod backend;
+pub mod tensor;
+pub mod backend;
 
 #[derive(Debug)]
 pub enum MlError {
