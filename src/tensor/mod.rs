@@ -383,57 +383,57 @@ pub trait Function<'t, T: Debug + Clone> {
 /// Structure representing an exponential operation.
 pub struct Exp<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<&'t dyn TensorBase<T>>
+    output: Option<Arc<dyn TensorBase<T>>>
 }
 
 /// Structure representing a negation operation.
 pub struct Neg<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<&'t dyn TensorBase<T>>
+    output: Option<Arc<dyn TensorBase<T>>>
 }
 
 /// Structure representing a square root operation.
 pub struct Sqrt<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<&'t dyn TensorBase<T>>
+    output: Option<Arc<dyn TensorBase<T>>>
 }
 
 /// Structure representing an absolute value operation.
 pub struct Abs<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<&'t dyn TensorBase<T>>
+    output: Option<Arc<dyn TensorBase<T>>>
 }
 
 /// Structure representing a squaring operation.
 pub struct Square<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<&'t dyn TensorBase<T>>
+    output: Option<Arc<dyn TensorBase<T>>>
 }
 
 /// Structure representing a logarithmic operation.
 pub struct Log<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<&'t dyn TensorBase<T>>
+    output: Option<Arc<dyn TensorBase<T>>>
 }
 
 /// Structure representing a power operation.
 pub struct Pow<'t, T>     { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<&'t dyn TensorBase<T>>,
+    output: Option<Arc<dyn TensorBase<T>>>,
     pub power: Option<f32>,
 }
 
 /// Structure representing a Top-k operation.
 pub struct Topk<'t, T>    { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<(&'t dyn TensorBase<T>, &'t dyn TensorBase<T>)>,
+    output: Option<(Arc<dyn TensorBase<T>>, Arc<dyn TensorBase<T>>)>,
     pub topk: Option<(usize, bool)>
 } // k: usize, sorted: bool
 
 /// Structure representing a matrix max operation along a dimension.
 pub struct Matmax<'t, T>  { tensor: &'t dyn TensorBase<T>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<(&'t dyn TensorBase<T>, &'t dyn TensorBase<T>)>,
+    output: Option<(Arc<dyn TensorBase<T>>, Arc<dyn TensorBase<T>>)>,
     pub matmax: Option<(Option<i32>, bool)>
 } // dim: (Option<i32>, keepdim: bool
 
@@ -443,7 +443,7 @@ pub struct Add<'t, T>     {
     second_tensor: &'t dyn TensorBase<T>,
     backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<&'t dyn TensorBase<T>>
+    output: Option<Arc<dyn TensorBase<T>>>
 }
 
 /// Structure representing a subtraction operation.
@@ -452,7 +452,7 @@ pub struct Sub<'t, T>     {
     second_tensor: &'t dyn TensorBase<T>,
     backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<&'t dyn TensorBase<T>>
+    output: Option<Arc<dyn TensorBase<T>>>
 }
 
 /// Structure representing a multiplication operation.
@@ -461,7 +461,7 @@ pub struct Mul<'t, T> {
     second_tensor: &'t dyn TensorBase<T>,
     backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<&'t dyn TensorBase<T>>
+    output: Option<Arc<dyn TensorBase<T>>>
 }
 
 /// Structure representing a division operation.
@@ -470,7 +470,7 @@ pub struct Div<'t, T> {
     second_tensor: &'t dyn TensorBase<T>,
     backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<&'t dyn TensorBase<T>>
+    output: Option<Arc<dyn TensorBase<T>>>
 }
 
 /// Structure representing a matrix multiplication operation.
@@ -479,7 +479,7 @@ pub struct Matmul<'t, T> {
     second_tensor: &'t dyn TensorBase<T>,
     backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<&'t dyn TensorBase<T>>
+    output: Option<Arc<dyn TensorBase<T>>>
 }
 
 #[cfg(test)]

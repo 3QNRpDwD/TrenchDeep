@@ -27,7 +27,7 @@ impl<'t> Function<'t, f32> for Abs<'t, f32> {
         let tensor = Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| x.abs()).collect(), self.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
         {
-            self.output = Some(tensor.deref());
+            self.output = Some(tensor.0.clone());
         }
         Ok(tensor)
     }
@@ -64,7 +64,7 @@ impl<'t> Function<'t, f32> for Exp<'t, f32> {
         let tensor = Tensor::<f32>::from_vec(self.backend.exp(&self.tensor.data()), self.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
         {
-            self.output = Some(tensor.deref());
+            self.output = Some(tensor.0.clone());
         }
         Ok(tensor)
     }
@@ -101,7 +101,7 @@ impl<'t> Function<'t, f32> for Log<'t, f32> {
         let tensor = Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| x.ln()).collect(), self.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
                 {
-            self.output = Some(tensor.deref());
+            self.output = Some(tensor.0.clone());
         }
         Ok(tensor)
     }
@@ -138,7 +138,7 @@ impl<'t> Function<'t, f32> for Neg<'t, f32> {
         let tensor = Tensor::<f32>::from_vec(self.tensor.data().iter().map(|&x| -x).collect(), self.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
                 {
-            self.output = Some(tensor.deref());
+            self.output = Some(tensor.0.clone());
         }
         Ok(tensor)
     }
@@ -176,7 +176,7 @@ impl<'t> Function<'t, f32> for Sqrt<'t, f32> {
         let tensor = Tensor::<f32>::from_vec(self.backend().sqrt(self.tensor.data()), self.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
                 {
-            self.output = Some(tensor.deref());
+            self.output = Some(tensor.0.clone());
         }
         Ok(tensor)
     }
@@ -213,7 +213,7 @@ impl<'t> Function<'t, f32> for Square<'t, f32> {
         let tensor = Tensor::<f32>::from_vec(self.tensor.data().iter().map(|x| x * x).collect(), self.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
                 {
-            self.output = Some(tensor.deref());
+            self.output = Some(tensor.0.clone());
         }
         Ok(tensor)
     }
@@ -263,7 +263,7 @@ impl<'t> Function<'t, f32> for Add<'t, f32> {
              let tensor = Tensor::<f32>::from_vec(data, self.first_tensor.shape())?;
             #[cfg(feature = "enable_backpropagation")]
                     {
-            self.output = Some(tensor.deref());
+            self.output = Some(tensor.0.clone());
         }
             return Ok(tensor)
         }
@@ -274,7 +274,7 @@ impl<'t> Function<'t, f32> for Add<'t, f32> {
                 let tensor = Tensor::<f32>::from_vec(self.backend().add(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())?;
                 #[cfg(feature = "enable_backpropagation")]
                         {
-            self.output = Some(tensor.deref());
+            self.output = Some(tensor.0.clone());
         }
                 Ok(tensor)
             }
@@ -327,7 +327,7 @@ impl<'t> Function<'t, f32> for Sub<'t, f32> {
             tensor = Tensor::<f32>::from_vec(data, &self.first_tensor.shape())?;
             #[cfg(feature = "enable_backpropagation")]
                     {
-            self.output = Some(tensor.deref());
+            self.output = Some(tensor.0.clone());
         }
             return Ok(tensor)
         }
@@ -338,7 +338,7 @@ impl<'t> Function<'t, f32> for Sub<'t, f32> {
                 tensor = Tensor::<f32>::from_vec(self.backend().sub(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())?;
                 #[cfg(feature = "enable_backpropagation")]
                         {
-            self.output = Some(tensor.deref());
+            self.output = Some(tensor.0.clone());
         }
                 Ok(tensor)
             }
@@ -384,7 +384,7 @@ impl<'t> Function<'t, f32> for Mul<'t, f32> {
                 let tensor = Tensor::<f32>::from_vec(self.backend().multiply(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())?;
                 #[cfg(feature = "enable_backpropagation")]
                         {
-            self.output = Some(tensor.deref());
+            self.output = Some(tensor.0.clone());
         }
                 Ok(tensor)
             }
@@ -429,7 +429,7 @@ impl<'t> Function<'t, f32> for Div<'t, f32> {
                  let tensor = Tensor::<f32>::from_vec(self.backend().div(self.first_tensor.data(), self.second_tensor.data()), self.first_tensor.shape())?;
                 #[cfg(feature = "enable_backpropagation")]
                         {
-            self.output = Some(tensor.deref());
+            self.output = Some(tensor.0.clone());
         }
                 return Ok(tensor)
             }
@@ -472,7 +472,7 @@ impl<'t> Function<'t, f32> for Pow<'t, f32> {
         let tensor = Tensor::<f32>::from_vec(self.backend().pow(self.tensor.data(), self.power.unwrap()), self.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
                 {
-            self.output = Some(tensor.deref());
+            self.output = Some(tensor.0.clone());
         }
         Ok(tensor)
     }
@@ -660,7 +660,7 @@ impl<'t> Function<'t, f32> for Matmul<'t, f32> {
         };
         #[cfg(feature = "enable_backpropagation")]
         {
-            self.output = Some(tensor.deref());
+            self.output = Some(tensor.0.clone());
         }
         Ok(tensor)
     }
@@ -758,7 +758,7 @@ impl<'t> Function<'t, f32> for Topk<'t, f32> {
             let tensor = (Tensor::<f32>::from_vec(values, &new_shape)?, Tensor::<f32>::from_vec(indices, &new_shape)?);
             #[cfg(feature = "enable_backpropagation")]
             {
-                self.output = Some((tensor.0.deref(), tensor.1.deref()));
+                self.output = Some((tensor.0.0.clone(), tensor.1.0.clone()));
             }
             Ok(tensor)
     }
@@ -863,7 +863,7 @@ impl<'t> Function<'t, f32> for Matmax<'t, f32> {
         };
         #[cfg(feature = "enable_backpropagation")]
         {
-            self.output = Some((tensor.0.as_ref(), tensor.1.as_ref()))
+            self.output = Some((tensor.0.0.clone(), tensor.1.0.clone()))
         }
         Ok(tensor)
     }
