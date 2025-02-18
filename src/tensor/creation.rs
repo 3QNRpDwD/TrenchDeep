@@ -1,15 +1,12 @@
 use crate::{MlError, MlResult};
-use crate::tensor::{TensorBase, Tensor, TensorError};
+use crate::tensor::{TensorBase, Tensor, TensorError, ArcTensor};
 
 
 impl  Tensor<f32> {
-    pub fn zeros() -> Box<dyn TensorBase<f32>> {
-        Box::new(Self {
+    pub fn zeros() -> ArcTensor<f32> {
+        ArcTensor::new(Self {
             data: vec![],
             shape: vec![],
-            power: None,
-            topk: None,
-            matmax: None,
             requires_grad: cfg!(feature = "enable_backpropagation"),
 
             #[cfg(feature = "enable_backpropagation")]
@@ -19,13 +16,10 @@ impl  Tensor<f32> {
         })
     }
 
-    pub fn scalar(scalar: f32) -> Box<dyn TensorBase<f32>> {
-        Box::new(Self {
+    pub fn scalar(scalar: f32) -> ArcTensor<f32> {
+        ArcTensor::new(Self {
             data: vec![scalar],
             shape: vec![1],
-            power: None,
-            topk: None,
-            matmax: None,
             requires_grad: cfg!(feature = "enable_backpropagation"),
 
             #[cfg(feature = "enable_backpropagation")]
@@ -37,16 +31,13 @@ impl  Tensor<f32> {
 }
 
 impl TensorBase<f32> for Tensor<f32> {
-    fn new(data: Vec<Vec<f32>>) -> Box<dyn TensorBase<f32>>  {
+    fn new(data: Vec<Vec<f32>>) -> ArcTensor<f32>  {
         let shape = vec![data.len(), data[0].len()];
         let data: Vec<f32> = data.into_iter().flatten().collect();
 
-        Box::new(Self {
+        ArcTensor::new(Self {
             data,
             shape,
-            power: None,
-            topk: None,
-            matmax: None,
             requires_grad: cfg!(feature = "enable_backpropagation"),
 
             #[cfg(feature = "enable_backpropagation")]
@@ -56,7 +47,7 @@ impl TensorBase<f32> for Tensor<f32> {
         })
     }
 
-    fn from_vec(data: Vec<f32>, shape: &[usize]) -> MlResult<Box<dyn TensorBase<f32>>> {
+    fn from_vec(data: Vec<f32>, shape: &[usize]) -> MlResult<ArcTensor<f32>> {
         let expected_len: usize = shape.iter().product();
         if data.len() != expected_len {
             return Err(MlError::TensorError(TensorError::InvalidDataLength {
@@ -65,12 +56,9 @@ impl TensorBase<f32> for Tensor<f32> {
             }));
         }
 
-        Ok(Box::new(Self {
+        Ok(ArcTensor::new(Self {
             data,
             shape: shape.to_vec(),
-            power: None,
-            topk: None,
-            matmax: None,
             requires_grad: cfg!(feature = "enable_backpropagation"),
 
             #[cfg(feature = "enable_backpropagation")]
@@ -86,39 +74,6 @@ impl TensorBase<f32> for Tensor<f32> {
 
     fn data(&self) -> &[f32] {
         &self.data
-    }
-
-    fn power(&self) -> f32 {
-        if self.power.is_none() {
-            return 1.0;
-        }
-        self.power.unwrap()
-    }
-
-    fn topk(&self) -> (usize, bool) {
-        if self.topk.is_none() {
-            return (0, false);
-        }
-        self.topk.unwrap()
-    }
-
-    fn matmax(&self) -> (Option<i32>, bool) {
-        if self.matmax.is_none() {
-            return (None, false)
-        }
-        self.matmax.unwrap()
-    }
-
-    fn set_power(&mut self, exponent: f32) {
-        self.power = Some(exponent);
-    }
-
-    fn set_topk(&mut self, k: usize, sorted: bool) {
-        self.topk = Some((k, sorted));
-    }
-
-    fn set_matmax(&mut self, dim: Option<i32>, keepdim: bool) {
-        self.matmax = Some((dim, keepdim));
     }
 
     fn get(&self, indices: &[usize]) -> Option<&f32> {
@@ -159,60 +114,13 @@ impl TensorBase<f32> for Tensor<f32> {
         self.requires_grad
     }
 
-    #[cfg(feature = "enable_backpropagation")]
-    fn set_grad_fn(&mut self, grad_fn: Box<dyn crate::tensor::Function<'static, f32, Forwarded=(), Gradiant=()>>) {
-        self.grad_fn = Some(grad_fn);
-    }
-
-    #[cfg(feature = "enable_backpropagation")]
-    fn grad(&self) -> Option<&dyn TensorBase<f32>> {
-        self.grad.as_ref().map(|g| g.as_ref())
-    }
+    // #[cfg(feature = "enable_backpropagation")]
+    // fn set_grad_fn(&mut self, grad_fn: Box<dyn crate::tensor::Function<'static, f32, Forwarded=(), Gradiant=()>>) {
+    //     self.grad_fn = Some(grad_fn);
+    // }
+    //
+    // #[cfg(feature = "enable_backpropagation")]
+    // fn grad(&self) -> Option<&dyn TensorBase<f32>> {
+    //     self.grad.as_ref().map(|g| g.as_ref())
+    // }
 }
-
-// impl<T: TensorBase Function<T> for Functions {
-//     type Output = MlResult<T>;
-//     type Gradient = f64;
-//
-//     fn forward(&self) -> Self::Output {
-//         match self {
-//             Functions::Abs      (F) => F.forward(),
-//             Functions::Exp      (F) => F.forward(),
-//             Functions::Log      (F) => F.forward(),
-//             Functions::Neg      (F) => F.forward(),
-//             Functions::Sqrt     (F) => F.forward(),
-//             Functions::Square   (F) => F.forward(),
-//
-//             Functions::Add      (F) => F.forward(),
-//             Functions::Sub      (F) => F.forward(),
-//             Functions::Mul      (F) => F.forward(),
-//             Functions::Div      (F) => F.forward(),
-//             Functions::Pow      (F) => F.forward(),
-//             Functions::Matmul   (F) => F.forward(),
-//
-//             Functions::Topk     (F) => F.forward(),
-//             Functions::Matmax   (F) => F.forward(),
-//         }
-//     }
-//     fn backward(&self, grad: Self::Gradient) -> Self::Output {
-//         match self {
-//             Functions::Abs      (F) =>  F.backward(grad),
-//             Functions::Exp      (F) =>  F.backward(grad),
-//             Functions::Log      (F) =>  F.backward(grad),
-//             Functions::Neg      (F) =>  F.backward(grad),
-//             Functions::Sqrt     (F) =>  F.backward(grad),
-//             Functions::Square   (F) =>  F.backward(grad),
-//
-//             Functions::Add      (F) =>  F.backward(grad),
-//             Functions::Sub      (F) =>  F.backward(grad),
-//             Functions::Mul      (F) =>  F.backward(grad),
-//             Functions::Div      (F) =>  F.backward(grad),
-//             Functions::Pow      (F) =>  F.backward(grad),
-//             Functions::Matmul   (F) =>  F.backward(grad),
-//
-//             Functions::Topk     (F) =>  F.backward(grad),
-//             Functions::Matmax   (F) =>  F.backward(grad),
-//         }
-//         todo!("역전파 구현하기")
-//     }
-// }

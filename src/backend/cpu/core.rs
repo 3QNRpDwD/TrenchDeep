@@ -1,6 +1,7 @@
 use crate::backend::DeviceType;
 use crate::ops;
 use crate::tensor::{Tensor, Matmul, TensorBase, Function};
+use std::ops::Deref;
 
 #[derive(Debug)]
 pub struct CpuCore;
@@ -24,7 +25,7 @@ impl CpuCore {
 
         // Measure matrix multiplication time (more compute intensive than addition)
         let start = std::time::Instant::now();
-        let _c = ops!(a.as_ref(), Matmul, b.as_ref());
+        let _c = ops!(a, Matmul, b);
         let duration = start.elapsed();
 
         // Calculate FLOPS:
