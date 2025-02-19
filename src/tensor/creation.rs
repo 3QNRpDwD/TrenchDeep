@@ -1,5 +1,7 @@
+use std::sync::Arc;
 use crate::{MlError, MlResult};
-use crate::tensor::{TensorBase, Tensor, TensorError, ArcTensor};
+use crate::backend::{Backend, CpuBackend, Device};
+use crate::tensor::{Abs, Add, Div, Exp, Log, Matmax, Matmul, Mul, Neg, Pow, Sub, Sqrt, Square, Topk, Tensor, TensorError, ArcTensor, UnaryOp, BinaryOp, SpecialOp, Operator, TensorBase};
 
 
 impl  Tensor<f32> {
@@ -9,8 +11,8 @@ impl  Tensor<f32> {
             shape: vec![],
             requires_grad: cfg!(feature = "enable_backpropagation"),
 
-            #[cfg(feature = "enable_backpropagation")]
-            grad: None,
+            // #[cfg(feature = "enable_backpropagation")]
+            // grad: None,
             #[cfg(feature = "enable_backpropagation")]
             grad_fn: None,
         })
@@ -22,8 +24,8 @@ impl  Tensor<f32> {
             shape: vec![1],
             requires_grad: cfg!(feature = "enable_backpropagation"),
 
-            #[cfg(feature = "enable_backpropagation")]
-            grad: None,
+            // #[cfg(feature = "enable_backpropagation")]
+            // grad: None,
             #[cfg(feature = "enable_backpropagation")]
             grad_fn: None,
         })
@@ -40,8 +42,8 @@ impl TensorBase<f32> for Tensor<f32> {
             shape,
             requires_grad: cfg!(feature = "enable_backpropagation"),
 
-            #[cfg(feature = "enable_backpropagation")]
-            grad: None,
+            // #[cfg(feature = "enable_backpropagation")]
+            // grad: None,
             #[cfg(feature = "enable_backpropagation")]
             grad_fn: None,
         })
@@ -61,11 +63,23 @@ impl TensorBase<f32> for Tensor<f32> {
             shape: shape.to_vec(),
             requires_grad: cfg!(feature = "enable_backpropagation"),
 
-            #[cfg(feature = "enable_backpropagation")]
-            grad: None,
+            // #[cfg(feature = "enable_backpropagation")]
+            // grad: None,
             #[cfg(feature = "enable_backpropagation")]
             grad_fn: None,
         }))
+    }
+
+    #[cfg(feature = "enable_backpropagation")]
+    fn from_grad_fn(data: Vec<f32>, shape: &[usize], grad_fn: Box<dyn Operator<f32>>) -> ArcTensor<f32> {
+        ArcTensor::new(Self {
+            data,
+            shape: shape.to_vec(),
+            requires_grad: false,
+
+            #[cfg(feature = "enable_backpropagation")]
+            grad_fn: Some(grad_fn)
+        })
     }
 
     fn shape(&self) -> &[usize] {
@@ -123,4 +137,179 @@ impl TensorBase<f32> for Tensor<f32> {
     // fn grad(&self) -> Option<&dyn TensorBase<f32>> {
     //     self.grad.as_ref().map(|g| g.as_ref())
     // }
+}
+
+impl<T> UnaryOp<T> {
+    pub fn new(tensor: &dyn TensorBase<T>) -> MlResult<UnaryOp<T>> {
+        Ok(Self {
+            tensor,
+            backend: Arc::new(CpuBackend::new()?),
+            #[cfg(feature = "enable_backpropagation")]
+            output: None,
+        })
+    }
+}
+
+impl<T> BinaryOp<T> {
+    pub fn new(first_tensor: &dyn TensorBase<T>, second_tensor: &dyn TensorBase<T>) -> MlResult<BinaryOp<T>> {
+        Ok(Self {
+            first_tensor,
+            second_tensor,
+            backend: Arc::new(CpuBackend::new()?),
+            #[cfg(feature = "enable_backpropagation")]
+            output: None,
+        })
+    }
+}
+
+impl<T> SpecialOp<T> {
+    pub fn new(tensor: &dyn TensorBase<T>) -> MlResult<SpecialOp<T>> {
+        Ok(Self {
+            tensor,
+            backend: Arc::new(CpuBackend::new()?),
+            #[cfg(feature = "enable_backpropagation")]
+            output: None,
+        })
+    }
+}
+
+impl Operator<f32> for Abs<f32> {
+    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+        Ok(Self { op: UnaryOp::new(first)? })
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.op.backend
+    }
+}
+
+impl Operator<f32> for Exp<f32> {
+    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+        Ok(Self { op: UnaryOp::new(first)? })
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.op.backend
+    }
+}
+
+impl Operator<f32> for Log<f32> {
+    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+        Ok(Self { op: UnaryOp::new(first)? })
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.op.backend
+    }
+}
+
+impl Operator<f32> for Neg<f32> {
+    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+        Ok(Self { op: UnaryOp::new(first)? })
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.op.backend
+    }
+}
+
+impl Operator<f32> for Sqrt<f32> {
+    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+        Ok(Self { op: UnaryOp::new(first)? })
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.op.backend
+    }
+}
+
+
+impl Operator<f32> for Square<f32> {
+    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+        Ok(Self { op: UnaryOp::new(first)? })
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.op.backend
+    }
+}
+
+impl Operator<f32> for Add<f32> {
+    fn new(first: &dyn TensorBase<f32>, second: Option<&dyn TensorBase<f32>>) -> MlResult<Self>  {
+        Ok(Self { op: BinaryOp::new(first, second.unwrap())? })
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.op.backend
+    }
+}
+
+impl Operator<f32> for Sub<f32> {
+    fn new(first: &dyn TensorBase<f32>, second: Option<&dyn TensorBase<f32>>) -> MlResult<Self>  {
+        Ok(Self { op: BinaryOp::new(first, second.unwrap())? })
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.op.backend
+    }
+}
+
+impl Operator<f32> for Mul<f32> {
+    fn new(first: &dyn TensorBase<f32>, second: Option<&dyn TensorBase<f32>>) -> MlResult<Self>  {
+        Ok(Self { op: BinaryOp::new(first, second.unwrap())? })
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.op.backend
+    }
+}
+
+impl Operator<f32> for Div<f32> {
+    fn new(first: &dyn TensorBase<f32>, second: Option<&dyn TensorBase<f32>>) -> MlResult<Self>  {
+        Ok(Self { op: BinaryOp::new(first, second.unwrap())? })
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.op.backend
+    }
+}
+
+impl Operator<f32> for Matmul<f32> {
+    fn new(first: &dyn TensorBase<f32>, second: Option<&dyn TensorBase<f32>>) -> MlResult<Self>  {
+        Ok(Self { op: BinaryOp::new(first, second.unwrap())? })
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.op.backend
+    }
+}
+
+impl Operator<f32> for Pow<f32> {
+    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+        Ok(Self { op: UnaryOp::new(first)?, power: None })
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.op.backend
+    }
+}
+
+impl Operator<f32> for Topk<f32> {
+    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+        Ok(Self { op: SpecialOp::new(first)?, topk: None })
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.op.backend
+    }
+}
+
+impl Operator<f32> for Matmax<f32> {
+    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+        Ok(Self { op: SpecialOp::new(first)?, matmax: None })
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.op.backend
+    }
 }

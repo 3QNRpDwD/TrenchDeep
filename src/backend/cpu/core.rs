@@ -1,6 +1,6 @@
 use crate::backend::DeviceType;
 use crate::ops;
-use crate::tensor::{Tensor, Matmul, TensorBase, Function};
+use crate::tensor::{Tensor, Matmul, TensorBase, Function, Operator};
 use std::ops::Deref;
 
 #[derive(Debug)]
