@@ -48,14 +48,3 @@ impl From<&str> for MlError {
 }
 
 pub type MlResult<T> = Result<T, MlError>;
-
-
-#[cfg(test)]
-mod tests {
-    use crate::tensor::*;
-
-    #[test]
-    fn test(){
-
-    }
-}

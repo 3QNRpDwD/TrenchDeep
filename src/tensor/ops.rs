@@ -30,7 +30,7 @@ impl Function<f32> for Abs<f32> {
 impl Function<f32> for Exp<f32> {
     type Forwarded = MlResult<ArcTensor<f32>>;
     #[cfg(feature = "enable_backpropagation")]
-    type Gradiant = ();
+    type Gradiant = Self::Forwarded;
     /// Applies the exponential function to each element in the tensor
     ///
     /// # Returns
@@ -46,7 +46,12 @@ impl Function<f32> for Exp<f32> {
 
     #[cfg(feature = "enable_backpropagation")]
     fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
-        todo!()
+        let grad = grad.data().iter()
+            .zip(self.op.output.as_ref().unwrap().data().iter())
+            .map(|(grad_val, data)| grad_val  * data)
+            .collect();
+
+        Tensor::<f32>::from_vec(grad, self.op.output.as_ref().unwrap().shape())
     }
 }
 
@@ -142,9 +147,8 @@ impl Function<f32> for Square<f32> {
     fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
         let grad = grad.data().iter()
             .zip(self.op.tensor.data().iter())
-            .map(|(grad_val, input_val)| grad_val * 2.0 * input_val)
+            .map(|(grad_val, data)| 2.0 * grad_val  * data)
             .collect();
-
 
         Tensor::<f32>::from_vec(grad, self.op.tensor.shape())
     }

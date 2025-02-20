@@ -62,7 +62,7 @@ mod creation;
 /// 매 연산 시 새로운 텐서를 생성하므로
 /// 대규모 텐서 연산 시 메모리 할당 오버헤드가 발생할 수 있습니다.
 /// 고성능 연산이 필요한 경우 in-place 연산을 지원하는 별도 메서드 구현을 권장합니다.
-#[macro_export]
+#[macro_export] // 해당 매크로의 반환값에 연산자와 연산 결과를 모두 포함하도록 구조 변경을 고려중임.
 macro_rules! ops {
     ($tensor:expr, Matmul, $second_tensor:expr) => {
         Matmul::new($tensor.tensor.clone(), Some($second_tensor.tensor.clone())).unwrap().forward()
@@ -280,6 +280,7 @@ pub struct Tensor<Type: Debug>
     grad_fn: Option<Arc<dyn Operator<Type>>>
 }
 
+#[derive(Clone)]
 pub struct ArcTensor<T>{pub tensor: Arc<dyn TensorBase<T>>}
 
 impl ArcTensor<f32> {
@@ -295,6 +296,16 @@ impl<T> Deref for ArcTensor<T> {
 
     fn deref(&self) -> &Self::Target {
         self.tensor.deref()
+    }
+}
+
+impl<T: Debug + Clone> Debug for ArcTensor<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let tensor = self.tensor.deref();
+        write!(
+            f, "ArcTensor - data: {:?}, shape: {:?} requires_grad: {:?} ",
+            tensor.data(), tensor.shape(), tensor.requires_grad()
+        )
     }
 }
 
@@ -342,10 +353,10 @@ pub trait TensorBase<Type: Debug + Clone> {
    fn grad(&self) -> Option<&dyn TensorBase<Type>>;
 }
 
-impl Debug for &dyn TensorBase<f32> {
+impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
-            f, "TensorBase<f32> Debug - data: {:?}, shape: {:?} requires_grad: {:?} ",
+            f, "data: {:?}, shape: {:?} requires_grad: {:?}",
                self.data(), self.shape(), self.requires_grad()
         )
     }
@@ -384,12 +395,14 @@ pub trait Function<T: Debug + Clone>: Operator<T> {
 //     fn calculate_broadcast_indices(&self, other: &Self, idx: usize, shape: &[usize]) -> Option<(usize, usize)>;
 // }
 
+#[derive(Clone)]
 pub struct UnaryOp<T> { // 원래 라이프타임을 이용하여 관리했으나, 멀티스레딩 환경에서의 안전한 메모리 참조와, 사용 편의성 이슈로, Arc로 대체됨
     tensor: Arc<dyn TensorBase<T>>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
     output: Option<Arc<dyn TensorBase<T>>>
 }
 
+#[derive(Clone)]
 pub struct BinaryOp<T> { // 원래 라이프타임을 이용하여 관리했으나, 멀티스레딩 환경에서의 안전한 메모리 참조와, 사용 편의성 이슈로, Arc로 대체됨
     first_tensor: Arc<dyn TensorBase<T>>,
     second_tensor: Arc<dyn TensorBase<T>>,
@@ -398,61 +411,104 @@ pub struct BinaryOp<T> { // 원래 라이프타임을 이용하여 관리했으�
     output: Option<Arc<dyn TensorBase<T>>>
 }
 
+#[derive(Clone)]
 pub struct SpecialOp<T> { // 원래 라이프타임을 이용하여 관리했으나, 멀티스레딩 환경에서의 안전한 메모리 참조와, 사용 편의성 이슈로, Arc로 대체됨
     tensor: Arc<dyn TensorBase<T>>, backend: Arc<dyn Backend>,
     #[cfg(feature = "enable_backpropagation")]
     output: Option<(Arc<dyn TensorBase<T>>, Arc<dyn TensorBase<T>>)>,
 }
 
+impl<T: Debug + Clone> Debug for UnaryOp<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(
+            f, "UnaryOp - tensor: {:?}",
+            self.tensor.deref()
+        )
+    }
+}
+
+impl<T: Debug + Clone> Debug for BinaryOp<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(
+            f, "BinaryOp - first_tensor: {:?}\nself.second_tensor: {:?}",
+            self.first_tensor.deref(), self.second_tensor.deref()
+        )
+    }
+}
+
+impl<T: Debug + Clone> Debug for SpecialOp<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(
+            f, "SpecialOp - tensor: {:?}",
+            self.tensor.deref()
+        )
+    }
+}
+
 /// Structure representing an exponential operation.
+#[derive(Clone)]
 pub struct Exp<T>       { op: UnaryOp<T> }
 
 /// Structure representing a negation operation.
+#[derive(Clone)]
 pub struct Neg<T>       { op: UnaryOp<T> }
 
 /// Structure representing a square root operation.
+#[derive(Clone)]
 pub struct Sqrt<T>      { op: UnaryOp<T> }
 
 /// Structure representing an absolute value operation.
+#[derive(Clone)]
 pub struct Abs<T>       { op: UnaryOp<T> }
 
 /// Structure representing a squaring operation.
+#[derive(Clone)]
 pub struct Square<T>    { op: UnaryOp<T> }
 
 /// Structure representing a logarithmic operation.
+#[derive(Clone)]
 pub struct Log<T>       { op: UnaryOp<T> }
 
 /// Structure representing a power operation.
+#[derive(Clone)]
 pub struct Pow<T>       {
     op: UnaryOp<T>,
     pub power: Option<f32>,
 }
 
 /// Structure representing a Top-k operation.
+#[derive(Clone)]
 pub struct Topk<T>      {
     op: SpecialOp<T>,
     pub topk: Option<(usize, bool)>
 } // k: usize, sorted: bool
 
 /// Structure representing a matrix max operation along a dimension.
+#[derive(Clone)]
 pub struct Matmax<T>    {
     op: SpecialOp<T>,
     pub matmax: Option<(Option<i32>, bool)>
 } // dim: (Option<i32>, keepdim: bool
 
 /// Structure representing an addition operation.
+#[derive(Clone)]
 pub struct Add<T>       { op: BinaryOp<T> }
 
 /// Structure representing a subtraction operation.
+#[derive(Clone)]
 pub struct Sub<T>       { op: BinaryOp<T> }
 
 /// Structure representing a multiplication operation.
+#[derive(Clone)]
 pub struct Mul<T>       { op: BinaryOp<T> }
 
 /// Structure representing a division operation.
+#[derive(Clone)]
 pub struct Div<T>       { op: BinaryOp<T> }
 
+
 /// Structure representing a matrix multiplication operation.
+#[derive(Clone)]
 pub struct Matmul<T>    { op: BinaryOp<T> }
 
 // pub enum Operators<'t, T>  {
@@ -490,6 +546,35 @@ mod tests {
     pub fn assert_tensor_eq(tensor: &ArcTensor<f32>, expected_tensor: &ArcTensor<f32>) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
+        Ok(())
+    }
+
+    use std::ops::Deref;
+    use crate::ops;
+
+    #[test]
+    #[cfg(feature = "enable_backpropagation")]
+    fn test() -> MlResult<()>{
+        let x = Tensor::new(vec![vec![0.5]]);
+
+        let mut A = Square::new(x.tensor, None)?;
+        let a = A.forward()?;       // a = A(x)
+
+        let mut B = Exp::new(a.tensor, None)?;
+        let b = B.forward()?;       // b = B(a)
+
+        let mut C = Square::new(b.tensor, None)?;
+        let y = C.forward()?;       //y = C(b)
+
+        let y_grad = Tensor::new(vec![vec![1.0]]);
+        let b_grad = A.backward(y_grad.deref())?; // Square backward
+        let a_grad = B.backward(b_grad.deref())?; // Exp backward
+        let x_grad = C.backward(a_grad.deref())?; // Square backward
+
+        println!("forward\n{:?}\n{:?}\n{:?}\n", A.op, B.op, C.op);
+        println!("output\n{:?}\n{:?}\n{:?}\n", A.op.output.unwrap().deref(), B.op.output.unwrap().deref(), C.op.output.unwrap().deref());
+        println!("backward\n{:?}\n{:?}\n{:?}", b_grad, a_grad, x_grad);
+
         Ok(())
     }
 
