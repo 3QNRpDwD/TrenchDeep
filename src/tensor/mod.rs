@@ -65,63 +65,63 @@ mod creation;
 #[macro_export]
 macro_rules! ops {
     ($tensor:expr, Matmul, $second_tensor:expr) => {
-        Matmul::new($tensor.deref(), Some($second_tensor.deref())).unwrap().forward()
+        Matmul::new($tensor.tensor.clone(), Some($second_tensor.tensor.clone())).unwrap().forward()
     };
 
     ($tensor:expr, Topk, $k:expr, $sorted:expr) => {{
-        let mut op = Topk::new($tensor.deref(), None).unwrap();
+        let mut op = Topk::new($tensor.tensor.clone(), None).unwrap();
         op.topk = Some(($k, $sorted));
         op.forward()
     }};
 
     ($tensor:expr, Matmax, $dim:expr, $keepdim:expr) => {{
-        let mut op = Matmax::new($tensor.deref(), None).unwrap();
+        let mut op = Matmax::new($tensor.tensor.clone(), None).unwrap();
         op.matmax = Some(($dim, $keepdim));
         op.forward()
     }};
 
     ($tensor:expr, Add, $second_tensor:expr) => {
-        Add::new($tensor.deref(), Some($second_tensor.deref())).unwrap().forward()
+        Add::new($tensor.tensor.clone(), Some($second_tensor.tensor.clone())).unwrap().forward()
     };
 
     ($tensor:expr, Sub, $second_tensor:expr) => {
-        Sub::new($tensor.deref(), Some($second_tensor.deref())).unwrap().forward()
+        Sub::new($tensor.tensor.clone(), Some($second_tensor.tensor.clone())).unwrap().forward()
     };
 
     ($tensor:expr, Mul, $second_tensor:expr) => {
-        Mul::new($tensor.deref(), Some($second_tensor.deref())).unwrap().forward()
+        Mul::new($tensor.tensor.clone(), Some($second_tensor.tensor.clone())).unwrap().forward()
     };
 
     ($tensor:expr, Div, $second_tensor:expr) => {
-        Div::new($tensor.deref(), Some($second_tensor.deref())).unwrap().forward()
+        Div::new($tensor.tensor.clone(), Some($second_tensor.tensor.clone())).unwrap().forward()
     };
 
     ($tensor:expr, Exp) => {
-        Exp::new($tensor.deref(), None).unwrap().forward()
+        Exp::new($tensor.tensor.clone(), None).unwrap().forward()
     };
 
     ($tensor:expr, Neg) => {
-        Neg::new($tensor.deref(), None).unwrap().forward()
+        Neg::new($tensor.tensor.clone(), None).unwrap().forward()
     };
 
     ($tensor:expr, Sqrt) => {
-        Sqrt::new($tensor.deref(), None).unwrap().forward()
+        Sqrt::new($tensor.tensor.clone(), None).unwrap().forward()
     };
 
     ($tensor:expr, Abs) => {
-        Abs::new($tensor.deref(), None).unwrap().forward()
+        Abs::new($tensor.tensor.clone(), None).unwrap().forward()
     };
 
     ($tensor:expr, Square) => {
-        Square::new($tensor.deref(), None).unwrap().forward()
+        Square::new($tensor.tensor.clone(), None).unwrap().forward()
     };
 
     ($tensor:expr, Log) => {
-        Log::new($tensor.deref(), None).unwrap().forward()
+        Log::new($tensor.tensor.clone(), None).unwrap().forward()
     };
 
     ($tensor:expr, Pow, $exponent:expr) => {{
-        let mut op = Pow::new($tensor.deref(), None).unwrap();
+        let mut op = Pow::new($tensor.tensor.clone(), None).unwrap();
         op.power = Some($exponent);
         op.forward()
 
@@ -277,7 +277,7 @@ pub struct Tensor<Type: Debug>
     // #[cfg(feature = "enable_backpropagation")]
     // grad: Option<Box<dyn TensorBase<Type>>>,
     #[cfg(feature = "enable_backpropagation")]
-    grad_fn: Option<Box<dyn Operator<Type>>>
+    grad_fn: Option<Arc<dyn Operator<Type>>>
 }
 
 pub struct ArcTensor<T>{pub tensor: Arc<dyn TensorBase<T>>}
@@ -325,7 +325,7 @@ pub trait TensorBase<Type: Debug + Clone> {
     fn new(data: Vec<Vec<Type>>)                            -> ArcTensor<Type> where Self: Sized;
     fn from_vec(data: Vec<Type>, shape: &[usize])           -> MlResult<ArcTensor<Type>> where Self: Sized;
     #[cfg(feature = "enable_backpropagation")]
-    fn from_grad_fn(data: Vec<Type>, shape: &[usize], grad_fn: Box<dyn Operator<f32>>) -> ArcTensor<Type> where Self: Sized;
+    fn from_grad_fn(data: Vec<Type>, shape: &[usize], grad_fn: Arc<dyn Operator<Type>>) -> ArcTensor<Type> where Self: Sized;
 
     fn shape(&self)                                         -> &[usize];
     fn data(&self)                                          -> &[Type];
@@ -335,8 +335,11 @@ pub trait TensorBase<Type: Debug + Clone> {
     /// Enables gradient computation for the tensor
     fn requires_grad(&self) -> bool;
 
-   //  #[cfg(feature = "enable_backpropagation")]
-   // fn grad(&self) -> Option<&dyn TensorBase<Type>>;
+    #[cfg(feature = "enable_backpropagation")]
+    fn set_grad_fn(&mut self, grad_fn: Arc<dyn Operator<Type>>);
+
+    #[cfg(feature = "enable_backpropagation")]
+   fn grad(&self) -> Option<&dyn TensorBase<Type>>;
 }
 
 impl Debug for &dyn TensorBase<f32> {
@@ -349,7 +352,7 @@ impl Debug for &dyn TensorBase<f32> {
 }
 
 pub trait Operator<T> {
-    fn new(first: &dyn TensorBase<T>, second: Option<&dyn TensorBase<T>>) -> MlResult<Self> where Self: Sized;
+    fn new(first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>) -> MlResult<Self> where Self: Sized;
     fn backend(&self) -> &Arc<dyn Backend>;
 }
 
@@ -481,7 +484,6 @@ pub struct Matmul<T>    { op: BinaryOp<T> }
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Deref;
     use crate::MlResult;
     use crate::tensor::*;
 

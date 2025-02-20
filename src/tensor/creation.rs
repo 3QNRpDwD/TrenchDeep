@@ -71,7 +71,7 @@ impl TensorBase<f32> for Tensor<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn from_grad_fn(data: Vec<f32>, shape: &[usize], grad_fn: Box<dyn Operator<f32>>) -> ArcTensor<f32> {
+    fn from_grad_fn(data: Vec<f32>, shape: &[usize], grad_fn: Arc<dyn Operator<f32>>) -> ArcTensor<f32> {
         ArcTensor::new(Self {
             data,
             shape: shape.to_vec(),
@@ -128,19 +128,29 @@ impl TensorBase<f32> for Tensor<f32> {
         self.requires_grad
     }
 
+    #[cfg(feature = "enable_backpropagation")]
+    fn set_grad_fn(&mut self, grad_fn: Arc<dyn Operator<f32>>) {
+        self.grad_fn = Some(grad_fn)
+    }
+
+    #[cfg(feature = "enable_backpropagation")]
+    fn grad(&self) -> Option<&dyn TensorBase<f32>> {
+        todo!()
+    }
+
     // #[cfg(feature = "enable_backpropagation")]
     // fn set_grad_fn(&mut self, grad_fn: Box<dyn crate::tensor::Function<'static, f32, Forwarded=(), Gradiant=()>>) {
     //     self.grad_fn = Some(grad_fn);
     // }
     //
     // #[cfg(feature = "enable_backpropagation")]
-    // fn grad(&self) -> Option<&dyn TensorBase<f32>> {
+    // fn grad(&self) -> Option<Arc<dyn TensorBase<f32>>> {
     //     self.grad.as_ref().map(|g| g.as_ref())
     // }
 }
 
 impl<T> UnaryOp<T> {
-    pub fn new(tensor: &dyn TensorBase<T>) -> MlResult<UnaryOp<T>> {
+    pub fn new(tensor: Arc<dyn TensorBase<T>>) -> MlResult<UnaryOp<T>> {
         Ok(Self {
             tensor,
             backend: Arc::new(CpuBackend::new()?),
@@ -151,7 +161,7 @@ impl<T> UnaryOp<T> {
 }
 
 impl<T> BinaryOp<T> {
-    pub fn new(first_tensor: &dyn TensorBase<T>, second_tensor: &dyn TensorBase<T>) -> MlResult<BinaryOp<T>> {
+    pub fn new(first_tensor: Arc<dyn TensorBase<T>>, second_tensor: Arc<dyn TensorBase<T>>) -> MlResult<BinaryOp<T>> {
         Ok(Self {
             first_tensor,
             second_tensor,
@@ -163,7 +173,7 @@ impl<T> BinaryOp<T> {
 }
 
 impl<T> SpecialOp<T> {
-    pub fn new(tensor: &dyn TensorBase<T>) -> MlResult<SpecialOp<T>> {
+    pub fn new(tensor: Arc<dyn TensorBase<T>>) -> MlResult<SpecialOp<T>> {
         Ok(Self {
             tensor,
             backend: Arc::new(CpuBackend::new()?),
@@ -174,7 +184,7 @@ impl<T> SpecialOp<T> {
 }
 
 impl Operator<f32> for Abs<f32> {
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: UnaryOp::new(first)? })
     }
 
@@ -184,7 +194,7 @@ impl Operator<f32> for Abs<f32> {
 }
 
 impl Operator<f32> for Exp<f32> {
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: UnaryOp::new(first)? })
     }
 
@@ -194,7 +204,7 @@ impl Operator<f32> for Exp<f32> {
 }
 
 impl Operator<f32> for Log<f32> {
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: UnaryOp::new(first)? })
     }
 
@@ -204,7 +214,7 @@ impl Operator<f32> for Log<f32> {
 }
 
 impl Operator<f32> for Neg<f32> {
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: UnaryOp::new(first)? })
     }
 
@@ -214,7 +224,7 @@ impl Operator<f32> for Neg<f32> {
 }
 
 impl Operator<f32> for Sqrt<f32> {
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: UnaryOp::new(first)? })
     }
 
@@ -225,7 +235,7 @@ impl Operator<f32> for Sqrt<f32> {
 
 
 impl Operator<f32> for Square<f32> {
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: UnaryOp::new(first)? })
     }
 
@@ -235,7 +245,7 @@ impl Operator<f32> for Square<f32> {
 }
 
 impl Operator<f32> for Add<f32> {
-    fn new(first: &dyn TensorBase<f32>, second: Option<&dyn TensorBase<f32>>) -> MlResult<Self>  {
+    fn new(first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self>  {
         Ok(Self { op: BinaryOp::new(first, second.unwrap())? })
     }
 
@@ -245,7 +255,7 @@ impl Operator<f32> for Add<f32> {
 }
 
 impl Operator<f32> for Sub<f32> {
-    fn new(first: &dyn TensorBase<f32>, second: Option<&dyn TensorBase<f32>>) -> MlResult<Self>  {
+    fn new(first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self>  {
         Ok(Self { op: BinaryOp::new(first, second.unwrap())? })
     }
 
@@ -255,7 +265,7 @@ impl Operator<f32> for Sub<f32> {
 }
 
 impl Operator<f32> for Mul<f32> {
-    fn new(first: &dyn TensorBase<f32>, second: Option<&dyn TensorBase<f32>>) -> MlResult<Self>  {
+    fn new(first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self>  {
         Ok(Self { op: BinaryOp::new(first, second.unwrap())? })
     }
 
@@ -265,7 +275,7 @@ impl Operator<f32> for Mul<f32> {
 }
 
 impl Operator<f32> for Div<f32> {
-    fn new(first: &dyn TensorBase<f32>, second: Option<&dyn TensorBase<f32>>) -> MlResult<Self>  {
+    fn new(first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self>  {
         Ok(Self { op: BinaryOp::new(first, second.unwrap())? })
     }
 
@@ -275,7 +285,7 @@ impl Operator<f32> for Div<f32> {
 }
 
 impl Operator<f32> for Matmul<f32> {
-    fn new(first: &dyn TensorBase<f32>, second: Option<&dyn TensorBase<f32>>) -> MlResult<Self>  {
+    fn new(first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self>  {
         Ok(Self { op: BinaryOp::new(first, second.unwrap())? })
     }
 
@@ -285,7 +295,7 @@ impl Operator<f32> for Matmul<f32> {
 }
 
 impl Operator<f32> for Pow<f32> {
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: UnaryOp::new(first)?, power: None })
     }
 
@@ -295,7 +305,7 @@ impl Operator<f32> for Pow<f32> {
 }
 
 impl Operator<f32> for Topk<f32> {
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: SpecialOp::new(first)?, topk: None })
     }
 
@@ -305,7 +315,7 @@ impl Operator<f32> for Topk<f32> {
 }
 
 impl Operator<f32> for Matmax<f32> {
-    fn new(first: &dyn TensorBase<f32>, _: Option<&dyn TensorBase<f32>>) -> MlResult<Self> {
+    fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: SpecialOp::new(first)?, matmax: None })
     }
 

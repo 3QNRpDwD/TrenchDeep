@@ -124,7 +124,7 @@ impl Function<f32> for Sqrt<f32> {
 impl Function<f32> for Square<f32> {
     type Forwarded = MlResult<ArcTensor<f32>>;
     #[cfg(feature = "enable_backpropagation")]
-    type Gradiant = ();
+    type Gradiant = Self::Forwarded;
     /// Returns a new tensor with the square of the elements of input
     ///
     /// # Returns
@@ -132,7 +132,7 @@ impl Function<f32> for Square<f32> {
     fn forward(&mut self) -> Self::Forwarded {
         let buffer = Tensor::<f32>::from_vec(self.op.tensor.data().iter().map(|x| x * x).collect(), self.op.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
-                {
+        {
             self.op.output = Some(buffer.tensor.clone());
         }
         Ok(buffer)
@@ -140,7 +140,13 @@ impl Function<f32> for Square<f32> {
 
     #[cfg(feature = "enable_backpropagation")]
     fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
-        todo!()
+        let grad = grad.data().iter()
+            .zip(self.op.tensor.data().iter())
+            .map(|(grad_val, input_val)| grad_val * 2.0 * input_val)
+            .collect();
+
+
+        Tensor::<f32>::from_vec(grad, self.op.tensor.shape())
     }
 }
 
@@ -687,11 +693,11 @@ impl Function<f32> for Matmax<f32> {
 ///
 /// # Broadcasting
 /// * Supports broadcasting when adding a 1D tensor to each row of a 2D tensor
-impl std::ops::Add<&dyn TensorBase<f32>> for &dyn TensorBase<f32> {
+impl std::ops::Add for ArcTensor<f32> {
     type Output = ArcTensor<f32>;
 
-    fn add(self, other: &dyn TensorBase<f32>) -> Self::Output {
-        Add::<f32>::new(self, Some(other)).unwrap().forward().unwrap()
+    fn add(self, other: ArcTensor<f32>) -> Self::Output {
+        Add::<f32>::new(self.tensor, Some(other.tensor)).unwrap().forward().unwrap()
     }
 }
 
@@ -705,11 +711,11 @@ impl std::ops::Add<&dyn TensorBase<f32>> for &dyn TensorBase<f32> {
 ///
 /// # Broadcasting
 /// * Supports broadcasting when subtracting a 1D tensor from each row of a 2D tensor
-impl std::ops::Sub<&dyn TensorBase<f32>> for &dyn TensorBase<f32> {
+impl std::ops::Sub for ArcTensor<f32> {
     type Output = ArcTensor<f32>;
 
-    fn sub(self, other: &dyn TensorBase<f32>) -> Self::Output {
-        Sub::<f32>::new(self, Some(other)).unwrap().forward().unwrap()
+    fn sub(self, other: ArcTensor<f32>) -> Self::Output {
+        Sub::<f32>::new(self.tensor, Some(other.tensor)).unwrap().forward().unwrap()
     }
 }
 
@@ -724,11 +730,11 @@ impl std::ops::Sub<&dyn TensorBase<f32>> for &dyn TensorBase<f32> {
 /// # Note
 /// * This performs element-wise multiplication, not matrix multiplication
 /// * For matrix multiplication, use `matmul()` instead
-impl std::ops::Mul<&dyn TensorBase<f32>> for &dyn TensorBase<f32> {
+impl std::ops::Mul for ArcTensor<f32> {
     type Output = ArcTensor<f32>;
 
-    fn mul(self, other: &dyn TensorBase<f32>) -> Self::Output {
-        Mul::<f32>::new(self, Some(other)).unwrap().forward().unwrap()
+    fn mul(self, other: ArcTensor<f32>) -> Self::Output {
+        Mul::<f32>::new(self.tensor, Some(other.tensor)).unwrap().forward().unwrap()
     }
 }
 
@@ -739,51 +745,16 @@ impl std::ops::Mul<&dyn TensorBase<f32>> for &dyn TensorBase<f32> {
 ///
 /// # Returns
 /// A new tensor containing the element-wise quotient
-impl std::ops::Div<&dyn TensorBase<f32>> for &dyn TensorBase<f32> {
-    type Output = ArcTensor<f32>;
-
-    fn div(self, other: &dyn TensorBase<f32>) -> Self::Output {
-        Div::<f32>::new(self, Some(other)).unwrap().forward().unwrap()
-    }
-}
-
-
-impl std::ops::Add for ArcTensor<f32> {
-    type Output = ArcTensor<f32>;
-
-    fn add(self, other: ArcTensor<f32>) -> Self::Output {
-        self.tensor.deref().add(other.tensor.deref())
-    }
-}
-
-impl std::ops::Sub for ArcTensor<f32> {
-    type Output = ArcTensor<f32>;
-
-    fn sub(self, other: ArcTensor<f32>) -> Self::Output {
-        self.tensor.deref().sub(other.tensor.deref())
-    }
-}
-
-impl std::ops::Mul for ArcTensor<f32> {
-    type Output = ArcTensor<f32>;
-
-    fn mul(self, other: ArcTensor<f32>) -> Self::Output {
-        self.tensor.deref().mul(other.tensor.deref())
-    }
-}
-
 impl std::ops::Div for ArcTensor<f32> {
     type Output = ArcTensor<f32>;
 
     fn div(self, other: ArcTensor<f32>) -> Self::Output {
-        self.tensor.deref().div(other.tensor.deref())
+        Div::<f32>::new(self.tensor, Some(other.tensor)).unwrap().forward().unwrap()
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use std::ops::Deref;
     use crate::ops;
     use crate::tensor::Tensor;
 
