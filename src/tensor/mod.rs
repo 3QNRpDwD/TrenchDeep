@@ -364,7 +364,7 @@ impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
 
 pub trait Operator<T> {
     fn new(first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>) -> MlResult<Self> where Self: Sized;
-    fn update(&mut self, first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>);
+    // fn update(&mut self, first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>);
     fn backend(&self) -> &Arc<dyn Backend>;
 }
 
