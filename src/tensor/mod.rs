@@ -276,8 +276,8 @@ pub struct Tensor<Type: Debug>
 
     // #[cfg(feature = "enable_backpropagation")]
     // grad: Option<Box<dyn TensorBase<Type>>>,
-    #[cfg(feature = "enable_backpropagation")]
-    grad_fn: Option<Arc<dyn Operator<Type>>>
+    // #[cfg(feature = "enable_backpropagation")]
+    // pub grad_fn: Option<Arc<dyn Operator<Type>>>
 }
 
 #[derive(Clone)]
@@ -335,8 +335,8 @@ impl Ord for Tensor<f32> {
 pub trait TensorBase<Type: Debug + Clone> {
     fn new(data: Vec<Vec<Type>>)                            -> ArcTensor<Type> where Self: Sized;
     fn from_vec(data: Vec<Type>, shape: &[usize])           -> MlResult<ArcTensor<Type>> where Self: Sized;
-    #[cfg(feature = "enable_backpropagation")]
-    fn from_grad_fn(data: Vec<Type>, shape: &[usize], grad_fn: Arc<dyn Operator<Type>>) -> ArcTensor<Type> where Self: Sized;
+    // #[cfg(feature = "enable_backpropagation")]
+    // fn from_grad_fn(data: Vec<Type>, shape: &[usize], grad_fn: &mut dyn Operator<f32>) -> ArcTensor<Type> where Self: Sized;
 
     fn shape(&self)                                         -> &[usize];
     fn data(&self)                                          -> &[Type];
@@ -346,8 +346,8 @@ pub trait TensorBase<Type: Debug + Clone> {
     /// Enables gradient computation for the tensor
     fn requires_grad(&self) -> bool;
 
-    #[cfg(feature = "enable_backpropagation")]
-    fn set_grad_fn(&mut self, grad_fn: Arc<dyn Operator<Type>>);
+    // #[cfg(feature = "enable_backpropagation")]
+    // fn set_grad_fn(&mut self, grad_fn: Arc<dyn Operator<Type>>);
 
     #[cfg(feature = "enable_backpropagation")]
    fn grad(&self) -> Option<&dyn TensorBase<Type>>;
@@ -365,6 +365,9 @@ impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
 pub trait Operator<T> {
     fn new(first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>) -> MlResult<Self> where Self: Sized;
     // fn update(&mut self, first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>);
+    fn start(first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>)  -> MlResult<Self> where Self: Sized;
+    // fn from(first: Arc<dyn Operator<T>>)  -> MlResult<Self> where Self: Sized;
+    fn is_start(&self) -> bool;
     fn backend(&self) -> &Arc<dyn Backend>;
 }
 
@@ -398,9 +401,12 @@ pub trait Function<T: Debug + Clone>: Operator<T> {
 
 #[derive(Clone)]
 pub struct UnaryOp<T> { // 원래 라이프타임을 이용하여 관리했으나, 멀티스레딩 환경에서의 안전한 메모리 참조와, 사용 편의성 이슈로, Arc로 대체됨
-    tensor: Arc<dyn TensorBase<T>>, backend: Arc<dyn Backend>,
+    tensor: Arc<dyn TensorBase<T>>,
+    backend: Arc<dyn Backend>,
+    start: bool,
+
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<Arc<dyn TensorBase<T>>>
+    output: Option<Arc<dyn TensorBase<T>>>,
 }
 
 #[derive(Clone)]
@@ -408,13 +414,19 @@ pub struct BinaryOp<T> { // 원래 라이프타임을 이용하여 관리했으�
     first_tensor: Arc<dyn TensorBase<T>>,
     second_tensor: Arc<dyn TensorBase<T>>,
     backend: Arc<dyn Backend>,
+    start: bool,
+
     #[cfg(feature = "enable_backpropagation")]
-    output: Option<Arc<dyn TensorBase<T>>>
+    output: Option<Arc<dyn TensorBase<T>>>,
+
 }
 
 #[derive(Clone)]
 pub struct SpecialOp<T> { // 원래 라이프타임을 이용하여 관리했으나, 멀티스레딩 환경에서의 안전한 메모리 참조와, 사용 편의성 이슈로, Arc로 대체됨
-    tensor: Arc<dyn TensorBase<T>>, backend: Arc<dyn Backend>,
+    tensor: Arc<dyn TensorBase<T>>,
+    backend: Arc<dyn Backend>,
+    start: bool,
+
     #[cfg(feature = "enable_backpropagation")]
     output: Option<(Arc<dyn TensorBase<T>>, Arc<dyn TensorBase<T>>)>,
 }
@@ -422,8 +434,8 @@ pub struct SpecialOp<T> { // 원래 라이프타임을 이용하여 관리했으
 impl<T: Debug + Clone> Debug for UnaryOp<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
-            f, "UnaryOp - tensor: {:?}",
-            self.tensor.deref()
+            f, "UnaryOp - tensor: {:?}, start: {:?}",
+            self.tensor.deref(), self.start
         )
     }
 }
@@ -431,8 +443,8 @@ impl<T: Debug + Clone> Debug for UnaryOp<T> {
 impl<T: Debug + Clone> Debug for BinaryOp<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
-            f, "BinaryOp - first_tensor: {:?}\nself.second_tensor: {:?}",
-            self.first_tensor.deref(), self.second_tensor.deref()
+            f, "BinaryOp - first_tensor: {:?} self.second_tensor: {:?}, start: {:?}",
+            self.first_tensor.deref(), self.second_tensor.deref(), self.start
         )
     }
 }
@@ -440,8 +452,8 @@ impl<T: Debug + Clone> Debug for BinaryOp<T> {
 impl<T: Debug + Clone> Debug for SpecialOp<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
-            f, "SpecialOp - tensor: {:?}",
-            self.tensor.deref()
+            f, "SpecialOp - tensor: {:?}, start: {:?}",
+            self.tensor.deref(), self.start
         )
     }
 }
@@ -555,7 +567,9 @@ mod tests {
     fn propagations() -> MlResult<()>{
         let x = Tensor::new(vec![vec![0.5]]);
 
-        let mut A = Square::new(x.tensor, None)?;
+        let mut A = Square::start(x.tensor, None)?;
+        // 입력을 텐서가 아닌 연산자로 입력받으면 연산자가 다음(이전) 연산자를 추적할수 있으니 역전파도 가능할것 같은데
+        // 시작 함수를 임의로 정의하고 시작 함수로 도달할때까지 역전파 하면 될듯 하다 물론 이게 최적인지는 잘 모르겠다
         let a = A.forward()?;       // a = A(x)
 
         let mut B = Exp::new(a.tensor.clone(), None)?;

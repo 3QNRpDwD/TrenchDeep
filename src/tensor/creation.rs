@@ -13,8 +13,8 @@ impl  Tensor<f32> {
 
             // #[cfg(feature = "enable_backpropagation")]
             // grad: None,
-            #[cfg(feature = "enable_backpropagation")]
-            grad_fn: None,
+            // #[cfg(feature = "enable_backpropagation")]
+            // grad_fn: None,
         })
     }
 
@@ -26,8 +26,8 @@ impl  Tensor<f32> {
 
             // #[cfg(feature = "enable_backpropagation")]
             // grad: None,
-            #[cfg(feature = "enable_backpropagation")]
-            grad_fn: None,
+            // #[cfg(feature = "enable_backpropagation")]
+            // grad_fn: None,
         })
     }
 }
@@ -44,8 +44,8 @@ impl TensorBase<f32> for Tensor<f32> {
 
             // #[cfg(feature = "enable_backpropagation")]
             // grad: None,
-            #[cfg(feature = "enable_backpropagation")]
-            grad_fn: None,
+            // #[cfg(feature = "enable_backpropagation")]
+            // grad_fn: None,
         })
     }
 
@@ -65,22 +65,21 @@ impl TensorBase<f32> for Tensor<f32> {
 
             // #[cfg(feature = "enable_backpropagation")]
             // grad: None,
-            #[cfg(feature = "enable_backpropagation")]
-            grad_fn: None,
+            // #[cfg(feature = "enable_backpropagation")]
+            // grad_fn: None,
         }))
     }
-
-    #[cfg(feature = "enable_backpropagation")]
-    fn from_grad_fn(data: Vec<f32>, shape: &[usize], grad_fn: Arc<dyn Operator<f32>>) -> ArcTensor<f32> {
-        ArcTensor::new(Self {
-            data,
-            shape: shape.to_vec(),
-            requires_grad: false,
-
-            #[cfg(feature = "enable_backpropagation")]
-            grad_fn: Some(grad_fn)
-        })
-    }
+    // #[cfg(feature = "enable_backpropagation")]
+    // fn from_grad_fn(data: Vec<f32>, shape: &[usize], grad_fn: &mut dyn Operator<f32>) -> ArcTensor<f32> {
+    //     ArcTensor::new(Self {
+    //         data,
+    //         shape: shape.to_vec(),
+    //         requires_grad: false,
+    //
+    //         // #[cfg(feature = "enable_backpropagation")]
+    //         // grad_fn: Some(Arc::new(grad_fn))
+    //     })
+    // }
 
     fn shape(&self) -> &[usize] {
         &self.shape
@@ -128,10 +127,10 @@ impl TensorBase<f32> for Tensor<f32> {
         self.requires_grad
     }
 
-    #[cfg(feature = "enable_backpropagation")]
-    fn set_grad_fn(&mut self, grad_fn: Arc<dyn Operator<f32>>) {
-        self.grad_fn = Some(grad_fn)
-    }
+    // #[cfg(feature = "enable_backpropagation")]
+    // fn set_grad_fn(&mut self, grad_fn: Arc<dyn Operator<f32>>) {
+    //     self.grad_fn = Some(grad_fn)
+    // }
 
     #[cfg(feature = "enable_backpropagation")]
     fn grad(&self) -> Option<&dyn TensorBase<f32>> {
@@ -156,11 +155,13 @@ impl<T> UnaryOp<T> {
             backend: Arc::new(CpuBackend::new()?),
             #[cfg(feature = "enable_backpropagation")]
             output: None,
+            start: false,
         })
     }
 
-    pub fn update(&mut self, tensor: Arc<dyn TensorBase<T>>) {
+    pub fn update(&mut self, tensor: Arc<dyn TensorBase<T>>, start: bool) {
         self.tensor = tensor;
+        self.start = start;
         #[cfg(feature = "enable_backpropagation")]
         {
             self.output = None;
@@ -176,12 +177,14 @@ impl<T> BinaryOp<T> {
             backend: Arc::new(CpuBackend::new()?),
             #[cfg(feature = "enable_backpropagation")]
             output: None,
+            start: false,
         })
     }
 
-    pub fn update(&mut self, first_tensor: Arc<dyn TensorBase<T>>, second_tensor: Arc<dyn TensorBase<T>>) {
+    pub fn update(&mut self, first_tensor: Arc<dyn TensorBase<T>>, second_tensor: Arc<dyn TensorBase<T>>, start: bool) {
         self.first_tensor = first_tensor;
         self.second_tensor = second_tensor;
+        self.start = start;
         #[cfg(feature = "enable_backpropagation")]
         {
             self.output = None;
@@ -196,11 +199,13 @@ impl<T> SpecialOp<T> {
             backend: Arc::new(CpuBackend::new()?),
             #[cfg(feature = "enable_backpropagation")]
             output: None,
+            start: false,
         })
     }
 
-    pub fn update(&mut self, tensor: Arc<dyn TensorBase<T>>) {
+    pub fn update(&mut self, tensor: Arc<dyn TensorBase<T>>, start: bool) {
         self.tensor = tensor;
+        self.start = start;
         #[cfg(feature = "enable_backpropagation")]
         {
             self.output = None;
@@ -211,6 +216,16 @@ impl<T> SpecialOp<T> {
 impl Operator<f32> for Abs<f32> {
     fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: UnaryOp::new(first)? })
+    }
+
+    fn start(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>)  -> MlResult<Self> {
+        let mut new = Self { op: UnaryOp::new(first)? };
+        new.op.start = true;
+        Ok(new)
+    }
+
+    fn is_start(&self) -> bool {
+        self.op.start
     }
 
     // fn update(&mut self, first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) {
@@ -231,6 +246,16 @@ impl Operator<f32> for Exp<f32> {
     //     self.op.update(first)
     // }
 
+    fn start(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>)  -> MlResult<Self> {
+        let mut new = Self { op: UnaryOp::new(first)? };
+        new.op.start = true;
+        Ok(new)
+    }
+
+    fn is_start(&self) -> bool {
+        self.op.start
+    }
+
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
     }
@@ -244,6 +269,16 @@ impl Operator<f32> for Log<f32> {
     // fn update(&mut self, first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) {
     //     self.op.update(first)
     // }
+
+    fn start(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>)  -> MlResult<Self> {
+        let mut new = Self { op: UnaryOp::new(first)? };
+        new.op.start = true;
+        Ok(new)
+    }
+
+    fn is_start(&self) -> bool {
+        self.op.start
+    }
 
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
@@ -259,6 +294,16 @@ impl Operator<f32> for Neg<f32> {
     //     self.op.update(first)
     // }
 
+    fn start(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>)  -> MlResult<Self> {
+        let mut new = Self { op: UnaryOp::new(first)? };
+        new.op.start = true;
+        Ok(new)
+    }
+
+    fn is_start(&self) -> bool {
+        self.op.start
+    }
+
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
     }
@@ -272,6 +317,16 @@ impl Operator<f32> for Sqrt<f32> {
     // fn update(&mut self, first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) {
     //     self.op.update(first)
     // }
+
+    fn start(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>)  -> MlResult<Self> {
+        let mut new = Self { op: UnaryOp::new(first)? };
+        new.op.start = true;
+        Ok(new)
+    }
+
+    fn is_start(&self) -> bool {
+        self.op.start
+    }
 
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
@@ -288,6 +343,16 @@ impl Operator<f32> for Square<f32> {
     //     self.op.update(first)
     // }
 
+    fn start(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>)  -> MlResult<Self> {
+        let mut new = Self { op: UnaryOp::new(first)? };
+        new.op.start = true;
+        Ok(new)
+    }
+
+    fn is_start(&self) -> bool {
+        self.op.start
+    }
+
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
     }
@@ -301,6 +366,16 @@ impl Operator<f32> for Add<f32> {
     // fn update(&mut self, first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) {
     //     self.op.update(first, second.unwrap())
     // }
+
+    fn start(first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>)  -> MlResult<Self> {
+        let mut new = Self { op: BinaryOp::new(first, second.unwrap())? };
+        new.op.start = true;
+        Ok(new)
+    }
+
+    fn is_start(&self) -> bool {
+        self.op.start
+    }
 
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
@@ -316,6 +391,16 @@ impl Operator<f32> for Sub<f32> {
     //     self.op.update(first, second.unwrap())
     // }
 
+    fn start(first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>)  -> MlResult<Self> {
+        let mut new = Self { op: BinaryOp::new(first, second.unwrap())? };
+        new.op.start = true;
+        Ok(new)
+    }
+
+    fn is_start(&self) -> bool {
+        self.op.start
+    }
+
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
     }
@@ -329,6 +414,16 @@ impl Operator<f32> for Mul<f32> {
     // fn update(&mut self, first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) {
     //     self.op.update(first, second.unwrap())
     // }
+
+    fn start(first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>)  -> MlResult<Self> {
+        let mut new = Self { op: BinaryOp::new(first, second.unwrap())? };
+        new.op.start = true;
+        Ok(new)
+    }
+
+    fn is_start(&self) -> bool {
+        self.op.start
+    }
 
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
@@ -344,6 +439,16 @@ impl Operator<f32> for Div<f32> {
     //     self.op.update(first, second.unwrap())
     // }
 
+    fn start(first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>)  -> MlResult<Self> {
+        let mut new = Self { op: BinaryOp::new(first, second.unwrap())? };
+        new.op.start = true;
+        Ok(new)
+    }
+
+    fn is_start(&self) -> bool {
+        self.op.start
+    }
+
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
     }
@@ -357,6 +462,16 @@ impl Operator<f32> for Matmul<f32> {
     // fn update(&mut self, first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) {
     //     self.op.update(first, second.unwrap())
     // }
+
+    fn start(first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>)  -> MlResult<Self> {
+        let mut new = Self { op: BinaryOp::new(first, second.unwrap())? };
+        new.op.start = true;
+        Ok(new)
+    }
+
+    fn is_start(&self) -> bool {
+        self.op.start
+    }
 
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
@@ -372,6 +487,16 @@ impl Operator<f32> for Pow<f32> {
     //     self.op.update(first)
     // }
 
+    fn start(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>)  -> MlResult<Self> {
+        let mut new = Self { op: UnaryOp::new(first)?, power: None };
+        new.op.start = true;
+        Ok(new)
+    }
+
+    fn is_start(&self) -> bool {
+        self.op.start
+    }
+
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
     }
@@ -380,6 +505,16 @@ impl Operator<f32> for Pow<f32> {
 impl Operator<f32> for Topk<f32> {
     fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: SpecialOp::new(first)?, topk: None })
+    }
+
+    fn start(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>)  -> MlResult<Self> {
+        let mut new = Self { op: SpecialOp::new(first)?, topk: None };
+        new.op.start = true;
+        Ok(new)
+    }
+
+    fn is_start(&self) -> bool {
+        self.op.start
     }
 
     // fn update(&mut self, first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) {
@@ -394,6 +529,16 @@ impl Operator<f32> for Topk<f32> {
 impl Operator<f32> for Matmax<f32> {
     fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: SpecialOp::new(first)?, matmax: None })
+    }
+
+    fn start(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>)  -> MlResult<Self> {
+        let mut new = Self { op: SpecialOp::new(first)?, matmax: None };
+        new.op.start = true;
+        Ok(new)
+    }
+
+    fn is_start(&self) -> bool {
+        self.op.start
     }
 
     // fn update(&mut self, first: Arc<dyn TensorBase<f32>>,_: Option<Arc<dyn TensorBase<f32>>>) {

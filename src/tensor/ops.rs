@@ -1,5 +1,4 @@
 use std::ops::Deref;
-use std::sync::Arc;
 use crate::{MlError, MlResult};
 use crate::tensor::{Abs, Add, Div, Exp, Log, Matmax, Matmul, Mul, Neg, Pow, Sub, Sqrt, Square, Topk, Tensor, TensorError, ArcTensor, Operator, TensorBase, Function};
 
@@ -158,7 +157,7 @@ impl Function<f32> for Square<f32> {
 impl Function<f32> for Add<f32> {
     type Forwarded = MlResult<ArcTensor<f32>>;
     #[cfg(feature = "enable_backpropagation")]
-    type Gradiant = ();
+    type Gradiant = (ArcTensor<f32>, ArcTensor<f32>);
 
     /// Adds two tensors element-wise
     ///
@@ -200,7 +199,7 @@ impl Function<f32> for Add<f32> {
 
     #[cfg(feature = "enable_backpropagation")]
     fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
-        todo!()
+        (grad.clone(), grad.clone())
     }
 }
 
