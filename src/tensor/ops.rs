@@ -1,4 +1,5 @@
 use std::ops::Deref;
+use std::sync::Arc;
 use crate::{MlError, MlResult};
 use crate::tensor::{Abs, Add, Div, Exp, Log, Matmax, Matmul, Mul, Neg, Pow, Sub, Sqrt, Square, Topk, Tensor, TensorError, ArcTensor, Operator, TensorBase, Function};
 
@@ -22,7 +23,7 @@ impl Function<f32> for Abs<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
         todo!()
     }
 }
@@ -45,7 +46,7 @@ impl Function<f32> for Exp<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
         let grad = grad.data().iter()
             .zip(self.op.output.as_ref().unwrap().data().iter())
             .map(|(grad_val, data)| grad_val  * data)
@@ -74,7 +75,7 @@ impl Function<f32> for Log<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
         todo!()
     }
 }
@@ -97,7 +98,7 @@ impl Function<f32> for Neg<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
         todo!()
     }
 }
@@ -121,7 +122,7 @@ impl Function<f32> for Sqrt<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
         todo!()
     }
 }
@@ -144,7 +145,7 @@ impl Function<f32> for Square<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
         let grad = grad.data().iter()
             .zip(self.op.tensor.data().iter())
             .map(|(grad_val, data)| 2.0 * grad_val  * data)
@@ -198,7 +199,7 @@ impl Function<f32> for Add<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
         todo!()
     }
 }
@@ -247,7 +248,7 @@ impl Function<f32> for Sub<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
         todo!()
     }
 }
@@ -278,7 +279,7 @@ impl Function<f32> for Mul<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
         todo!()
     }
 }
@@ -309,7 +310,7 @@ impl Function<f32> for Div<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
         todo!()
     }
 }
@@ -335,7 +336,7 @@ impl Function<f32> for Pow<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
         todo!()
     }
 }
@@ -509,7 +510,7 @@ impl Function<f32> for Matmul<f32> {
 
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
         todo!()
     }
 }
@@ -591,7 +592,7 @@ impl Function<f32> for Topk<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
         todo!()
     }
 }
@@ -681,7 +682,7 @@ impl Function<f32> for Matmax<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &dyn TensorBase<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
         todo!()
     }
 }

@@ -364,6 +364,7 @@ impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
 
 pub trait Operator<T> {
     fn new(first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>) -> MlResult<Self> where Self: Sized;
+    fn update(&mut self, first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>);
     fn backend(&self) -> &Arc<dyn Backend>;
 }
 
@@ -375,7 +376,7 @@ pub trait Function<T: Debug + Clone>: Operator<T> {
 
     fn forward(&mut self) ->  Self::Forwarded;
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &dyn TensorBase<T>) -> Self::Gradiant;
+    fn backward(&mut self, grad: &ArcTensor<T>) -> Self::Gradiant;
 }
 
 // impl<T> Debug for dyn Function<'_, T, Forwarded=(), Gradiant=()> {
@@ -549,30 +550,27 @@ mod tests {
         Ok(())
     }
 
-    use std::ops::Deref;
-    use crate::ops;
-
     #[test]
     #[cfg(feature = "enable_backpropagation")]
-    fn test() -> MlResult<()>{
+    fn propagations() -> MlResult<()>{
         let x = Tensor::new(vec![vec![0.5]]);
 
         let mut A = Square::new(x.tensor, None)?;
         let a = A.forward()?;       // a = A(x)
 
-        let mut B = Exp::new(a.tensor, None)?;
+        let mut B = Exp::new(a.tensor.clone(), None)?;
         let b = B.forward()?;       // b = B(a)
 
-        let mut C = Square::new(b.tensor, None)?;
+        let mut C = Square::new(b.tensor.clone(), None)?;
         let y = C.forward()?;       //y = C(b)
 
         let y_grad = Tensor::new(vec![vec![1.0]]);
-        let b_grad = A.backward(y_grad.deref())?; // Square backward
-        let a_grad = B.backward(b_grad.deref())?; // Exp backward
-        let x_grad = C.backward(a_grad.deref())?; // Square backward
+        let b_grad = A.backward(&y_grad)?; // Square backward
+        let a_grad = B.backward(&b_grad)?; // Exp backward
+        let x_grad = C.backward(&a_grad)?; // Square backward
 
         println!("forward\n{:?}\n{:?}\n{:?}\n", A.op, B.op, C.op);
-        println!("output\n{:?}\n{:?}\n{:?}\n", A.op.output.unwrap().deref(), B.op.output.unwrap().deref(), C.op.output.unwrap().deref());
+        println!("output\n{:?}\n{:?}\n{:?}\n", a, b, y);
         println!("backward\n{:?}\n{:?}\n{:?}", b_grad, a_grad, x_grad);
 
         Ok(())
@@ -610,7 +608,7 @@ mod tests {
         assert_tensor_eq(&s_sub, &et)
     }
     #[test]
-    fn test_mul_symbol() -> MlResult<()> {
+    fn test_mul() -> MlResult<()> {
         let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
         let m_mul = ops!(first, Mul, second)?;
@@ -621,7 +619,7 @@ mod tests {
         assert_tensor_eq(&s_mul, &et)
     }
     #[test]
-    fn test_div_symbol() -> MlResult<()> {
+    fn test_div() -> MlResult<()> {
         let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::<f32>::new(vec![vec![2.0, 4.0]]);
         let m_div = ops!(first, Div, second)?;

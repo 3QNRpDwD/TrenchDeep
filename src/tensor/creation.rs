@@ -158,6 +158,14 @@ impl<T> UnaryOp<T> {
             output: None,
         })
     }
+
+    pub fn update(&mut self, tensor: Arc<dyn TensorBase<T>>) {
+        self.tensor = tensor;
+        #[cfg(feature = "enable_backpropagation")]
+        {
+            self.output = None;
+        }
+    }
 }
 
 impl<T> BinaryOp<T> {
@@ -170,6 +178,15 @@ impl<T> BinaryOp<T> {
             output: None,
         })
     }
+
+    pub fn update(&mut self, first_tensor: Arc<dyn TensorBase<T>>, second_tensor: Arc<dyn TensorBase<T>>) {
+        self.first_tensor = first_tensor;
+        self.second_tensor = second_tensor;
+        #[cfg(feature = "enable_backpropagation")]
+        {
+            self.output = None;
+        }
+    }
 }
 
 impl<T> SpecialOp<T> {
@@ -181,11 +198,23 @@ impl<T> SpecialOp<T> {
             output: None,
         })
     }
+
+    pub fn update(&mut self, tensor: Arc<dyn TensorBase<T>>) {
+        self.tensor = tensor;
+        #[cfg(feature = "enable_backpropagation")]
+        {
+            self.output = None;
+        }
+    }
 }
 
 impl Operator<f32> for Abs<f32> {
     fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: UnaryOp::new(first)? })
+    }
+
+    fn update(&mut self, first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) {
+        self.op.update(first)
     }
 
     fn backend(&self) -> &Arc<dyn Backend> {
@@ -198,6 +227,10 @@ impl Operator<f32> for Exp<f32> {
         Ok(Self { op: UnaryOp::new(first)? })
     }
 
+    fn update(&mut self, first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) {
+        self.op.update(first)
+    }
+
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
     }
@@ -206,6 +239,10 @@ impl Operator<f32> for Exp<f32> {
 impl Operator<f32> for Log<f32> {
     fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: UnaryOp::new(first)? })
+    }
+
+    fn update(&mut self, first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) {
+        self.op.update(first)
     }
 
     fn backend(&self) -> &Arc<dyn Backend> {
@@ -218,6 +255,10 @@ impl Operator<f32> for Neg<f32> {
         Ok(Self { op: UnaryOp::new(first)? })
     }
 
+    fn update(&mut self, first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) {
+        self.op.update(first)
+    }
+
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
     }
@@ -226,6 +267,10 @@ impl Operator<f32> for Neg<f32> {
 impl Operator<f32> for Sqrt<f32> {
     fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: UnaryOp::new(first)? })
+    }
+
+    fn update(&mut self, first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) {
+        self.op.update(first)
     }
 
     fn backend(&self) -> &Arc<dyn Backend> {
@@ -239,6 +284,10 @@ impl Operator<f32> for Square<f32> {
         Ok(Self { op: UnaryOp::new(first)? })
     }
 
+    fn update(&mut self, first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) {
+        self.op.update(first)
+    }
+
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
     }
@@ -247,6 +296,10 @@ impl Operator<f32> for Square<f32> {
 impl Operator<f32> for Add<f32> {
     fn new(first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self>  {
         Ok(Self { op: BinaryOp::new(first, second.unwrap())? })
+    }
+
+    fn update(&mut self, first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) {
+        self.op.update(first, second.unwrap())
     }
 
     fn backend(&self) -> &Arc<dyn Backend> {
@@ -259,6 +312,10 @@ impl Operator<f32> for Sub<f32> {
         Ok(Self { op: BinaryOp::new(first, second.unwrap())? })
     }
 
+    fn update(&mut self, first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) {
+        self.op.update(first, second.unwrap())
+    }
+
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
     }
@@ -267,6 +324,10 @@ impl Operator<f32> for Sub<f32> {
 impl Operator<f32> for Mul<f32> {
     fn new(first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self>  {
         Ok(Self { op: BinaryOp::new(first, second.unwrap())? })
+    }
+
+    fn update(&mut self, first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) {
+        self.op.update(first, second.unwrap())
     }
 
     fn backend(&self) -> &Arc<dyn Backend> {
@@ -279,6 +340,10 @@ impl Operator<f32> for Div<f32> {
         Ok(Self { op: BinaryOp::new(first, second.unwrap())? })
     }
 
+    fn update(&mut self, first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) {
+        self.op.update(first, second.unwrap())
+    }
+
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
     }
@@ -287,6 +352,10 @@ impl Operator<f32> for Div<f32> {
 impl Operator<f32> for Matmul<f32> {
     fn new(first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self>  {
         Ok(Self { op: BinaryOp::new(first, second.unwrap())? })
+    }
+
+    fn update(&mut self, first: Arc<dyn TensorBase<f32>>, second: Option<Arc<dyn TensorBase<f32>>>) {
+        self.op.update(first, second.unwrap())
     }
 
     fn backend(&self) -> &Arc<dyn Backend> {
@@ -299,6 +368,10 @@ impl Operator<f32> for Pow<f32> {
         Ok(Self { op: UnaryOp::new(first)?, power: None })
     }
 
+    fn update(&mut self, first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) {
+        self.op.update(first)
+    }
+
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
     }
@@ -309,6 +382,10 @@ impl Operator<f32> for Topk<f32> {
         Ok(Self { op: SpecialOp::new(first)?, topk: None })
     }
 
+    fn update(&mut self, first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) {
+        self.op.update(first)
+    }
+
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.op.backend
     }
@@ -317,6 +394,10 @@ impl Operator<f32> for Topk<f32> {
 impl Operator<f32> for Matmax<f32> {
     fn new(first: Arc<dyn TensorBase<f32>>, _: Option<Arc<dyn TensorBase<f32>>>) -> MlResult<Self> {
         Ok(Self { op: SpecialOp::new(first)?, matmax: None })
+    }
+
+    fn update(&mut self, first: Arc<dyn TensorBase<f32>>,_: Option<Arc<dyn TensorBase<f32>>>) {
+        self.op.update(first)
     }
 
     fn backend(&self) -> &Arc<dyn Backend> {
