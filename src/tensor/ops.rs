@@ -1,11 +1,31 @@
 use std::ops::Deref;
-use crate::{MlError, MlResult};
-use crate::tensor::{Abs, Add, Div, Exp, Log, Matmax, Matmul, Mul, Neg, Pow, Sub, Sqrt, Square, Topk, Tensor, TensorError, ArcTensor, Operator, TensorBase, Function};
+use std::sync::Arc;
+use crate::{binary, MlError, MlResult};
+use crate::backend::{CpuBackend, Device};
+use crate::tensor::{Abs, Add, Div, Exp, Log, Matmax, Matmul, Mul, Neg, Pow, Sub, Sqrt, Square, Topk, Tensor, TensorError, ArcTensor, Operator, TensorBase, Function, UnaryOp, BinaryOp, SpecialOp};
 
 impl Function<f32> for Abs<f32> {
+    type Operator = UnaryOp<f32>;
     type Forwarded = MlResult<ArcTensor<f32>>;
-    #[cfg(feature = "enable_backpropagation")]
     type Gradiant = ();
+
+    fn new(op: Self::Operator) -> MlResult<Self> {
+        Ok(Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) })
+    }
+
+    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: Self::Operator) -> MlResult<Self> {
+        Ok(Self {
+            pr_fn: Some(pr_fn),
+            op,
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
+    fn start(op: Self::Operator)  -> MlResult<Self> {
+        let mut new = Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) };
+        new.op.start = true;
+        Ok(new)
+    }
 
     /// Computes the absolute value of each element in the tensor.
     ///
@@ -28,15 +48,34 @@ impl Function<f32> for Abs<f32> {
 }
 
 impl Function<f32> for Exp<f32> {
+    type Operator = UnaryOp<f32>;
     type Forwarded = MlResult<ArcTensor<f32>>;
-    #[cfg(feature = "enable_backpropagation")]
     type Gradiant = Self::Forwarded;
+
+    fn new(op: Self::Operator) -> MlResult<Self> {
+        Ok(Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) })
+    }
+
+    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: UnaryOp<f32>) -> MlResult<Self> {
+        Ok(Self {
+            pr_fn: Some(pr_fn),
+            op,
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
+    fn start(op: Self::Operator)  -> MlResult<Self> {
+        let mut new = Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) };
+        new.op.start = true;
+        Ok(new)
+    }
+
     /// Applies the exponential function to each element in the tensor
     ///
     /// # Returns
     /// A new tensor with each element being e ^ tensor_element
     fn forward(&mut self) -> Self::Forwarded {
-        let buffer = Tensor::<f32>::from_vec(self.op.backend.exp(&self.op.tensor.data()), self.op.tensor.shape())?;
+        let buffer = Tensor::<f32>::from_vec(self.backend.exp(&self.op.tensor.data()), self.op.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
         {
             self.op.output = Some(buffer.tensor.clone());
@@ -56,9 +95,28 @@ impl Function<f32> for Exp<f32> {
 }
 
 impl Function<f32> for Log<f32> {
+    type Operator = UnaryOp<f32>;
     type Forwarded = MlResult<ArcTensor<f32>>;
-    #[cfg(feature = "enable_backpropagation")]
     type Gradiant = ();
+
+    fn new(op: Self::Operator) -> MlResult<Self> {
+        Ok(Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) })
+    }
+
+    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: UnaryOp<f32>) -> MlResult<Self> {
+        Ok(Self {
+            pr_fn: Some(pr_fn),
+            op,
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
+    fn start(op: Self::Operator)  -> MlResult<Self> {
+        let mut new = Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) };
+        new.op.start = true;
+        Ok(new)
+    }
+
     /// Applies the natural logarithm to each element in the tensor
     ///
     /// # Returns
@@ -80,9 +138,28 @@ impl Function<f32> for Log<f32> {
 }
 
 impl Function<f32> for Neg<f32> {
+    type Operator = UnaryOp<f32>;
     type Forwarded = MlResult<ArcTensor<f32>>;
-    #[cfg(feature = "enable_backpropagation")]
     type Gradiant = ();
+
+    fn new(op: Self::Operator) -> MlResult<Self> {
+        Ok(Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) })
+    }
+
+    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: UnaryOp<f32>) -> MlResult<Self> {
+        Ok(Self {
+            pr_fn: Some(pr_fn),
+            op,
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
+    fn start(op: Self::Operator)  -> MlResult<Self> {
+        let mut new = Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) };
+        new.op.start = true;
+        Ok(new)
+    }
+
     /// Negates each element in the tensor
     ///
     /// # Returns
@@ -103,16 +180,35 @@ impl Function<f32> for Neg<f32> {
 }
 
 impl Function<f32> for Sqrt<f32> {
+    type Operator = UnaryOp<f32>;
     type Forwarded = MlResult<ArcTensor<f32>>;
 
-    #[cfg(feature = "enable_backpropagation")]
     type Gradiant = ();
+
+    fn new(op: Self::Operator) -> MlResult<Self> {
+        Ok(Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) })
+    }
+
+    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: UnaryOp<f32>) -> MlResult<Self> {
+        Ok(Self {
+            pr_fn: Some(pr_fn),
+            op,
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
+    fn start(op: Self::Operator)  -> MlResult<Self> {
+        let mut new = Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) };
+        new.op.start = true;
+        Ok(new)
+    }
+
     /// Takes the square root of each element in the tensor
     ///
     /// # Returns
     /// A new tensor with each element being the square root of tensor_element
     fn forward(&mut self) -> Self::Forwarded {
-        let buffer = Tensor::<f32>::from_vec(self.backend().sqrt(self.op.tensor.data()), self.op.tensor.shape())?;
+        let buffer = Tensor::<f32>::from_vec(self.backend.sqrt(self.op.tensor.data()), self.op.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
         {
             self.op.output = Some(buffer.tensor.clone());
@@ -127,9 +223,28 @@ impl Function<f32> for Sqrt<f32> {
 }
 
 impl Function<f32> for Square<f32> {
+    type Operator = UnaryOp<f32>;
     type Forwarded = MlResult<ArcTensor<f32>>;
-    #[cfg(feature = "enable_backpropagation")]
     type Gradiant = Self::Forwarded;
+
+    fn new(op: Self::Operator) -> MlResult<Self> {
+        Ok(Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) })
+    }
+
+    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: UnaryOp<f32>) -> MlResult<Self> {
+        Ok(Self {
+            pr_fn: Some(pr_fn),
+            op,
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
+    fn start(op: Self::Operator)  -> MlResult<Self> {
+        let mut new = Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) };
+        new.op.start = true;
+        Ok(new)
+    }
+
     /// Returns a new tensor with the square of the elements of input
     ///
     /// # Returns
@@ -155,9 +270,27 @@ impl Function<f32> for Square<f32> {
 }
 
 impl Function<f32> for Add<f32> {
+    type Operator = BinaryOp<f32>;
     type Forwarded = MlResult<ArcTensor<f32>>;
-    #[cfg(feature = "enable_backpropagation")]
     type Gradiant = (ArcTensor<f32>, ArcTensor<f32>);
+
+    fn new(op: Self::Operator) -> MlResult<Self> {
+        Ok(Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) })
+    }
+
+    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: BinaryOp<f32>) -> MlResult<Self> {
+        Ok(Self {
+            pr_fn: Some(pr_fn),
+            op,
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
+    fn start(op: Self::Operator)  -> MlResult<Self> {
+        let mut new = Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) };
+        new.op.start = true;
+        Ok(new)
+    }
 
     /// Adds two tensors element-wise
     ///
@@ -187,7 +320,7 @@ impl Function<f32> for Add<f32> {
         match self.op.first_tensor.chk_shape(self.op.second_tensor.deref()) {
             Err(e) => Err(e),
             _ => {
-                let buffer = Tensor::<f32>::from_vec(self.backend().add(self.op.first_tensor.data(), self.op.second_tensor.data()), self.op.first_tensor.shape())?;
+                let buffer = Tensor::<f32>::from_vec(self.backend.add(self.op.first_tensor.data(), self.op.second_tensor.data()), self.op.first_tensor.shape())?;
                 #[cfg(feature = "enable_backpropagation")]
                         {
             self.op.output = Some(buffer.tensor.clone());
@@ -204,9 +337,27 @@ impl Function<f32> for Add<f32> {
 }
 
 impl Function<f32> for Sub<f32> {
+    type Operator = BinaryOp<f32>;
     type Forwarded = MlResult<ArcTensor<f32>>;
-    #[cfg(feature = "enable_backpropagation")]
     type Gradiant = ();
+
+    fn new(op: Self::Operator) -> MlResult<Self> {
+        Ok(Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) })
+    }
+    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: BinaryOp<f32>) -> MlResult<Self> {
+        Ok(Self {
+            pr_fn: Some(pr_fn),
+            op,
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
+    fn start(op: Self::Operator)  -> MlResult<Self> {
+        let mut new = Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) };
+        new.op.start = true;
+        Ok(new)
+    }
+
     /// Subtracts two tensors element-wise
     ///
     /// # Arguments
@@ -236,7 +387,7 @@ impl Function<f32> for Sub<f32> {
         match self.op.first_tensor.chk_shape(self.op.second_tensor.deref()) {
             Err(e) => Err(e),
             _ => {
-                buffer = Tensor::<f32>::from_vec(self.backend().sub(self.op.first_tensor.data(), self.op.second_tensor.data()), self.op.first_tensor.shape())?;
+                buffer = Tensor::<f32>::from_vec(self.backend.sub(self.op.first_tensor.data(), self.op.second_tensor.data()), self.op.first_tensor.shape())?;
                 #[cfg(feature = "enable_backpropagation")]
                         {
             self.op.output = Some(buffer.tensor.clone());
@@ -253,9 +404,28 @@ impl Function<f32> for Sub<f32> {
 }
 
 impl Function<f32> for Mul<f32> {
+    type Operator = BinaryOp<f32>;
     type Forwarded = MlResult<ArcTensor<f32>>;
-    #[cfg(feature = "enable_backpropagation")]
     type Gradiant = ();
+
+    fn new(op: Self::Operator) -> MlResult<Self> {
+        Ok(Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) })
+    }
+
+    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: BinaryOp<f32>) -> MlResult<Self> {
+        Ok(Self {
+            pr_fn: Some(pr_fn),
+            op,
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
+    fn start(op: Self::Operator)  -> MlResult<Self> {
+        let mut new = Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) };
+        new.op.start = true;
+        Ok(new)
+    }
+
     /// Multiplies two tensors element-wise
     ///
     /// # Arguments
@@ -267,7 +437,7 @@ impl Function<f32> for Mul<f32> {
         match self.op.first_tensor.chk_shape(self.op.second_tensor.deref()) {
             Err(e) => Err(e),
             _ => {
-                let buffer = Tensor::<f32>::from_vec(self.backend().multiply(self.op.first_tensor.data(), self.op.second_tensor.data()), self.op.first_tensor.shape())?;
+                let buffer = Tensor::<f32>::from_vec(self.backend.multiply(self.op.first_tensor.data(), self.op.second_tensor.data()), self.op.first_tensor.shape())?;
                 #[cfg(feature = "enable_backpropagation")]
                         {
             self.op.output = Some(buffer.tensor.clone());
@@ -284,9 +454,28 @@ impl Function<f32> for Mul<f32> {
 }
 
 impl Function<f32> for Div<f32> {
+    type Operator = BinaryOp<f32>;
     type Forwarded = MlResult<ArcTensor<f32>>;
-    #[cfg(feature = "enable_backpropagation")]
     type Gradiant = ();
+
+    fn new(op: Self::Operator) -> MlResult<Self> {
+        Ok(Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) })
+    }
+
+    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: BinaryOp<f32>) -> MlResult<Self> {
+        Ok(Self {
+            pr_fn: Some(pr_fn),
+            op,
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
+    fn start(op: Self::Operator)  -> MlResult<Self> {
+        let mut new = Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) };
+        new.op.start = true;
+        Ok(new)
+    }
+
     /// Divides two tensors element-wise
     ///
     /// # Arguments
@@ -298,7 +487,7 @@ impl Function<f32> for Div<f32> {
         match self.op.first_tensor.chk_shape(self.op.second_tensor.deref()) {
             Err(e) => Err(e),
             _ => {
-                 let buffer = Tensor::<f32>::from_vec(self.backend().div(self.op.first_tensor.data(), self.op.second_tensor.data()), self.op.first_tensor.shape())?;
+                 let buffer = Tensor::<f32>::from_vec(self.backend.div(self.op.first_tensor.data(), self.op.second_tensor.data()), self.op.first_tensor.shape())?;
                 #[cfg(feature = "enable_backpropagation")]
                         {
             self.op.output = Some(buffer.tensor.clone());
@@ -315,9 +504,29 @@ impl Function<f32> for Div<f32> {
 }
 
 impl Function<f32> for Pow<f32> {
+    type Operator = UnaryOp<f32>;
     type Forwarded = MlResult<ArcTensor<f32>>;
-    #[cfg(feature = "enable_backpropagation")]
     type Gradiant = ();
+
+    fn new(op: Self::Operator) -> MlResult<Self> {
+        Ok(Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?), power: None })
+    }
+
+    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: UnaryOp<f32>) -> MlResult<Self> {
+        Ok(Self {
+            pr_fn: Some(pr_fn),
+            op,
+            backend: Arc::new(CpuBackend::new()?),
+            power: None,
+        })
+    }
+
+    fn start(op: Self::Operator)  -> MlResult<Self> {
+        let mut new = Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?), power: None };
+        new.op.start = true;
+        Ok(new)
+    }
+
     /// Raises each element in the tensor to a power
     ///
     /// # Arguments
@@ -326,7 +535,7 @@ impl Function<f32> for Pow<f32> {
     /// # Returns
     /// A new tensor with each element being tensor_element ^ power
     fn forward(&mut self) -> Self::Forwarded {
-        let buffer = Tensor::<f32>::from_vec(self.backend().pow(self.op.tensor.data(), self.power.unwrap()), self.op.tensor.shape())?;
+        let buffer = Tensor::<f32>::from_vec(self.backend.pow(self.op.tensor.data(), self.power.unwrap()), self.op.tensor.shape())?;
         #[cfg(feature = "enable_backpropagation")]
                 {
             self.op.output = Some(buffer.tensor.clone());
@@ -341,9 +550,28 @@ impl Function<f32> for Pow<f32> {
 }
 
 impl Function<f32> for Matmul<f32> {
+    type Operator = BinaryOp<f32>;
     type Forwarded = MlResult<ArcTensor<f32>>;
-    #[cfg(feature = "enable_backpropagation")]
     type Gradiant = ();
+
+    fn new(op: Self::Operator) -> MlResult<Self> {
+        Ok(Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) })
+    }
+
+    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: BinaryOp<f32>) -> MlResult<Self> {
+        Ok(Self {
+            pr_fn: Some(pr_fn),
+            op,
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
+    fn start(op: Self::Operator)  -> MlResult<Self> {
+        let mut new = Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?) };
+        new.op.start = true;
+        Ok(new)
+    }
+
     /// Performs matrix multiplication on two tensors
     ///
     /// # Arguments
@@ -514,10 +742,41 @@ impl Function<f32> for Matmul<f32> {
     }
 }
 
-impl Function<f32> for Topk<f32> {
-    type Forwarded = MlResult<(ArcTensor<f32>, ArcTensor<f32>)>;
-    #[cfg(feature = "enable_backpropagation")]
-    type Gradiant = ();
+// impl Function<f32> for Topk<f32> {
+//     type Operator = UnaryOp<f32>;
+//     type Forwarded = MlResult<(ArcTensor<f32>, ArcTensor<f32>)>;
+//     #[cfg(feature = "enable_backpropagation")]
+//     type Gradiant = ();
+//
+// }
+
+// impl Function<f32> for Matmax<f32> {
+//     type Operator = UnaryOp<f32>;
+//     type Forwarded = MlResult<(ArcTensor<f32>, ArcTensor<f32>)>;
+//     #[cfg(feature = "enable_backpropagation")]
+//     type Gradiant = ();
+// }
+
+impl Topk<f32> {
+    fn new(op: SpecialOp<f32>) -> MlResult<Self> {
+        Ok(Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?), topk: None })
+    }
+
+    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: SpecialOp<f32>) -> MlResult<Self> {
+        Ok(Self {
+            pr_fn: Some(pr_fn),
+            op,
+            backend: Arc::new(CpuBackend::new()?),
+            topk: None,
+        })
+    }
+
+    fn start(op: SpecialOp<f32>)  -> MlResult<Self> {
+        let mut new = Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?), topk: None };
+        new.op.start = true;
+        Ok(new)
+    }
+
     /// Returns the k largest elements of the tensor along the last dimension.
     ///
     /// # Arguments
@@ -526,80 +785,96 @@ impl Function<f32> for Topk<f32> {
     ///
     /// # Returns
     /// A tuple of two tensors (values, indices) containing the top k values and their indices
-    fn forward(&mut self) -> Self::Forwarded {
+    fn forward(&mut self) -> MlResult<(ArcTensor<f32>, ArcTensor<f32>)> {
         if self.topk.unwrap().0 == 0 {
-                return Err(MlError::TensorError(TensorError::InvalidOperation {
-                    op: "topk",
-                    reason: "k must be greater than 0".to_string(),
-                }));
+            return Err(MlError::TensorError(TensorError::InvalidOperation {
+                op: "topk",
+                reason: "k must be greater than 0".to_string(),
+            }));
+        }
+
+        let last_dim = self.op.tensor.shape().len() - 1;
+        let last_dim_size = self.op.tensor.shape()[last_dim];
+
+        if self.topk.unwrap().0 > last_dim_size {
+            return Err(MlError::TensorError(TensorError::InvalidOperation {
+                op: "topk",
+                reason: format!(
+                    "k ({}) cannot be larger than last dimension size ({})",
+                    self.topk.unwrap().0, last_dim_size
+                ),
+            }));
+        }
+
+
+        let slice_size = last_dim_size;
+        let num_slices: usize = self.op.tensor.shape()[..last_dim].iter().product();
+        let mut values = Vec::with_capacity(num_slices * self.topk.unwrap().0);
+        let mut indices = Vec::with_capacity(num_slices * self.topk.unwrap().0);
+
+
+        for slice_idx in 0..num_slices {
+            let start_idx = slice_idx * slice_size;
+            let end_idx = start_idx + slice_size;
+            let slice_data = &self.op.tensor.data()[start_idx..end_idx];
+            let mut pairs: Vec<(f32, usize)> = slice_data
+                .iter()
+                .copied()
+                .enumerate()
+                .map(|(i, v)| (v, i))
+                .collect();
+
+
+            pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+
+
+            let top_k = &pairs[..self.topk.unwrap().0];
+            let mut selected = top_k.to_vec();
+            if !self.topk.unwrap().1 {
+                selected.sort_by_key(|pair| pair.1);
             }
 
-            let last_dim = self.op.tensor.shape().len() - 1;
-            let last_dim_size = self.op.tensor.shape()[last_dim];
+            values.extend(selected.iter().map(|pair| pair.0));
+            indices.extend(selected.iter().map(|pair| pair.1 as f32));
+        }
 
-            if self.topk.unwrap().0 > last_dim_size {
-                return Err(MlError::TensorError(TensorError::InvalidOperation {
-                    op: "topk",
-                    reason: format!(
-                        "k ({}) cannot be larger than last dimension size ({})",
-                        self.topk.unwrap().0, last_dim_size
-                    ),
-                }));
-            }
+        let mut new_shape = self.op.tensor.shape().to_vec();
+        new_shape[last_dim] = self.topk.unwrap().0;
 
-
-            let slice_size = last_dim_size;
-            let num_slices: usize = self.op.tensor.shape()[..last_dim].iter().product();
-            let mut values = Vec::with_capacity(num_slices * self.topk.unwrap().0);
-            let mut indices = Vec::with_capacity(num_slices * self.topk.unwrap().0);
-
-
-            for slice_idx in 0..num_slices {
-                let start_idx = slice_idx * slice_size;
-                let end_idx = start_idx + slice_size;
-                let slice_data = &self.op.tensor.data()[start_idx..end_idx];
-                let mut pairs: Vec<(f32, usize)> = slice_data
-                    .iter()
-                    .copied()
-                    .enumerate()
-                    .map(|(i, v)| (v, i))
-                    .collect();
-
-
-                pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-
-
-                let top_k = &pairs[..self.topk.unwrap().0];
-                let mut selected = top_k.to_vec();
-                if !self.topk.unwrap().1 {
-                    selected.sort_by_key(|pair| pair.1);
-                }
-
-                values.extend(selected.iter().map(|pair| pair.0));
-                indices.extend(selected.iter().map(|pair| pair.1 as f32));
-            }
-
-            let mut new_shape = self.op.tensor.shape().to_vec();
-            new_shape[last_dim] = self.topk.unwrap().0;
-
-            let buffer = (Tensor::<f32>::from_vec(values, &new_shape)?, Tensor::<f32>::from_vec(indices, &new_shape)?);
-            #[cfg(feature = "enable_backpropagation")]
-            {
-                self.op.output = Some((buffer.0.tensor.clone(), buffer.1.tensor.clone()));
-            }
-            Ok(buffer)
+        let buffer = (Tensor::<f32>::from_vec(values, &new_shape)?, Tensor::<f32>::from_vec(indices, &new_shape)?);
+        #[cfg(feature = "enable_backpropagation")]
+        {
+            self.op.output = Some((buffer.0.tensor.clone(), buffer.1.tensor.clone()));
+        }
+        Ok(buffer)
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> () {
         todo!()
     }
 }
 
-impl Function<f32> for Matmax<f32> {
-    type Forwarded = MlResult<(ArcTensor<f32>, ArcTensor<f32>)>;
-    #[cfg(feature = "enable_backpropagation")]
-    type Gradiant = ();
+impl Matmax<f32> {
+    fn new(op: SpecialOp<f32>) -> MlResult<Self> {
+        Ok(Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?), matmax: None })
+    }
+
+    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: SpecialOp<f32>) -> MlResult<Self> {
+        Ok(Self {
+            pr_fn: Some(pr_fn),
+            op,
+            backend: Arc::new(CpuBackend::new()?),
+            matmax: None,
+        })
+    }
+
+    fn start(op: SpecialOp<f32>)  -> MlResult<Self> {
+        let mut new = Self { pr_fn: None, op, backend: Arc::new(CpuBackend::new()?), matmax: None };
+        new.op.start = true;
+        Ok(new)
+    }
+
     /// Returns the maximum value of all elements in the input tensor.
     /// If dim is specified, returns the maximum values along the given dimension.
     ///
@@ -611,16 +886,12 @@ impl Function<f32> for Matmax<f32> {
     /// If dim is None, returns a tensor with a single element containing the maximum value.
     /// If dim is specified, returns a tuple of two tensors (values, indices) containing the
     /// maximum values and their indices along the specified dimension.
-    fn forward(&mut self) -> Self::Forwarded {
+    fn forward(&mut self) -> MlResult<(ArcTensor<f32>, ArcTensor<f32>)> {
         let buffer = match self.matmax.unwrap().0 {
             None => {
                 // Find global maximum
                 let max_val = self.op.tensor.data().iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
                 (Tensor::<f32>::from_vec(vec![max_val], &vec![1])?, Tensor::<f32>::zeros())
-                // 빈 data 때문에
-                // thread 'tensor::ops::tests::test_max' panicked at src\tensor\creation.rs:6:42:
-                // index out of bounds: the len is 0 but the index is 0
-                //오류 발생중 빈 텐서를 만들어주는 메서드를 추가 고려중.
             }
             Some(d) => {
                 let dim = if d < 0 {
@@ -681,7 +952,7 @@ impl Function<f32> for Matmax<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, grad: &ArcTensor<f32>) -> Self::Gradiant {
+    fn backward(&mut self, grad: &ArcTensor<f32>) -> () {
         todo!()
     }
 }
@@ -701,7 +972,7 @@ impl std::ops::Add for ArcTensor<f32> {
     type Output = ArcTensor<f32>;
 
     fn add(self, other: ArcTensor<f32>) -> Self::Output {
-        Add::<f32>::new(self.tensor, Some(other.tensor)).unwrap().forward().unwrap()
+        Add::<f32>::new(binary!(self, other).unwrap()).unwrap().forward().unwrap()
     }
 }
 
@@ -719,7 +990,7 @@ impl std::ops::Sub for ArcTensor<f32> {
     type Output = ArcTensor<f32>;
 
     fn sub(self, other: ArcTensor<f32>) -> Self::Output {
-        Sub::<f32>::new(self.tensor, Some(other.tensor)).unwrap().forward().unwrap()
+        Sub::<f32>::new(binary!(self, other).unwrap()).unwrap().forward().unwrap()
     }
 }
 
@@ -738,7 +1009,7 @@ impl std::ops::Mul for ArcTensor<f32> {
     type Output = ArcTensor<f32>;
 
     fn mul(self, other: ArcTensor<f32>) -> Self::Output {
-        Mul::<f32>::new(self.tensor, Some(other.tensor)).unwrap().forward().unwrap()
+        Mul::<f32>::new(binary!(self, other).unwrap()).unwrap().forward().unwrap()
     }
 }
 
@@ -753,16 +1024,14 @@ impl std::ops::Div for ArcTensor<f32> {
     type Output = ArcTensor<f32>;
 
     fn div(self, other: ArcTensor<f32>) -> Self::Output {
-        Div::<f32>::new(self.tensor, Some(other.tensor)).unwrap().forward().unwrap()
+        Div::<f32>::new(binary!(self, other).unwrap()).unwrap().forward().unwrap()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::ops;
-    use crate::tensor::Tensor;
-
-    use super::*;
+    use crate::{MlResult, ops, binary, special};
+    use crate::tensor::*;
 
     #[test]
     fn test_topk() -> MlResult<()> {
@@ -791,17 +1060,17 @@ mod tests {
     fn test_max() -> MlResult<()> {
         // Test global maximum
         let buffer = Tensor::<f32>::new(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]]);
-        let (max_all, _) = ops!(buffer, Matmax, None, false)?;
+        let (max_all, _) = ops!(buffer.clone(), Matmax, None, false)?;
         assert_eq!(max_all.data(), &[6.0]);
 
         // Test maximum along dimension 0
-        let (max_dim0, indices0) = ops!(buffer, Matmax, Some(0), true)?;
+        let (max_dim0, indices0) = ops!(buffer.clone(), Matmax, Some(0), true)?;
         assert_eq!(max_dim0.shape(), &[1, 3]);
         assert_eq!(max_dim0.data(), &[4.0, 5.0, 6.0]);
         assert_eq!(indices0.data(), &[1.0, 1.0, 1.0]);
 
         // Test maximum along dimension 1
-        let (max_dim1, indices1) = ops!(buffer, Matmax, Some(1), true)?;
+        let (max_dim1, indices1) = ops!(buffer.clone(), Matmax, Some(1), true)?;
         assert_eq!(max_dim1.shape(), &[2, 1]);
         assert_eq!(max_dim1.data(), &[3.0, 6.0]);
         assert_eq!(indices1.data(), &[2.0, 2.0]);

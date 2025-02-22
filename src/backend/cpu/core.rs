@@ -1,6 +1,6 @@
 use crate::backend::DeviceType;
-use crate::ops;
-use crate::tensor::{Tensor, Matmul, TensorBase, Function, Operator};
+use crate::{ops, binary};
+use crate::tensor::*;
 
 #[derive(Debug)]
 pub struct CpuCore;

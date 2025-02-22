@@ -65,63 +65,63 @@ mod creation;
 #[macro_export] // 해당 매크로의 반환값에 연산자와 연산 결과를 모두 포함하도록 구조 변경을 고려중임.
 macro_rules! ops {
     ($tensor:expr, Matmul, $second_tensor:expr) => {
-        Matmul::new($tensor.tensor.clone(), Some($second_tensor.tensor.clone())).unwrap().forward()
+        Matmul::new(binary!($tensor, $second_tensor).unwrap()).unwrap().forward()
     };
 
     ($tensor:expr, Topk, $k:expr, $sorted:expr) => {{
-        let mut op = Topk::new($tensor.tensor.clone(), None).unwrap();
+        let mut op = Topk::new(special!($tensor).unwrap()).unwrap();
         op.topk = Some(($k, $sorted));
         op.forward()
     }};
 
     ($tensor:expr, Matmax, $dim:expr, $keepdim:expr) => {{
-        let mut op = Matmax::new($tensor.tensor.clone(), None).unwrap();
+        let mut op = Matmax::new(special!($tensor).unwrap()).unwrap();
         op.matmax = Some(($dim, $keepdim));
         op.forward()
     }};
 
     ($tensor:expr, Add, $second_tensor:expr) => {
-        Add::new($tensor.tensor.clone(), Some($second_tensor.tensor.clone())).unwrap().forward()
+        Add::new(binary!($tensor, $second_tensor).unwrap()).unwrap().forward()
     };
 
     ($tensor:expr, Sub, $second_tensor:expr) => {
-        Sub::new($tensor.tensor.clone(), Some($second_tensor.tensor.clone())).unwrap().forward()
+        Sub::new(binary!($tensor, $second_tensor).unwrap()).unwrap().forward()
     };
 
     ($tensor:expr, Mul, $second_tensor:expr) => {
-        Mul::new($tensor.tensor.clone(), Some($second_tensor.tensor.clone())).unwrap().forward()
+        Mul::new(binary!($tensor, $second_tensor).unwrap()).unwrap().forward()
     };
 
     ($tensor:expr, Div, $second_tensor:expr) => {
-        Div::new($tensor.tensor.clone(), Some($second_tensor.tensor.clone())).unwrap().forward()
+        Div::new(binary!($tensor, $second_tensor).unwrap()).unwrap().forward()
     };
 
     ($tensor:expr, Exp) => {
-        Exp::new($tensor.tensor.clone(), None).unwrap().forward()
+        Exp::new(unary!($tensor).unwrap()).unwrap().forward()
     };
 
     ($tensor:expr, Neg) => {
-        Neg::new($tensor.tensor.clone(), None).unwrap().forward()
+        Neg::new(unary!($tensor).unwrap()).unwrap().forward()
     };
 
     ($tensor:expr, Sqrt) => {
-        Sqrt::new($tensor.tensor.clone(), None).unwrap().forward()
+        Sqrt::new(unary!($tensor).unwrap()).unwrap().forward()
     };
 
     ($tensor:expr, Abs) => {
-        Abs::new($tensor.tensor.clone(), None).unwrap().forward()
+        Abs::new(unary!($tensor).unwrap()).unwrap().forward()
     };
 
     ($tensor:expr, Square) => {
-        Square::new($tensor.tensor.clone(), None).unwrap().forward()
+        Square::new(unary!($tensor).unwrap()).unwrap().forward()
     };
 
     ($tensor:expr, Log) => {
-        Log::new($tensor.tensor.clone(), None).unwrap().forward()
+        Log::new(unary!($tensor).unwrap()).unwrap().forward()
     };
 
     ($tensor:expr, Pow, $exponent:expr) => {{
-        let mut op = Pow::new($tensor.tensor.clone(), None).unwrap();
+        let mut op = Pow::new(unary!($tensor).unwrap()).unwrap();
         op.power = Some($exponent);
         op.forward()
 
@@ -211,6 +211,28 @@ macro_rules! scalar_ops {
         Tensor::from_vec($tensor.data().iter().map(|&x| $scalar / x).collect(), &$tensor.shape())
     };
 }
+
+#[macro_export]
+macro_rules! unary {
+    ($tensor:expr) => {
+        UnaryOp::new($tensor.tensor)
+    };
+}
+
+#[macro_export]
+macro_rules! binary {
+    ($first:expr, $second:expr) => {
+        BinaryOp::new($first.tensor, $second.tensor)
+    };
+}
+
+#[macro_export]
+macro_rules! special {
+    ($tensor:expr) => {
+        SpecialOp::new($tensor.tensor)
+    };
+}
+
 
 #[derive(Debug, Clone)]
 pub enum TensorError {
@@ -362,20 +384,20 @@ impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
     }
 }
 
-pub trait Operator<T> {
-    fn new(first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>) -> MlResult<Self> where Self: Sized;
-    // fn update(&mut self, first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>);
-    fn start(first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>)  -> MlResult<Self> where Self: Sized;
-    // fn from(first: Arc<dyn Operator<T>>)  -> MlResult<Self> where Self: Sized;
+pub trait Operator {
     fn is_start(&self) -> bool;
-    fn backend(&self) -> &Arc<dyn Backend>;
 }
 
-pub trait Function<T: Debug + Clone>: Operator<T> {
+pub trait Function<T: Debug + Clone> {
+    type Operator: Operator;
     type Forwarded;
-    #[cfg(feature = "enable_backpropagation")]
     type Gradiant;
 
+    fn new(op: Self::Operator) -> MlResult<Self> where Self: Sized;
+    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: Self::Operator) -> MlResult<Self> where Self: Sized;
+    // fn update(&mut self, first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>);
+    fn start(op: Self::Operator)  -> MlResult<Self> where Self: Sized;
+    // fn from(first: Arc<dyn Operator<T>>)  -> MlResult<Self> where Self: Sized;
 
     fn forward(&mut self) ->  Self::Forwarded;
     #[cfg(feature = "enable_backpropagation")]
@@ -402,7 +424,6 @@ pub trait Function<T: Debug + Clone>: Operator<T> {
 #[derive(Clone)]
 pub struct UnaryOp<T> { // 원래 라이프타임을 이용하여 관리했으나, 멀티스레딩 환경에서의 안전한 메모리 참조와, 사용 편의성 이슈로, Arc로 대체됨
     tensor: Arc<dyn TensorBase<T>>,
-    backend: Arc<dyn Backend>,
     start: bool,
 
     #[cfg(feature = "enable_backpropagation")]
@@ -413,7 +434,6 @@ pub struct UnaryOp<T> { // 원래 라이프타임을 이용하여 관리했으�
 pub struct BinaryOp<T> { // 원래 라이프타임을 이용하여 관리했으나, 멀티스레딩 환경에서의 안전한 메모리 참조와, 사용 편의성 이슈로, Arc로 대체됨
     first_tensor: Arc<dyn TensorBase<T>>,
     second_tensor: Arc<dyn TensorBase<T>>,
-    backend: Arc<dyn Backend>,
     start: bool,
 
     #[cfg(feature = "enable_backpropagation")]
@@ -424,7 +444,6 @@ pub struct BinaryOp<T> { // 원래 라이프타임을 이용하여 관리했으�
 #[derive(Clone)]
 pub struct SpecialOp<T> { // 원래 라이프타임을 이용하여 관리했으나, 멀티스레딩 환경에서의 안전한 메모리 참조와, 사용 편의성 이슈로, Arc로 대체됨
     tensor: Arc<dyn TensorBase<T>>,
-    backend: Arc<dyn Backend>,
     start: bool,
 
     #[cfg(feature = "enable_backpropagation")]
@@ -460,95 +479,118 @@ impl<T: Debug + Clone> Debug for SpecialOp<T> {
 
 /// Structure representing an exponential operation.
 #[derive(Clone)]
-pub struct Exp<T>       { op: UnaryOp<T> }
+pub struct Exp<T>       {
+    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
+    op: UnaryOp<T>,
+    backend: Arc<dyn Backend>,
+}
 
 /// Structure representing a negation operation.
 #[derive(Clone)]
-pub struct Neg<T>       { op: UnaryOp<T> }
+pub struct Neg<T>       {
+    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
+    op: UnaryOp<T>,
+    backend: Arc<dyn Backend>,
+}
 
 /// Structure representing a square root operation.
 #[derive(Clone)]
-pub struct Sqrt<T>      { op: UnaryOp<T> }
+pub struct Sqrt<T>      {
+    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
+    op: UnaryOp<T>,
+    backend: Arc<dyn Backend>,
+}
 
 /// Structure representing an absolute value operation.
 #[derive(Clone)]
-pub struct Abs<T>       { op: UnaryOp<T> }
+pub struct Abs<T>       {
+    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
+    op: UnaryOp<T>,
+    backend: Arc<dyn Backend>,
+}
 
 /// Structure representing a squaring operation.
 #[derive(Clone)]
-pub struct Square<T>    { op: UnaryOp<T> }
+pub struct Square<T>    {
+    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
+    op: UnaryOp<T>,
+    backend: Arc<dyn Backend>,
+}
 
 /// Structure representing a logarithmic operation.
 #[derive(Clone)]
-pub struct Log<T>       { op: UnaryOp<T> }
+pub struct Log<T>       {
+    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
+    op: UnaryOp<T>,
+    backend: Arc<dyn Backend>,
+}
 
 /// Structure representing a power operation.
 #[derive(Clone)]
 pub struct Pow<T>       {
+    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
     op: UnaryOp<T>,
+    backend: Arc<dyn Backend>,
     pub power: Option<f32>,
 }
 
 /// Structure representing a Top-k operation.
 #[derive(Clone)]
 pub struct Topk<T>      {
+    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
     op: SpecialOp<T>,
+    backend: Arc<dyn Backend>,
     pub topk: Option<(usize, bool)>
 } // k: usize, sorted: bool
 
 /// Structure representing a matrix max operation along a dimension.
 #[derive(Clone)]
 pub struct Matmax<T>    {
+    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
     op: SpecialOp<T>,
+    backend: Arc<dyn Backend>,
     pub matmax: Option<(Option<i32>, bool)>
 } // dim: (Option<i32>, keepdim: bool
 
 /// Structure representing an addition operation.
 #[derive(Clone)]
-pub struct Add<T>       { op: BinaryOp<T> }
+pub struct Add<T>       {
+    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
+    op: BinaryOp<T>,
+    backend: Arc<dyn Backend>,
+}
 
 /// Structure representing a subtraction operation.
 #[derive(Clone)]
-pub struct Sub<T>       { op: BinaryOp<T> }
+pub struct Sub<T>       {
+    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
+    op: BinaryOp<T>,
+    backend: Arc<dyn Backend>,}
 
 /// Structure representing a multiplication operation.
 #[derive(Clone)]
-pub struct Mul<T>       { op: BinaryOp<T> }
+pub struct Mul<T>       {
+    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
+    op: BinaryOp<T>,
+    backend: Arc<dyn Backend>
+}
 
 /// Structure representing a division operation.
 #[derive(Clone)]
-pub struct Div<T>       { op: BinaryOp<T> }
+pub struct Div<T>       {
+    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
+    op: BinaryOp<T>,
+    backend: Arc<dyn Backend>,
+}
 
 
 /// Structure representing a matrix multiplication operation.
 #[derive(Clone)]
-pub struct Matmul<T>    { op: BinaryOp<T> }
-
-// pub enum Operators<'t, T>  {
-//     Exp     (UnaryOp<'t, T>),
-//     Neg     (UnaryOp<'t, T>),
-//     Sqrt    (UnaryOp<'t, T>),
-//     Abs     (UnaryOp<'t, T>),
-//     Square  (UnaryOp<'t, T>),
-//     Log     (UnaryOp<'t, T>),
-//     Pow     (
-//         UnaryOp<'t, T>,
-//         Option<f32>     // power
-//     ),
-//     Topk    (
-//         SpecialOp<'t, T>,
-//         Option<(usize, bool)> // // k: usize, sorted: bool
-//     ),
-//     Matmax  (
-//         SpecialOp<'t, T>,
-//         Option<(Option<i32>, bool)> // dim: Option<i32>, keepdim: bool
-//     ),
-//     Add     ( BinaryOp<'t, T> ),
-//     Sub     ( BinaryOp<'t, T> ),
-//     Mul     ( BinaryOp<'t, T> ),
-//     Div     ( BinaryOp<'t, T> ),
-//     Matmul  ( BinaryOp<'t, T> ),
-// }
+pub struct Matmul<T>    {
+    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
+    op: BinaryOp<T> ,
+    backend: Arc<dyn Backend>,
+}
 
 
 #[cfg(test)]
@@ -567,15 +609,15 @@ mod tests {
     fn propagations() -> MlResult<()>{
         let x = Tensor::new(vec![vec![0.5]]);
 
-        let mut A = Square::start(x.tensor, None)?;
+        let mut A = Square::start(unary!(x)?)?;
         // 입력을 텐서가 아닌 연산자로 입력받으면 연산자가 다음(이전) 연산자를 추적할수 있으니 역전파도 가능할것 같은데
         // 시작 함수를 임의로 정의하고 시작 함수로 도달할때까지 역전파 하면 될듯 하다 물론 이게 최적인지는 잘 모르겠다
         let a = A.forward()?;       // a = A(x)
 
-        let mut B = Exp::new(a.tensor.clone(), None)?;
+        let mut B = Exp::new(unary!(a.clone())?)?;
         let b = B.forward()?;       // b = B(a)
 
-        let mut C = Square::new(b.tensor.clone(), None)?;
+        let mut C = Square::new(unary!(b.clone())?)?;
         let y = C.forward()?;       //y = C(b)
 
         let y_grad = Tensor::new(vec![vec![1.0]]);
@@ -603,7 +645,7 @@ mod tests {
     fn test_add() -> MlResult<()> {
         let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
-        let m_add = ops!(first, Add, second)?;
+        let m_add = ops!(first.clone(), Add, second.clone())?;
         let s_add = first + second;
         let et = Tensor::<f32>::new(vec![vec![4.0, 6.0]]);
 
@@ -614,7 +656,7 @@ mod tests {
     fn test_sub() -> MlResult<()> {
         let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
-        let m_sub = ops!(first, Sub, second)?;
+        let m_sub = ops!(first.clone(), Sub, second.clone())?;
         let s_sub = first - second;
         let et = Tensor::<f32>::new(vec![vec![-2.0, -2.0]]);
 
@@ -625,7 +667,7 @@ mod tests {
     fn test_mul() -> MlResult<()> {
         let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
-        let m_mul = ops!(first, Mul, second)?;
+        let m_mul = ops!(first.clone(), Mul, second.clone())?;
         let s_mul = first * second;
         let et = Tensor::<f32>::new(vec![vec![3.0, 8.0]]);
 
@@ -636,7 +678,7 @@ mod tests {
     fn test_div() -> MlResult<()> {
         let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::<f32>::new(vec![vec![2.0, 4.0]]);
-        let m_div = ops!(first, Div, second)?;
+        let m_div = ops!(first.clone(), Div, second.clone())?;
         let s_div = first / second;
         let et = Tensor::<f32>::new(vec![vec![0.5, 0.5]]);
 
