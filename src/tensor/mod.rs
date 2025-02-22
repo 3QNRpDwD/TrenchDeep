@@ -391,16 +391,18 @@ pub trait Operator {
 pub trait Function<T: Debug + Clone> {
     type Operator: Operator;
     type Forwarded;
+    // #[cfg(feature = "enable_backpropagation")] 최적화를 위해 어트리뷰트에 따라서 역전파 기능의 활성화 여부를 조절하려 했으나, 복합적인 이유(연관타입 처리)로 주석처리됨.
     type Gradiant;
 
     fn new(op: Self::Operator) -> MlResult<Self> where Self: Sized;
     fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: Self::Operator) -> MlResult<Self> where Self: Sized;
-    // fn update(&mut self, first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>);
     fn start(op: Self::Operator)  -> MlResult<Self> where Self: Sized;
-    // fn from(first: Arc<dyn Operator<T>>)  -> MlResult<Self> where Self: Sized;
+
+    // fn update(&mut self, first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>);
 
     fn forward(&mut self) ->  Self::Forwarded;
-    #[cfg(feature = "enable_backpropagation")]
+
+    #[cfg(feature = "enable_backpropagation")] // 최적화를 위해 어트리뷰트에 따라서 역전파 기능의 활성화 여부를 조절하려 했으나, 복합적인 이유(연관타입 처리)로 폐지될 에정임
     fn backward(&mut self, grad: &ArcTensor<T>) -> Self::Gradiant;
 }
 
@@ -425,6 +427,7 @@ pub trait Function<T: Debug + Clone> {
 pub struct UnaryOp<T> { // 원래 라이프타임을 이용하여 관리했으나, 멀티스레딩 환경에서의 안전한 메모리 참조와, 사용 편의성 이슈로, Arc로 대체됨
     tensor: Arc<dyn TensorBase<T>>,
     start: bool,
+    from_start: bool,
 
     #[cfg(feature = "enable_backpropagation")]
     output: Option<Arc<dyn TensorBase<T>>>,
@@ -435,6 +438,7 @@ pub struct BinaryOp<T> { // 원래 라이프타임을 이용하여 관리했으�
     first_tensor: Arc<dyn TensorBase<T>>,
     second_tensor: Arc<dyn TensorBase<T>>,
     start: bool,
+    from_start: bool,
 
     #[cfg(feature = "enable_backpropagation")]
     output: Option<Arc<dyn TensorBase<T>>>,
@@ -445,6 +449,7 @@ pub struct BinaryOp<T> { // 원래 라이프타임을 이용하여 관리했으�
 pub struct SpecialOp<T> { // 원래 라이프타임을 이용하여 관리했으나, 멀티스레딩 환경에서의 안전한 메모리 참조와, 사용 편의성 이슈로, Arc로 대체됨
     tensor: Arc<dyn TensorBase<T>>,
     start: bool,
+    from_start: bool,
 
     #[cfg(feature = "enable_backpropagation")]
     output: Option<(Arc<dyn TensorBase<T>>, Arc<dyn TensorBase<T>>)>,
@@ -453,8 +458,8 @@ pub struct SpecialOp<T> { // 원래 라이프타임을 이용하여 관리했으
 impl<T: Debug + Clone> Debug for UnaryOp<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
-            f, "UnaryOp - tensor: {:?}, start: {:?}",
-            self.tensor.deref(), self.start
+            f, "UnaryOp - tensor: {:?}, start: {:?}, from start: {:?}",
+            self.tensor.deref(), self.start, self.from_start
         )
     }
 }
@@ -462,8 +467,8 @@ impl<T: Debug + Clone> Debug for UnaryOp<T> {
 impl<T: Debug + Clone> Debug for BinaryOp<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
-            f, "BinaryOp - first_tensor: {:?} self.second_tensor: {:?}, start: {:?}",
-            self.first_tensor.deref(), self.second_tensor.deref(), self.start
+            f, "BinaryOp - first tensor: {:?} second tensor: {:?}, start: {:?}, from start: {:?}",
+            self.first_tensor.deref(), self.second_tensor.deref(), self.start, self.from_start
         )
     }
 }
@@ -471,8 +476,8 @@ impl<T: Debug + Clone> Debug for BinaryOp<T> {
 impl<T: Debug + Clone> Debug for SpecialOp<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
-            f, "SpecialOp - tensor: {:?}, start: {:?}",
-            self.tensor.deref(), self.start
+            f, "SpecialOp - tensor: {:?}, start: {:?}, from start: {:?}",
+            self.tensor.deref(), self.start, self.from_start
         )
     }
 }
@@ -613,7 +618,6 @@ mod tests {
         // 입력을 텐서가 아닌 연산자로 입력받으면 연산자가 다음(이전) 연산자를 추적할수 있으니 역전파도 가능할것 같은데
         // 시작 함수를 임의로 정의하고 시작 함수로 도달할때까지 역전파 하면 될듯 하다 물론 이게 최적인지는 잘 모르겠다
         let a = A.forward()?;       // a = A(x)
-
         let mut B = Exp::new(unary!(a.clone())?)?;
         let b = B.forward()?;       // b = B(a)
 

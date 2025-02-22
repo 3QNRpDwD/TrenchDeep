@@ -154,12 +154,14 @@ impl<T> UnaryOp<T> {
             #[cfg(feature = "enable_backpropagation")]
             output: None,
             start: false,
+            from_start: false,
         })
     }
 
     pub fn update(&mut self, tensor: Arc<dyn TensorBase<T>>, start: bool) {
         self.tensor = tensor;
         self.start = start;
+        self.from_start = false;
         #[cfg(feature = "enable_backpropagation")]
         {
             self.output = None;
@@ -175,6 +177,7 @@ impl<T> BinaryOp<T> {
             #[cfg(feature = "enable_backpropagation")]
             output: None,
             start: false,
+            from_start: false,
         })
     }
 
@@ -182,6 +185,7 @@ impl<T> BinaryOp<T> {
         self.first_tensor = first_tensor;
         self.second_tensor = second_tensor;
         self.start = start;
+        self.from_start = false;
         #[cfg(feature = "enable_backpropagation")]
         {
             self.output = None;
@@ -196,12 +200,14 @@ impl<T> SpecialOp<T> {
             #[cfg(feature = "enable_backpropagation")]
             output: None,
             start: false,
+            from_start: false,
         })
     }
 
     pub fn update(&mut self, tensor: Arc<dyn TensorBase<T>>, start: bool) {
         self.tensor = tensor;
         self.start = start;
+        self.from_start = false;
         #[cfg(feature = "enable_backpropagation")]
         {
             self.output = None;
