@@ -373,29 +373,52 @@ mod tests {
         Ok(())
     }
 
+    fn print_phase(
+        phase: &str,
+        x: Tensor<f32>,
+        a: Tensor<f32>,
+        b: Tensor<f32>,
+        y: Tensor<f32>,
+    ) {
+        println!(
+            "{}:\n    \
+            Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[Square]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n    \
+            Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[ Exps ]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n    \
+            Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[Square]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n",
+            phase,
+            x.data, x.shape,
+            a.data, a.shape,
+            a.data, b.shape,
+            b.data, b.shape,
+            b.data, b.shape,
+            y.data, y.shape,
+            width = 11,
+            width2 = 3
+        );
+    }
+
     #[test]
-    #[cfg(feature = "enable_backpropagation")]
-    fn propagations() -> MlResult<()>{
+    fn propagations_backpropagation() -> MlResult<()>{
         let x = Tensor::new(vec![vec![0.5]]);
 
-        let mut A = Square::start(unary!(x)?)?;
-        // 입력을 텐서가 아닌 연산자로 입력받으면 연산자가 다음(이전) 연산자를 추적할수 있으니 역전파도 가능할것 같은데
-        // 시작 함수를 임의로 정의하고 시작 함수로 도달할때까지 역전파 하면 될듯 하다 물론 이게 최적인지는 잘 모르겠다
-        let a = A.forward()?;       // a = A(x)
-        let mut B = Exp::new(unary!(a.clone())?)?;
-        let b = B.forward()?;       // b = B(a)
+        let mut A = Square::new()?;
+        let mut B = Exp::new()?;
+        let mut C = Square::new()?;
+        let a = A.forward(&[&x])?.remove(0).tensor;       // a = A(x)
+        let b = B.forward(&[&a])?.remove(0).tensor;       // b = B(a)
+        let y = C.forward(&[&b])?.remove(0).tensor;       // y = C(b)
 
-        let mut C = Square::new(unary!(b.clone())?)?;
-        let y = C.forward()?;       //y = C(b)
+        print_phase("forward", x, a, b, y);
 
-        let y_grad = Tensor::new(vec![vec![1.0]]);
-        let b_grad = A.backward(&y_grad)?; // Square backward
-        let a_grad = B.backward(&b_grad)?; // Exp backward
-        let x_grad = C.backward(&a_grad)?; // Square backward
+        #[cfg(feature = "enable_backpropagation")]
+        {
+            let y_grad = Tensor::new(vec![vec![1.0]]);
+            let b_grad = A.backward(&y_grad)?.remove(0).tensor; // Square backward
+            let a_grad = B.backward(&b_grad)?.remove(0).tensor; // Exp backward
+            let x_grad = C.backward(&a_grad)?.remove(0).tensor; // Square backward
 
-        println!("forward\n{:?}\n{:?}\n{:?}\n", A.op, B.op, C.op);
-        println!("output\n{:?}\n{:?}\n{:?}\n", a, b, y);
-        println!("backward\n{:?}\n{:?}\n{:?}", b_grad, a_grad, x_grad);
+            print_phase("backward", y_grad, b_grad, a_grad, x_grad);
+        }
 
         Ok(())
     }
