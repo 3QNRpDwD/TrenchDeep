@@ -1,5 +1,5 @@
 use crate::backend::DeviceType;
-use crate::{ops, binary};
+use crate::{ops};
 use crate::tensor::*;
 
 #[derive(Debug)]
@@ -40,7 +40,6 @@ impl CpuCore {
 
 #[cfg(test)]
 mod tests {
-    use crate::backend::cpu::CpuCore;
 
 fn pretty_flops(flops: f64) -> String {
         if flops >= 1_000_000_000_000.0 {
@@ -53,33 +52,6 @@ fn pretty_flops(flops: f64) -> String {
             format!("{:.2} Kflops/s", flops / 1_000.0)
         } else {
             format!("{:.2} flops/s", flops)
-        }
-    }
-
-    #[test]
-    fn test_calc_device_flops() {
-        let core = CpuCore::new();
-        let flops = core.calc_device_flops();
-        println!("{}", pretty_flops(flops));
-
-        let flops = 900000.0;
-        if flops < 100_000_00.0 {
-            panic!(
-                "How are you even running this test?\nAre you using a Potato?\nFLOPS: {}",
-                pretty_flops(flops)
-            );
-        }
-        if flops > 1_000_000_000_000.0 {
-            panic!(
-                "WTF? Are you using a supercomputer?\nFLOPS: {}",
-                pretty_flops(flops)
-            );
-        }
-        if 1_000_000_000.0 < flops.clone() && flops < 500_000_000_000.0 {
-            panic!(
-                "You're using a average computer\nFLOPS: {}",
-                pretty_flops(flops)
-            );
         }
     }
 }

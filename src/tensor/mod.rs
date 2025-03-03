@@ -1,12 +1,10 @@
 use std::{
     sync::Arc,
     fmt::{Debug, Display, Formatter, Result},
-    ops::Deref
 };
 use crate::{backend::Backend, MlResult};
 
 mod ops;
-mod broadcast;
 mod creation;
 
 /// 다양한 텐서 연산을 위한 편리한 매크로를 제공합니다.
@@ -23,22 +21,22 @@ mod creation;
 /// # Examples
 ///
 /// ```rust
-/// use MIT::{ops, tensor::{Tensor, TensorBase}};
+/// use MIT::{ops, tensor::{Tensor, TensorBase, Abs, Add, Div, Log, Matmax, Mul, Sqrt, Sub}};
 ///
 /// let mut tensor1 = Tensor::<f32>::new(vec![vec![1.0, 2.0, 3.0]]);
 /// let tensor2 = Tensor::<f32>::new(vec![vec![3.0, 2.0, 1.0]]);
 ///
 /// // 기본 산술 연산
-/// let result = ops!(tensor1, Add, tensor2)?;
-/// let result = ops!(tensor1, Mul, tensor2)?;
+/// let result = ops!(tensor1, Add, tensor2);
+/// let result = ops!(tensor1, Mul, tensor2);
 ///
 /// // 단항 연산
-/// let result = ops!(tensor1, Sqrt)?;
-/// let result = ops!(tensor1, Log)?;
+/// let result = ops!(tensor1, Sqrt);
+/// let result = ops!(tensor1, Log);
 ///
 /// // 특수 연산
-/// let result = ops!(tensor1, Topk, 5, true)?; // 상위 5개 요소, 정렬됨
-/// let result = ops!(tensor1, Pow, 2.0)?; // 텐서의 제곱
+/// let result = ops!(tensor1, Topk, 5, true); // 상위 5개 요소, 정렬됨
+/// let result = ops!(tensor1, Pow, 2.0); // 텐서의 제곱
 /// ```
 ///
 /// # Parameters
@@ -64,67 +62,32 @@ mod creation;
 /// 고성능 연산이 필요한 경우 in-place 연산을 지원하는 별도 메서드 구현을 권장합니다.
 #[macro_export] // 해당 매크로의 반환값에 연산자와 연산 결과를 모두 포함하도록 구조 변경을 고려중임.
 macro_rules! ops {
-    ($tensor:expr, Matmul, $second_tensor:expr) => {
-        Matmul::new(binary!($tensor, $second_tensor).unwrap()).unwrap().forward()
+    ($tensor:expr, Pow, $exponent:expr) => {{
+        let mut op = Pow::new().unwrap();
+        op.power = Some($exponent);
+        op.forward(vec![&$tensor].as_slice()).unwrap().remove(0)
+    }};
+
+    ($tensor:expr, $op:ident, $second_tensor:expr) => {
+        $op::new().unwrap().forward(vec![&$tensor, &$second_tensor].as_slice()).unwrap().remove(0)
+    };
+
+    ($tensor:expr, $op:ident) => {
+        $op::new().unwrap().forward(vec![&$tensor].as_slice()).unwrap().remove(0)
     };
 
     ($tensor:expr, Topk, $k:expr, $sorted:expr) => {{
-        let mut op = Topk::new(special!($tensor).unwrap()).unwrap();
+        let mut op = Topk::new().unwrap();
         op.topk = Some(($k, $sorted));
-        op.forward()
+        let mut result = op.forward(vec![&$tensor].as_slice()).unwrap();
+        (result.remove(0), result.remove(0))
     }};
 
     ($tensor:expr, Matmax, $dim:expr, $keepdim:expr) => {{
-        let mut op = Matmax::new(special!($tensor).unwrap()).unwrap();
+        let mut op = Matmax::new().unwrap();
         op.matmax = Some(($dim, $keepdim));
-        op.forward()
-    }};
-
-    ($tensor:expr, Add, $second_tensor:expr) => {
-        Add::new(binary!($tensor, $second_tensor).unwrap()).unwrap().forward()
-    };
-
-    ($tensor:expr, Sub, $second_tensor:expr) => {
-        Sub::new(binary!($tensor, $second_tensor).unwrap()).unwrap().forward()
-    };
-
-    ($tensor:expr, Mul, $second_tensor:expr) => {
-        Mul::new(binary!($tensor, $second_tensor).unwrap()).unwrap().forward()
-    };
-
-    ($tensor:expr, Div, $second_tensor:expr) => {
-        Div::new(binary!($tensor, $second_tensor).unwrap()).unwrap().forward()
-    };
-
-    ($tensor:expr, Exp) => {
-        Exp::new(unary!($tensor).unwrap()).unwrap().forward()
-    };
-
-    ($tensor:expr, Neg) => {
-        Neg::new(unary!($tensor).unwrap()).unwrap().forward()
-    };
-
-    ($tensor:expr, Sqrt) => {
-        Sqrt::new(unary!($tensor).unwrap()).unwrap().forward()
-    };
-
-    ($tensor:expr, Abs) => {
-        Abs::new(unary!($tensor).unwrap()).unwrap().forward()
-    };
-
-    ($tensor:expr, Square) => {
-        Square::new(unary!($tensor).unwrap()).unwrap().forward()
-    };
-
-    ($tensor:expr, Log) => {
-        Log::new(unary!($tensor).unwrap()).unwrap().forward()
-    };
-
-    ($tensor:expr, Pow, $exponent:expr) => {{
-        let mut op = Pow::new(unary!($tensor).unwrap()).unwrap();
-        op.power = Some($exponent);
-        op.forward()
-
+        let mut result = op.forward(vec![&$tensor].as_slice()).unwrap();
+        (result.remove(0), result.remove(0))
     }};
 }
 
@@ -212,27 +175,6 @@ macro_rules! scalar_ops {
     };
 }
 
-#[macro_export]
-macro_rules! unary {
-    ($tensor:expr) => {
-        UnaryOp::new($tensor.tensor)
-    };
-}
-
-#[macro_export]
-macro_rules! binary {
-    ($first:expr, $second:expr) => {
-        BinaryOp::new($first.tensor, $second.tensor)
-    };
-}
-
-#[macro_export]
-macro_rules! special {
-    ($tensor:expr) => {
-        SpecialOp::new($tensor.tensor)
-    };
-}
-
 
 #[derive(Debug, Clone)]
 pub enum TensorError {
@@ -290,46 +232,44 @@ impl Display for TensorError {
     }
 }
 
-pub struct Tensor<Type: Debug>
-{
+#[derive(Debug)]
+pub struct Tensor<Type: Debug> {
     data: Vec<Type>,
     shape: Vec<usize>,
-    requires_grad: bool,
-
-    // #[cfg(feature = "enable_backpropagation")]
-    // grad: Option<Box<dyn TensorBase<Type>>>,
-    // #[cfg(feature = "enable_backpropagation")]
-    // pub grad_fn: Option<Arc<dyn Operator<Type>>>
 }
 
-#[derive(Clone)]
-pub struct ArcTensor<T>{pub tensor: Arc<dyn TensorBase<T>>}
+#[derive(Debug)]
+pub struct Variable<Type: Debug> {
+    tensor: Tensor<Type>,
+    requires_grad: bool,
 
-impl ArcTensor<f32> {
+    #[cfg(feature = "enable_backpropagation")]
+    grad: Option<Arc<Tensor<Type>>>,
+    #[cfg(feature = "enable_backpropagation")]
+    grad_fn: Option<Arc<dyn Function<Type>>>,
+}
+
+impl Variable<f32> {
     pub fn new(tensor: Tensor<f32>) -> Self {
-        ArcTensor {
-            tensor: Arc::new(tensor)
+        Variable {
+            tensor,
+            requires_grad: cfg!(feature = "enable_backpropagation"),
+
+            #[cfg(feature = "enable_backpropagation")]
+            grad: None,
+            #[cfg(feature = "enable_backpropagation")]
+            grad_fn: None,
         }
     }
 }
 
-impl<T> Deref for ArcTensor<T> {
-    type Target = dyn TensorBase<T>;
-
-    fn deref(&self) -> &Self::Target {
-        self.tensor.deref()
-    }
-}
-
-impl<T: Debug + Clone> Debug for ArcTensor<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let tensor = self.tensor.deref();
-        write!(
-            f, "ArcTensor - data: {:?}, shape: {:?} requires_grad: {:?} ",
-            tensor.data(), tensor.shape(), tensor.requires_grad()
-        )
-    }
-}
+// impl<T> Deref for Variable<T> {
+//     type Target = dyn TensorBase<T>;
+//
+//     fn deref(&self) -> &Self::Target {
+//         self.tensor.deref()
+//     }
+// }
 
 impl PartialEq for Tensor<f32> {
     fn eq(&self, other: &Self) -> bool {
@@ -355,257 +295,81 @@ impl Ord for Tensor<f32> {
 }
 
 pub trait TensorBase<Type: Debug + Clone> {
-    fn new(data: Vec<Vec<Type>>)                            -> ArcTensor<Type> where Self: Sized;
-    fn from_vec(data: Vec<Type>, shape: &[usize])           -> MlResult<ArcTensor<Type>> where Self: Sized;
+    fn new(data: Vec<Vec<Type>>)                            -> Tensor<Type> where Self: Sized;
+    fn from_vec(data: Vec<Type>, shape: &[usize])           -> MlResult<Tensor<Type>> where Self: Sized;
     // #[cfg(feature = "enable_backpropagation")]
-    // fn from_grad_fn(data: Vec<Type>, shape: &[usize], grad_fn: &mut dyn Operator<f32>) -> ArcTensor<Type> where Self: Sized;
+    // fn from_grad_fn(data: Vec<Type>, shape: &[usize], grad_fn: &mut dyn Operator<f32>) -> Variable<Type> where Self: Sized;
 
     fn shape(&self)                                         -> &[usize];
     fn data(&self)                                          -> &[Type];
     fn get(&self, indices: &[usize])                        -> Option<&Type>;
     fn index(&self, indices: &[usize])                      -> Option<usize>;
     fn chk_shape(&self, other: &dyn TensorBase<Type>)       -> MlResult<()>;
-    /// Enables gradient computation for the tensor
-    fn requires_grad(&self) -> bool;
-
-    // #[cfg(feature = "enable_backpropagation")]
-    // fn set_grad_fn(&mut self, grad_fn: Arc<dyn Operator<Type>>);
-
-    #[cfg(feature = "enable_backpropagation")]
-   fn grad(&self) -> Option<&dyn TensorBase<Type>>;
+    // Enables gradient computation for the tensor
 }
 
 impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
-            f, "data: {:?}, shape: {:?} requires_grad: {:?}",
-               self.data(), self.shape(), self.requires_grad()
+            f, "data: {:?}, shape: {:?}",
+               self.data(), self.shape()
         )
     }
-}
-
-pub trait Operator {
-    fn is_start(&self) -> bool;
 }
 
 pub trait Function<T: Debug + Clone> {
-    type Operator: Operator;
-    type Forwarded;
-    // #[cfg(feature = "enable_backpropagation")] 최적화를 위해 어트리뷰트에 따라서 역전파 기능의 활성화 여부를 조절하려 했으나, 복합적인 이유(연관타입 처리)로 주석처리됨.
-    type Gradiant;
-
-    fn new(op: Self::Operator) -> MlResult<Self> where Self: Sized;
-    fn from(pr_fn: Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>, op: Self::Operator) -> MlResult<Self> where Self: Sized;
-    fn start(op: Self::Operator)  -> MlResult<Self> where Self: Sized;
-
-    // fn update(&mut self, first: Arc<dyn TensorBase<T>>, second: Option<Arc<dyn TensorBase<T>>>);
-
-    fn forward(&mut self) ->  Self::Forwarded;
+    fn new() -> MlResult<Self> where Self: Sized;
+    fn forward(&self, targets: &[&Tensor<T>])   -> MlResult<Vec<Variable<f32>>>;
 
     #[cfg(feature = "enable_backpropagation")] // 최적화를 위해 어트리뷰트에 따라서 역전파 기능의 활성화 여부를 조절하려 했으나, 복합적인 이유(연관타입 처리)로 폐지될 에정임
-    fn backward(&mut self, grad: &ArcTensor<T>) -> Self::Gradiant;
-}
+    fn backward(&self, grad: &Tensor<T>)        -> MlResult<Vec<Variable<f32>>>;
 
-// impl<T> Debug for dyn Function<'_, T, Forwarded=(), Gradiant=()> {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-//         write!(f, "Function Debug")
-//     }
-// }
-
-
-// pub trait BroadcastLayer {
-//     fn can_broadcast(&self, other: &Self) -> bool;
-//     fn broadcast_shape(&self, other: &Self) -> Vec<usize>;
-//     fn broadcasting<F>(self, other: Self, op: F) -> Option<Self>
-//     where
-//         F: Fn(f32, f32) -> f32,
-//         Self: Sized;
-//     fn calculate_broadcast_indices(&self, other: &Self, idx: usize, shape: &[usize]) -> Option<(usize, usize)>;
-// }
-
-#[derive(Clone)]
-pub struct UnaryOp<T> { // 원래 라이프타임을 이용하여 관리했으나, 멀티스레딩 환경에서의 안전한 메모리 참조와, 사용 편의성 이슈로, Arc로 대체됨
-    tensor: Arc<dyn TensorBase<T>>,
-    start: bool,
-    from_start: bool,
-
-    #[cfg(feature = "enable_backpropagation")]
-    output: Option<Arc<dyn TensorBase<T>>>,
+    fn backend(&self) -> &Arc<dyn Backend>;
 }
 
 #[derive(Clone)]
-pub struct BinaryOp<T> { // 원래 라이프타임을 이용하여 관리했으나, 멀티스레딩 환경에서의 안전한 메모리 참조와, 사용 편의성 이슈로, Arc로 대체됨
-    first_tensor: Arc<dyn TensorBase<T>>,
-    second_tensor: Arc<dyn TensorBase<T>>,
-    start: bool,
-    from_start: bool,
-
-    #[cfg(feature = "enable_backpropagation")]
-    output: Option<Arc<dyn TensorBase<T>>>,
-
-}
-
+pub struct Exp      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
-pub struct SpecialOp<T> { // 원래 라이프타임을 이용하여 관리했으나, 멀티스레딩 환경에서의 안전한 메모리 참조와, 사용 편의성 이슈로, Arc로 대체됨
-    tensor: Arc<dyn TensorBase<T>>,
-    start: bool,
-    from_start: bool,
-
-    #[cfg(feature = "enable_backpropagation")]
-    output: Option<(Arc<dyn TensorBase<T>>, Arc<dyn TensorBase<T>>)>,
-}
-
-impl<T: Debug + Clone> Debug for UnaryOp<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(
-            f, "UnaryOp - tensor: {:?}, start: {:?}, from start: {:?}",
-            self.tensor.deref(), self.start, self.from_start
-        )
-    }
-}
-
-impl<T: Debug + Clone> Debug for BinaryOp<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(
-            f, "BinaryOp - first tensor: {:?} second tensor: {:?}, start: {:?}, from start: {:?}",
-            self.first_tensor.deref(), self.second_tensor.deref(), self.start, self.from_start
-        )
-    }
-}
-
-impl<T: Debug + Clone> Debug for SpecialOp<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(
-            f, "SpecialOp - tensor: {:?}, start: {:?}, from start: {:?}",
-            self.tensor.deref(), self.start, self.from_start
-        )
-    }
-}
-
-/// Structure representing an exponential operation.
+pub struct Neg      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
-pub struct Exp<T>       {
-    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
-    op: UnaryOp<T>,
-    backend: Arc<dyn Backend>,
-}
-
-/// Structure representing a negation operation.
+pub struct Sqrt     { backend: Arc<dyn Backend> }
 #[derive(Clone)]
-pub struct Neg<T>       {
-    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
-    op: UnaryOp<T>,
-    backend: Arc<dyn Backend>,
-}
-
-/// Structure representing a square root operation.
+pub struct Abs      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
-pub struct Sqrt<T>      {
-    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
-    op: UnaryOp<T>,
-    backend: Arc<dyn Backend>,
-}
-
-/// Structure representing an absolute value operation.
+pub struct Square   { backend: Arc<dyn Backend> }
 #[derive(Clone)]
-pub struct Abs<T>       {
-    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
-    op: UnaryOp<T>,
-    backend: Arc<dyn Backend>,
-}
-
-/// Structure representing a squaring operation.
+pub struct Log      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
-pub struct Square<T>    {
-    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
-    op: UnaryOp<T>,
-    backend: Arc<dyn Backend>,
-}
-
-/// Structure representing a logarithmic operation.
+pub struct Pow      { backend: Arc<dyn Backend>, pub power: Option<f32> }
 #[derive(Clone)]
-pub struct Log<T>       {
-    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
-    op: UnaryOp<T>,
-    backend: Arc<dyn Backend>,
-}
-
-/// Structure representing a power operation.
+pub struct Topk     { backend: Arc<dyn Backend>, pub topk: Option<(usize, bool)> }
 #[derive(Clone)]
-pub struct Pow<T>       {
-    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
-    op: UnaryOp<T>,
-    backend: Arc<dyn Backend>,
-    pub power: Option<f32>,
-}
-
-/// Structure representing a Top-k operation.
+pub struct Matmax   { backend: Arc<dyn Backend>, pub matmax: Option<(Option<i32>, bool)> }
 #[derive(Clone)]
-pub struct Topk<T>      {
-    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
-    op: SpecialOp<T>,
-    backend: Arc<dyn Backend>,
-    pub topk: Option<(usize, bool)>
-} // k: usize, sorted: bool
-
-/// Structure representing a matrix max operation along a dimension.
+pub struct Add      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
-pub struct Matmax<T>    {
-    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
-    op: SpecialOp<T>,
-    backend: Arc<dyn Backend>,
-    pub matmax: Option<(Option<i32>, bool)>
-} // dim: (Option<i32>, keepdim: bool
-
-/// Structure representing an addition operation.
+pub struct Sub      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
-pub struct Add<T>       {
-    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
-    op: BinaryOp<T>,
-    backend: Arc<dyn Backend>,
-}
-
-/// Structure representing a subtraction operation.
+pub struct Mul      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
-pub struct Sub<T>       {
-    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
-    op: BinaryOp<T>,
-    backend: Arc<dyn Backend>,}
-
-/// Structure representing a multiplication operation.
+pub struct Div      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
-pub struct Mul<T>       {
-    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
-    op: BinaryOp<T>,
-    backend: Arc<dyn Backend>
-}
-
-/// Structure representing a division operation.
-#[derive(Clone)]
-pub struct Div<T>       {
-    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
-    op: BinaryOp<T>,
-    backend: Arc<dyn Backend>,
-}
-
-
-/// Structure representing a matrix multiplication operation.
-#[derive(Clone)]
-pub struct Matmul<T>    {
-    pr_fn: Option<Arc<dyn Function<f32, Forwarded=MlResult<ArcTensor<f32>>, Gradiant=MlResult<(ArcTensor<f32>, ArcTensor<f32>)>, Operator=dyn Operator>>>,
-    op: BinaryOp<T> ,
-    backend: Arc<dyn Backend>,
-}
-
+pub struct Matmul   { backend: Arc<dyn Backend> }
 
 #[cfg(test)]
 mod tests {
     use crate::MlResult;
     use crate::tensor::*;
 
-    pub fn assert_tensor_eq(tensor: &ArcTensor<f32>, expected_tensor: &ArcTensor<f32>) -> MlResult<()> {
+    pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
+        Ok(())
+    }
+
+    pub fn assert_variable_eq(variable: &Variable<f32>, expected_variable: &Variable<f32>) -> MlResult<()> {
+        assert_eq!(variable.tensor.data(), variable.tensor.data());
+        assert_eq!(variable.tensor.shape(), variable.tensor.shape());
         Ok(())
     }
 
@@ -646,105 +410,141 @@ mod tests {
     }
 
     #[test]
-    fn test_add() -> MlResult<()> {
+    fn test_add_operator() -> MlResult<()> {
         let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
-        let m_add = ops!(first.clone(), Add, second.clone())?;
+        let expected = Tensor::<f32>::new(vec![vec![4.0, 6.0]]);
         let s_add = first + second;
-        let et = Tensor::<f32>::new(vec![vec![4.0, 6.0]]);
 
-        assert_tensor_eq(&m_add, &et)?;
-        assert_tensor_eq(&s_add, &et)
+        assert_tensor_eq(&s_add.tensor, &expected)
     }
+
     #[test]
-    fn test_sub() -> MlResult<()> {
+    fn test_sub_operator() -> MlResult<()> {
         let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
-        let m_sub = ops!(first.clone(), Sub, second.clone())?;
+        let expected = Tensor::<f32>::new(vec![vec![-2.0, -2.0]]);
         let s_sub = first - second;
-        let et = Tensor::<f32>::new(vec![vec![-2.0, -2.0]]);
 
-        assert_tensor_eq(&m_sub, &et)?;
-        assert_tensor_eq(&s_sub, &et)
+        assert_tensor_eq(&s_sub.tensor, &expected)
     }
+
     #[test]
-    fn test_mul() -> MlResult<()> {
+    fn test_mul_operator() -> MlResult<()> {
         let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
-        let m_mul = ops!(first.clone(), Mul, second.clone())?;
+        let expected = Tensor::<f32>::new(vec![vec![3.0, 8.0]]);
         let s_mul = first * second;
-        let et = Tensor::<f32>::new(vec![vec![3.0, 8.0]]);
 
-        assert_tensor_eq(&m_mul, &et)?;
-        assert_tensor_eq(&s_mul, &et)
+        assert_tensor_eq(&s_mul.tensor, &expected)
     }
+
     #[test]
-    fn test_div() -> MlResult<()> {
+    fn test_div_operator() -> MlResult<()> {
         let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::<f32>::new(vec![vec![2.0, 4.0]]);
-        let m_div = ops!(first.clone(), Div, second.clone())?;
+        let expected = Tensor::<f32>::new(vec![vec![0.5, 0.5]]);
         let s_div = first / second;
-        let et = Tensor::<f32>::new(vec![vec![0.5, 0.5]]);
 
-        assert_tensor_eq(&m_div, &et)?;
-        assert_tensor_eq(&s_div, &et)
+        assert_tensor_eq(&s_div.tensor, &expected)
     }
 
     #[test]
-    fn test_macro_matmul() {
+    fn test_add_macro() -> MlResult<()> {
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
+        let expected = Tensor::<f32>::new(vec![vec![4.0, 6.0]]);
+        let m_add = ops!(first, Add, second);
+
+        assert_tensor_eq(&m_add.tensor, &expected)
+    }
+
+    #[test]
+    fn test_sub_macro() -> MlResult<()> {
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
+        let expected = Tensor::<f32>::new(vec![vec![-2.0, -2.0]]);
+        let m_sub = ops!(first, Sub, second);
+
+        assert_tensor_eq(&m_sub.tensor, &expected)
+    }
+
+    #[test]
+    fn test_mul_macro() -> MlResult<()> {
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
+        let expected = Tensor::<f32>::new(vec![vec![3.0, 8.0]]);
+        let m_mul = ops!(first, Mul, second);
+
+        assert_tensor_eq(&m_mul.tensor, &expected)
+    }
+
+    #[test]
+    fn test_div_macro() -> MlResult<()> {
+        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::<f32>::new(vec![vec![2.0, 4.0]]);
+        let expected = Tensor::<f32>::new(vec![vec![0.5, 0.5]]);
+        let m_div = ops!(first, Div, second);
+
+        assert_tensor_eq(&m_div.tensor, &expected)
+    }
+
+    #[test]
+    fn test_matmul_macro() {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![3.0], vec![4.0]]);
-        let result = ops!(first, Matmul, second).unwrap();
-        assert_eq!(result.data(), vec![11.0]);
+        let result = ops!(first, Matmul, second);
+
+        assert_eq!(result.tensor.data(), vec![11.0]);
     }
 
     #[test]
-    fn test_macro_exp() {
+    fn tes_macro_exp_macro() {
         let tensor = Tensor::new(vec![vec![1.0, 2.0]]);
-        let result = ops!(tensor, Exp).unwrap();
-        assert_eq!(result.data(), vec![std::f32::consts::E, 7.389056]);
+        let result = ops!(tensor, Exp);
+        assert_eq!(result.tensor.data(), vec![std::f32::consts::E, 7.389056]);
     }
 
     #[test]
-    fn test_macro_neg() {
+    fn test_neg_macro() {
         let tensor = Tensor::new(vec![vec![1.0, -2.0]]);
-        let result = ops!(tensor, Neg).unwrap();
-        assert_eq!(result.data(), vec![-1.0, 2.0]);
+        let result = ops!(tensor, Neg);
+        assert_eq!(result.tensor.data(), vec![-1.0, 2.0]);
     }
 
     #[test]
-    fn test_macro_sqrt() {
+    fn test_sqrt_macro() {
         let tensor = Tensor::new(vec![vec![1.0, 4.0]]);
-        let result = ops!(tensor, Sqrt).unwrap();
-        assert_eq!(result.data(), vec![1.0, 2.0]);
+        let result = ops!(tensor, Sqrt);
+        assert_eq!(result.tensor.data(), vec![1.0, 2.0]);
     }
 
     #[test]
-    fn test_macro_abs() {
+    fn test_abs_macro() {
         let tensor = Tensor::new(vec![vec![1.0, -2.0]]);
-        let result = ops!(tensor, Abs).unwrap();
-        assert_eq!(result.data(), vec![1.0, 2.0]);
+        let result = ops!(tensor, Abs);
+        assert_eq!(result.tensor.data(), vec![1.0, 2.0]);
     }
 
     #[test]
-    fn test_macro_square() {
+    fn test_square_macro() {
         let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
-        let result = ops!(tensor, Square).unwrap();
-        assert_eq!(result.data(), vec![4.0, 9.0]);
+        let result = ops!(tensor, Square);
+        assert_eq!(result.tensor.data(), vec![4.0, 9.0]);
     }
 
     #[test]
-    fn test_macro_log() {
+    fn test_log_macro() {
         let tensor = Tensor::new(vec![vec![1.0, std::f32::consts::E]]);
-        let result = ops!(tensor, Log).unwrap();
-        assert_eq!(result.data(), vec![0.0, 0.99999994]);
+        let result = ops!(tensor, Log);
+        assert_eq!(result.tensor.data(), vec![0.0, 0.99999994]);
     }
 
     #[test]
-    fn test_macro_pow() {
+    fn test_pow_macro() {
         let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
-        let result = ops!(tensor, Pow, 2.0).unwrap();
-        assert_eq!(result.data(), vec![4.0, 9.0]);
+        let result = ops!(tensor, Pow, 2.0);
+        assert_eq!(result.tensor.data(), vec![4.0, 9.0]);
     }
 
     #[test]
