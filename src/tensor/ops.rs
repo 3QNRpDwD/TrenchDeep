@@ -174,9 +174,7 @@ impl Function<f32> for Add {
             _ => {
                 let mut buffer = Variable::new(Tensor::<f32>::from_vec(self.backend().add(targets[0].data(), targets[1].data()), targets[0].shape())?);
                 #[cfg(feature = "enable_backpropagation")]
-                        {
-            self.op.output = Some(buffer.tensor.clone());
-        }
+                { buffer.grad_fn = Some(Arc::new(self.clone())); }
                 Ok(vec![buffer])
             }
         }
@@ -184,7 +182,7 @@ impl Function<f32> for Add {
 
     #[cfg(feature = "enable_backpropagation")]
     fn backward(&self, grad: &Tensor<f32>) -> MlResult<Vec<Variable<f32>>> {
-        (grad.clone(), grad.clone())
+        todo!("Backward pass for Add not implemented")
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -583,7 +581,8 @@ impl Topk {
         let mut buffer = vec![Variable::new(Tensor::<f32>::from_vec(values, &new_shape)?), Variable::new(Tensor::<f32>::from_vec(indices, &new_shape)?)];
         #[cfg(feature = "enable_backpropagation")]
         {
-            self.op.output = Some((buffer.0.tensor.clone(), buffer.1.tensor.clone()));
+            buffer[0].grad_fn = Some(Arc::new(self.clone()));
+            buffer[1].grad_fn = Some(Arc::new(self.clone()));
         }
         Ok(buffer)
     }
@@ -669,7 +668,8 @@ impl Matmax {
         };
         #[cfg(feature = "enable_backpropagation")]
         {
-            self.op.output = Some((buffer.0.tensor.clone(), buffer.1.tensor.clone()))
+            buffer[0].grad_fn = Some(Arc::new(self.clone()));
+            buffer[1].grad_fn = Some(Arc::new(self.clone()));
         }
         Ok(buffer)
     }

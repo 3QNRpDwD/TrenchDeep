@@ -398,12 +398,12 @@ mod tests {
     }
 
     #[test]
-    fn propagations_backpropagation() -> MlResult<()>{
-        let x = Tensor::new(vec![vec![0.5]]);
-
+    fn phase_test() -> MlResult<()>{
         let mut A = Square::new()?;
         let mut B = Exp::new()?;
         let mut C = Square::new()?;
+
+        let x = Tensor::new(vec![vec![0.5]]);
         let a = A.forward(&[&x])?.remove(0).tensor;       // a = A(x)
         let b = B.forward(&[&a])?.remove(0).tensor;       // b = B(a)
         let y = C.forward(&[&b])?.remove(0).tensor;       // y = C(b)
@@ -414,7 +414,7 @@ mod tests {
         {
             let y_grad = Tensor::new(vec![vec![1.0]]);
             let b_grad = A.backward(&y_grad)?.remove(0).tensor; // Square backward
-            let a_grad = B.backward(&b_grad)?.remove(0).tensor; // Exp backward
+            let a_grad = B.backward(&b_grad)?.remove(0).tensor; // Exp    backward
             let x_grad = C.backward(&a_grad)?.remove(0).tensor; // Square backward
 
             print_phase("backward", y_grad, b_grad, a_grad, x_grad);
