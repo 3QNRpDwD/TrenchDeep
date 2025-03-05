@@ -242,14 +242,14 @@ impl Display for TensorError {
     }
 }
 
-#[derive(Debug)]
-pub struct Tensor<Type: Debug> {
+#[derive(Debug, Clone)]
+pub struct Tensor<Type> {
     data: Vec<Type>,
     shape: Vec<usize>,
 }
 
-#[derive(Debug)]
-pub struct Variable<Type: Debug> {
+#[derive(Clone)]
+pub struct Variable<Type> {
     tensor: Tensor<Type>,
     requires_grad: bool,
 
@@ -257,6 +257,21 @@ pub struct Variable<Type: Debug> {
     grad: Option<Tensor<Type>>,
     #[cfg(feature = "enable_backpropagation")]
     grad_fn: Option<Arc<dyn Function<Type>>>,
+}
+
+impl<Type: Debug> Debug for Variable<Type> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let mut ds = f.debug_struct("Variable");
+        ds.field("tensor", &self.tensor)
+            .field("requires_grad", &self.requires_grad);
+        #[cfg(feature = "enable_backpropagation")]
+        {
+            ds.field("grad", &self.grad);
+            // grad_fn은 Debug가 구현되어 있지 않으므로 생략하거나 커스텀 처리
+            ds.field("grad_fn", &"<omitted>");
+        }
+        ds.finish()
+    }
 }
 
 impl Variable<f32> {
@@ -272,6 +287,18 @@ impl Variable<f32> {
         }
     }
 
+    pub fn tensor(&self) -> &Tensor<f32> {
+        &self.tensor
+    }
+
+    pub fn retain_grad(&self) -> bool {
+        self.requires_grad
+    }
+
+    #[cfg(feature = "enable_backpropagation")]
+    pub fn grad(&self) -> Option<&Tensor<f32>> {
+        self.grad.as_ref()
+    }
     // pub fn from(tensor: Arc<Tensor<f32>>) -> Self {
     //     Self {
     //         tensor,
@@ -341,24 +368,30 @@ impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
 
 pub trait Function<T: Debug + Clone> {
     fn new() -> MlResult<Self> where Self: Sized;
-    fn forward(&self, targets: &[&Tensor<T>])   -> MlResult<Vec<Variable<T>>>;
+    fn forward(&mut self, targets: &[&Tensor<T>])   -> MlResult<Vec<Variable<T>>>;
 
     #[cfg(feature = "enable_backpropagation")] // 최적화를 위해 어트리뷰트에 따라서 역전파 기능의 활성화 여부를 조절하려 했으나, 복합적인 이유(연관타입 처리)로 폐지될 에정임
-    fn backward(&self, grad: &Tensor<T>)        -> MlResult<Vec<&Tensor<T>>>;
+    fn backward(&mut self, grad: &Tensor<T>)    -> MlResult<Vec<Tensor<T>>>;
 
     fn backend(&self) -> &Arc<dyn Backend>;
 }
 
-#[derive(Clone)]
-pub struct Exp      { backend: Arc<dyn Backend> }
+impl<Type: Debug + Clone> Debug for &dyn Function<Type> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "Function<{}>", std::any::type_name::<Self>())
+    }
+}
+
+// #[derive(Clone)]
+pub struct Exp      { backend: Arc<dyn Backend>, outputs: Vec<Tensor<f32>> }
 #[derive(Clone)]
 pub struct Neg      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
 pub struct Sqrt     { backend: Arc<dyn Backend> }
 #[derive(Clone)]
 pub struct Abs      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Square   { backend: Arc<dyn Backend> }
+// #[derive(Clone)]
+pub struct Square   { backend: Arc<dyn Backend>, outputs: Vec<Tensor<f32>> }
 #[derive(Clone)]
 pub struct Log      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
@@ -420,26 +453,29 @@ mod tests {
     }
 
     #[test]
-    fn propagations_backpropagation() -> MlResult<()>{
+    fn phase_test() -> MlResult<()>{
+        let mut square = Square::new()?;
+        let mut exp = Exp::new()?;
+
         let x = variable!(vec![vec![0.5]]);
+        let a = square.forward(&[ x.tensor() ])?.remove(0); // a = A(x)
+        let b = exp   .forward(&[ a.tensor() ])?.remove(0); // b = B(a)
+        let y = square.forward(&[ b.tensor() ])?.remove(0); // y = C(b)
+        let e = Tensor::new(vec![vec![1.6487213]]);
 
-        let mut A = Square::new()?;
-        let mut B = Exp::new()?;
-        let mut C = Square::new()?;
-        let a = A.forward(&[&x.tensor])?.remove(0); // a = A(x)
-        let b = B.forward(&[&a.tensor])?.remove(0); // b = B(a)
-        let y = C.forward(&[&b.tensor])?.remove(0); // y = C(b)
-
-        print_phase("forward", &x.tensor, &a.tensor, &b.tensor, &y.tensor);
+        print_phase("forward", x.tensor(), a.tensor(), b.tensor(), y.tensor());
+        assert_tensor_eq(y.tensor(), &e)?;
 
         #[cfg(feature = "enable_backpropagation")]
         {
             let y_grad = Tensor::new(vec![vec![1.0]]);
-            let b_grad = A.backward(&y_grad)?.remove(0); // Square backward
-            let a_grad = B.backward(b_grad)?.remove(0); // Exp backward
-            let x_grad = C.backward(a_grad)?.remove(0); // Square backward
+            let b_grad = square.backward( &y_grad )?.remove(0);
+            let a_grad = exp   .backward( &b_grad )?.remove(0);
+            let x_grad = square.backward( &a_grad )?.remove(0);
+            let e_grad = Tensor::new(vec![vec![3.2974427]]);
 
-            print_phase("backward", &y_grad, b_grad, a_grad, x_grad);
+            print_phase("backward", &y_grad, &b_grad, &a_grad, &x_grad);
+            assert_tensor_eq(&x_grad, &e_grad)?;
         }
 
         Ok(())
