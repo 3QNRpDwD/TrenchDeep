@@ -21,10 +21,10 @@ mod creation;
 /// # Examples
 ///
 /// ```rust
-/// use MIT::{ops, tensor::{Tensor, TensorBase, Abs, Add, Div, Log, Matmax, Mul, Sqrt, Sub}};
+/// use MIT::{ops, variable, tensor::{Add, Log, Mul, Sqrt, Sub}};
 ///
-/// let mut tensor1 = Tensor::<f32>::new(vec![vec![1.0, 2.0, 3.0]]);
-/// let tensor2 = Tensor::<f32>::new(vec![vec![3.0, 2.0, 1.0]]);
+/// let tensor1 = variable!(vec![vec![1.0, 2.0, 3.0]]);
+/// let tensor2 = variable!(vec![vec![3.0, 2.0, 1.0]]);
 ///
 /// // 기본 산술 연산
 /// let result = ops!(tensor1, Add, tensor2);
@@ -108,9 +108,9 @@ macro_rules! ops {
 /// # Examples
 ///
 /// ```rust
-/// use MIT::{scalar_ops, tensor::{Tensor, TensorBase}};
+/// use MIT::{scalar_ops, variable};
 ///
-/// let tensor = Tensor::<f32>::new(vec![vec![1.0, 2.0, 3.0]]);
+/// let tensor = variable!(vec![vec![1.0, 2.0, 3.0]]);
 ///
 /// // 정방향 연산 예시
 /// let result = scalar_ops!(tensor, Add, 2.0); // 모든 요소에 2.0을 더함
@@ -175,6 +175,16 @@ macro_rules! scalar_ops {
     };
 }
 
+#[macro_export]
+macro_rules! variable {
+    ($vec:expr) => {
+        Variable::new(Tensor::new($vec))
+    };
+
+    ($data:expr, $shape:expr) => {
+        Variable::new(Tensor::from_vec($data, $shape).unwrap())
+    };
+}
 
 #[derive(Debug, Clone)]
 pub enum TensorError {
@@ -232,21 +242,36 @@ impl Display for TensorError {
     }
 }
 
-#[derive(Debug)]
-pub struct Tensor<Type: Debug> {
+#[derive(Debug, Clone)]
+pub struct Tensor<Type> {
     data: Vec<Type>,
     shape: Vec<usize>,
 }
 
-#[derive(Debug)]
-pub struct Variable<Type: Debug> {
+#[derive(Clone)]
+pub struct Variable<Type> {
     tensor: Tensor<Type>,
     requires_grad: bool,
 
     #[cfg(feature = "enable_backpropagation")]
-    grad: Option<Arc<Tensor<Type>>>,
+    grad: Option<Tensor<Type>>,
     #[cfg(feature = "enable_backpropagation")]
     grad_fn: Option<Arc<dyn Function<Type>>>,
+}
+
+impl<Type: Debug> Debug for Variable<Type> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let mut ds = f.debug_struct("Variable");
+        ds.field("tensor", &self.tensor)
+            .field("requires_grad", &self.requires_grad);
+        #[cfg(feature = "enable_backpropagation")]
+        {
+            ds.field("grad", &self.grad);
+            // grad_fn은 Debug가 구현되어 있지 않으므로 생략하거나 커스텀 처리
+            ds.field("grad_fn", &"<omitted>");
+        }
+        ds.finish()
+    }
 }
 
 impl Variable<f32> {
@@ -261,6 +286,30 @@ impl Variable<f32> {
             grad_fn: None,
         }
     }
+
+    pub fn tensor(&self) -> &Tensor<f32> {
+        &self.tensor
+    }
+
+    pub fn retain_grad(&self) -> bool {
+        self.requires_grad
+    }
+
+    #[cfg(feature = "enable_backpropagation")]
+    pub fn grad(&self) -> Option<&Tensor<f32>> {
+        self.grad.as_ref()
+    }
+    // pub fn from(tensor: Arc<Tensor<f32>>) -> Self {
+    //     Self {
+    //         tensor,
+    //         requires_grad: cfg!(feature = "enable_backpropagation"),
+    //
+    //         #[cfg(feature = "enable_backpropagation")]
+    //         grad: None,
+    //         #[cfg(feature = "enable_backpropagation")]
+    //         grad_fn: None,
+    //     }
+    // }
 }
 
 // impl<T> Deref for Variable<T> {
@@ -319,24 +368,30 @@ impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
 
 pub trait Function<T: Debug + Clone> {
     fn new() -> MlResult<Self> where Self: Sized;
-    fn forward(&self, targets: &[&Tensor<T>])   -> MlResult<Vec<Variable<f32>>>;
+    fn forward(&mut self, targets: &[&Tensor<T>])   -> MlResult<Vec<Variable<T>>>;
 
     #[cfg(feature = "enable_backpropagation")] // 최적화를 위해 어트리뷰트에 따라서 역전파 기능의 활성화 여부를 조절하려 했으나, 복합적인 이유(연관타입 처리)로 폐지될 에정임
-    fn backward(&self, grad: &Tensor<T>)        -> MlResult<Vec<Variable<f32>>>;
+    fn backward(&mut self, grad: &Tensor<T>)    -> MlResult<Vec<Tensor<T>>>;
 
     fn backend(&self) -> &Arc<dyn Backend>;
 }
 
-#[derive(Clone)]
-pub struct Exp      { backend: Arc<dyn Backend> }
+impl<Type: Debug + Clone> Debug for &dyn Function<Type> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "Function<{}>", std::any::type_name::<Self>())
+    }
+}
+
+// #[derive(Clone)]
+pub struct Exp      { backend: Arc<dyn Backend>, outputs: Vec<Tensor<f32>> }
 #[derive(Clone)]
 pub struct Neg      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
 pub struct Sqrt     { backend: Arc<dyn Backend> }
 #[derive(Clone)]
 pub struct Abs      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Square   { backend: Arc<dyn Backend> }
+// #[derive(Clone)]
+pub struct Square   { backend: Arc<dyn Backend>, outputs: Vec<Tensor<f32>> }
 #[derive(Clone)]
 pub struct Log      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
@@ -368,17 +423,17 @@ mod tests {
     }
 
     pub fn assert_variable_eq(variable: &Variable<f32>, expected_variable: &Variable<f32>) -> MlResult<()> {
-        assert_eq!(variable.tensor.data(), variable.tensor.data());
-        assert_eq!(variable.tensor.shape(), variable.tensor.shape());
+        assert_eq!(variable.tensor.data(), expected_variable.tensor.data());
+        assert_eq!(variable.tensor.shape(), expected_variable.tensor.shape());
         Ok(())
     }
 
     fn print_phase(
         phase: &str,
-        x: Tensor<f32>,
-        a: Tensor<f32>,
-        b: Tensor<f32>,
-        y: Tensor<f32>,
+        x: &Tensor<f32>,
+        a: &Tensor<f32>,
+        b: &Tensor<f32>,
+        y: &Tensor<f32>,
     ) {
         println!(
             "{}:\n    \
@@ -386,12 +441,12 @@ mod tests {
             Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[ Exps ]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n    \
             Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[Square]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n",
             phase,
-            x.data, x.shape,
-            a.data, a.shape,
-            a.data, b.shape,
-            b.data, b.shape,
-            b.data, b.shape,
-            y.data, y.shape,
+            x.data(), x.shape(),
+            a.data(), a.shape(),
+            a.data(), b.shape(),
+            b.data(), b.shape(),
+            b.data(), b.shape(),
+            y.data(), y.shape(),
             width = 11,
             width2 = 3
         );
@@ -399,25 +454,28 @@ mod tests {
 
     #[test]
     fn phase_test() -> MlResult<()>{
-        let mut A = Square::new()?;
-        let mut B = Exp::new()?;
-        let mut C = Square::new()?;
+        let mut square = Square::new()?;
+        let mut exp = Exp::new()?;
 
-        let x = Tensor::new(vec![vec![0.5]]);
-        let a = A.forward(&[&x])?.remove(0).tensor;       // a = A(x)
-        let b = B.forward(&[&a])?.remove(0).tensor;       // b = B(a)
-        let y = C.forward(&[&b])?.remove(0).tensor;       // y = C(b)
+        let x = variable!(vec![vec![0.5]]);
+        let a = square.forward(&[ x.tensor() ])?.remove(0); // a = A(x)
+        let b = exp   .forward(&[ a.tensor() ])?.remove(0); // b = B(a)
+        let y = square.forward(&[ b.tensor() ])?.remove(0); // y = C(b)
+        let e = Tensor::new(vec![vec![1.6487213]]);
 
-        print_phase("forward", x, a, b, y);
+        print_phase("forward", x.tensor(), a.tensor(), b.tensor(), y.tensor());
+        assert_tensor_eq(y.tensor(), &e)?;
 
         #[cfg(feature = "enable_backpropagation")]
         {
             let y_grad = Tensor::new(vec![vec![1.0]]);
-            let b_grad = A.backward(&y_grad)?.remove(0).tensor; // Square backward
-            let a_grad = B.backward(&b_grad)?.remove(0).tensor; // Exp    backward
-            let x_grad = C.backward(&a_grad)?.remove(0).tensor; // Square backward
+            let b_grad = square.backward( &y_grad )?.remove(0);
+            let a_grad = exp   .backward( &b_grad )?.remove(0);
+            let x_grad = square.backward( &a_grad )?.remove(0);
+            let e_grad = Tensor::new(vec![vec![3.2974427]]);
 
-            print_phase("backward", y_grad, b_grad, a_grad, x_grad);
+            print_phase("backward", &y_grad, &b_grad, &a_grad, &x_grad);
+            assert_tensor_eq(&x_grad, &e_grad)?;
         }
 
         Ok(())
@@ -434,9 +492,9 @@ mod tests {
 
     #[test]
     fn test_add_operator() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
-        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
-        let expected = Tensor::<f32>::new(vec![vec![4.0, 6.0]]);
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second =Tensor::new(vec![vec![3.0, 4.0]]);
+        let expected = Tensor::new(vec![vec![4.0, 6.0]]);
         let s_add = first + second;
 
         assert_tensor_eq(&s_add.tensor, &expected)
@@ -444,9 +502,9 @@ mod tests {
 
     #[test]
     fn test_sub_operator() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
-        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
-        let expected = Tensor::<f32>::new(vec![vec![-2.0, -2.0]]);
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![3.0, 4.0]]);
+        let expected = Tensor::new(vec![vec![-2.0, -2.0]]);
         let s_sub = first - second;
 
         assert_tensor_eq(&s_sub.tensor, &expected)
@@ -454,9 +512,9 @@ mod tests {
 
     #[test]
     fn test_mul_operator() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
-        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
-        let expected = Tensor::<f32>::new(vec![vec![3.0, 8.0]]);
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![3.0, 4.0]]);
+        let expected = Tensor::new(vec![vec![3.0, 8.0]]);
         let s_mul = first * second;
 
         assert_tensor_eq(&s_mul.tensor, &expected)
@@ -464,9 +522,9 @@ mod tests {
 
     #[test]
     fn test_div_operator() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
-        let second = Tensor::<f32>::new(vec![vec![2.0, 4.0]]);
-        let expected = Tensor::<f32>::new(vec![vec![0.5, 0.5]]);
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![2.0, 4.0]]);
+        let expected = Tensor::new(vec![vec![0.5, 0.5]]);
         let s_div = first / second;
 
         assert_tensor_eq(&s_div.tensor, &expected)
@@ -474,9 +532,9 @@ mod tests {
 
     #[test]
     fn test_add_macro() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
-        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
-        let expected = Tensor::<f32>::new(vec![vec![4.0, 6.0]]);
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![3.0, 4.0]]);
+        let expected = Tensor::new(vec![vec![4.0, 6.0]]);
         let m_add = ops!(first, Add, second);
 
         assert_tensor_eq(&m_add.tensor, &expected)
@@ -484,9 +542,9 @@ mod tests {
 
     #[test]
     fn test_sub_macro() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
-        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
-        let expected = Tensor::<f32>::new(vec![vec![-2.0, -2.0]]);
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![3.0, 4.0]]);
+        let expected = Tensor::new(vec![vec![-2.0, -2.0]]);
         let m_sub = ops!(first, Sub, second);
 
         assert_tensor_eq(&m_sub.tensor, &expected)
@@ -494,9 +552,9 @@ mod tests {
 
     #[test]
     fn test_mul_macro() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
-        let second = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
-        let expected = Tensor::<f32>::new(vec![vec![3.0, 8.0]]);
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![3.0, 4.0]]);
+        let expected = Tensor::new(vec![vec![3.0, 8.0]]);
         let m_mul = ops!(first, Mul, second);
 
         assert_tensor_eq(&m_mul.tensor, &expected)
@@ -504,9 +562,9 @@ mod tests {
 
     #[test]
     fn test_div_macro() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
-        let second = Tensor::<f32>::new(vec![vec![2.0, 4.0]]);
-        let expected = Tensor::<f32>::new(vec![vec![0.5, 0.5]]);
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![2.0, 4.0]]);
+        let expected = Tensor::new(vec![vec![0.5, 0.5]]);
         let m_div = ops!(first, Div, second);
 
         assert_tensor_eq(&m_div.tensor, &expected)
@@ -571,52 +629,52 @@ mod tests {
     }
 
     #[test]
-    fn tensor_ops_add_scalar() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
-        let et = Tensor::<f32>::new(vec![vec![3.0, 4.0]]);
+    fn tensor_add_scalar() -> MlResult<()> {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let et = Tensor::new(vec![vec![3.0, 4.0]]);
         let result = scalar_ops!(first, Add, 2.0)?;
         // 텐서와 스칼라의 차원이 맞지 않아, 오류 발생.
         // 스칼라 연산 메서드를 따로 구현하야하나?
         assert_tensor_eq(&result, &et)
     }
     #[test]
-    fn tensor_ops_sub_scalar() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
-        let et = Tensor::<f32>::new(vec![vec![-1.0, 0.0]]);
+    fn tensor_sub_scalar() -> MlResult<()> {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let et = Tensor::new(vec![vec![-1.0, 0.0]]);
         let result = scalar_ops!(first, Sub, 2.0)?;
 
         assert_tensor_eq(&result, &et)
     }
     #[test]
-    fn tensor_ops_mul_scalar() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
-        let et = Tensor::<f32>::new(vec![vec![2.0, 4.0]]);
+    fn tensor_mul_scalar() -> MlResult<()> {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let et = Tensor::new(vec![vec![2.0, 4.0]]);
         let result = scalar_ops!(first, Mul , 2.0)?;
 
         assert_tensor_eq(&result, &et)
     }
     #[test]
-    fn tensor_ops_div_scalar() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
-        let et = Tensor::<f32>::new(vec![vec![0.5, 1.0]]);
+    fn tensor_div_scalar() -> MlResult<()> {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let et = Tensor::new(vec![vec![0.5, 1.0]]);
         let result = scalar_ops!(first, Div , 2.0)?;
 
         assert_tensor_eq(&result, &et)
     }
 
     #[test]
-    fn tensor_ops_scalar_sub() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
-        let et = Tensor::<f32>::new(vec![vec![1.0, 0.0]]);
+    fn tensor_scalar_sub() -> MlResult<()> {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let et = Tensor::new(vec![vec![1.0, 0.0]]);
         let result = scalar_ops!(2.0, buS , first)?;
 
         assert_tensor_eq(&result, &et)
 
     }
     #[test]
-    fn tensor_ops_scalar_div() -> MlResult<()> {
-        let first = Tensor::<f32>::new(vec![vec![1.0, 2.0]]);
-        let et = Tensor::<f32>::new(vec![vec![2.0, 1.0]]);
+    fn tensor_scalar_div() -> MlResult<()> {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let et = Tensor::new(vec![vec![2.0, 1.0]]);
         let result = scalar_ops!(2.0, viD , first)?;
 
         assert_tensor_eq(&result, &et)
