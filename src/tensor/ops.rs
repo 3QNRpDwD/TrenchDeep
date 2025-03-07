@@ -567,11 +567,6 @@ impl Topk {
         new_shape[last_dim] = self.topk.unwrap().0;
 
         let buffer = vec![Variable::new(Tensor::<f32>::from_vec(values, &new_shape)?), Variable::new(Tensor::<f32>::from_vec(indices, &new_shape)?)];
-        // #[cfg(feature = "enable_backpropagation")]
-        // {
-        //     buffer[0].grad_fn = Some(Arc::new(Self::new()));
-        //     buffer[1].grad_fn = Some(Arc::new(Self::new()));
-        // }
         Ok(buffer)
     }
 
