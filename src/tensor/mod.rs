@@ -391,7 +391,6 @@ impl<Type: Debug + Clone> Debug for &dyn Function<Type> {
     }
 }
 
-// #[derive(Clone)]
 #[derive(Clone)]
 pub struct Exp      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
@@ -400,7 +399,6 @@ pub struct Neg      { backend: Arc<dyn Backend> }
 pub struct Sqrt     { backend: Arc<dyn Backend> }
 #[derive(Clone)]
 pub struct Abs      { backend: Arc<dyn Backend> }
-// #[derive(Clone)]
 #[derive(Clone)]
 pub struct Square   { backend: Arc<dyn Backend> }
 #[derive(Clone)]
@@ -416,7 +414,7 @@ pub struct Add      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
 pub struct Sub      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
-pub struct Mul      { backend: Arc<dyn Backend> }
+pub struct Mul      { backend: Arc<dyn Backend>, outputs: Vec<Tensor<f32>> }
 #[derive(Clone)]
 pub struct Div      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
@@ -426,7 +424,6 @@ pub struct Matmul   { backend: Arc<dyn Backend> }
 mod tests {
     use crate::MlResult;
     use crate::tensor::*;
-    #[cfg(feature = "enable_backpropagation")]
     use crate::tensor::creation::AutogradFunction;
 
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
@@ -490,34 +487,30 @@ mod tests {
             print_phase("backward", &y_grad, &b_grad, &a_grad, &x_grad);
             // assert_tensor_eq(&x_grad, &e_grad)?;
         }
-
         Ok(())
     }
 
     #[test]
-    #[cfg(feature = "enable_backpropagation")]
     fn autograd_test() -> MlResult<()> {
         let square = Square::new()?;
         let exp = Exp::new()?;
 
         let x = Arc::new(variable!(vec![vec![0.5]]));
-        // 연산 수행 (자동으로 계산 그래프 구성)
         let a = square.apply(&[&x])?;
         let b = exp   .apply(&[&a])?;
         let y = square.apply(&[&b])?;
         let e = Tensor::new(vec![vec![1.6487213]]);
 
         print_phase("autograd forward", x.tensor(), a.tensor(), b.tensor(), y.tensor());
-        assert_tensor_eq(y.tensor(), &e)?;
 
         #[cfg(feature = "enable_backpropagation")]
         {
             y.backward()?;
-
             println!("autograd backward: {:?}", y.grad.as_ref());
+
+            assert_tensor_eq(y.tensor(), &e)?;
             assert_tensor_eq(x.grad.as_ref().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
         }
-
         Ok(())
     }
 

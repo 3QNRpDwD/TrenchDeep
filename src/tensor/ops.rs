@@ -232,7 +232,7 @@ impl Function<f32> for Sub {
 }
 
 impl Function<f32> for Mul {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
+    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), outputs: vec![] }) }
     /// Multiplies two tensors element-wise
     ///
     /// # Arguments
@@ -245,8 +245,6 @@ impl Function<f32> for Mul {
             Err(e) => Err(e),
             _ => {
                 let buffer = Variable::new(Tensor::<f32>::from_vec(self.backend().multiply(targets[0].data(), targets[1].data()), targets[0].shape())?);
-                // #[cfg(feature = "enable_backpropagation")]
-                // { buffer.grad_fn = Some(Arc::new(Self::new())) }
                 Ok(vec![buffer])
             }
         }
@@ -254,7 +252,7 @@ impl Function<f32> for Mul {
 
     #[cfg(feature = "enable_backpropagation")]
     fn backward(&self, target: &Tensor<f32>, grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
-        todo!()
+        Ok(vec![(target * grad).tensor, (target * grad).tensor])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
