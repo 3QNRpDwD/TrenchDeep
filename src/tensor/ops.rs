@@ -11,8 +11,6 @@ impl Function<f32> for Abs {
     /// A new tensor with the absolute values of each element
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
         let buffer = Variable::new(Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| x.abs()).collect(), targets[0].shape())?);
-        // #[cfg(feature = "enable_backpropagation")]
-        // { buffer.grad_fn = Some(Arc::new(self.clone())); }
         Ok(vec![buffer])
     }
 
@@ -32,7 +30,6 @@ impl Function<f32> for Exp {
     /// A new tensor with each element being e ^ tensor_element
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
         let tensor = Tensor::<f32>::from_vec(self.backend().exp(targets[0].data()), targets[0].shape())?;
-        // { buffer.grad_fn = Some(Arc::new(self.clone())); }
         Ok(vec![Variable::new(tensor)])
     }
 
@@ -42,7 +39,6 @@ impl Function<f32> for Exp {
             .zip(target.data().iter())
             .map(|(grad_data, target_data)| grad_data * target_data)
             .collect();
-
         println!("{:?} * {:?} = {:?}", grad.data, target.data, gradiant);
 
         Ok(vec![Tensor::<f32>::from_vec(gradiant, target.shape())?])

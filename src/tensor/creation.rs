@@ -44,17 +44,6 @@ impl TensorBase<f32> for Tensor<f32> {
             shape: shape.to_vec(),
         })
     }
-    // #[cfg(feature = "enable_backpropagation")]
-    // fn from_grad_fn(data: Vec<f32>, shape: &[usize], grad_fn: &mut dyn Operator<f32>) -> Tensor<f32> {
-    //     Tensor::new(Self {
-    //         data,
-    //         shape: shape.to_vec(),
-    //         requires_grad: false,
-    //
-    //         // #[cfg(feature = "enable_backpropagation")]
-    //         // grad_fn: Some(Arc::new(grad_fn))
-    //     })
-    // }
 
     fn shape(&self) -> &[usize] {
         &self.shape
@@ -104,7 +93,6 @@ impl TensorBase<f32> for Tensor<f32> {
 thread_local! {
     static COMPUTATION_GRAPH: RefCell<ComputationGraph<f32>> = RefCell::new(ComputationGraph::new());
 }
-
 
 impl Variable<f32> {
     pub fn new(tensor: Tensor<f32>) -> Self {
@@ -166,9 +154,7 @@ impl Variable<f32> {
     /// - Maintains DAG structure through node ID tracking
     /// - Operation nodes store backward function and input relationships
     #[cfg(feature = "enable_backpropagation")]
-    pub fn with_grad_fn(self, function: Arc<dyn Function<f32>>, inputs: &[&Arc<Variable<f32>>]) -> Self {
-        let self_arc = Arc::new(self);
-
+    pub fn with_grad_fn(self: Arc<Self>, function: Arc<dyn Function<f32>>, inputs: &[&Arc<Variable<f32>>]) {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.borrow_mut();
 
@@ -176,7 +162,7 @@ impl Variable<f32> {
             let input_ids = inputs.iter().map(|&input_var| {
                 // 이미 그래프에 있는지 확인
                 for (id, node) in &graph.nodes {
-                    if Arc::ptr_eq(&node.variable, input_var) {
+                    if node.variable.as_ref() == input_var {
                         return *id;
                     }
                 }
@@ -185,11 +171,8 @@ impl Variable<f32> {
             }).collect();
 
             // 연산 노드 추가
-            graph.add_operation(self_arc.clone(), function, input_ids);
+            graph.add_operation(self, function, input_ids);
         });
-
-        let result = (*self_arc).clone();
-        result
     }
 
 
@@ -227,17 +210,15 @@ impl Variable<f32> {
     /// - Gradient accumulation uses += operator (users should zero gradients when needed)
     #[cfg(feature = "enable_backpropagation")]
     pub fn backward(&self) -> MlResult<()> {
-        let self_arc = Arc::new(self.clone());
-
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.borrow_mut();
 
             let node_id = graph.nodes.iter()
-                .find(|(_, &ref node)| Arc::ptr_eq(&node.variable, &self_arc))
+                .find(|(_, &ref node)| node.variable.as_ref() == self)
                 .map(|(id, _)| *id);
 
             match node_id {
-                Some(id) => graph.backward(id),
+                Some(id) => { graph.backward(id) },
                 None => Err(StringError("위상정렬된 노드를 찾을수 없습니다.".to_string())),
             }
         })
@@ -343,6 +324,7 @@ impl ComputationGraph<f32> {
     fn backward(&mut self, output_id: NodeId) -> MlResult<()> {
         if !self.sorted {
             self.topological_sort();
+            println!(" topo {:?}", self.topo_sorted);
         }
 
         // 출력 노드의 그래디언트를 1.0으로 초기화
@@ -354,13 +336,14 @@ impl ComputationGraph<f32> {
 
         grads.insert(output_id, grad);
 
+        println!("grads {:?}", grads);
         // 역순으로 순회하며 역전파 수행
         for &node_id in self.topo_sorted.iter().rev() {
-            if let Some(grad) = grads.get(&node_id).cloned() {
+            if let Some(grad) = grads.get(&node_id) {
                 let node = self.nodes.get(&node_id).unwrap();
 
                 if let Some(function) = &node.function {
-                    let input_grads = function.backward(node.output.as_ref().unwrap(), &grad).map_err(|e| format!("역전파 실패: {:?}", e))?;
+                    let input_grads = function.backward(&node.variable.tensor, &grad).map_err(|e| format!("역전파 실패: {:?}", e))?;
 
                     // 입력 노드들에 그래디언트 전파
                     for (i, &input_id) in node.inputs.iter().enumerate() {
@@ -384,20 +367,20 @@ impl ComputationGraph<f32> {
         // 각 변수에 그래디언트 설정
         for (node_id, grad) in grads {
             let node = self.nodes.get(&node_id).unwrap();
-            if node.variable.requires_grad {
-                unsafe {
-                    let var_ptr = Arc::as_ptr(&node.variable) as *mut Variable<f32>;
-                    (*var_ptr).set_grad(grad);
-                }
+            unsafe {
+                let var_ptr = Arc::as_ptr(&node.variable) as *mut Variable<f32>;
+                (*var_ptr).set_grad(grad);
             }
         }
+
+        println!("self: {:?}", self);
 
         Ok(())
     }
 }
 
 
-pub trait AutogradFunction<T: Debug + Clone>: Function<f32> + Clone where Self: 'static {
+pub trait AutogradFunction: Function<f32> + Clone where Self: 'static {
     /// Applies the operation defined by this struct to the given input variables.
     ///
     /// This method performs the following steps:
@@ -438,17 +421,13 @@ pub trait AutogradFunction<T: Debug + Clone>: Function<f32> + Clone where Self: 
                 return Err("자동 역전파는 현재는 단일 출력 함수만 지원합니다.".into());
             }
 
-            let result = results.remove(0);
-
-            if inputs.iter().any(|var| var.requires_grad) {
-                return Ok(Arc::new(result.with_grad_fn(Arc::new(self.clone()), inputs)))
-            }
-
-            return Ok(Arc::new(result))
+            let result = Arc::new(results.remove(0));
+            result.clone().with_grad_fn(Arc::new(self.clone()), inputs);
+            return Ok(result)
         }
 
         Ok(Arc::new(results.remove(0)))
     }
 }
 
-impl<F: Function<f32> + Clone + 'static> AutogradFunction<f32> for F {}
+impl<F: Function<f32> + Clone + 'static> AutogradFunction for F {}
