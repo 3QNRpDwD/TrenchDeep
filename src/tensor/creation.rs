@@ -101,7 +101,7 @@ impl Variable<f32> {
             requires_grad: cfg!(feature = "enable_backpropagation"),
 
             #[cfg(feature = "enable_backpropagation")]
-            grad: None,
+            grad: RefCell::new(None),
         }
     }
 
@@ -114,13 +114,34 @@ impl Variable<f32> {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    pub fn grad(&self) -> Option<&Tensor<f32>> {
-        self.grad.as_ref()
+    pub fn grad(&self) -> Option<Tensor<f32>> {
+        self.grad.borrow().clone()
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    pub fn set_grad(&mut self, grad: Tensor<f32>) {
-        self.grad = Some(grad);
+    pub fn set_grad(&self, grad: Tensor<f32>) {
+        *self.grad.borrow_mut() = Some(grad);
+    }
+
+    #[cfg(feature = "enable_backpropagation")]
+    pub fn accumulate_grad(&self, new_grad: Tensor<f32>) -> MlResult<()> {
+        let mut grad_ref = self.grad.borrow_mut();
+
+        if let Some(ref existing_grad) = *grad_ref {
+            let mut new_data = Vec::with_capacity(existing_grad.data().len());
+            for (a, b) in existing_grad.data().iter().zip(new_grad.data().iter()) {
+                new_data.push(a + b);
+            }
+
+            let accumulated_grad = Tensor::from_vec(new_data, existing_grad.shape())
+                .map_err(|e| format!("그래디언트 누적 실패: {:?}", e))?;
+
+            *grad_ref = Some(accumulated_grad);
+        } else {
+            *grad_ref = Some(new_grad);
+        }
+
+        Ok(())
     }
 
     /// Attaches gradient computation information to the variable by creating a computation graph node.
@@ -159,19 +180,19 @@ impl Variable<f32> {
             let mut graph = graph.borrow_mut();
 
             // 입력 노드 ID 찾기 또는 추가
-            let input_ids = inputs.iter().map(|&input_var| {
+            let ids: Vec<NodeId> = inputs.iter().map(|&variable| {
                 // 이미 그래프에 있는지 확인
                 for (id, node) in &graph.nodes {
-                    if node.variable.as_ref() == input_var {
+                    if node.variable.as_ref() == variable {
                         return *id;
                     }
                 }
                 // 없으면 추가
-                graph.add_input(input_var.clone())
+                graph.add_input(variable.clone())
             }).collect();
 
             // 연산 노드 추가
-            graph.add_operation(self, function, input_ids);
+            graph.add_operation(self, function, ids);
         });
     }
 
@@ -219,7 +240,7 @@ impl Variable<f32> {
 
             match node_id {
                 Some(id) => { graph.backward(id) },
-                None => Err(StringError("위상정렬된 노드를 찾을수 없습니다.".to_string())),
+                None => Err(StringError("계산 그래프가 생성되지 않았습니다.".to_string())),
             }
         })
     }
@@ -238,44 +259,40 @@ impl ComputationGraph<f32> {
 
     // 입력 변수 노드 추가
     #[cfg(feature = "enable_backpropagation")]
-    fn add_input(&mut self, var: Arc<Variable<f32>>) -> NodeId {
-        let node_id = self.next_id;
+    fn add_input(&mut self, variable: Arc<Variable<f32>>) -> NodeId {
+        let id = self.next_id;
         self.next_id += 1;
 
         let node = ComputationNode {
-            id: node_id,
-            variable: var,
+            id,
+            variable,
             function: None,
-            output: None,
+            // output: None,
             inputs: Vec::new(),
         };
 
-        self.nodes.insert(node_id, node);
+        self.nodes.insert(id, node);
         self.sorted = false;
-        node_id
+        id
     }
 
     // 연산 노드 추가
     #[cfg(feature = "enable_backpropagation")]
-    fn add_operation(&mut self, var: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId>) -> NodeId {
-        let node_id = self.next_id;
+    fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId>) -> NodeId {
+        let id = self.next_id;
         self.next_id += 1;
-        let output = match var.grad.is_none() {
-            true => None,
-            false => Some(var.grad.clone().unwrap())
-        };
 
         let node = ComputationNode {
-            id: node_id,
-            variable: var,
+            id,
+            variable,
             function: Some(function),
-            output,
+            // output,
             inputs,
         };
 
-        self.nodes.insert(node_id, node);
+        self.nodes.insert(id, node); // 값이 대입되지 않고, 지연되는 문제 발생
         self.sorted = false;
-        node_id
+        id
     }
 
     // 위상정렬 수행
@@ -327,53 +344,38 @@ impl ComputationGraph<f32> {
             println!(" topo {:?}", self.topo_sorted);
         }
 
+        println!("nodes: {:?}", self.nodes);
+
         // 출력 노드의 그래디언트를 1.0으로 초기화
-        let mut grads = HashMap::new();
         let output_node = self.nodes.get(&output_id).ok_or("출력 노드를 찾을 수 없습니다.")?;
         let shape = &output_node.variable.tensor.shape;
         let data = vec![1.0; shape.iter().product()];
-        let grad = Tensor::from_vec(data, &shape).map_err(|e| format!("그래디언트 초기화 실패: {:?}", e))?;
+        let grad = Tensor::from_vec(data, &shape)
+            .map_err(|e| format!("그래디언트 초기화 실패: {:?}", e))?;
 
-        grads.insert(output_id, grad);
+        // 출력 노드에 그래디언트 설정
+        output_node.variable.set_grad(grad);
 
-        println!("grads {:?}", grads);
         // 역순으로 순회하며 역전파 수행
         for &node_id in self.topo_sorted.iter().rev() {
-            if let Some(grad) = grads.get(&node_id) {
-                let node = self.nodes.get(&node_id).unwrap();
-
-                if let Some(function) = &node.function {
-                    let input_grads = function.backward(&node.variable.tensor, &grad).map_err(|e| format!("역전파 실패: {:?}", e))?;
-
-                    // 입력 노드들에 그래디언트 전파
-                    for (i, &input_id) in node.inputs.iter().enumerate() {
-                        let input_grad = input_grads.get(i).ok_or("입력 그래디언트가 부족합니다.")?;
-
-                        if let Some(existing_grad) = grads.get_mut(&input_id) {
-                            let mut new_data = Vec::with_capacity(existing_grad.data().len());
-                            for (a, b) in existing_grad.data().iter().zip(input_grad.data().iter()) {
-                                new_data.push(a + b);
-                            }
-                            *existing_grad = Tensor::from_vec(new_data, existing_grad.shape())
-                                .map_err(|e| format!("그래디언트 누적 실패: {:?}", e))?;
-                        } else {
-                            grads.insert(input_id, input_grad.clone());
-                        }
-                    }
-                }
-            }
-        }
-
-        // 각 변수에 그래디언트 설정
-        for (node_id, grad) in grads {
             let node = self.nodes.get(&node_id).unwrap();
-            unsafe {
-                let var_ptr = Arc::as_ptr(&node.variable) as *mut Variable<f32>;
-                (*var_ptr).set_grad(grad);
+            if let Some(function) = &node.function {
+                let grad = Tensor::new(vec![vec![1.0]]);
+                println!("id: {:?}, target: {:?}, grad: {:?}", node.id, node.variable.tensor, grad);
+                node.variable.set_grad(
+                    function.backward(&node.variable.tensor, &grad)
+                    .map_err(|e| format!("역전파 실패: {:?}", e))?.remove(0)
+                );
+
+                // // 입력 노드들에 그래디언트 전파
+                // for (i, &input_id) in node.inputs.iter().enumerate() {
+                //     let input_node = self.nodes.get(&input_id).unwrap();
+                //
+                //     // 안전하게 그래디언트 누적
+                //     input_node.variable.accumulate_grad(input_grads.remove(0))?;
+                // }
             }
         }
-
-        println!("self: {:?}", self);
 
         Ok(())
     }

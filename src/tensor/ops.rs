@@ -37,9 +37,9 @@ impl Function<f32> for Exp {
     fn backward(&self, target: &Tensor<f32>, grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         let gradiant = grad.data().iter()
             .zip(target.data().iter())
-            .map(|(grad_data, target_data)| grad_data * target_data)
+            .map(|(grad_data, target_data)|  target_data.exp() * grad_data)
             .collect();
-        println!("{:?} * {:?} = {:?}", grad.data, target.data, gradiant);
+        println!("exp({:?}) * {:?} = {:?}", target.data, grad.data, gradiant);
 
         Ok(vec![Tensor::<f32>::from_vec(gradiant, target.shape())?])
     }
@@ -127,10 +127,10 @@ impl Function<f32> for Square {
     fn backward(&self, target: &Tensor<f32>, grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         let gradiant = grad.data().iter()
             .zip(target.data().iter())
-            .map(|(grad_data, target_data)| 2.0 * grad_data  * target_data)
+            .map(|(grad_data, target_data)| 2.0  * target_data * grad_data )
             .collect();
 
-        println!("2 * {:?} * {:?} = {:?}", grad.data, target.data, gradiant);
+        println!("2 * {:?} * {:?} = {:?}", target.data, grad.data, gradiant);
 
         Ok(vec![Tensor::<f32>::from_vec(gradiant, target.shape())?])
     }
