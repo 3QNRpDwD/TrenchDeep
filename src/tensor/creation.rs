@@ -347,10 +347,7 @@ impl ComputationGraph<f32> {
         let output_node = self.nodes.get(&output_id).ok_or("출력 노드를 찾을 수 없습니다.")?;
         let shape = &output_node.variable.tensor.shape;
         let data = vec![1.0; shape.iter().product()];
-        let grad = Tensor::from_vec(data, &shape)
-            .map_err(|e| format!("그래디언트 초기화 실패: {:?}", e))?;
-
-        // 출력 노드에 그래디언트 설정
+        let grad = Tensor::from_vec(data, &shape).map_err(|e| format!("그래디언트 초기화 실패: {:?}", e))?;
         output_node.variable.set_grad(grad);
 
         for &node_id in self.topo_sorted.iter().rev() {
@@ -405,15 +402,14 @@ pub trait AutogradFunction: Function<f32> + Clone where Self: 'static {
     /// - Simply returns the output tensor without any gradient information
     /// - All gradient-related flags are ignored
     fn apply(&self, inputs: &[&Arc<Variable<f32>>]) -> MlResult<Arc<Variable<f32>>> {
-        if inputs.len() != 1 {
-            return Err("자동 역전파는 현재는 단일 입출력 함수만 지원합니다.".into());
-        }
-
         let tensors: Vec<&Tensor<f32>> = inputs.iter().map(|&var| var.tensor()).collect();
         let mut results = self.forward(&tensors)?;
 
         #[cfg(feature = "enable_backpropagation")]
         {
+            if inputs.len() != 1 {
+                return Err("자동 역전파는 현재는 단일 입출력 함수만 지원합니다.".into());
+            }
             let result = Arc::new(results.remove(0));
             result.clone().with_grad_fn(Arc::new(self.clone()), inputs);
             return Ok(result)

@@ -482,6 +482,7 @@ mod tests {
         #[cfg(feature = "enable_backpropagation")]
         {
             y.backward()?;
+
             print_phase("autograd backward", &y.grad().unwrap(), &b.grad().unwrap(), &a.grad().unwrap(), &x.grad().unwrap());
             assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
         }
