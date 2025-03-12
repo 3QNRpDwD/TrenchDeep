@@ -180,19 +180,19 @@ impl Variable<f32> {
             let mut graph = graph.borrow_mut();
 
             // 입력 노드 ID 찾기 또는 추가
-            let ids: Vec<NodeId> = inputs.iter().map(|&variable| {
+            let input_ids = inputs.iter().map(|&input_var| {
                 // 이미 그래프에 있는지 확인
                 for (id, node) in &graph.nodes {
-                    if node.variable.as_ref() == variable {
+                    if node.variable.as_ref() == input_var {
                         return *id;
                     }
                 }
                 // 없으면 추가
-                graph.add_input(variable.clone())
+                graph.add_input(input_var.clone())
             }).collect();
 
             // 연산 노드 추가
-            graph.add_operation(self, function, ids);
+            graph.add_operation(self, function, input_ids);
         });
     }
 
@@ -290,7 +290,7 @@ impl ComputationGraph<f32> {
             inputs,
         };
 
-        self.nodes.insert(id, node); // 값이 대입되지 않고, 지연되는 문제 발생
+        self.nodes.insert(id, node);
         self.sorted = false;
         id
     }
@@ -341,10 +341,7 @@ impl ComputationGraph<f32> {
     fn backward(&mut self, output_id: NodeId) -> MlResult<()> {
         if !self.sorted {
             self.topological_sort();
-            println!(" topo {:?}", self.topo_sorted);
         }
-
-        println!("nodes: {:?}", self.nodes);
 
         // 출력 노드의 그래디언트를 1.0으로 초기화
         let output_node = self.nodes.get(&output_id).ok_or("출력 노드를 찾을 수 없습니다.")?;
@@ -356,24 +353,18 @@ impl ComputationGraph<f32> {
         // 출력 노드에 그래디언트 설정
         output_node.variable.set_grad(grad);
 
-        // 역순으로 순회하며 역전파 수행
         for &node_id in self.topo_sorted.iter().rev() {
             let node = self.nodes.get(&node_id).unwrap();
             if let Some(function) = &node.function {
-                let grad = Tensor::new(vec![vec![1.0]]);
-                println!("id: {:?}, target: {:?}, grad: {:?}", node.id, node.variable.tensor, grad);
-                node.variable.set_grad(
-                    function.backward(&node.variable.tensor, &grad)
-                    .map_err(|e| format!("역전파 실패: {:?}", e))?.remove(0)
-                );
-
-                // // 입력 노드들에 그래디언트 전파
-                // for (i, &input_id) in node.inputs.iter().enumerate() {
-                //     let input_node = self.nodes.get(&input_id).unwrap();
-                //
-                //     // 안전하게 그래디언트 누적
-                //     input_node.variable.accumulate_grad(input_grads.remove(0))?;
-                // }
+                // 입력 노드들에 그래디언트 전파
+                for (_, &input_id) in node.inputs.iter().enumerate() {
+                    let input_node = self.nodes.get(&input_id).unwrap();
+                    // 안전하게 그래디언트 누적
+                    input_node.variable.accumulate_grad(
+                        function.backward(&input_node.variable.tensor, &node.variable.grad().unwrap())
+                            .map_err(|e| format!("역전파 실패: {:?}", e))?.remove(0)
+                    )?;
+                }
             }
         }
 
@@ -414,15 +405,15 @@ pub trait AutogradFunction: Function<f32> + Clone where Self: 'static {
     /// - Simply returns the output tensor without any gradient information
     /// - All gradient-related flags are ignored
     fn apply(&self, inputs: &[&Arc<Variable<f32>>]) -> MlResult<Arc<Variable<f32>>> {
+        if inputs.len() != 1 {
+            return Err("자동 역전파는 현재는 단일 입출력 함수만 지원합니다.".into());
+        }
+
         let tensors: Vec<&Tensor<f32>> = inputs.iter().map(|&var| var.tensor()).collect();
         let mut results = self.forward(&tensors)?;
 
         #[cfg(feature = "enable_backpropagation")]
         {
-            if results.len() != 1 {
-                return Err("자동 역전파는 현재는 단일 출력 함수만 지원합니다.".into());
-            }
-
             let result = Arc::new(results.remove(0));
             result.clone().with_grad_fn(Arc::new(self.clone()), inputs);
             return Ok(result)

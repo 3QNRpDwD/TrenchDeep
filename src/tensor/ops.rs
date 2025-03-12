@@ -10,8 +10,7 @@ impl Function<f32> for Abs {
     /// # Returns
     /// A new tensor with the absolute values of each element
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
-        let buffer = Variable::new(Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| x.abs()).collect(), targets[0].shape())?);
-        Ok(vec![buffer])
+        Ok(vec![Variable::new(Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| x.abs()).collect(), targets[0].shape())?)])
     }
 
     #[cfg(feature = "enable_backpropagation")]
@@ -29,8 +28,7 @@ impl Function<f32> for Exp {
     /// # Returns
     /// A new tensor with each element being e ^ tensor_element
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
-        let tensor = Tensor::<f32>::from_vec(self.backend().exp(targets[0].data()), targets[0].shape())?;
-        Ok(vec![Variable::new(tensor)])
+        Ok(vec![Variable::new(Tensor::<f32>::from_vec(self.backend().exp(targets[0].data()), targets[0].shape())?)])
     }
 
     #[cfg(feature = "enable_backpropagation")]
@@ -39,7 +37,6 @@ impl Function<f32> for Exp {
             .zip(target.data().iter())
             .map(|(grad_data, target_data)|  target_data.exp() * grad_data)
             .collect();
-        println!("exp({:?}) * {:?} = {:?}", target.data, grad.data, gradiant);
 
         Ok(vec![Tensor::<f32>::from_vec(gradiant, target.shape())?])
     }
@@ -54,11 +51,7 @@ impl Function<f32> for Log {
     /// # Returns
     /// A new tensor with each element being the natural logarithm of tensor_element
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
-        let buffer = Variable::new(Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| x.ln()).collect(), targets[0].shape())?);
-        // #[cfg(feature = "enable_backpropagation")]
-        // { buffer.grad_fn = Some(Arc::new(self.clone())); }
-
-        Ok(vec![buffer])
+        Ok(vec![Variable::new(Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| x.ln()).collect(), targets[0].shape())?)])
     }
 
     #[cfg(feature = "enable_backpropagation")]
@@ -76,10 +69,7 @@ impl Function<f32> for Neg {
     /// # Returns
     /// A new tensor with each element being the negation of tensor_element
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
-        let buffer = Variable::new(Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| -x).collect(), targets[0].shape())?);
-        // #[cfg(feature = "enable_backpropagation")]
-        // { buffer.grad_fn = Some(Arc::new(self.clone())); }
-        Ok(vec![buffer])
+        Ok(vec![Variable::new(Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| -x).collect(), targets[0].shape())?)])
     }
 
     #[cfg(feature = "enable_backpropagation")]
@@ -97,10 +87,7 @@ impl Function<f32> for Sqrt {
     /// # Returns
     /// A new tensor with each element being the square root of tensor_element
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
-        let buffer = Variable::new(Tensor::<f32>::from_vec(self.backend().sqrt(targets[0].data()), targets[0].shape())?);
-        // #[cfg(feature = "enable_backpropagation")]
-        // { buffer.grad_fn = Some(Arc::new(self.clone())); }
-        Ok(vec![buffer])
+        Ok(vec![Variable::new(Tensor::<f32>::from_vec(self.backend().sqrt(targets[0].data()), targets[0].shape())?)])
     }
 
     #[cfg(feature = "enable_backpropagation")]
@@ -118,9 +105,7 @@ impl Function<f32> for Square {
     /// # Returns
     /// A new tensor with each element being the square of the corresponding element in the input tensor
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
-        let tensor = Tensor::<f32>::from_vec(targets[0].data().iter().map(|x| x * x).collect(), targets[0].shape())?;
-        // { buffer.grad_fn = Some(Arc::new(self.clone())); }
-        Ok(vec![Variable::new(tensor)])
+        Ok(vec![Variable::new(Tensor::<f32>::from_vec(targets[0].data().iter().map(|x| x * x).collect(), targets[0].shape())?)])
     }
 
     #[cfg(feature = "enable_backpropagation")]
@@ -129,8 +114,6 @@ impl Function<f32> for Square {
             .zip(target.data().iter())
             .map(|(grad_data, target_data)| 2.0  * target_data * grad_data )
             .collect();
-
-        println!("2 * {:?} * {:?} = {:?}", target.data, grad.data, gradiant);
 
         Ok(vec![Tensor::<f32>::from_vec(gradiant, target.shape())?])
     }
@@ -157,19 +140,13 @@ impl Function<f32> for Add {
                     *val = targets[0].data()[i * features + j] + targets[1].data()[j];
                 }
             }
-             let buffer = Variable::new(Tensor::<f32>::from_vec(data, targets[0].shape())?);
-            // #[cfg(feature = "enable_backpropagation")]
-            // { buffer.grad_fn = Some(Arc::new(Self::new())) }
-            return Ok(vec![buffer])
+            return Ok(vec![Variable::new(Tensor::<f32>::from_vec(data, targets[0].shape())?)])
         }
 
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
             _ => {
-                let buffer = Variable::new(Tensor::<f32>::from_vec(self.backend().add(targets[0].data(), targets[1].data()), targets[0].shape())?);
-                // #[cfg(feature = "enable_backpropagation")]
-                // { buffer.grad_fn = Some(Arc::new(Self::new())) }
-                Ok(vec![buffer])
+                Ok(vec![Variable::new(Tensor::<f32>::from_vec(self.backend().add(targets[0].data(), targets[1].data()), targets[0].shape())?)])
             }
         }
     }
@@ -202,18 +179,13 @@ impl Function<f32> for Sub {
                     data[i * features + j] = targets[0].data()[i * features + j] - targets[1].data()[j];
                 }
             }
-            buffer = Variable::new(Tensor::<f32>::from_vec(data, &targets[0].shape())?);
-            // #[cfg(feature = "enable_backpropagation")]
-            // { buffer.grad_fn = Some(Arc::new(Self::new())) }
-            return Ok(vec![buffer])
+            return Ok(vec![Variable::new(Tensor::<f32>::from_vec(data, &targets[0].shape())?)])
         }
 
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
             _ => {
                 buffer = Variable::new(Tensor::<f32>::from_vec(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape())?);
-                // #[cfg(feature = "enable_backpropagation")]
-                // { buffer.grad_fn = Some(Arc::new(Self::new())) }
                 Ok(vec![buffer])
             }
         }
@@ -240,8 +212,7 @@ impl Function<f32> for Mul {
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
             _ => {
-                let buffer = Variable::new(Tensor::<f32>::from_vec(self.backend().multiply(targets[0].data(), targets[1].data()), targets[0].shape())?);
-                Ok(vec![buffer])
+                Ok(vec![Variable::new(Tensor::<f32>::from_vec(self.backend().multiply(targets[0].data(), targets[1].data()), targets[0].shape())?)])
             }
         }
     }
@@ -266,12 +237,7 @@ impl Function<f32> for Div {
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
-            _ => {
-                 let buffer = Variable::new(Tensor::<f32>::from_vec(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape())?);
-                // #[cfg(feature = "enable_backpropagation")]
-                // { buffer.grad_fn = Some(Arc::new(Self::new())) }
-                Ok(vec![buffer])
-            }
+            _ => Ok(vec![Variable::new(Tensor::<f32>::from_vec(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape())?)])
         }
     }
 
@@ -293,10 +259,7 @@ impl Function<f32> for Pow {
     /// # Returns
     /// A new tensor with each element being tensor_element ^ power
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
-        let buffer = Variable::new(Tensor::<f32>::from_vec(self.backend().pow(targets[0].data(), self.power.unwrap()), targets[0].shape())?);
-        // #[cfg(feature = "enable_backpropagation")]
-        // { buffer.grad_fn = Some(Arc::new(Self::new())) }
-        Ok(vec![buffer])
+        Ok(vec![Variable::new(Tensor::<f32>::from_vec(self.backend().pow(targets[0].data(), self.power.unwrap()), targets[0].shape())?)])
     }
 
     #[cfg(feature = "enable_backpropagation")]
@@ -465,8 +428,6 @@ impl Function<f32> for Matmul {
                 Tensor::<f32>::from_vec(data, &shape)?
             }
         });
-        // #[cfg(feature = "enable_backpropagation")]
-        // { buffer.grad_fn = Some(Arc::new(self.clone())); }
         Ok(vec![buffer])
     }
 
@@ -478,21 +439,6 @@ impl Function<f32> for Matmul {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 }
-
-// impl Function<f32> for Topk<f32> {
-//     type Operator = UnaryOp<f32>;
-//     type Forwarded = MlResult<(Variable<f32>, Variable<f32>)>;
-//     #[cfg(feature = "enable_backpropagation")]
-//     type Gradiant = ();
-//
-// }
-
-// impl Function<f32> for Matmax<f32> {
-//     type Operator = UnaryOp<f32>;
-//     type Forwarded = MlResult<(Variable<f32>, Variable<f32>)>;
-//     #[cfg(feature = "enable_backpropagation")]
-//     type Gradiant = ();
-// }
 
 impl Topk {
     pub fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), topk: None }) }

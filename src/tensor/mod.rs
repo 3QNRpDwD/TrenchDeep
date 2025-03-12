@@ -449,21 +449,19 @@ mod tests {
         let a = square.forward(&[ x.tensor() ])?.remove(0); // a = A(x)
         let b = exp   .forward(&[ a.tensor() ])?.remove(0); // b = B(a)
         let y = square.forward(&[ b.tensor() ])?.remove(0); // y = C(b)
-        let e = Tensor::new(vec![vec![1.6487213]]);
 
         print_phase("forward", x.tensor(), a.tensor(), b.tensor(), y.tensor());
-        assert_tensor_eq(y.tensor(), &e)?;
+        assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
 
         #[cfg(feature = "enable_backpropagation")]
         {
-            let e_grad = Tensor::new(vec![vec![3.2974427]]);
-            y.set_grad(Tensor::new(vec![vec![1.0]]));                                   // dy = 1
+            y.set_grad(Tensor::new(vec![vec![1.0]]));                                  // dy = 1
             b.set_grad(square.backward(b.tensor(), &y.grad().unwrap())?.remove(0));   // dy/db = dy/dy * 2b
             a.set_grad(exp   .backward(a.tensor(), &b.grad().unwrap())?.remove(0));   // dy/da = (dy/db) * db/da
             x.set_grad(square.backward(x.tensor(), &a.grad().unwrap())?.remove(0));   // dy/dx = (dy/da) * da/dx
 
             print_phase("backward", &y.grad().unwrap(), &b.grad().unwrap(), &a.grad().unwrap(), &x.grad().unwrap());
-            // assert_tensor_eq(&x.grad().unwrap(), &e_grad)?;
+            assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
         }
         Ok(())
     }
@@ -475,19 +473,17 @@ mod tests {
 
         let x = Arc::new(variable!(vec![vec![0.5]]));
         let a = square.apply(&[&x])?;
-        let b = exp   .apply(&[&a])?; // add_operation 의 self.nodes.insert(id, node); 에서 두번째 연산부터 코드가 더이상 진행되지 않는 문제가 발생.
+        let b = exp   .apply(&[&a])?;
         let y = square.apply(&[&b])?;
-        let e = Tensor::new(vec![vec![1.6487213]]);
 
+        assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
         print_phase("autograd forward", x.tensor(), a.tensor(), b.tensor(), y.tensor());
 
         #[cfg(feature = "enable_backpropagation")]
         {
             y.backward()?;
-            println!("\nautograd backward: {:?}\n", x.grad);
-
-            // assert_tensor_eq(y.tensor(), &e)?;
-            // assert_tensor_eq(x.grad.as_ref().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
+            print_phase("autograd backward", &y.grad().unwrap(), &b.grad().unwrap(), &a.grad().unwrap(), &x.grad().unwrap());
+            assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
         }
         Ok(())
     }
