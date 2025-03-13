@@ -219,7 +219,7 @@ impl Function<f32> for Mul {
 
     #[cfg(feature = "enable_backpropagation")]
     fn backward(&self, target: &Tensor<f32>, grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
-        Ok(vec![(target * grad).tensor, (target * grad).tensor])
+        Ok(vec![(target * grad), (target * grad)])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -603,109 +603,6 @@ impl Matmax {
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
-}
-
-
-/// Add trait implementation for owned tensors
-///
-/// # Arguments
-/// * `_other` - The tensor to add to self
-///
-/// # Returns
-/// A new tensor containing the element-wise sum
-///
-/// # Broadcasting
-/// * Supports broadcasting when adding a 1D tensor to each row of a 2D tensor
-impl std::ops::Add for Tensor<f32> {
-    type Output = Variable<f32>;
-
-    fn add(self, other: Tensor<f32>) -> Self::Output {
-        &self + &other
-    }
-}
-
-/// Subtract trait implementation for owned tensors
-///
-/// # Arguments
-/// * `_other` - The tensor to subtract from self
-///
-/// # Returns
-/// A new tensor containing the element-wise difference
-///
-/// # Broadcasting
-/// * Supports broadcasting when subtracting a 1D tensor from each row of a 2D tensor
-impl std::ops::Sub for Tensor<f32> {
-    type Output = Variable<f32>;
-
-    fn sub(self, other: Tensor<f32>) -> Self::Output {
-        &self - &other
-    }
-}
-
-/// Multiply trait implementation for owned tensors
-///
-/// # Arguments
-/// * `_other` - The tensor to multiply with self
-///
-/// # Returns
-/// A new tensor containing the element-wise product (Hadamard product)
-///
-/// # Note
-/// * This performs element-wise multiplication, not matrix multiplication
-/// * For matrix multiplication, use `matmul()` instead
-impl std::ops::Mul for Tensor<f32> {
-    type Output = Variable<f32>;
-
-    fn mul(self, other: Tensor<f32>) -> Self::Output {
-        &self * &other
-    }
-}
-
-/// Divide trait implementation for owned tensors
-///
-/// # Arguments
-/// * `_other` - The tensor to divide self by
-///
-/// # Returns
-/// A new tensor containing the element-wise quotient
-impl std::ops::Div for Tensor<f32> {
-    type Output = Variable<f32>;
-
-    fn div(self, other: Tensor<f32>) -> Self::Output {
-        &self / &other
-    }
-}
-
-impl std::ops::Add for &Tensor<f32> {
-    type Output = Variable<f32>;
-
-    fn add(self, other: &Tensor<f32>) -> Self::Output {
-        Add::new().unwrap().forward(&[self, other]).unwrap().remove(0)
-    }
-}
-
-impl std::ops::Sub for &Tensor<f32> {
-    type Output = Variable<f32>;
-
-    fn sub(self, other: &Tensor<f32>) -> Self::Output {
-        Sub::new().unwrap().forward(&[self, other]).unwrap().remove(0)
-    }
-}
-
-impl std::ops::Mul for &Tensor<f32> {
-    type Output = Variable<f32>;
-
-    fn mul(self, other: &Tensor<f32>) -> Self::Output {
-        Mul::new().unwrap().forward(&[self, other]).unwrap().remove(0)
-    }
-}
-
-impl std::ops::Div for &Tensor<f32> {
-    type Output = Variable<f32>;
-
-    fn div(self, other: &Tensor<f32>) -> Self::Output {
-        Div::new().unwrap().forward(&[self, other]).unwrap().remove(0)
-    }
 }
 
 #[cfg(test)]

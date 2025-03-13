@@ -6,8 +6,8 @@ use std::{
 };
 use crate::{backend::Backend, MlResult};
 
-mod ops;
 mod creation;
+mod operators;
 
 /// 다양한 텐서 연산을 위한 편리한 매크로를 제공합니다.
 ///
@@ -217,12 +217,29 @@ impl Display for TensorError {
     }
 }
 
+/// 다차원 배열을 나타내는 텐서 구조체입니다.
+///
+/// 이 구조체는 데이터와 그 형태(shape)를 저장하여 수학적 연산을 수행하는 데 사용됩니다.
+/// 제네릭 타입 `Type`을 통해 다양한 데이터 타입을 지원합니다.
+///
+/// # 필드
+/// - `data`: 텐서의 데이터를 1차원 벡터 형태로 저장
+/// - `shape`: 텐서의 차원을 나타내는 크기 배열 (예: `[행, 열]` 또는 `[채널, 높이, 너비]`)
 #[derive(Debug, Clone)]
 pub struct Tensor<Type> {
     data: Vec<Type>,
     shape: Vec<usize>,
 }
 
+/// 계산 그래프에서 사용되는 변수 구조체입니다.
+///
+/// 이 구조체는 텐서와 그래디언트 계산 여부를 관리하며, 역전파를 지원하는 경우 그래디언트를 저장합니다.
+///
+/// # 필드
+/// - `tensor`: 변수의 값이 담긴 텐서
+/// - `requires_grad`: 그래디언트 계산이 필요한지 여부
+/// - `grad`: 역전파를 위한 그래디언트 (옵션으로 저장되며, `RefCell`로 래핑되어 가변성 제공)
+///   - `enable_backpropagation` 기능이 활성화된 경우에만 포함됨
 pub struct Variable<Type> {
     tensor: Tensor<Type>,
     requires_grad: bool,
@@ -231,9 +248,25 @@ pub struct Variable<Type> {
     grad: RefCell<Option<Tensor<Type>>>,
 }
 
+/// 계산 그래프에서 노드의 고유 식별자를 나타내는 타입 별칭입니다.
+///
+/// 이 타입은 `usize`를 기반으로 하며, 역전파 기능이 활성화된 경우에만 정의됩니다.
+///
+/// # 사용처
+/// - `ComputationNode`와 `ComputationGraph`에서 노드를 식별하는 데 사용
 #[cfg(feature = "enable_backpropagation")]
 type NodeId = usize;
 
+/// 계산 그래프의 개별 노드를 나타내는 구조체입니다.
+///
+/// 이 구조체는 변수, 연산 함수, 입력 노드 정보를 포함하며, 역전파를 위한 계산 단위를 정의합니다.
+/// 제네릭 타입 `T`는 디버깅과 복제를 지원해야 합니다.
+///
+/// # 필드
+/// - `id`: 노드의 고유 식별자
+/// - `variable`: 노드가 나타내는 변수 (스마트 포인터로 감싸짐)
+/// - `function`: 노드에서 수행되는 연산 함수 (옵션, 동적 디스패치 지원)
+/// - `inputs`: 이 노드의 입력으로 사용되는 다른 노드들의 ID 목록
 #[cfg(feature = "enable_backpropagation")]
 struct ComputationNode<T: Debug + Clone> {
     id: NodeId,
@@ -243,12 +276,177 @@ struct ComputationNode<T: Debug + Clone> {
     inputs: Vec<NodeId>,
 }
 
+/// 계산 그래프 전체를 관리하는 구조체입니다.
+///
+/// 이 구조체는 노드 집합과 위상 정렬 정보를 저장하며, 역전파를 수행하는 데 필요한 데이터를 유지합니다.
+/// 제네릭 타입 `T`는 디버깅과 복제를 지원해야 합니다.
+///
+/// # 필드
+/// - `nodes`: 노드 ID와 `ComputationNode`를 매핑하는 해시맵
+/// - `next_id`: 다음에 생성될 노드에 부여할 ID
+/// - `topo_sorted`: 위상 정렬된 노드 ID 목록
+/// - `sorted`: 위상 정렬이 완료되었는지 여부
 #[cfg(feature = "enable_backpropagation")]
 struct ComputationGraph<T: Debug + Clone> {
     nodes: HashMap<NodeId, ComputationNode<T>>,
     next_id: NodeId,
     topo_sorted: Vec<NodeId>,
     sorted: bool,
+}
+
+impl PartialEq for Tensor<f32> {
+    fn eq(&self, other: &Self) -> bool {
+        self.data == other.data && self.shape == other.shape
+    }
+}
+
+#[cfg(feature = "enable_backpropagation")]
+impl PartialEq for &Variable<f32> {
+    fn eq(&self, other: &&Variable<f32>) -> bool {
+        self.tensor == other.tensor &&
+            self.requires_grad == other.requires_grad &&
+            self.grad == other.grad
+    }
+}
+
+impl Eq for Tensor<f32> {
+    // Todo: 구현 필요
+}
+
+impl PartialOrd for Tensor<f32> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.data.partial_cmp(&other.data)
+    }
+}
+
+impl Ord for Tensor<f32> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
+    }
+}
+/// 텐서의 기본 동작을 정의하는 트레잇입니다.
+///
+/// 이 트레잇은 텐서 생성, 데이터 접근, 형태 확인 등의 기본 기능을 제공합니다.
+/// 제네릭 타입 `Type`은 디버깅과 복제를 지원해야 합니다.
+///
+/// # 제약
+/// - `Type`: `Debug + Clone` 트레잇을 구현해야 함
+pub trait TensorBase<Type: Debug + Clone> {
+    /// 2차원 벡터 데이터를 기반으로 새로운 텐서를 생성합니다.
+    ///
+    /// # 매개변수
+    /// - `data`: 텐서의 데이터를 나타내는 2차원 벡터
+    ///
+    /// # 반환값
+    /// - `Tensor<Type>`: 생성된 텐서 객체
+    fn new(data: Vec<Vec<Type>>) -> Tensor<Type> where Self: Sized;
+
+    /// 1차원 벡터와 형태를 기반으로 새로운 텐서를 생성합니다.
+    ///
+    /// # 매개변수
+    /// - `data`: 텐서의 데이터를 나타내는 1차원 벡터
+    /// - `shape`: 텐서의 차원을 나타내는 크기 배열
+    ///
+    /// # 반환값
+    /// - `MlResult<Tensor<Type>>`: 성공 시 생성된 텐서, 실패 시 오류
+    ///
+    /// # 오류
+    /// - 데이터 길이와 형태가 일치하지 않을 경우
+    fn from_vec(data: Vec<Type>, shape: &[usize]) -> MlResult<Tensor<Type>> where Self: Sized;
+
+    /// 텐서의 형태를 반환합니다.
+    ///
+    /// # 반환값
+    /// - `&[usize]`: 텐서의 차원을 나타내는 슬라이스
+    fn shape(&self) -> &[usize];
+
+    /// 텐서의 데이터를 반환합니다.
+    ///
+    /// # 반환값
+    /// - `&[Type]`: 텐서의 데이터를 나타내는 슬라이스
+    fn data(&self) -> &[Type];
+
+    /// 주어진 인덱스에서 텐서의 값을 반환합니다.
+    ///
+    /// # 매개변수
+    /// - `indices`: 텐서 내 특정 위치를 가리키는 인덱스 배열
+    ///
+    /// # 반환값
+    /// - `Option<&Type>`: 해당 위치의 값에 대한 참조, 유효하지 않은 인덱스면 `None`
+    fn get(&self, indices: &[usize]) -> Option<&Type>;
+
+    /// 주어진 인덱스를 데이터 벡터 내의 오프셋으로 변환합니다.
+    ///
+    /// # 매개변수
+    /// - `indices`: 텐서 내 특정 위치를 가리키는 인덱스 배열
+    ///
+    /// # 반환값
+    /// - `Option<usize>`: 데이터 벡터 내 해당 위치의 오프셋, 유효하지 않은 인덱스면 `None`
+    fn index(&self, indices: &[usize]) -> Option<usize>;
+
+    /// 두 텐서의 형태가 동일한지 확인합니다.
+    ///
+    /// # 매개변수
+    /// - `other`: 비교 대상 텐서 (동적 디스패치 지원)
+    ///
+    /// # 반환값
+    /// - `MlResult<()>`: 형태가 일치하면 `Ok(())`, 그렇지 않으면 오류
+    ///
+    /// # 오류
+    /// - 두 텐서의 형태가 일치하지 않을 경우
+    fn chk_shape(&self, other: &dyn TensorBase<Type>) -> MlResult<()>;
+}
+
+/// 계산 그래프에서 연산을 정의하는 트레잇입니다.
+///
+/// 이 트레잇은 순전파와 역전파를 포함한 연산의 동작을 정의하며, 백엔드와의 연계를 지원합니다.
+/// 제네릭 타입 `T`는 디버깅과 복제를 지원해야 합니다.
+///
+/// # 제약
+/// - `T`: `Debug + Clone` 트레잇을 구현해야 함
+pub trait Function<T: Debug + Clone> {
+    /// 새로운 연산 객체를 생성합니다.
+    ///
+    /// # 반환값
+    /// - `MlResult<Self>`: 성공 시 생성된 연산 객체, 실패 시 오류
+    fn new() -> MlResult<Self> where Self: Sized;
+
+    /// 순전파(Forward Pass)를 수행합니다.
+    ///
+    /// 입력 텐서들을 받아 연산을 수행하고 결과 변수를 반환합니다.
+    ///
+    /// # 매개변수
+    /// - `targets`: 연산에 사용될 입력 텐서들의 참조 배열
+    ///
+    /// # 반환값
+    /// - `MlResult<Vec<Variable<T>>>`: 성공 시 결과 변수 벡터, 실패 시 오류
+    ///
+    /// # 오류
+    /// - 입력 텐서의 형태나 데이터가 연산에 적합하지 않을 경우
+    fn forward(&self, targets: &[&Tensor<T>]) -> MlResult<Vec<Variable<T>>>;
+
+    /// 역전파(Backward Pass)를 수행합니다.
+    ///
+    /// 주어진 입력 텐서와 그래디언트를 기반으로 입력에 대한 그래디언트를 계산합니다.
+    /// 이 메서드는 `enable_backpropagation` 기능이 활성화된 경우에만 사용 가능합니다.
+    ///
+    /// # 매개변수
+    /// - `targets`: 역전파에 사용될 입력 텐서
+    /// - `grad`: 출력에 대한 그래디언트
+    ///
+    /// # 반환값
+    /// - `MlResult<Vec<Tensor<T>>>`: 성공 시 입력에 대한 그래디언트 벡터, 실패 시 오류
+    ///
+    /// # 오류
+    /// - 그래디언트 계산에 실패하거나 입력이 유효하지 않을 경우
+    #[cfg(feature = "enable_backpropagation")]
+    fn backward(&self, targets: &Tensor<T>, grad: &Tensor<T>) -> MlResult<Vec<Tensor<T>>>;
+
+    /// 연산에 사용되는 백엔드를 반환합니다.
+    ///
+    /// # 반환값
+    /// - `&Arc<dyn Backend>`: 백엔드에 대한 스마트 포인터 참조
+    fn backend(&self) -> &Arc<dyn Backend>;
 }
 
 impl<Type: Debug> Debug for Variable<Type> {
@@ -291,59 +489,6 @@ impl<Type: Debug + Clone> Debug for ComputationNode<Type> {
     }
 }
 
-// impl<T> Deref for Variable<T> {
-//     type Target = dyn TensorBase<T>;
-//
-//     fn deref(&self) -> &Self::Target {
-//         self.tensor.deref()
-//     }
-// }
-
-impl PartialEq for Tensor<f32> {
-    fn eq(&self, other: &Self) -> bool {
-        self.data == other.data && self.shape == other.shape
-    }
-}
-
-#[cfg(feature = "enable_backpropagation")]
-impl PartialEq for &Variable<f32> {
-    fn eq(&self, other: &&Variable<f32>) -> bool {
-        self.tensor == other.tensor &&
-            self.requires_grad == other.requires_grad &&
-            self.grad == other.grad
-    }
-}
-
-impl Eq for Tensor<f32> {
-    // Todo: 구현 필요
-}
-
-impl PartialOrd for Tensor<f32> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.data.partial_cmp(&other.data)
-    }
-}
-
-impl Ord for Tensor<f32> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
-    }
-}
-
-pub trait TensorBase<Type: Debug + Clone> {
-    fn new(data: Vec<Vec<Type>>)                            -> Tensor<Type> where Self: Sized;
-    fn from_vec(data: Vec<Type>, shape: &[usize])           -> MlResult<Tensor<Type>> where Self: Sized;
-    // #[cfg(feature = "enable_backpropagation")]
-    // fn from_grad_fn(data: Vec<Type>, shape: &[usize], grad_fn: &mut dyn Operator<f32>) -> Variable<Type> where Self: Sized;
-
-    fn shape(&self)                                         -> &[usize];
-    fn data(&self)                                          -> &[Type];
-    fn get(&self, indices: &[usize])                        -> Option<&Type>;
-    fn index(&self, indices: &[usize])                      -> Option<usize>;
-    fn chk_shape(&self, other: &dyn TensorBase<Type>)       -> MlResult<()>;
-    // Enables gradient computation for the tensor
-}
-
 impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
@@ -351,16 +496,6 @@ impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
             self.data(), self.shape()
         )
     }
-}
-
-pub trait Function<T: Debug + Clone> {
-    fn new() -> MlResult<Self> where Self: Sized;
-    fn forward(&self, targets: &[&Tensor<T>])   -> MlResult<Vec<Variable<T>>>;
-
-    #[cfg(feature = "enable_backpropagation")] // 최적화를 위해 어트리뷰트에 따라서 역전파 기능의 활성화 여부를 조절하려 했으나, 복합적인 이유(연관타입 처리)로 폐지될 에정임
-    fn backward(&self, targets: &Tensor<T>, grad: &Tensor<T>)    -> MlResult<Vec<Tensor<T>>>;
-
-    fn backend(&self) -> &Arc<dyn Backend>;
 }
 
 impl<Type: Debug + Clone> Debug for &dyn Function<Type> {
@@ -441,6 +576,32 @@ mod tests {
     }
 
     #[test]
+    fn binary_operator_backpropagation_test() -> MlResult<()>{
+        let square = Square::new()?;
+        let add = Exp::new()?;
+
+        let x = variable!(vec![vec![0.5]]);
+        let a = square.forward(&[ x.tensor() ])?.remove(0); // a = A(x)
+        let b = add   .forward(&[ a.tensor() ])?.remove(0); // b = B(a)
+        let y = square.forward(&[ b.tensor() ])?.remove(0); // y = C(b)
+
+        print_phase("forward", x.tensor(), a.tensor(), b.tensor(), y.tensor());
+        assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
+
+        #[cfg(feature = "enable_backpropagation")]
+        {
+            y.set_grad(Tensor::new(vec![vec![1.0]]));                                  // dy = 1
+            b.set_grad(square.backward(b.tensor(), &y.grad().unwrap())?.remove(0));   // dy/db = dy/dy * 2b
+            a.set_grad(add   .backward(a.tensor(), &b.grad().unwrap())?.remove(0));   // dy/da = (dy/db) * db/da
+            x.set_grad(square.backward(x.tensor(), &a.grad().unwrap())?.remove(0));   // dy/dx = (dy/da) * da/dx
+
+            print_phase("backward", &y.grad().unwrap(), &b.grad().unwrap(), &a.grad().unwrap(), &x.grad().unwrap());
+            assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
+        }
+        Ok(())
+    }
+
+    #[test]
     fn phase_test() -> MlResult<()>{
         let square = Square::new()?;
         let exp = Exp::new()?;
@@ -496,46 +657,6 @@ mod tests {
         assert_eq!(t1.data(), vec![1.0, 2.0]);
         assert_eq!(t1.shape(), vec![1, 2]);
         Ok(())
-    }
-
-    #[test]
-    fn test_add_operator() -> MlResult<()> {
-        let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let second =Tensor::new(vec![vec![3.0, 4.0]]);
-        let expected = Tensor::new(vec![vec![4.0, 6.0]]);
-        let s_add = first + second;
-
-        assert_tensor_eq(&s_add.tensor, &expected)
-    }
-
-    #[test]
-    fn test_sub_operator() -> MlResult<()> {
-        let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let second = Tensor::new(vec![vec![3.0, 4.0]]);
-        let expected = Tensor::new(vec![vec![-2.0, -2.0]]);
-        let s_sub = first - second;
-
-        assert_tensor_eq(&s_sub.tensor, &expected)
-    }
-
-    #[test]
-    fn test_mul_operator() -> MlResult<()> {
-        let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let second = Tensor::new(vec![vec![3.0, 4.0]]);
-        let expected = Tensor::new(vec![vec![3.0, 8.0]]);
-        let s_mul = first * second;
-
-        assert_tensor_eq(&s_mul.tensor, &expected)
-    }
-
-    #[test]
-    fn test_div_operator() -> MlResult<()> {
-        let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let second = Tensor::new(vec![vec![2.0, 4.0]]);
-        let expected = Tensor::new(vec![vec![0.5, 0.5]]);
-        let s_div = first / second;
-
-        assert_tensor_eq(&s_div.tensor, &expected)
     }
 
     #[test]
