@@ -189,15 +189,36 @@ impl Variable<f32> {
         Ok(())
     }
 
-    /// 계산 그래프에 연산 노드 연결
+    /// Attaches gradient computation information to the variable by creating a computation graph node.
     ///
-    /// # 특징 동작
-    /// - `enable_backpropagation` 기능 전용 메소드
-    /// - 역전파 시 사용할 함수와 입력 변수를 그래프에 등록
+    /// This method performs three main tasks:
+    /// 1. Registers input variables in the global computation graph
+    /// 2. Creates an operation node representing the mathematical function
+    /// 3. Links the operation to its input variables in the graph
     ///
-    /// # 파라미터
-    /// - function: 연결할 함수 오브젝트
-    /// - inputs: 이 연산의 입력으로 사용된 변수들
+    /// # Arguments
+    /// * `function` - The mathematical operation to record for backward pass (must implement `Function<f32>`)
+    /// * `inputs` - Reference to input variables used in this operation (must already exist in computation graph)
+    ///
+    /// # Returns
+    /// return a new `Variable` instance with gradient computation capabilities:
+    /// - Maintains same tensor data as original variable
+    /// - Contains backreference to the operation in computation graph
+    ///
+    /// # Safety
+    /// - Uses thread-local storage for computation graph (not thread-safe)
+    /// - Clones Arc references internally - ensure proper ownership management
+    /// - All inputs must belong to the same computation graph context
+    ///
+    /// # Panics
+    /// Will panic if:
+    /// - There's mutable borrow conflict in thread-local graph storage
+    /// - Input variables exist in different computation graph contexts (TOCTOU violation)
+    ///
+    /// # Implementation Notes
+    /// - Uses Arc pointer equality checks for existing graph node detection
+    /// - Maintains DAG structure through node ID tracking
+    /// - Operation nodes store backward function and input relationships
     #[cfg(feature = "enable_backpropagation")]
     pub fn with_grad_fn(self: Arc<Self>, function: Arc<dyn Function<f32>>, inputs: &[&Arc<Variable<f32>>]) {
         COMPUTATION_GRAPH.with(|graph| {
@@ -220,14 +241,39 @@ impl Variable<f32> {
         });
     }
 
-    /// 역전파 수행 메인 엔트리 포인트
+
+    /// Performs backward propagation of gradients through the computation graph starting from this variable.
     ///
-    /// # 특징 동작
-    /// - `enable_backpropagation` 기능 전용 메소드
-    /// - 계산 그래프를 따라 그래디언트 전파 시작
+    /// This method initiates the reverse-mode automatic differentiation process by:
+    /// 1. Locating this variable's node in the computation graph
+    /// 2. Executing topological sort-based gradient calculation
+    /// 3. Accumulating gradients through chain rule applications
     ///
-    /// # 오류 사항
-    /// - 계산 그래프에 등록되지 않은 변수 사용 시 에러 반환
+    /// # Returns
+    /// return `Ok(())` on successful gradient propagation:
+    /// - All upstream variables will have their `.grad` fields updated
+    /// - Gradient calculation follows reverse execution order
+    ///
+    /// # Errors
+    /// Returns `Err` with:
+    /// - "위상정렬된 노드를 찾을수 없습니다" if variable isn't registered in computation graph
+    /// - Any errors occurring during gradient calculation steps
+    ///
+    /// # Panics
+    /// Will panic if:
+    /// - Mutex borrow fails on thread-local computation graph storage
+    /// - Graph contains cycles (violates DAG requirement)
+    /// - Numerical errors occur during gradient computation
+    ///
+    /// # Safety
+    /// - Requires all preceding operations to be properly registered in computation graph
+    /// - Should typically be called only once per backward pass from root variable
+    /// - Not re-entrant due to thread-local storage usage
+    ///
+    /// # Implementation Details
+    /// - Uses thread-local computation graph storage
+    /// - Relies on topological ordering stored during forward pass
+    /// - Gradient accumulation uses += operator (users should zero gradients when needed)
     #[cfg(feature = "enable_backpropagation")]
     pub fn backward(&self) -> MlResult<()> {
         COMPUTATION_GRAPH.with(|graph| {
@@ -341,15 +387,19 @@ impl ComputationGraph<f32> {
             }
         }
 
-        // 위상정렬 수행
         while let Some(node_id) = queue.pop_front() {
+            // 원래 위상정렬 알고리즘에서 중복 노드를 고려하지 않은 설계 때문에 같은 노드를 여러번 사용하는 계산에서 오류가 발생했음.
+            // 현재는 구조를 개선한 상태임.
             result.push(node_id);
 
             // 이 노드를 입력으로 사용하는 노드들 찾기
             for (&next_id, next_node) in &self.nodes {
-                if next_node.inputs.contains(&node_id) {
+                let count = next_node.inputs.iter().filter(|&&input_id| input_id == node_id).count();
+
+                // 해당 노드가 입력으로 사용된 횟수만큼 진입 차수 감소
+                if count > 0 {
                     let degree = in_degree.get_mut(&next_id).unwrap();
-                    *degree -= 1;
+                    *degree -= count; //
 
                     if *degree == 0 {
                         queue.push_back(next_id);
@@ -383,23 +433,32 @@ impl ComputationGraph<f32> {
             self.topological_sort();
         }
 
-        // 출력 노드의 그래디언트를 1.0으로 초기화
-        let output_node = self.nodes.get(&output_id).ok_or("output node not found.")?;
-        let shape = &output_node.variable.tensor.shape;
-        let data = vec![1.0; shape.iter().product()];
-        let grad = Tensor::from_vec(data, &shape).map_err(|e| format!("failed init gradient: {:?}", e))?;
-        output_node.variable.set_grad(grad);
+        for (_, node) in &self.nodes {
+            node.variable.clear_grad();
+        }
+
+        let output_var = &self.nodes.get(&output_id).ok_or("출력 노드를 찾을 수 없습니다.")?.variable;
+        if output_var.grad().is_none() {
+            let grad = Tensor::from_vec(
+                vec![1.0; output_var.tensor.shape().iter().product()],
+                output_var.tensor.shape()
+            )?;
+            output_var.set_grad(grad);
+        }
 
         for &node_id in self.topo_sorted.iter().rev() {
             let node = self.nodes.get(&node_id).unwrap();
+
+            if node.variable.grad().is_none() || node.function.is_none() {
+                continue;
+            }
+
             if let Some(function) = &node.function {
-                // 입력 노드들에 그래디언트 전파
-                for (_, &input_id) in node.inputs.iter().enumerate() {
+                for &input_id in &node.inputs {
                     let input_node = self.nodes.get(&input_id).unwrap();
-                    input_node.variable.accumulate_grad(
-                        function.backward(&input_node.variable.tensor, &node.variable.grad().unwrap())
-                            .map_err(|e| format!("failed backpropagation: {:?}", e))?.remove(0)
-                    )?;
+                    let input_grads = function.backward(input_node.variable.tensor(), &node.variable.grad().unwrap())
+                        .map_err(|e| format!("역전파 실패: {:?}", e))?;
+                    input_node.variable.accumulate_grad(input_grads[0].clone())?;
                 }
             }
         }
@@ -447,9 +506,6 @@ pub trait AutogradFunction: Function<f32> + Clone where Self: 'static {
 
         #[cfg(feature = "enable_backpropagation")]
         {
-            if inputs.len() != 1 {
-                return Err("자동 역전파는 현재는 단일 입출력 함수만 지원합니다.".into());
-            }
             let result = Arc::new(results.remove(0));
             result.clone().with_grad_fn(Arc::new(self.clone()), inputs);
             return Ok(result)

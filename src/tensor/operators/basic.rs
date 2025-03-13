@@ -152,7 +152,7 @@ impl Function<f32> for Add {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, target: &Tensor<f32>, grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, _: &Tensor<f32>, grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         Ok(vec![grad.clone(), grad.clone()])
     }
 
@@ -440,8 +440,8 @@ impl Function<f32> for Matmul {
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 }
 
-impl Topk {
-    pub fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), topk: None }) }
+impl Function<f32> for Topk {
+    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), topk: None }) }
     /// Returns the k largest elements of the tensor along the last dimension.
     ///
     /// # Arguments
@@ -511,14 +511,14 @@ impl Topk {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, target: &Tensor<f32>, grad: &Tensor<f32>) -> () {
+    fn backward(&self, target: &Tensor<f32>, grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         todo!()
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 }
 
-impl Matmax {
+impl Function<f32> for Matmax {
     fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), matmax: None }) }
     /// Returns the maximum value of all elements in the input tensor.
     /// If dim is specified, returns the maximum values along the given dimension.
@@ -598,7 +598,7 @@ impl Matmax {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, target: &Tensor<f32>, grad: &Tensor<f32>) -> () {
+    fn backward(&self, target: &Tensor<f32>, grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         todo!()
     }
 
