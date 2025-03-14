@@ -79,6 +79,7 @@ mod tests {
         println!("requires_grad 비활성화 일때 첫번째 None, None, 두번째 2.0, 1.0, 나오면 됨 아니면 버그");
         println!("{:?}, {:?}", y.grad(), t.grad());
         println!("{:?}, {:?}", x0.grad(), x1.grad());   // 버그 발생: .retain_grad() 이 True 일때 출력이 2.0, 1.0 이어야 하는데 3.0, None 이 출력됨
+        // 아마 기울기 데이터가 기울기 누적 과정에서 누적되면서 3.0 이 출력되는 것 같음 다른 구조는 정상인것으로 보이는데 이 부분만 이상함
 
         Ok(())
     }
