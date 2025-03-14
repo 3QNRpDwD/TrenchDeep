@@ -502,17 +502,17 @@ impl ComputationGraph<f32> {
 pub trait AutogradFunction: Function<f32> + Clone where Self: 'static {
     fn apply(&self, inputs: &[&Arc<Variable<f32>>]) -> MlResult<Arc<Variable<f32>>> {
         let tensors: Vec<&Tensor<f32>> = inputs.iter().map(|&var| var.tensor()).collect();
-        let mut results = self.forward(&tensors)?;
+        let mut results = Variable::new(self.forward(&tensors)?.remove(0));
 
         #[cfg(feature = "enable_backpropagation")]
         {
-            let result = Arc::new(results.remove(0));
+            let result = Arc::new(results);
             result.clone().with_grad_fn(Arc::new(self.clone()), inputs);
             return Ok(result)
         }
 
-        Ok(Arc::new(results.remove(0)))
+        Ok(Arc::new(results))
     }
 }
 
-impl<F: Function<f32> + Clone + 'static> AutogradFunction for F {}
+impl<F: Function<f32> + Clone +  'static> AutogradFunction for F {}
