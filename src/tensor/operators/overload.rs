@@ -1,8 +1,4 @@
-use std::sync::Arc;
-use crate::MlResult;
-use crate::tensor::{Add, Div, Function, Mul, Sub, Tensor, Variable};
-use crate::tensor::creation::AutogradFunction;
-use crate::tensor::tests::assert_tensor_eq;
+use crate::tensor::{Add, Div, Function, Mul, Neg, Sub, Tensor, Variable};
 
 /// Add trait implementation for owned tensors
 ///
@@ -74,6 +70,15 @@ impl std::ops::Div for Tensor<f32> {
     }
 }
 
+impl std::ops::Neg for Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn neg(self) -> Self::Output {
+        -&self
+    }
+}
+
+
 impl std::ops::Add for &Tensor<f32> {
     type Output = Tensor<f32>;
 
@@ -106,6 +111,14 @@ impl std::ops::Div for &Tensor<f32> {
     }
 }
 
+impl std::ops::Neg for &Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn neg(self) -> Self::Output {
+        Neg::new().unwrap().forward(&[self]).unwrap().remove(0).tensor
+    }
+}
+
 /// Add trait implementation for owned tensors
 ///
 /// # Arguments
@@ -116,11 +129,11 @@ impl std::ops::Div for &Tensor<f32> {
 ///
 /// # Broadcasting
 /// * Supports broadcasting when adding a 1D tensor to each row of a 2D tensor
-impl std::ops::Add for Variable<f32> {
+impl std::ops::Add for &Variable<f32> {
     type Output = Variable<f32>;
 
-    fn add(self: Arc<Self>, other: Arc<Variable<f32>>) -> Self::Output {
-        &self + &other
+    fn add(self: Self, other: &Variable<f32>) -> Self::Output {
+        Add::new().unwrap().forward(&[self.tensor(), other.tensor()]).unwrap().remove(0)
     }
 }
 
@@ -134,11 +147,11 @@ impl std::ops::Add for Variable<f32> {
 ///
 /// # Broadcasting
 /// * Supports broadcasting when subtracting a 1D tensor from each row of a 2D tensor
-impl std::ops::Sub for Variable<f32> {
+impl std::ops::Sub for &Variable<f32> {
     type Output = Variable<f32>;
 
-    fn sub(self, other: Variable<f32>) -> Self::Output {
-        &self - &other
+    fn sub(self, other: &Variable<f32>) -> Self::Output {
+        Sub::new().unwrap().forward(&[self.tensor(), other.tensor()]).unwrap().remove(0)
     }
 }
 
@@ -153,11 +166,11 @@ impl std::ops::Sub for Variable<f32> {
 /// # Note
 /// * This performs element-wise multiplication, not matrix multiplication
 /// * For matrix multiplication, use `matmul()` instead
-impl std::ops::Mul for Variable<f32> {
+impl std::ops::Mul for &Variable<f32> {
     type Output = Variable<f32>;
 
-    fn mul(self, other: Variable<f32>) -> Self::Output {
-        &self * &other
+    fn mul(self, other: &Variable<f32>) -> Self::Output {
+        Mul::new().unwrap().forward(&[self.tensor(), other.tensor()]).unwrap().remove(0)
     }
 }
 
@@ -168,6 +181,46 @@ impl std::ops::Mul for Variable<f32> {
 ///
 /// # Returns
 /// A new tensor containing the element-wise quotient
+impl std::ops::Div for &Variable<f32> {
+    type Output = Variable<f32>;
+
+    fn div(self, other: &Variable<f32>) -> Self::Output {
+        Div::new().unwrap().forward(&[self.tensor(), other.tensor()]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Neg for &Variable<f32> {
+    type Output = Variable<f32>;
+
+    fn neg(self) -> Self::Output {
+        Neg::new().unwrap().forward(&[self.tensor()]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Add for Variable<f32> {
+    type Output = Variable<f32>;
+
+    fn add(self, other: Variable<f32>) -> Self::Output {
+        &self + &other
+    }
+}
+
+impl std::ops::Sub for Variable<f32> {
+    type Output = Variable<f32>;
+
+    fn sub(self, other: Variable<f32>) -> Self::Output {
+        &self - &other
+    }
+}
+
+impl std::ops::Mul for Variable<f32> {
+    type Output = Variable<f32>;
+
+    fn mul(self, other: Variable<f32>) -> Self::Output {
+        &self * &other
+    }
+}
+
 impl std::ops::Div for Variable<f32> {
     type Output = Variable<f32>;
 
@@ -176,42 +229,17 @@ impl std::ops::Div for Variable<f32> {
     }
 }
 
-impl std::ops::Add<dyn AutogradFunction> for Arc<Variable<f32>> {
-    type Output = Arc<Variable<f32>>;
+impl std::ops::Neg for Variable<f32> {
+    type Output = Variable<f32>;
 
-    fn add(self, other: Arc<Variable<f32>>) -> Self::Output {
-        Add::new().unwrap().apply(&[&self, &other]).unwrap().remove(0).tensor
+    fn neg(self) -> Self::Output {
+        -&self
     }
 }
-
-impl std::ops::Sub<dyn AutogradFunction> for Arc<Variable<f32>> {
-    type Output = Arc<Variable<f32>>;
-
-    fn sub(self, other: Arc<Variable<f32>>) -> Self::Output {
-        Sub::new().unwrap().apply(&[&self, &other]).unwrap().remove(0).tensor
-    }
-}
-
-impl std::ops::Mul<dyn AutogradFunction> for Arc<Variable<f32>> {
-    type Output = Arc<Variable<f32>>;
-
-    fn mul(self, other: Arc<Variable<f32>>) -> Self::Output {
-        Mul::new().unwrap().apply(&[&self, &other]).unwrap().remove(0).tensor
-    }
-}
-
-impl std::ops::Div<dyn AutogradFunction> for Arc<Variable<f32>> {
-    type Output = Arc<Variable<f32>>;
-
-    fn div(self, other: Arc<Variable<f32>>) -> Self::Output {
-        Div::new().unwrap().apply(&[&self, &other]).unwrap().remove(0).tensor
-    }
-}
-
 
 #[cfg(test)]
 mod tests {
-    use crate::MlResult;
+    use crate::{variable, MlResult};
     use crate::tensor::{Tensor, TensorBase, Variable};
 
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
@@ -219,8 +247,15 @@ mod tests {
         assert_eq!(tensor.shape(), expected_tensor.shape());
         Ok(())
     }
+
+    pub fn assert_variable_eq(variable: &Variable<f32>, expected_variable: &Variable<f32>) -> MlResult<()> {
+        assert_eq!(variable.tensor.data(), expected_variable.tensor.data());
+        assert_eq!(variable.tensor.shape(), expected_variable.tensor.shape());
+        Ok(())
+    }
+
     #[test]
-    fn test_add_operator() -> MlResult<()> {
+    fn tensor_add_operator() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![3.0, 4.0]]);
         let expected = Tensor::new(vec![vec![4.0, 6.0]]);
@@ -230,32 +265,101 @@ mod tests {
     }
 
     #[test]
-    fn test_sub_operator() -> MlResult<()> {
+    fn tensor_sub_operator() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![3.0, 4.0]]);
-        let expected = Tensor::new(vec![vec![-2.0, -2.0]]);
         let result = first - second;
 
-        assert_tensor_eq(&result, &expected)
+        assert_tensor_eq(&result, &Tensor::new(vec![vec![-2.0, -2.0]]))
     }
 
     #[test]
-    fn test_mul_operator() -> MlResult<()> {
+    fn tensor_mul_operator() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![3.0, 4.0]]);
-        let expected = Tensor::new(vec![vec![3.0, 8.0]]);
         let result = first * second;
 
-        assert_tensor_eq(&result, &expected)
+        assert_tensor_eq(&result, &Tensor::new(vec![vec![3.0, 8.0]]))
     }
 
     #[test]
-    fn test_div_operator() -> MlResult<()> {
+    fn tensor_div_operator() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![2.0, 4.0]]);
-        let expected = Tensor::new(vec![vec![0.5, 0.5]]);
         let result = first / second;
 
-        assert_tensor_eq(&result, &expected)
+        assert_tensor_eq(&result, &Tensor::new(vec![vec![0.5, 0.5]]))
+    }
+
+    #[test]
+    fn ref_variable_add_operator() -> MlResult<()> {
+        let first = variable!(vec![vec![1.0, 2.0]]);
+        let second = variable!(vec![vec![3.0, 4.0]]);
+        let result = &first + &second;
+
+        assert_variable_eq(&result, &variable!(vec![vec![4.0, 6.0]]))
+    }
+
+    #[test]
+    fn ref_variable_sub_operator() -> MlResult<()> {
+        let first = variable!(vec![vec![1.0, 2.0]]);
+        let second = variable!(vec![vec![3.0, 4.0]]);
+        let result = &first - &second;
+
+        assert_variable_eq(&result, &variable!(vec![vec![-2.0, -2.0]]))
+    }
+
+    #[test]
+    fn ref_variable_mul_operator() -> MlResult<()> {
+        let first = variable!(vec![vec![1.0, 2.0]]);
+        let second = variable!(vec![vec![3.0, 4.0]]);
+        let result = &first * &second;
+
+        assert_variable_eq(&result, &variable!(vec![vec![3.0, 8.0]]))
+    }
+
+    #[test]
+    fn ref_variable_div_operator() -> MlResult<()> {
+        let first = variable!(vec![vec![1.0, 2.0]]);
+        let second = variable!(vec![vec![2.0, 4.0]]);
+        let result = &first / &second;
+
+        assert_variable_eq(&result, &variable!(vec![vec![0.5, 0.5]]))
+    }
+
+    #[test]
+    fn variable_add_operator() -> MlResult<()> {
+        let first = variable!(vec![vec![1.0, 2.0]]);
+        let second = variable!(vec![vec![3.0, 4.0]]);
+        let result = first + second;
+
+        assert_variable_eq(&result, &variable!(vec![vec![4.0, 6.0]]))
+    }
+
+    #[test]
+    fn variable_sub_operator() -> MlResult<()> {
+        let first = variable!(vec![vec![1.0, 2.0]]);
+        let second = variable!(vec![vec![3.0, 4.0]]);
+        let result = first - second;
+
+        assert_variable_eq(&result, &variable!(vec![vec![-2.0, -2.0]]))
+    }
+
+    #[test]
+    fn variable_mul_operator() -> MlResult<()> {
+        let first = variable!(vec![vec![1.0, 2.0]]);
+        let second = variable!(vec![vec![3.0, 4.0]]);
+        let result = first * second;
+
+        assert_variable_eq(&result, &variable!(vec![vec![3.0, 8.0]]))
+    }
+
+    #[test]
+    fn variable_div_operator() -> MlResult<()> {
+        let first = variable!(vec![vec![1.0, 2.0]]);
+        let second = variable!(vec![vec![2.0, 4.0]]);
+        let result = first / second;
+
+        assert_variable_eq(&result, &variable!(vec![vec![0.5, 0.5]]))
     }
 }

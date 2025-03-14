@@ -527,7 +527,7 @@ pub struct Add      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
 pub struct Sub      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
-pub struct Mul      { backend: Arc<dyn Backend>, outputs: Vec<Tensor<f32>> }
+pub struct Mul      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
 pub struct Div      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
@@ -542,12 +542,6 @@ mod tests {
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
-        Ok(())
-    }
-
-    pub fn assert_variable_eq(variable: &Variable<f32>, expected_variable: &Variable<f32>) -> MlResult<()> {
-        assert_eq!(variable.tensor.data(), expected_variable.tensor.data());
-        assert_eq!(variable.tensor.shape(), expected_variable.tensor.shape());
         Ok(())
     }
 
