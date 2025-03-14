@@ -1,5 +1,5 @@
 use crate::backend::DeviceType;
-use crate::{ops};
+use crate::ops;
 use crate::tensor::*;
 
 #[derive(Debug)]

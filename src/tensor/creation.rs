@@ -2,7 +2,6 @@ use crate::{MlError, MlResult};
 use crate::MlError::StringError;
 use crate::tensor::*;
 
-
 impl  Tensor<f32> {
     pub fn zeros() -> Tensor<f32> {
         Self {
@@ -98,7 +97,7 @@ impl Variable<f32> {
     pub fn new(tensor: Tensor<f32>) -> Self {
         Variable {
             tensor,
-            requires_grad: cfg!(feature = "enable_backpropagation"),
+            requires_grad: cfg!(feature = "requires_grad"),
 
             #[cfg(feature = "enable_backpropagation")]
             grad: RefCell::new(None),
@@ -173,13 +172,22 @@ impl Variable<f32> {
         let mut grad_ref = self.grad.borrow_mut();
 
         if let Some(ref existing_grad) = *grad_ref {
-            let mut new_data = Vec::with_capacity(existing_grad.data().len());
-            for (a, b) in existing_grad.data().iter().zip(new_grad.data().iter()) {
-                new_data.push(a + b);
+            // 차원 검증 추가
+            if existing_grad.shape() != new_grad.shape() {
+                return Err(TensorError::InvalidShape {
+                    expected: existing_grad.shape().to_vec(),
+                    got: new_grad.shape().to_vec(),
+                }.into());
             }
 
-            let accumulated_grad = Tensor::from_vec(new_data, existing_grad.shape())
-                .map_err(|e| format!("failed gradient accumulation: {:?}", e))?;
+            // 가능하다면 in-place 연산을 사용하여 효율성 개선
+            let mut accumulated_data = existing_grad.data().to_vec();
+            for (i, &val) in new_grad.data().iter().enumerate() {
+                accumulated_data[i] += val;
+            }
+
+            let accumulated_grad = Tensor::from_vec(accumulated_data, existing_grad.shape())
+                .map_err(|e| format!("Failed gradient accumulation: {:?}", e))?;
 
             *grad_ref = Some(accumulated_grad);
         } else {
@@ -299,7 +307,7 @@ impl ComputationGraph<f32> {
     ///
     /// # 반환값
     /// - `Self`: 초기화된 `ComputationGraph` 인스턴스
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             nodes: HashMap::new(),
             next_id: 0,
@@ -318,7 +326,7 @@ impl ComputationGraph<f32> {
     /// # 반환값
     /// - `NodeId`: 추가된 노드의 고유 식별자
     #[cfg(feature = "enable_backpropagation")]
-    fn add_input(&mut self, variable: Arc<Variable<f32>>) -> NodeId {
+    pub fn add_input(&mut self, variable: Arc<Variable<f32>>) -> NodeId {
         let id = self.next_id;
         self.next_id += 1;
 
@@ -347,7 +355,7 @@ impl ComputationGraph<f32> {
     /// # 반환값
     /// - `NodeId`: 추가된 연산 노드의 고유 식별자
     #[cfg(feature = "enable_backpropagation")]
-    fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId>) -> NodeId {
+    pub fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId>) -> NodeId {
         let id = self.next_id;
         self.next_id += 1;
 
@@ -368,7 +376,7 @@ impl ComputationGraph<f32> {
     ///
     /// 이 메서드는 그래프의 노드들을 의존성 순서대로 정렬하여 역전파를 위한 준비를 합니다.
     /// 이미 정렬된 경우에는 아무 작업도 수행하지 않습니다.
-    fn topological_sort(&mut self) {
+    pub fn topological_sort(&mut self) {
         if self.sorted {
             return;
         }
@@ -428,15 +436,16 @@ impl ComputationGraph<f32> {
     /// - 그래디언트 초기화 실패 시
     /// - 역전파 계산 실패 시
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&mut self, output_id: NodeId) -> MlResult<()> {
+    pub fn backward(&mut self, output_id: NodeId) -> MlResult<()> {
         if !self.sorted {
             self.topological_sort();
         }
-
+        // 모든 노드의 기울기 초기화
         for (_, node) in &self.nodes {
             node.variable.clear_grad();
         }
 
+        // 출력 노드의 기울기를 1.0으로 설정
         let output_var = &self.nodes.get(&output_id).ok_or("출력 노드를 찾을 수 없습니다.")?.variable;
         if output_var.grad().is_none() {
             let grad = Tensor::from_vec(
@@ -446,23 +455,28 @@ impl ComputationGraph<f32> {
             output_var.set_grad(grad);
         }
 
+        // 위상 정렬된 순서의 역순으로 순회
         for &node_id in self.topo_sorted.iter().rev() {
             let node = self.nodes.get(&node_id).unwrap();
-
             if node.variable.grad().is_none() || node.function.is_none() {
                 continue;
             }
 
             if let Some(function) = &node.function {
+
                 for &input_id in &node.inputs {
                     let input_node = self.nodes.get(&input_id).unwrap();
                     let input_grads = function.backward(input_node.variable.tensor(), &node.variable.grad().unwrap())
                         .map_err(|e| format!("역전파 실패: {:?}", e))?;
+
                     input_node.variable.accumulate_grad(input_grads[0].clone())?;
+                }
+
+                if !node.variable.retain_grad() {
+                    node.variable.clear_grad();
                 }
             }
         }
-
         Ok(())
     }
 }
@@ -471,7 +485,7 @@ impl ComputationGraph<f32> {
 /// 자동 미분(autograd)을 지원하는 함수 트레잇
 ///
 /// 이 트레잇은 Function<f32>와 Clone을 구현하는 타입에 자동 미분 기능을 추가합니다.
-/// 신경망의 순전파(forward pass)와 역전파(backward pass)를 연결하는 그라데이션 함수를 생성하는 역할을 수행합니다.
+/// 신경망의 순전파(forward pass)와 역전파(backward pass)를 연결하는 함수를 생성하는 역할을 수행합니다.
 ///
 /// # 주요 기능
 /// - 입력 변수들로부터 계산 결과 생성
@@ -502,17 +516,17 @@ impl ComputationGraph<f32> {
 pub trait AutogradFunction: Function<f32> + Clone where Self: 'static {
     fn apply(&self, inputs: &[&Arc<Variable<f32>>]) -> MlResult<Arc<Variable<f32>>> {
         let tensors: Vec<&Tensor<f32>> = inputs.iter().map(|&var| var.tensor()).collect();
-        let mut results = self.forward(&tensors)?;
+        let results = Variable::new(self.forward(&tensors)?.remove(0));
 
         #[cfg(feature = "enable_backpropagation")]
         {
-            let result = Arc::new(results.remove(0));
+            let result = Arc::new(results);
             result.clone().with_grad_fn(Arc::new(self.clone()), inputs);
             return Ok(result)
         }
 
-        Ok(Arc::new(results.remove(0)))
+        Ok(Arc::new(results))
     }
 }
 
-impl<F: Function<f32> + Clone + 'static> AutogradFunction for F {}
+impl<F: Function<f32> + Clone +  'static> AutogradFunction for F {}

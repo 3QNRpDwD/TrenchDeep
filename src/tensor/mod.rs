@@ -1,13 +1,14 @@
 use std::{
-    collections::{HashMap, VecDeque},
-    sync::Arc,
     cell::RefCell,
+    collections::{HashMap, VecDeque},
     fmt::{Debug, Display, Formatter, Result},
+    sync::Arc,
 };
+
 use crate::{backend::Backend, MlResult};
 
-mod creation;
-mod operators;
+pub mod creation;
+pub mod operators;
 
 /// 다양한 텐서 연산을 위한 편리한 매크로를 제공합니다.
 ///
@@ -46,7 +47,7 @@ mod operators;
 /// 매 연산 시 새로운 텐서를 생성하므로
 /// 대규모 텐서 연산 시 메모리 할당 오버헤드가 발생할 수 있습니다.
 /// 고성능 연산이 필요한 경우 in-place 연산을 지원하는 별도 메서드 구현을 권장합니다.
-#[macro_export] // 해당 매크로의 반환값에 연산자와 연산 결과를 모두 포함하도록 구조 변경을 고려중임.
+#[macro_export] // 해당 매크로의 존재 의의가 다소 부족함. 제거또는 구조 변경을 고려.
 macro_rules! ops {
     ($tensor:expr, Pow, $exponent:expr) => {{
         let mut op = Pow::new().unwrap();
@@ -423,7 +424,7 @@ pub trait Function<T: Debug + Clone> {
     ///
     /// # 오류
     /// - 입력 텐서의 형태나 데이터가 연산에 적합하지 않을 경우
-    fn forward(&self, targets: &[&Tensor<T>]) -> MlResult<Vec<Variable<T>>>;
+    fn forward(&self, targets: &[&Tensor<T>]) -> MlResult<Vec<Tensor<T>>>;
 
     /// 역전파(Backward Pass)를 수행합니다.
     ///
@@ -545,19 +546,17 @@ mod tests {
         Ok(())
     }
 
-    fn print_phase(
-        phase: &str,
+    fn print_forward(
         x: &Tensor<f32>,
         a: &Tensor<f32>,
         b: &Tensor<f32>,
         y: &Tensor<f32>,
     ) {
         println!(
-            "{}:\n    \
+            "Forward Pass:\n    \
             Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[Square]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n    \
             Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[ Exps ]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n    \
             Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[Square]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n",
-            phase,
             x.data(), x.shape(),
             a.data(), a.shape(),
             a.data(), b.shape(),
@@ -569,30 +568,38 @@ mod tests {
         );
     }
 
-    #[test]
-    fn binary_operator_backpropagation_test() -> MlResult<()>{
-        let square = Square::new()?;
-        let add = Exp::new()?;
+    fn print_backward(
+        x: &Option<Tensor<f32>>,
+        a: &Option<Tensor<f32>>,
+        b: &Option<Tensor<f32>>,
+        y: &Option<Tensor<f32>>,
+    ) {
+        let fmt_tensor = |t: &Option<Tensor<f32>>| {
+            if let Some(tensor) = t {
+                format!(
+                    "Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}",
+                    tensor.data(),
+                    tensor.shape(),
+                    width = 11,
+                    width2 = 3
+                )
+            } else {
+                "Tensor { data: None, shape: None }".to_string()
+            }
+        };
 
-        let x = variable!(vec![vec![0.5]]);
-        let a = square.forward(&[ x.tensor() ])?.remove(0); // a = A(x)
-        let b = add   .forward(&[ a.tensor() ])?.remove(0); // b = B(a)
-        let y = square.forward(&[ b.tensor() ])?.remove(0); // y = C(b)
-
-        print_phase("forward", x.tensor(), a.tensor(), b.tensor(), y.tensor());
-        assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
-
-        #[cfg(feature = "enable_backpropagation")]
-        {
-            y.set_grad(Tensor::new(vec![vec![1.0]]));                                  // dy = 1
-            b.set_grad(square.backward(b.tensor(), &y.grad().unwrap())?.remove(0));   // dy/db = dy/dy * 2b
-            a.set_grad(add   .backward(a.tensor(), &b.grad().unwrap())?.remove(0));   // dy/da = (dy/db) * db/da
-            x.set_grad(square.backward(x.tensor(), &a.grad().unwrap())?.remove(0));   // dy/dx = (dy/da) * da/dx
-
-            print_phase("backward", &y.grad().unwrap(), &b.grad().unwrap(), &a.grad().unwrap(), &x.grad().unwrap());
-            assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
-        }
-        Ok(())
+        println!(
+            "Backward Pass:\n    \
+        {} ==[Square]=> {}\n    \
+        {} ==[ Exps ]=> {}\n    \
+        {} ==[Square]=> {}\n",
+            fmt_tensor(x),
+            fmt_tensor(a),
+            fmt_tensor(a),
+            fmt_tensor(b),
+            fmt_tensor(b),
+            fmt_tensor(y),
+        );
     }
 
     #[test]
@@ -601,11 +608,11 @@ mod tests {
         let exp = Exp::new()?;
 
         let x = variable!(vec![vec![0.5]]);
-        let a = square.forward(&[ x.tensor() ])?.remove(0); // a = A(x)
-        let b = exp   .forward(&[ a.tensor() ])?.remove(0); // b = B(a)
-        let y = square.forward(&[ b.tensor() ])?.remove(0); // y = C(b)
+        let a = Variable::new(square.forward(&[ x.tensor() ])?.remove(0)); // a = A(x)
+        let b = Variable::new(exp   .forward(&[ a.tensor() ])?.remove(0)); // b = B(a)
+        let y = Variable::new(square.forward(&[ b.tensor() ])?.remove(0)); // y = C(b)
 
-        print_phase("forward", x.tensor(), a.tensor(), b.tensor(), y.tensor());
+        print_forward(x.tensor(), a.tensor(), b.tensor(), y.tensor());
         assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
 
         #[cfg(feature = "enable_backpropagation")]
@@ -615,7 +622,8 @@ mod tests {
             a.set_grad(exp   .backward(a.tensor(), &b.grad().unwrap())?.remove(0));   // dy/da = (dy/db) * db/da
             x.set_grad(square.backward(x.tensor(), &a.grad().unwrap())?.remove(0));   // dy/dx = (dy/da) * da/dx
 
-            print_phase("backward", &y.grad().unwrap(), &b.grad().unwrap(), &a.grad().unwrap(), &x.grad().unwrap());
+            print!("Manual ");
+            print_backward(&y.grad(), &b.grad(), &a.grad(), &x.grad());
             assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
         }
         Ok(())
@@ -632,13 +640,14 @@ mod tests {
         let y = square.apply(&[&b])?;
 
         assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
-        print_phase("autograd forward", x.tensor(), a.tensor(), b.tensor(), y.tensor());
+        print_forward(x.tensor(), a.tensor(), b.tensor(), y.tensor());
 
         #[cfg(feature = "enable_backpropagation")]
         {
             y.backward()?;
 
-            print_phase("autograd backward", &y.grad().unwrap(), &b.grad().unwrap(), &a.grad().unwrap(), &x.grad().unwrap());
+            print!("Automatic ");
+            print_backward(&y.grad(), &b.grad(), &a.grad(), &x.grad());
             assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
         }
         Ok(())
@@ -660,7 +669,7 @@ mod tests {
         let expected = Tensor::new(vec![vec![4.0, 6.0]]);
         let m_add = ops!(first, Add, second);
 
-        assert_tensor_eq(&m_add.tensor, &expected)
+        assert_tensor_eq(&m_add, &expected)
     }
 
     #[test]
@@ -670,7 +679,7 @@ mod tests {
         let expected = Tensor::new(vec![vec![-2.0, -2.0]]);
         let m_sub = ops!(first, Sub, second);
 
-        assert_tensor_eq(&m_sub.tensor, &expected)
+        assert_tensor_eq(&m_sub, &expected)
     }
 
     #[test]
@@ -680,17 +689,16 @@ mod tests {
         let expected = Tensor::new(vec![vec![3.0, 8.0]]);
         let m_mul = ops!(first, Mul, second);
 
-        assert_tensor_eq(&m_mul.tensor, &expected)
+        assert_tensor_eq(&m_mul, &expected)
     }
 
     #[test]
     fn test_div_macro() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![2.0, 4.0]]);
-        let expected = Tensor::new(vec![vec![0.5, 0.5]]);
         let m_div = ops!(first, Div, second);
 
-        assert_tensor_eq(&m_div.tensor, &expected)
+        assert_tensor_eq(&m_div, &Tensor::new(vec![vec![0.5, 0.5]]))
     }
 
     #[test]
@@ -699,107 +707,101 @@ mod tests {
         let second = Tensor::new(vec![vec![3.0], vec![4.0]]);
         let result = ops!(first, Matmul, second);
 
-        assert_eq!(result.tensor.data(), vec![11.0]);
+        assert_eq!(result.data(), vec![11.0]);
     }
 
     #[test]
     fn tes_macro_exp_macro() {
         let tensor = Tensor::new(vec![vec![1.0, 2.0]]);
         let result = ops!(tensor, Exp);
-        assert_eq!(result.tensor.data(), vec![std::f32::consts::E, 7.389056]);
+        assert_eq!(result.data(), vec![std::f32::consts::E, 7.389056]);
     }
 
     #[test]
     fn test_neg_macro() {
         let tensor = Tensor::new(vec![vec![1.0, -2.0]]);
         let result = ops!(tensor, Neg);
-        assert_eq!(result.tensor.data(), vec![-1.0, 2.0]);
+        assert_eq!(result.data(), vec![-1.0, 2.0]);
     }
 
     #[test]
     fn test_sqrt_macro() {
         let tensor = Tensor::new(vec![vec![1.0, 4.0]]);
         let result = ops!(tensor, Sqrt);
-        assert_eq!(result.tensor.data(), vec![1.0, 2.0]);
+        assert_eq!(result.data(), vec![1.0, 2.0]);
     }
 
     #[test]
     fn test_abs_macro() {
         let tensor = Tensor::new(vec![vec![1.0, -2.0]]);
         let result = ops!(tensor, Abs);
-        assert_eq!(result.tensor.data(), vec![1.0, 2.0]);
+        assert_eq!(result.data(), vec![1.0, 2.0]);
     }
 
     #[test]
     fn test_square_macro() {
         let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
         let result = ops!(tensor, Square);
-        assert_eq!(result.tensor.data(), vec![4.0, 9.0]);
+        assert_eq!(result.data(), vec![4.0, 9.0]);
     }
 
     #[test]
     fn test_log_macro() {
         let tensor = Tensor::new(vec![vec![1.0, std::f32::consts::E]]);
         let result = ops!(tensor, Log);
-        assert_eq!(result.tensor.data(), vec![0.0, 0.99999994]);
+        assert_eq!(result.data(), vec![0.0, 0.99999994]);
     }
 
     #[test]
     fn test_pow_macro() {
         let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
         let result = ops!(tensor, Pow, 2.0);
-        assert_eq!(result.tensor.data(), vec![4.0, 9.0]);
+        assert_eq!(result.data(), vec![4.0, 9.0]);
     }
 
     #[test]
     fn tensor_add_scalar() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let et = Tensor::new(vec![vec![3.0, 4.0]]);
         let result = scalar_ops!(first, Add, 2.0)?;
         // 텐서와 스칼라의 차원이 맞지 않아, 오류 발생.
         // 스칼라 연산 메서드를 따로 구현하야하나?
-        assert_tensor_eq(&result, &et)
+        assert_tensor_eq(&result, &Tensor::new(vec![vec![3.0, 4.0]]))
     }
     #[test]
     fn tensor_sub_scalar() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let et = Tensor::new(vec![vec![-1.0, 0.0]]);
         let result = scalar_ops!(first, Sub, 2.0)?;
 
-        assert_tensor_eq(&result, &et)
+        assert_tensor_eq(&result, &Tensor::new(vec![vec![-1.0, 0.0]]))
     }
     #[test]
     fn tensor_mul_scalar() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let et = Tensor::new(vec![vec![2.0, 4.0]]);
         let result = scalar_ops!(first, Mul , 2.0)?;
 
-        assert_tensor_eq(&result, &et)
+        assert_tensor_eq(&result, &Tensor::new(vec![vec![2.0, 4.0]]))
     }
     #[test]
     fn tensor_div_scalar() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let et = Tensor::new(vec![vec![0.5, 1.0]]);
         let result = scalar_ops!(first, Div , 2.0)?;
 
-        assert_tensor_eq(&result, &et)
+        assert_tensor_eq(&result, &Tensor::new(vec![vec![0.5, 1.0]]))
     }
 
     #[test]
     fn tensor_scalar_sub() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let et = Tensor::new(vec![vec![1.0, 0.0]]);
         let result = scalar_ops!(2.0, buS , first)?;
 
-        assert_tensor_eq(&result, &et)
+        assert_tensor_eq(&result, &Tensor::new(vec![vec![1.0, 0.0]]))
 
     }
     #[test]
     fn tensor_scalar_div() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let et = Tensor::new(vec![vec![2.0, 1.0]]);
         let result = scalar_ops!(2.0, viD , first)?;
 
-        assert_tensor_eq(&result, &et)
+        assert_tensor_eq(&result, &Tensor::new(vec![vec![2.0, 1.0]]))
     }
 }

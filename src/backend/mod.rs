@@ -1,12 +1,13 @@
 use std::fmt::{Debug, Display, Formatter};
 
-mod device;
-mod feature;
-pub use device::{Device, DeviceType};
-mod cpu;
 pub use cpu::CpuBackend;
+pub use device::{Device, DeviceType};
+
 use crate::MlResult;
 
+mod device;
+mod feature;
+mod cpu;
 
 pub trait Backend: Debug + Send + Sync {
     fn device(&self) -> DeviceType;

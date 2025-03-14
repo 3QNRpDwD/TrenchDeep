@@ -1,7 +1,8 @@
 use std::sync::Arc;
+
 use crate::{MlError, MlResult};
 use crate::backend::{Backend, CpuBackend, Device};
-use crate::tensor::{Abs, Add, Div, Exp, Log, Matmax, Matmul, Mul, Neg, Pow, Sub, Sqrt, Square, Topk, Tensor, TensorError, Variable, TensorBase, Function};
+use crate::tensor::{Abs, Add, Div, Exp, Function, Log, Matmax, Matmul, Mul, Neg, Pow, Sqrt, Square, Sub, Tensor, TensorBase, TensorError, Topk};
 
 impl Function<f32> for Abs {
     fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
@@ -9,8 +10,8 @@ impl Function<f32> for Abs {
     ///
     /// # Returns
     /// A new tensor with the absolute values of each element
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
-        Ok(vec![Variable::new(Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| x.abs()).collect(), targets[0].shape())?)])
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+        Ok(vec![Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| x.abs()).collect(), targets[0].shape())?])
     }
 
     #[cfg(feature = "enable_backpropagation")]
@@ -27,8 +28,8 @@ impl Function<f32> for Exp {
     ///
     /// # Returns
     /// A new tensor with each element being e ^ tensor_element
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
-        Ok(vec![Variable::new(Tensor::<f32>::from_vec(self.backend().exp(targets[0].data()), targets[0].shape())?)])
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+        Ok(vec![Tensor::<f32>::from_vec(self.backend().exp(targets[0].data()), targets[0].shape())?])
     }
 
     #[cfg(feature = "enable_backpropagation")]
@@ -50,8 +51,8 @@ impl Function<f32> for Log {
     ///
     /// # Returns
     /// A new tensor with each element being the natural logarithm of tensor_element
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
-        Ok(vec![Variable::new(Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| x.ln()).collect(), targets[0].shape())?)])
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+        Ok(vec![Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| x.ln()).collect(), targets[0].shape())?])
     }
 
     #[cfg(feature = "enable_backpropagation")]
@@ -68,8 +69,8 @@ impl Function<f32> for Neg {
     ///
     /// # Returns
     /// A new tensor with each element being the negation of tensor_element
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
-        Ok(vec![Variable::new(Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| -x).collect(), targets[0].shape())?)])
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+        Ok(vec![Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| -x).collect(), targets[0].shape())?])
     }
 
     #[cfg(feature = "enable_backpropagation")]
@@ -86,8 +87,8 @@ impl Function<f32> for Sqrt {
     ///
     /// # Returns
     /// A new tensor with each element being the square root of tensor_element
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
-        Ok(vec![Variable::new(Tensor::<f32>::from_vec(self.backend().sqrt(targets[0].data()), targets[0].shape())?)])
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+        Ok(vec![Tensor::<f32>::from_vec(self.backend().sqrt(targets[0].data()), targets[0].shape())?])
     }
 
     #[cfg(feature = "enable_backpropagation")]
@@ -104,8 +105,8 @@ impl Function<f32> for Square {
     ///
     /// # Returns
     /// A new tensor with each element being the square of the corresponding element in the input tensor
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
-        Ok(vec![Variable::new(Tensor::<f32>::from_vec(targets[0].data().iter().map(|x| x * x).collect(), targets[0].shape())?)])
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+        Ok(vec![Tensor::<f32>::from_vec(targets[0].data().iter().map(|x| x * x).collect(), targets[0].shape())?])
     }
 
     #[cfg(feature = "enable_backpropagation")]
@@ -130,7 +131,7 @@ impl Function<f32> for Add {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise addition
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         if targets[0].shape().len() == 2 && targets[1].shape().len() == 1 && targets[0].shape()[1] == targets[1].shape()[0] {
             let (_, features) = (targets[0].shape()[0], targets[0].shape()[1]);
             let mut data = vec![0.0; targets[0].data().len()];
@@ -140,13 +141,13 @@ impl Function<f32> for Add {
                     *val = targets[0].data()[i * features + j] + targets[1].data()[j];
                 }
             }
-            return Ok(vec![Variable::new(Tensor::<f32>::from_vec(data, targets[0].shape())?)])
+            return Ok(vec![Tensor::<f32>::from_vec(data, targets[0].shape())?])
         }
 
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
             _ => {
-                Ok(vec![Variable::new(Tensor::<f32>::from_vec(self.backend().add(targets[0].data(), targets[1].data()), targets[0].shape())?)])
+                Ok(vec![Tensor::<f32>::from_vec(self.backend().add(targets[0].data(), targets[1].data()), targets[0].shape())?])
             }
         }
     }
@@ -168,8 +169,7 @@ impl Function<f32> for Sub {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise subtraction
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
-        let buffer: Variable<f32>;
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         if targets[0].shape().len() == 2 && targets[1].shape().len() == 1 && targets[0].shape()[1] == targets[1].shape()[0] {
             let (batch_size, features) = (targets[0].shape()[0], targets[0].shape()[1]);
             let mut data = vec![0.0; targets[0].data().len()];
@@ -179,15 +179,12 @@ impl Function<f32> for Sub {
                     data[i * features + j] = targets[0].data()[i * features + j] - targets[1].data()[j];
                 }
             }
-            return Ok(vec![Variable::new(Tensor::<f32>::from_vec(data, &targets[0].shape())?)])
+            return Ok(vec![Tensor::<f32>::from_vec(data, &targets[0].shape())?])
         }
 
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
-            _ => {
-                buffer = Variable::new(Tensor::<f32>::from_vec(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape())?);
-                Ok(vec![buffer])
-            }
+            _ => Ok(vec![Tensor::<f32>::from_vec(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape())?])
         }
     }
 
@@ -208,12 +205,10 @@ impl Function<f32> for Mul {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise multiplication
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
-            _ => {
-                Ok(vec![Variable::new(Tensor::<f32>::from_vec(self.backend().multiply(targets[0].data(), targets[1].data()), targets[0].shape())?)])
-            }
+            _ => Ok(vec![Tensor::<f32>::from_vec(self.backend().multiply(targets[0].data(), targets[1].data()), targets[0].shape())?])
         }
     }
 
@@ -234,10 +229,10 @@ impl Function<f32> for Div {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise division
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
-            _ => Ok(vec![Variable::new(Tensor::<f32>::from_vec(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape())?)])
+            _ => Ok(vec![Tensor::<f32>::from_vec(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape())?])
         }
     }
 
@@ -258,8 +253,8 @@ impl Function<f32> for Pow {
     ///
     /// # Returns
     /// A new tensor with each element being tensor_element ^ power
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
-        Ok(vec![Variable::new(Tensor::<f32>::from_vec(self.backend().pow(targets[0].data(), self.power.unwrap()), targets[0].shape())?)])
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+        Ok(vec![Tensor::<f32>::from_vec(self.backend().pow(targets[0].data(), self.power.unwrap()), targets[0].shape())?])
     }
 
     #[cfg(feature = "enable_backpropagation")]
@@ -280,7 +275,7 @@ impl Function<f32> for Matmul {
     /// # Returns
     /// A new tensor with the result of the matrix multiplication
     // Handle empty tensors
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         if targets[0].data().is_empty() || targets[1].data().is_empty() {
             return Err(MlError::TensorError(TensorError::EmptyTensor));
         }
@@ -288,7 +283,7 @@ impl Function<f32> for Matmul {
         let a = targets[0].shape().len();
         let b = targets[1].shape().len();
 
-        let buffer =  Variable::new(match (a, b) {
+        let buffer = match (a, b) {
             // Case 1: 1D * 1D (dot product)
             (1, 1) => {
                 match targets[0].chk_shape(targets[1]) {
@@ -427,7 +422,7 @@ impl Function<f32> for Matmul {
                 shape.push(n);
                 Tensor::<f32>::from_vec(data, &shape)?
             }
-        });
+        };
         Ok(vec![buffer])
     }
 
@@ -450,7 +445,7 @@ impl Function<f32> for Topk {
     ///
     /// # Returns
     /// A tuple of two tensors (values, indices) containing the top k values and their indices
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         if self.topk.unwrap().0 == 0 {
             return Err(MlError::TensorError(TensorError::InvalidOperation {
                 op: "topk",
@@ -506,8 +501,7 @@ impl Function<f32> for Topk {
         let mut new_shape = targets[0].shape().to_vec();
         new_shape[last_dim] = self.topk.unwrap().0;
 
-        let buffer = vec![Variable::new(Tensor::<f32>::from_vec(values, &new_shape)?), Variable::new(Tensor::<f32>::from_vec(indices, &new_shape)?)];
-        Ok(buffer)
+        Ok(vec![Tensor::<f32>::from_vec(values, &new_shape)?, Tensor::<f32>::from_vec(indices, &new_shape)?])
     }
 
     #[cfg(feature = "enable_backpropagation")]
@@ -531,12 +525,12 @@ impl Function<f32> for Matmax {
     /// If dim is None, returns a tensor with a single element containing the maximum value.
     /// If dim is specified, returns a tuple of two tensors (values, indices) containing the
     /// maximum values and their indices along the specified dimension.
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Variable<f32>>> {
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         let buffer = match self.matmax.unwrap().0 {
             None => {
                 // Find global maximum
                 let max_val = targets[0].data().iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-                vec![Variable::new(Tensor::<f32>::from_vec(vec![max_val], &vec![1])?), Variable::new(Tensor::<f32>::zeros())]
+                vec![Tensor::<f32>::from_vec(vec![max_val], &vec![1])?, Tensor::<f32>::zeros()]
             }
             Some(d) => {
                 let dim = if d < 0 {
@@ -586,14 +580,10 @@ impl Function<f32> for Matmax {
                     }
                 }
 
-                vec![Variable::new(Tensor::<f32>::from_vec(max_values, &new_shape)?), Variable::new(Tensor::<f32>::from_vec(max_indices, &new_shape)?)]
+                vec![Tensor::<f32>::from_vec(max_values, &new_shape)?, Tensor::<f32>::from_vec(max_indices, &new_shape)?]
             }
         };
-        // #[cfg(feature = "enable_backpropagation")]
-        // {
-        //     buffer[0].grad_fn = Some(Arc::new(Self::new()));
-        //     buffer[1].grad_fn = Some(Arc::new(Self::new()));
-        // }
+
         Ok(buffer)
     }
 
@@ -615,21 +605,21 @@ mod tests {
         // Test 1: Basic 1D tensor
         let buffer = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
         let (values, indices) = ops!(buffer, Topk, 3, true);
-        assert_eq!(values.tensor.data(), &[5.0, 4.0, 3.0]);
-        assert_eq!(indices.tensor.data(), &[4.0, 1.0, 2.0]);
+        assert_eq!(values.data(), &[5.0, 4.0, 3.0]);
+        assert_eq!(indices.data(), &[4.0, 1.0, 2.0]);
 
         // Test 2: 2D tensor
         let buffer = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0, 2.0, 3.0, 1.0, 4.0, 5.0], &[2, 5], )?;
         let (values, indices) = ops!(buffer, Topk, 2, true);
-        assert_eq!(values.tensor.shape(), &[2, 2]);
-        assert_eq!(values.tensor.data(), &[5.0, 4.0, 5.0, 4.0]);
-        assert_eq!(indices.tensor.data(), &[4.0, 1.0, 4.0, 3.0]);
+        assert_eq!(values.shape(), &[2, 2]);
+        assert_eq!(values.data(), &[5.0, 4.0, 5.0, 4.0]);
+        assert_eq!(indices.data(), &[4.0, 1.0, 4.0, 3.0]);
 
         // Test 3: Unsorted output
         let buffer = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
         let (values, indices) = ops!(buffer, Topk ,3, false);
-        assert_eq!(values.tensor.data(), &[4.0, 3.0, 5.0]);
-        assert_eq!(indices.tensor.data(), &[1.0, 2.0, 4.0]);
+        assert_eq!(values.data(), &[4.0, 3.0, 5.0]);
+        assert_eq!(indices.data(), &[1.0, 2.0, 4.0]);
 
         Ok(())
     }
@@ -638,24 +628,24 @@ mod tests {
         // Test global maximum
         let buffer = Tensor::<f32>::new(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]]);
         let (max_all, _) = ops!(buffer, Matmax, None, false);
-        assert_eq!(max_all.tensor.data(), &[6.0]);
+        assert_eq!(max_all.data(), &[6.0]);
 
         // Test maximum along dimension 0
         let (max_dim0, indices0) = ops!(buffer, Matmax, Some(0), true);
-        assert_eq!(max_dim0.tensor.shape(), &[1, 3]);
-        assert_eq!(max_dim0.tensor.data(), &[4.0, 5.0, 6.0]);
-        assert_eq!(indices0.tensor.data(), &[1.0, 1.0, 1.0]);
+        assert_eq!(max_dim0.shape(), &[1, 3]);
+        assert_eq!(max_dim0.data(), &[4.0, 5.0, 6.0]);
+        assert_eq!(indices0.data(), &[1.0, 1.0, 1.0]);
 
         // Test maximum along dimension 1
         let (max_dim1, indices1) = ops!(buffer, Matmax, Some(1), true);
-        assert_eq!(max_dim1.tensor.shape(), &[2, 1]);
-        assert_eq!(max_dim1.tensor.data(), &[3.0, 6.0]);
-        assert_eq!(indices1.tensor.data(), &[2.0, 2.0]);
+        assert_eq!(max_dim1.shape(), &[2, 1]);
+        assert_eq!(max_dim1.data(), &[3.0, 6.0]);
+        assert_eq!(indices1.data(), &[2.0, 2.0]);
 
         // Test maximum with negative dimension
         let (max_neg, indices_neg) = ops!(buffer, Matmax, Some(-1), true);
-        assert_eq!(max_neg.tensor.data(), &[3.0, 6.0]);
-        assert_eq!(indices_neg.tensor.data(), &[2.0, 2.0]);
+        assert_eq!(max_neg.data(), &[3.0, 6.0]);
+        assert_eq!(indices_neg.data(), &[2.0, 2.0]);
 
         Ok(())
     }
@@ -668,8 +658,8 @@ mod tests {
         let c = ops!(a, Matmul, b);
 
 
-        assert_eq!(c.tensor.shape(), &[2, 2]);
-        assert_eq!(c.tensor.data(), &[58.0, 64.0, 139.0, 154.0]);
+        assert_eq!(c.shape(), &[2, 2]);
+        assert_eq!(c.data(), &[58.0, 64.0, 139.0, 154.0]);
         Ok(())
     }
 
@@ -680,8 +670,8 @@ mod tests {
         let b = Tensor::from_vec(vec![4.0, 5.0, 6.0, 7.0, 8.0, 9.0], &[3, 2])?;
         let c = ops!(a, Matmul, b);
 
-        assert_eq!(c.tensor.shape(), &[2]);
-        assert_eq!(c.tensor.data(), &[40.0, 46.0]);
+        assert_eq!(c.shape(), &[2]);
+        assert_eq!(c.data(), &[40.0, 46.0]);
         Ok(())
     }
 
@@ -692,8 +682,8 @@ mod tests {
         let b = Tensor::from_vec(vec![7.0, 8.0, 9.0], &[3])?;
         let c = ops!(a, Matmul, b);
 
-        assert_eq!(c.tensor.shape(), &[2]);
-        assert_eq!(c.tensor.data(), &[50.0, 122.0]);
+        assert_eq!(c.shape(), &[2]);
+        assert_eq!(c.data(), &[50.0, 122.0]);
         Ok(())
     }
 
@@ -704,9 +694,9 @@ mod tests {
         let b = Tensor::from_vec(vec![9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0], &[2, 2, 2])?;
         let c = ops!(a, Matmul, b);
 
-        assert_eq!(c.tensor.shape(), &[2, 2, 2]);
+        assert_eq!(c.shape(), &[2, 2, 2]);
         assert_eq!(
-            c.tensor.data(),
+            c.data(),
             &[31.0, 34.0, 71.0, 78.0, 155.0, 166.0, 211.0, 226.0]
         );
         Ok(())
@@ -739,8 +729,8 @@ mod tests {
         let b = Tensor::from_vec(vec![3.0], &[1, 1])?;
         let c = ops!(a, Matmul, b);
 
-        assert_eq!(c.tensor.shape(), &[1, 1]);
-        assert_eq!(c.tensor.data(), &[6.0]);
+        assert_eq!(c.shape(), &[1, 1]);
+        assert_eq!(c.data(), &[6.0]);
         Ok(())
     }
 
@@ -751,8 +741,8 @@ mod tests {
         let b = Tensor::from_vec(vec![4.0, 5.0, 6.0], &[3])?;
         let c = ops!(a, Matmul, b);
 
-        assert_eq!(c.tensor.shape(), &[]); // scalar output
-        assert_eq!(c.tensor.data(), &[32.0]); // 1*4 + 2*5 + 3*6 = 32
+        assert_eq!(c.shape(), &[]); // scalar output
+        assert_eq!(c.data(), &[32.0]); // 1*4 + 2*5 + 3*6 = 32
         Ok(())
     }
 
@@ -763,9 +753,9 @@ mod tests {
         let b = Tensor::from_vec(vec![9.0, 10.0, 11.0, 12.0], &[2, 2])?;
         let c = ops!(a, Matmul, b);
 
-        assert_eq!(c.tensor.shape(), &[2, 2, 2]);
+        assert_eq!(c.shape(), &[2, 2, 2]);
         assert_eq!(
-            c.tensor.data(),
+            c.data(),
             &[31.0, 34.0, 71.0, 78.0, 111.0, 122.0, 151.0, 166.0]
         );
         Ok(())
@@ -784,12 +774,12 @@ mod tests {
         )?;
         let c = ops!(a, Matmul, b);
 
-        assert_eq!(c.tensor.shape(), &[2, 2, 2, 2]);
+        assert_eq!(c.shape(), &[2, 2, 2, 2]);
         let expected = vec![
             19.0, 22.0, 43.0, 50.0, 19.0, 22.0, 43.0, 50.0, 19.0, 22.0, 43.0, 50.0, 19.0, 22.0,
             43.0, 50.0,
         ];
-        assert_eq!(c.tensor.data(), &expected);
+        assert_eq!(c.data(), &expected);
         Ok(())
     }
 
@@ -815,11 +805,11 @@ mod tests {
         )?;
         let c = ops!(a, Matmul, b);
 
-        assert_eq!(c.tensor.shape(), &[3, 1, 2, 2]);
+        assert_eq!(c.shape(), &[3, 1, 2, 2]);
         let expected = vec![
             19.0, 22.0, 43.0, 50.0, 19.0, 22.0, 43.0, 50.0, 19.0, 22.0, 43.0, 50.0,
         ];
-        assert_eq!(c.tensor.data(), &expected);
+        assert_eq!(c.data(), &expected);
         Ok(())
     }
 }

@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-enable_backpropagation = []
+enable_backpropagation = [] # 역전파 관련 기능들을 활성화 할경우 사용
+requires_grad = [] # 기울기의 중간 저장이 필요할 경우 사용
 
 [dependencies]
 

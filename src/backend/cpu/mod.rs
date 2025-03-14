@@ -1,15 +1,15 @@
-use crate::backend::feature::{
-    DeviceFeatures, CPU_FEATURE_AVX, CPU_FEATURE_AVX2, CPU_FEATURE_AVX512F,
-};
+pub use compute::CpuCompute;
+pub use core::CpuCore;
+
 use crate::backend::{Backend, Device, DeviceType};
+use crate::backend::feature::{
+    CPU_FEATURE_AVX, CPU_FEATURE_AVX2, CPU_FEATURE_AVX512F, DeviceFeatures,
+};
 use crate::MlResult;
 
 mod compute;
 mod core;
 mod parallel;
-
-pub use compute::CpuCompute;
-pub use core::CpuCore;
 
 #[derive(Debug)]
 pub struct CpuBackend {
