@@ -441,7 +441,7 @@ pub trait Function<T: Debug + Clone> {
     /// # 오류
     /// - 그래디언트 계산에 실패하거나 입력이 유효하지 않을 경우
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, targets: &Tensor<T>, grad: &Tensor<T>) -> MlResult<Vec<Tensor<T>>>;
+    fn backward(&self, targets: &[&Tensor<T>], grad: &Tensor<T>) -> MlResult<Vec<Tensor<T>>>;
 
     /// 연산에 사용되는 백엔드를 반환합니다.
     ///
@@ -618,9 +618,9 @@ mod tests {
         #[cfg(feature = "enable_backpropagation")]
         {
             y.set_grad(Tensor::new(vec![vec![1.0]]));                                  // dy = 1
-            b.set_grad(square.backward(b.tensor(), &y.grad().unwrap())?.remove(0));   // dy/db = dy/dy * 2b
-            a.set_grad(exp   .backward(a.tensor(), &b.grad().unwrap())?.remove(0));   // dy/da = (dy/db) * db/da
-            x.set_grad(square.backward(x.tensor(), &a.grad().unwrap())?.remove(0));   // dy/dx = (dy/da) * da/dx
+            b.set_grad(square.backward(&[b.tensor()], &y.grad().unwrap())?.remove(0));   // dy/db = dy/dy * 2b
+            a.set_grad(exp   .backward(&[a.tensor()], &b.grad().unwrap())?.remove(0));   // dy/da = (dy/db) * db/da
+            x.set_grad(square.backward(&[x.tensor()], &a.grad().unwrap())?.remove(0));   // dy/dx = (dy/da) * da/dx
 
             print!("Manual ");
             print_backward(&y.grad(), &b.grad(), &a.grad(), &x.grad());

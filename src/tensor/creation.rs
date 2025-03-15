@@ -439,11 +439,8 @@ impl ComputationGraph<f32> {
     /// - 역전파 계산 실패 시
     #[cfg(feature = "enable_backpropagation")]
     pub fn backward(&mut self, output_id: NodeId) -> MlResult<()> {
-        if !self.sorted {
-            self.topological_sort();
-        }
+        if !self.sorted { self.topological_sort(); }
 
-        // println!("\ntopo_sorted: {:?}", self.topo_sorted);
         // 모든 노드의 기울기 초기화
         for (_, node) in &self.nodes {
             node.variable.clear_grad();
@@ -462,29 +459,22 @@ impl ComputationGraph<f32> {
         // 위상 정렬된 순서의 역순으로 순회
         for &node_id in self.topo_sorted.iter().rev() {
             let node = self.nodes.get(&node_id).unwrap();
-            if node.variable.grad().is_none() || node.function.is_none() {
-                continue;
-            }
+            if node.variable.grad().is_none() || node.function.is_none() { continue; }
 
             if let Some(function) = &node.function {
 
-                // println!("node_variable: {:?}", node);
-                // println!("입력 노드 처리 시작");
+                let mut input_tensors = Vec::new();
                 for &input_id in &node.inputs {
                     let input_node = self.nodes.get(&input_id).unwrap();
-                    // println!("input_node: {:?}", input_node);
-                    let mut input_grads = function.backward(input_node.variable.tensor(), &node.variable.grad().unwrap())
-                        .map_err(|e| format!("역전파 실패: {:?}", e))?;
-                    // println!("input_grads: {:?}", input_grads);
-
-                    input_node.variable.accumulate_grad(input_grads.remove(0))?;
-                    // println!("input_node_grad: {:?}", input_node.variable.grad());
-                    // println!("입력 노드 하나 처리");
+                    input_tensors.push(input_node.variable.tensor());
                 }
-                // println!("노드 하나 처리\n");
 
-                if !node.variable.requires_grad {
-                    node.variable.clear_grad();
+                for (input_id, grad) in node.inputs.iter().zip(function.backward(input_tensors.as_slice(), &node.variable.grad().unwrap()).map_err(|e| format!("Backward failure: {:?}", e))?)
+                {
+                    let input_node = self.nodes.get(input_id).unwrap();
+                    input_node.variable.accumulate_grad(grad)?;
+
+                    if !node.variable.requires_grad { node.variable.clear_grad(); }
                 }
             }
         }

@@ -55,7 +55,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{MlResult, variable};
-    use crate::tensor::{Add, Function, Square, Tensor, TensorBase, Variable};
+    use crate::tensor::{Add, Function, Mul, Square, Tensor, TensorBase, Variable};
     use crate::tensor::creation::AutogradFunction;
 
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
@@ -125,20 +125,16 @@ mod tests {
     #[test]
     fn wtf3() -> MlResult<()> { // 기울기 2, 3 나오면 됨
         let add = Add::new()?;
-        let square = Square::new()?;
 
         let x = Arc::new(variable!(vec![vec![3.0]]));
         let y = add.apply(&[&x, &x])?; // y = add(x, x)
-
         #[cfg(feature = "enable_backpropagation")]
         y.backward()?;
-
         assert_eq!(x.grad(), Some(Tensor::new(vec![vec![2.0]])));
-        let y = add.apply(&[&add.apply(&[&x, &x])?, &x])?; // y = add(add(x, x), x)
 
+        let y = add.apply(&[&add.apply(&[&x, &x])?, &x])?; // y = add(add(x, x), x)
         #[cfg(feature = "enable_backpropagation")]
         y.backward()?;
-
         assert_eq!(x.grad(), Some(Tensor::new(vec![vec![3.0]])));
         Ok(())
     }
@@ -158,6 +154,26 @@ mod tests {
         assert_eq!(z.tensor().data(), Tensor::new(vec![vec![13.0]]).data());
         assert_eq!(x.grad(), Some(Tensor::new(vec![vec![4.0]])));
         assert_eq!(y.grad(), Some(Tensor::new(vec![vec![6.0]])));
+        Ok(())
+    }
+
+    #[test]
+    fn wtf5() -> MlResult<()> {
+        let add = Add::new()?;
+        let mul = Mul::new()?;
+
+        let a = Arc::new(variable!(vec![vec![3.0]]));
+        let b = Arc::new(variable!(vec![vec![2.0]]));
+        let c = Arc::new(variable!(vec![vec![1.0]]));
+
+        let y = add.apply(&[&mul.apply(&[&a, &b])?, &c])?;
+
+        #[cfg(feature = "enable_backpropagation")]
+        y.backward()?;
+
+        assert_eq!(y.tensor(), &Tensor::new(vec![vec![7.0]]));
+        assert_eq!(a.grad(), Some(Tensor::new(vec![vec![2.0]])));
+        assert_eq!(b.grad(), Some(Tensor::new(vec![vec![3.0]])));
         Ok(())
     }
 }
