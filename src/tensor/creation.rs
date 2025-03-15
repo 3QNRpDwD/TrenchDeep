@@ -236,7 +236,9 @@ impl Variable<f32> {
             let input_ids = inputs.iter().map(|&input_var| {
                 // 이미 그래프에 있는지 확인
                 for (id, node) in &graph.nodes {
-                    if node.variable.as_ref() == input_var {
+                    if node.variable.as_ref() == input_var && Arc::ptr_eq(&node.variable, input_var) {
+                        // Arc 포인터 비교 wtf 테스트에서도 알수 있듯 Arc 포인터 비교가 필요함 같은 내용을 가지는 서로 다른 변수를 비교할때 같은 변수로 인식되면 기울기가 먼저 계산된 변수에 같은 내용을 가지는 다른 변수의 기울기가 더해지는 문제가 발생함
+                        // 이는 최적화의 관점에서 보면 좋지만 같은 내용의 다른 변수를 계산할때 서로 다른 변수이기 때문에 각각 다른 변수로 인식하고 기울기를 계산해야하는것이 바람직함
                         return *id;
                     }
                 }
@@ -440,6 +442,8 @@ impl ComputationGraph<f32> {
         if !self.sorted {
             self.topological_sort();
         }
+
+        println!("\ntopo_sorted: {:?}", self.topo_sorted);
         // 모든 노드의 기울기 초기화
         for (_, node) in &self.nodes {
             node.variable.clear_grad();
@@ -464,17 +468,22 @@ impl ComputationGraph<f32> {
 
             if let Some(function) = &node.function {
 
+                println!("node_variable: {:?}", node);
+                println!("입력 노드 처리 시작");
                 for &input_id in &node.inputs {
                     let input_node = self.nodes.get(&input_id).unwrap();
-                    let input_grads = function.backward(input_node.variable.tensor(), &node.variable.grad().unwrap())
+                    println!("input_node: {:?}", input_node);
+                    let mut input_grads = function.backward(input_node.variable.tensor(), &node.variable.grad().unwrap())
                         .map_err(|e| format!("역전파 실패: {:?}", e))?;
+                    println!("input_grads: {:?}", input_grads);
 
-                    input_node.variable.accumulate_grad(input_grads[0].clone())?;
+                    input_node.variable.accumulate_grad(input_grads.remove(0))?;
+                    println!("input_node_grad: {:?}", input_node.variable.grad());
+                    println!("입력 노드 하나 처리");
                 }
+                println!("노드 하나 처리\n");
 
-                if !node.variable.retain_grad() {
-                    node.variable.clear_grad();
-                }
+
             }
         }
         Ok(())
