@@ -73,17 +73,32 @@ mod tests {
         let x1 = Arc::new(variable!(vec![vec![1.0]]));
         let t = add.apply(&[&x0, &x1])?; // t = x0 + x1 = 2
         let y = add.apply(&[&x0, &t])?; // y = x0 + t = 3
+
         #[cfg(feature = "enable_backpropagation")]
-        println!("WTF");
         y.backward()?;
 
-        println!("requires_grad 비활성화 일때 첫번째 None, None, 두번째 2.0, 1.0, 나오면 됨 아니면 버그");
-        println!("{:?}, {:?}", y.grad(), t.grad());
-        println!("{:?}, {:?}", x0.grad(), x1.grad());   // 버그 발생: .retain_grad() 이 True 일때 출력이 2.0, 1.0 이어야 하는데 3.0, None 이 출력됨
-        // 아마 기울기 데이터가 기울기 누적 과정에서 누적되면서 3.0 이 출력되는 것 같음 다른 테스트는 정상인것으로 보이는데 이 부분만 이상함
-        // 해결됨. 원래 최적화를 위해 동일한 텐서 입력이 들어오면 같은 노드로 처리를 했는데, 이때문에 같은 값을 가진 다른 텐서를 같인 텐서에 전부 누적하는 오류가 발생했음.
-        // 그런데 이 문제는 같은 내용의 다른 변수를 여러번 사용해서 발생했기 때문에 내용이 같은 변수를 한번만 사용하면 올바르게 기울기가 누적됨.
-        // 로직 자체는 의도한대로 작동하는것으로 보임. 만약 같은 내용의 서로 다른 변수를 사용해서 각각 변수의 기울기를 각각 다르게 누적하려면 꽤나 까다로운 작업이 예상됨.
+        #[cfg(feature = "requires_grad")] {
+            assert_eq!(y.grad(), Some(Tensor::new(vec![vec![1.0]])));
+            assert_eq!(t.grad(), Some(Tensor::new(vec![vec![1.0]])));
+        }
+        #[cfg(not(feature = "requires_grad"))] {
+            assert_eq!(y.grad(), None);
+            assert_eq!(t.grad(), None);
+        }
+
+        assert_tensor_eq(&x0.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
+        assert_tensor_eq(&x1.grad().unwrap(), &Tensor::new(vec![vec![1.0]]))?;
+
+        // 버그 발생: .retain_grad() 이 True 일때 출력이 2.0, 1.0 이어야 하는데 3.0, None 이 출력됨
+        // 아마 기울기 데이터가 기울기 누적 과정에서 누적되면서 3.0 이 출력되는 것 같음.
+        // 다른 테스트는 정상인것으로 보이는데 이 부분만 이상함
+        // 해결됨. 원래 최적화를 위해 동일한 텐서 입력이 들어오면 같은 노드로 처리를 했는데,
+        // 이때문에 같은 값을 가진 다른 텐서를 같인 텐서에 전부 누적하는 오류가 발생했음.
+        // 그런데 이 문제는 같은 내용의 다른 변수를 여러번 사용해서 발생했기 때문에,
+        // 내용이 같은 변수를 한번만 사용하면 올바르게 기울기가 누적됨.
+        // 로직 자체는 의도한대로 작동하는것으로 보임.
+        // 만약 같은 내용의 서로 다른 변수를 사용해서 각각 변수의 기울기를 각각 다르게 누적하려면
+        // 꽤나 까다로운 작업이 예상됨.
         // 이 경우 같은 내용의 변수를 서로 다르게 취급하는 옵션을 추가해야 할것으로 보임.
         // 아마도 내용자체가 아닌 변수의 메모리 아이디 등을 확인하면 될듯 함.
 
@@ -98,14 +113,12 @@ mod tests {
         let x = Arc::new(variable!(vec![vec![2.0]]));
         let a = square.apply(&[&x])?;
         let y = add.apply(&[&square.apply(&[&a])?, &square.apply(&[&a])?])?;
+
         #[cfg(feature = "enable_backpropagation")]
-        println!("WTF2");
         y.backward()?;
 
-        println!("데이터 32 기울기 64 나오면 됨");
-        println!("{:?}", y.tensor().data());
-        println!("{:?}", x.grad());
-
+        assert_eq!(y.tensor().data(), Tensor::new(vec![vec![32.0]]).data());
+        assert_eq!(x.grad(), Some(Tensor::new(vec![vec![64.0]])));
         Ok(())
     }
 
@@ -116,18 +129,17 @@ mod tests {
 
         let x = Arc::new(variable!(vec![vec![3.0]]));
         let y = add.apply(&[&x, &x])?; // y = add(x, x)
+
         #[cfg(feature = "enable_backpropagation")]
-        println!("WTF3");
         y.backward()?;
 
-        println!("기울기 2, 3 나오면 됨");
-        println!("{:?}", x.grad());
-
+        assert_eq!(x.grad(), Some(Tensor::new(vec![vec![2.0]])));
         let y = add.apply(&[&add.apply(&[&x, &x])?, &x])?; // y = add(add(x, x), x)
+
         #[cfg(feature = "enable_backpropagation")]
         y.backward()?;
-        println!("{:?}", x.grad());
 
+        assert_eq!(x.grad(), Some(Tensor::new(vec![vec![3.0]])));
         Ok(())
     }
 
@@ -139,15 +151,13 @@ mod tests {
         let x = Arc::new(variable!(vec![vec![2.0]]));
         let y = Arc::new(variable!(vec![vec![3.0]]));
         let z = add.apply(&[&square.apply(&[&x])?, &square.apply(&[&y])?])?; // z = add(square(x), square(y))
+
         #[cfg(feature = "enable_backpropagation")]
-        println!("WTF4");
         z.backward()?;
-        println!("데이터 13, requires_grad 일때 기울기 4, 6 나오면 됨");
-        println!("{:?}", z.tensor().data());
-        println!("{:?}", x.grad());
-        println!("{:?}", y.grad());
 
-
+        assert_eq!(z.tensor().data(), Tensor::new(vec![vec![13.0]]).data());
+        assert_eq!(x.grad(), Some(Tensor::new(vec![vec![4.0]])));
+        assert_eq!(y.grad(), Some(Tensor::new(vec![vec![6.0]])));
         Ok(())
     }
 }
