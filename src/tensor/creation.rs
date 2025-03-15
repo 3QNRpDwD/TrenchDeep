@@ -462,18 +462,17 @@ impl ComputationGraph<f32> {
             if node.variable.grad().is_none() || node.function.is_none() { continue; }
 
             if let Some(function) = &node.function {
-
-                let mut input_tensors = Vec::new();
-                for &input_id in &node.inputs {
-                    let input_node = self.nodes.get(&input_id).unwrap();
-                    input_tensors.push(input_node.variable.tensor());
-                }
-
-                for (input_id, grad) in node.inputs.iter().zip(function.backward(input_tensors.as_slice(), &node.variable.grad().unwrap()).map_err(|e| format!("Backward failure: {:?}", e))?)
+                for (input_id, grad) in
+                    node.inputs.iter().zip(
+                        function.backward(
+                            node.inputs
+                                .iter()
+                                .map(|&input_id| self.nodes.get(&input_id).unwrap().variable.tensor())
+                                .collect::<Vec<&Tensor<f32>>>().as_slice(), &node.variable.grad().unwrap()
+                            ).map_err(|e| format!("Backward failure: {:?}", e))?
+                        )
                 {
-                    let input_node = self.nodes.get(input_id).unwrap();
-                    input_node.variable.accumulate_grad(grad)?;
-
+                    self.nodes.get(input_id).unwrap().variable.accumulate_grad(grad)?;
                     if !node.variable.requires_grad { node.variable.clear_grad(); }
                 }
             }
