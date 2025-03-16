@@ -80,10 +80,10 @@ mod benchmark {
         let add = Add::new()?;
         pow.power = Some(2.0);
 
-        Ok(add.apply(&[
+        add.apply(&[
             &pow.apply(&[x])?,
             &pow.apply(&[y])?]
-        )?)
+        )
     }
 
     fn matyas_function(x: &Arc<Variable<f32>>, y: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
@@ -93,12 +93,10 @@ mod benchmark {
         let O_48 = Arc::new(variable!(vec![vec![0.48]]));
 
         let sphere = sphere_function(x, y)?;
-        let z = sub.apply(&[                   // (0.26 * sphere) - (0.48 * x * y)
+        sub.apply(&[                   // (0.26 * sphere) - (0.48 * x * y)
             &mul.apply(&[&O_26, &sphere])?,                     // 0.26 * sphere
             &mul.apply(&[&O_48, &mul.apply(&[x, y])?])?  // 0.48 * x * y
-        ])?;
-
-        Ok(z)
+        ])
     }
 
     fn goldstein_price_function(x: &Arc<Variable<f32>>, y: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
@@ -185,9 +183,32 @@ mod benchmark {
         let second_part = add.apply(&[&constant(30.0), &c_squared_d])?;
 
         // Compute final function value
-        let f = mul.apply(&[&first_part, &second_part])?;
+        mul.apply(&[&first_part, &second_part])
+    }
 
-        Ok(f)
+    fn rosenbrock_function(x0: &Arc<Variable<f32>>, x1: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
+        let sub = Sub::new()?;
+        let add = Add::new()?;
+        let square = Square::new()?;
+        let mul = Mul::new()?;
+
+        add.apply(&[
+            &mul.apply(&[
+                &Arc::new(variable!(vec![vec![100.0]])),
+                &square.apply(&[
+                    &sub.apply(&[
+                        &x1,
+                        &square.apply(&[&x0])?])?
+                ])?
+            ])?,
+            &square.apply(&[
+                &sub.apply(&[
+                    &Arc::new(variable!(vec![vec![1.0]])),
+                    &x0
+                ])?
+            ])?
+        ])
+
     }
 
     #[test]
@@ -196,10 +217,12 @@ mod benchmark {
         let y = Arc::new(variable!(vec![vec![1.0]]));
         let z = sphere_function(&x, &y)?;
         #[cfg(feature = "enable_backpropagation")]
-        z.backward()?;
+        {
+            z.backward()?;
 
-        assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
-        assert_tensor_eq(&y.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
+            assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
+            assert_tensor_eq(&y.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
+        }
         Ok(())
     }
 
@@ -209,10 +232,12 @@ mod benchmark {
         let y = Arc::new(variable!(vec![vec![1.0]]));
         let z = matyas_function(&x, &y)?;
         #[cfg(feature = "enable_backpropagation")]
-        z.backward()?;
+        {
+            z.backward()?;
 
-        println!("matyas - x.grad: {:?}", x.grad());
-        println!("matyas - y.grad: {:?}", y.grad());
+            println!("matyas - x.grad: {:?}", x.grad());
+            println!("matyas - y.grad: {:?}", y.grad());
+        }
         Ok(())
     }
 
@@ -221,11 +246,28 @@ mod benchmark {
         let x = Arc::new(variable!(vec![vec![1.0]]));
         let y = Arc::new(variable!(vec![vec![1.0]]));
         let z = goldstein_price_function(&x, &y)?;
-        #[cfg(feature = "enable_backpropagation")]
-        z.backward()?;
+        #[cfg(feature = "enable_backpropagation")]{
+            z.backward()?;
 
-        assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![-5376.0]]))?;
-        assert_tensor_eq(&y.grad().unwrap(), &Tensor::new(vec![vec![8064.0]]))?;
+            assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![-5376.0]]))?;
+            assert_tensor_eq(&y.grad().unwrap(), &Tensor::new(vec![vec![8064.0]]))?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn rosenbrock() -> MlResult<()> {
+        let x0 = Arc::new(variable!(vec![vec![0.0]]));
+        let x1 = Arc::new(variable!(vec![vec![2.0]]));
+
+        let y = rosenbrock_function(&x0, &x1)?;
+        #[cfg(feature = "enable_backpropagation")]
+        {
+            y.backward()?;
+
+            assert_tensor_eq(&x0.grad().unwrap(), &Tensor::new(vec![vec![-2.0]]))?;
+            assert_tensor_eq(&x1.grad().unwrap(), &Tensor::new(vec![vec![400.0]]))?;
+        }
         Ok(())
     }
 }

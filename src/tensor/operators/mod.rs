@@ -5,7 +5,7 @@ use crate::backend::Backend;
 use crate::MlResult;
 use crate::tensor::Tensor;
 
-pub mod basic;
+pub mod functions;
 pub mod overload;
 
 /// 계산 그래프에서 연산을 정의하는 트레잇입니다.
@@ -101,6 +101,10 @@ pub struct Mul      { backend: Arc<dyn Backend> }
 pub struct Div      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
 pub struct Matmul   { backend: Arc<dyn Backend> }
+#[derive(Clone)]
+pub struct Sin      { backend: Arc<dyn Backend> }
+#[derive(Clone)]
+pub struct Cos      { backend: Arc<dyn Backend> }
 
 #[cfg(test)]
 mod tests {
@@ -234,19 +238,21 @@ mod tests {
         let y = add.apply(&[&x0, &t])?; // y = x0 + t = 3
 
         #[cfg(feature = "enable_backpropagation")]
-        y.backward()?;
+        {
+            y.backward()?;
 
-        #[cfg(feature = "requires_grad")] {
-            assert_eq!(y.grad(), Some(Tensor::new(vec![vec![1.0]])));
-            assert_eq!(t.grad(), Some(Tensor::new(vec![vec![1.0]])));
-        }
-        #[cfg(not(feature = "requires_grad"))] {
-            assert_eq!(y.grad(), None);
-            assert_eq!(t.grad(), None);
-        }
+            #[cfg(feature = "requires_grad")] {
+                assert_eq!(y.grad(), Some(Tensor::new(vec![vec![1.0]])));
+                assert_eq!(t.grad(), Some(Tensor::new(vec![vec![1.0]])));
+            }
+            #[cfg(not(feature = "requires_grad"))] {
+                assert_eq!(y.grad(), None);
+                assert_eq!(t.grad(), None);
+            }
 
-        assert_tensor_eq(&x0.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
-        assert_tensor_eq(&x1.grad().unwrap(), &Tensor::new(vec![vec![1.0]]))?;
+            assert_tensor_eq(&x0.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
+            assert_tensor_eq(&x1.grad().unwrap(), &Tensor::new(vec![vec![1.0]]))?;
+        }
 
         // 버그 발생: .retain_grad() 이 True 일때 출력이 2.0, 1.0 이어야 하는데 3.0, None 이 출력됨
         // 아마 기울기 데이터가 기울기 누적 과정에서 누적되면서 3.0 이 출력되는 것 같음.
@@ -272,12 +278,14 @@ mod tests {
         let x = Arc::new(variable!(vec![vec![2.0]]));
         let a = square.apply(&[&x])?;
         let y = add.apply(&[&square.apply(&[&a])?, &square.apply(&[&a])?])?;
+        assert_eq!(y.tensor().data(), Tensor::new(vec![vec![32.0]]).data());
 
         #[cfg(feature = "enable_backpropagation")]
-        y.backward()?;
+        {
+            y.backward()?;
 
-        assert_eq!(y.tensor().data(), Tensor::new(vec![vec![32.0]]).data());
-        assert_eq!(x.grad(), Some(Tensor::new(vec![vec![64.0]])));
+            assert_eq!(x.grad(), Some(Tensor::new(vec![vec![64.0]])));
+        }
         Ok(())
     }
 
@@ -288,13 +296,15 @@ mod tests {
         let x = Arc::new(variable!(vec![vec![3.0]]));
         let y = add.apply(&[&x, &x])?; // y = add(x, x)
         #[cfg(feature = "enable_backpropagation")]
-        y.backward()?;
-        assert_eq!(x.grad(), Some(Tensor::new(vec![vec![2.0]])));
+        {
+            y.backward()?;
+            assert_eq!(x.grad(), Some(Tensor::new(vec![vec![2.0]])));
 
-        let y = add.apply(&[&add.apply(&[&x, &x])?, &x])?; // y = add(add(x, x), x)
-        #[cfg(feature = "enable_backpropagation")]
-        y.backward()?;
-        assert_eq!(x.grad(), Some(Tensor::new(vec![vec![3.0]])));
+            let y = add.apply(&[&add.apply(&[&x, &x])?, &x])?; // y = add(add(x, x), x)
+            #[cfg(feature = "enable_backpropagation")]
+            y.backward()?;
+            assert_eq!(x.grad(), Some(Tensor::new(vec![vec![3.0]])));
+        }
         Ok(())
     }
 
@@ -306,13 +316,15 @@ mod tests {
         let x = Arc::new(variable!(vec![vec![2.0]]));
         let y = Arc::new(variable!(vec![vec![3.0]]));
         let z = add.apply(&[&square.apply(&[&x])?, &square.apply(&[&y])?])?; // z = add(square(x), square(y))
+        assert_eq!(z.tensor().data(), Tensor::new(vec![vec![13.0]]).data());
 
         #[cfg(feature = "enable_backpropagation")]
-        z.backward()?;
+        {
+            z.backward()?;
 
-        assert_eq!(z.tensor().data(), Tensor::new(vec![vec![13.0]]).data());
-        assert_eq!(x.grad(), Some(Tensor::new(vec![vec![4.0]])));
-        assert_eq!(y.grad(), Some(Tensor::new(vec![vec![6.0]])));
+            assert_eq!(x.grad(), Some(Tensor::new(vec![vec![4.0]])));
+            assert_eq!(y.grad(), Some(Tensor::new(vec![vec![6.0]])));
+        }
         Ok(())
     }
 
@@ -328,11 +340,13 @@ mod tests {
         let y = add.apply(&[&mul.apply(&[&a, &b])?, &c])?;
 
         #[cfg(feature = "enable_backpropagation")]
-        y.backward()?;
+        {
+            y.backward()?;
 
-        assert_eq!(y.tensor(), &Tensor::new(vec![vec![7.0]]));
-        assert_eq!(a.grad(), Some(Tensor::new(vec![vec![2.0]])));
-        assert_eq!(b.grad(), Some(Tensor::new(vec![vec![3.0]])));
+            assert_eq!(y.tensor(), &Tensor::new(vec![vec![7.0]]));
+            assert_eq!(a.grad(), Some(Tensor::new(vec![vec![2.0]])));
+            assert_eq!(b.grad(), Some(Tensor::new(vec![vec![3.0]])));
+        }
         Ok(())
     }
 
@@ -345,10 +359,12 @@ mod tests {
         let y = pow.apply(&[&x])?; // y = x^3
 
         #[cfg(feature = "enable_backpropagation")]
-        y.backward()?; // dy/dx = 3x^2
+        {
+            y.backward()?; // dy/dx = 3x^2
 
-        assert_eq!(y.tensor(), &Tensor::new(vec![vec![8.0]]));
-        assert_eq!(x.grad(), Some(Tensor::new(vec![vec![12.0]])));
+            assert_eq!(y.tensor(), &Tensor::new(vec![vec![8.0]]));
+            assert_eq!(x.grad(), Some(Tensor::new(vec![vec![12.0]])));
+        }
         Ok(())
     }
 }

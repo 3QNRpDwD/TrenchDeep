@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::{MlError, MlResult};
 use crate::backend::{Backend, CpuBackend, Device};
 use crate::tensor::{operators::{Abs, Add, Div, Exp, Function, Log, Matmax, Matmul, Mul, Neg, Pow, Sqrt, Square, Sub, Topk}, Tensor, TensorBase, TensorError};
+use crate::tensor::operators::{Cos, Sin};
 
 impl Function<f32> for Abs {
     fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
@@ -602,6 +603,44 @@ impl Function<f32> for Matmax {
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+}
+
+impl Function<f32> for Sin {
+    fn new() -> MlResult<Self> {
+        todo!()
+    }
+
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+        todo!()
+    }
+
+    #[cfg(feature = "enable_backpropagation")]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+        todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        todo!()
+    }
+}
+
+impl Function<f32> for Cos {
+    fn new() -> MlResult<Self> {
+        todo!()
+    }
+
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+        todo!()
+    }
+
+    #[cfg(feature = "enable_backpropagation")]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+        todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        todo!()
+    }
 }
 
 #[cfg(test)]
