@@ -53,7 +53,7 @@ pub type MlResult<T> = Result<T, MlError>;
 #[cfg(test)]
 mod benchmark {
     use std::sync::Arc;
-    use crate::{MlResult, scalar_ops, variable};
+    use crate::{MlResult, variable};
     use crate::tensor::{Tensor, TensorBase, Variable};
     use crate::tensor::creation::AutogradFunction;
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
@@ -123,7 +123,7 @@ mod benchmark {
         let neg_36  = constant(-36.0);
 
         // Compute a = x + y + 1
-        let a         =
+        let a =
             add.apply(&[
                 &add.apply(&[x, y])?,
                 &num_1
@@ -199,7 +199,8 @@ mod benchmark {
         z.backward()?;
 
         assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
-        assert_tensor_eq(&y.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))
+        assert_tensor_eq(&y.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
+        Ok(())
     }
 
     #[test]
@@ -223,8 +224,8 @@ mod benchmark {
         #[cfg(feature = "enable_backpropagation")]
         z.backward()?;
 
-        println!("goldstein - x.grad: {:?}", x.grad());
-        println!("goldstein - y.grad: {:?}", y.grad());
+        assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![-5376.0]]))?;
+        assert_tensor_eq(&y.grad().unwrap(), &Tensor::new(vec![vec![8064.0]]))?;
         Ok(())
     }
 }
