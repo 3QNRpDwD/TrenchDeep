@@ -55,7 +55,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{MlResult, variable};
-    use crate::tensor::{Add, Function, Mul, Square, Tensor, TensorBase, Variable};
+    use crate::tensor::{Add, Function, Mul, Pow, Square, Tensor, TensorBase, Variable};
     use crate::tensor::creation::AutogradFunction;
 
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
@@ -174,6 +174,22 @@ mod tests {
         assert_eq!(y.tensor(), &Tensor::new(vec![vec![7.0]]));
         assert_eq!(a.grad(), Some(Tensor::new(vec![vec![2.0]])));
         assert_eq!(b.grad(), Some(Tensor::new(vec![vec![3.0]])));
+        Ok(())
+    }
+
+    #[test]
+    fn wtf6() -> MlResult<()> {
+        let mut pow = Pow::new()?;
+        pow.power = Some(3.0);
+
+        let x = Arc::new(variable!(vec![vec![2.0]]));
+        let y = pow.apply(&[&x])?; // y = x^3
+
+        #[cfg(feature = "enable_backpropagation")]
+        y.backward()?; // dy/dx = 3x^2
+
+        assert_eq!(y.tensor(), &Tensor::new(vec![vec![8.0]]));
+        assert_eq!(x.grad(), Some(Tensor::new(vec![vec![12.0]])));
         Ok(())
     }
 }

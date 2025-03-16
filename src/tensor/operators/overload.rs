@@ -10,11 +10,35 @@ use crate::tensor::{Add, Div, Function, Mul, Neg, Sub, Tensor};
 ///
 /// # Broadcasting
 /// * Supports broadcasting when adding a 1D tensor to each row of a 2D tensor
-impl std::ops::Add for Tensor<f32> {
+impl std::ops::Add<Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn add(self, other: Tensor<f32>) -> Self::Output {
-        &self + &other
+        Add::new().unwrap().forward(&[&self, &other]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Add<&Tensor<f32>> for Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn add(self, other: &Tensor<f32>) -> Self::Output {
+        Add::new().unwrap().forward(&[&self, other]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Add<&Tensor<f32>> for &Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn add(self, other: &Tensor<f32>) -> Self::Output {
+        Add::new().unwrap().forward(&[self, other]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Add<Tensor<f32>> for &Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn add(self, other: Tensor<f32>) -> Self::Output {
+        Add::new().unwrap().forward(&[self, &other]).unwrap().remove(0)
     }
 }
 
@@ -28,11 +52,35 @@ impl std::ops::Add for Tensor<f32> {
 ///
 /// # Broadcasting
 /// * Supports broadcasting when subtracting a 1D tensor from each row of a 2D tensor
-impl std::ops::Sub for Tensor<f32> {
+impl std::ops::Sub<Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn sub(self, other: Tensor<f32>) -> Self::Output {
-        &self - &other
+        Sub::new().unwrap().forward(&[&self, &other]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Sub<&Tensor<f32>> for Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn sub(self, other: &Tensor<f32>) -> Self::Output {
+        Sub::new().unwrap().forward(&[&self, other]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Sub<Tensor<f32>> for &Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn sub(self, other: Tensor<f32>) -> Self::Output {
+        Sub::new().unwrap().forward(&[self, &other]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Sub<&Tensor<f32>> for &Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn sub(self, other: &Tensor<f32>) -> Self::Output {
+        Sub::new().unwrap().forward(&[self, other]).unwrap().remove(0)
     }
 }
 
@@ -47,11 +95,35 @@ impl std::ops::Sub for Tensor<f32> {
 /// # Note
 /// * This performs element-wise multiplication, not matrix multiplication
 /// * For matrix multiplication, use `matmul()` instead
-impl std::ops::Mul for Tensor<f32> {
+impl std::ops::Mul<Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn mul(self, other: Tensor<f32>) -> Self::Output {
-        &self * &other
+        Mul::new().unwrap().forward(&[&self, &other]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Mul<&Tensor<f32>> for Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn mul(self, other: &Tensor<f32>) -> Self::Output {
+        Mul::new().unwrap().forward(&[&self, other]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Mul<&Tensor<f32>> for &Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn mul(self, other: &Tensor<f32>) -> Self::Output {
+        Mul::new().unwrap().forward(&[self, other]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Mul<Tensor<f32>> for &Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn mul(self, other: Tensor<f32>) -> Self::Output {
+        Mul::new().unwrap().forward(&[self, &other]).unwrap().remove(0)
     }
 }
 
@@ -62,11 +134,35 @@ impl std::ops::Mul for Tensor<f32> {
 ///
 /// # Returns
 /// A new tensor containing the element-wise quotient
-impl std::ops::Div for Tensor<f32> {
+impl std::ops::Div<Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn div(self, other: Tensor<f32>) -> Self::Output {
-        &self / &other
+        Div::new().unwrap().forward(&[&self, &other]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Div<&Tensor<f32>> for Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn div(self, other: &Tensor<f32>) -> Self::Output {
+        Div::new().unwrap().forward(&[&self, other]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Div<&Tensor<f32>> for &Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn div(self, other: &Tensor<f32>) -> Self::Output {
+        Div::new().unwrap().forward(&[self, other]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Div<Tensor<f32>> for &Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn div(self, other: Tensor<f32>) -> Self::Output {
+        Div::new().unwrap().forward(&[self, &other]).unwrap().remove(0)
     }
 }
 
@@ -74,40 +170,7 @@ impl std::ops::Neg for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn neg(self) -> Self::Output {
-        -&self
-    }
-}
-
-
-impl std::ops::Add for &Tensor<f32> {
-    type Output = Tensor<f32>;
-
-    fn add(self, other: &Tensor<f32>) -> Self::Output {
-        Add::new().unwrap().forward(&[self, other]).unwrap().remove(0)
-    }
-}
-
-impl std::ops::Sub for &Tensor<f32> {
-    type Output = Tensor<f32>;
-
-    fn sub(self, other: &Tensor<f32>) -> Self::Output {
-        Sub::new().unwrap().forward(&[self, other]).unwrap().remove(0)
-    }
-}
-
-impl std::ops::Mul for &Tensor<f32> {
-    type Output = Tensor<f32>;
-
-    fn mul(self, other: &Tensor<f32>) -> Self::Output {
-        Mul::new().unwrap().forward(&[self, other]).unwrap().remove(0)
-    }
-}
-
-impl std::ops::Div for &Tensor<f32> {
-    type Output = Tensor<f32>;
-
-    fn div(self, other: &Tensor<f32>) -> Self::Output {
-        Div::new().unwrap().forward(&[self, other]).unwrap().remove(0)
+        Neg::new().unwrap().forward(&[&self]).unwrap().remove(0)
     }
 }
 
@@ -119,11 +182,11 @@ impl std::ops::Neg for &Tensor<f32> {
     }
 }
 
-// impl std::ops::Add<dyn AutogradFunction> for &Arc<Variable<f32>> {
+// impl std::ops::Add for &ArcVariable<f32> {
 //     type Output = Arc<Variable<f32>>;
 //
-//     fn add(self, other: &Arc<Variable<f32>>) -> Self::Output {
-//         Add::new().unwrap().apply(&[self, other]).unwrap()
+//     fn add(self, other: &ArcVariable<f32>) -> Self::Output {
+//         Add::new().unwrap().apply(&[self.inner(), other.inner()]).unwrap()
 //     }
 // }
 

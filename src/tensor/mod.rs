@@ -4,8 +4,10 @@ use std::{
     fmt::{Debug, Display, Formatter, Result},
     sync::Arc,
 };
+use std::ops::Deref;
 
 use crate::{backend::Backend, MlResult};
+use crate::tensor::creation::AutogradFunction;
 
 pub mod creation;
 pub mod operators;
