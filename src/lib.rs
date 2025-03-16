@@ -53,7 +53,7 @@ pub type MlResult<T> = Result<T, MlError>;
 #[cfg(test)]
 mod benchmark {
     use std::sync::Arc;
-    use crate::{MlResult, variable};
+    use crate::{MlResult, scalar_ops, variable};
     use crate::tensor::{Tensor, TensorBase, Variable};
     use crate::tensor::creation::AutogradFunction;
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
@@ -268,6 +268,31 @@ mod benchmark {
             assert_tensor_eq(&x0.grad().unwrap(), &Tensor::new(vec![vec![-2.0]]))?;
             assert_tensor_eq(&x1.grad().unwrap(), &Tensor::new(vec![vec![400.0]]))?;
         }
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(feature = "enable_backpropagation")]
+    fn rosenbrock_gradient_descent_function() -> MlResult<()> {
+        let mut x0 = Arc::new(variable!(vec![vec![0.0]]));
+        let mut x1 = Arc::new(variable!(vec![vec![2.0]]));
+        let iter: usize = 10;
+        let learning_rate: f32 = 0.005;
+
+        for i in 0..iter {
+            println!("iter - {}: x0.tensor(): {:?}, x1.tensor(): {:?}", i, &x0.tensor(), &x1.tensor());
+
+            let y = rosenbrock_function(&x0, &x1)?;
+            y.backward()?;
+
+            x0 = Arc::new(Variable::new(x0.tensor() - scalar_ops!(x0.grad().unwrap(), Mul, learning_rate)?));
+            x1 = Arc::new(Variable::new(x1.tensor() - scalar_ops!(x1.grad().unwrap(), Mul, learning_rate)?));
+            // 현재 텐서의 불변성 유지 때문에 기존 텐서를 수정하는것이 아닌, 새로 생성하기 때문에,
+            // 계산 그래프가 불필요하게 거대해지고, 연산시간이 오래걸리는 문제가 발생함.
+            // 이는 Mutex 를 도입해서 멀티스레딩과 함께 텐서를 수정하는 메서드를 추가하는 해결책이 필요해보임.
+            // 또한 기존의 계산그래프를 최적화해서 내부의 값을 수정하거나, 수정된 노드가 등록될 경우에 이전 노드를 삭제하는등의 방안 마련이 시급해보임.
+        }
+
         Ok(())
     }
 }

@@ -105,6 +105,10 @@ impl Variable<f32> {
         }
     }
 
+    pub fn update_tensor(&mut self, tensor: Tensor<f32>) {
+        self.tensor = tensor
+    }
+
     /// 변수가 보유한 텐서의 참조 반환
     ///
     /// # 반환 값
