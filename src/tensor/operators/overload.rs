@@ -1,4 +1,5 @@
-use crate::tensor::{Add, Div, Function, Mul, Neg, Sub, Tensor};
+use crate::tensor::Tensor;
+use crate::tensor::operators::{Add, Div, Function, Mul, Neg, Sub};
 
 /// Add trait implementation for owned tensors
 ///

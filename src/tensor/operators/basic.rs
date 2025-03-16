@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{MlError, MlResult};
 use crate::backend::{Backend, CpuBackend, Device};
-use crate::tensor::{Abs, Add, Div, Exp, Function, Log, Matmax, Matmul, Mul, Neg, Pow, Sqrt, Square, Sub, Tensor, TensorBase, TensorError, Topk};
+use crate::tensor::{operators::{Abs, Add, Div, Exp, Function, Log, Matmax, Matmul, Mul, Neg, Pow, Sqrt, Square, Sub, Topk}, Tensor, TensorBase, TensorError};
 
 impl Function<f32> for Abs {
     fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
@@ -213,8 +213,8 @@ impl Function<f32> for Mul {
     #[cfg(feature = "enable_backpropagation")]
     fn backward(&self, target: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         Ok(vec![
-            self.forward((&[grad, target[1]]))?.remove(0),
-            self.forward((&[grad, target[0]]))?.remove(0)
+            self.forward(&[grad, target[1]])?.remove(0),
+            self.forward(&[grad, target[0]])?.remove(0)
         ])
     }
 
@@ -242,8 +242,8 @@ impl Function<f32> for Div {
         let x1 = target[1];
 
         Ok(vec![
-            self.forward((&[grad, x1]))?.remove(0), // grad / x2
-            grad * self.forward((&[&-target[0], &(x1 * x1)]))?.remove(0) // grad * (-x0 / x1^2)
+            self.forward(&[grad, x1])?.remove(0), // grad / x2
+            grad * self.forward(&[&-target[0], &(x1 * x1)])?.remove(0) // grad * (-x0 / x1^2)
         ])
     }
 
@@ -607,7 +607,8 @@ impl Function<f32> for Matmax {
 #[cfg(test)]
 mod tests {
     use crate::{MlResult, ops};
-    use crate::tensor::*;
+    use crate::tensor::{Tensor, TensorBase};
+    use crate::tensor::operators::{Function, Matmul, Topk, Matmax};
 
     #[test]
     fn test_topk() -> MlResult<()> {

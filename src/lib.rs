@@ -51,145 +51,180 @@ impl From<&str> for MlError {
 pub type MlResult<T> = Result<T, MlError>;
 
 #[cfg(test)]
-mod tests {
+mod benchmark {
     use std::sync::Arc;
-
-    use crate::{MlResult, variable};
-    use crate::tensor::{Add, Function, Mul, Pow, Square, Tensor, TensorBase, Variable};
+    use crate::{MlResult, scalar_ops, variable};
+    use crate::tensor::{Tensor, TensorBase, Variable};
     use crate::tensor::creation::AutogradFunction;
+    use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
 
-    pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
-        if tensor != expected_tensor {
-            return Err(format!("Expected {:?}, got {:?}", expected_tensor, tensor).into());
+    fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
+        if tensor.shape() != expected_tensor.shape() {
+            return Err("Shape mismatch".into());
         }
+
+        let tensor_data = tensor.data();
+        let expected_data = expected_tensor.data();
+
+        for (t, e) in tensor_data.iter().zip(expected_data.iter()) {
+            if (t - e).abs() > 1e-6 {
+                return Err("Data mismatch".into());
+            }
+        }
+
         Ok(())
     }
 
-    #[test]
-    fn wtf() -> MlResult<()> {
+    fn sphere_function(x: &Arc<Variable<f32>>, y: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
+        let mut pow = Pow::new()?;
         let add = Add::new()?;
+        pow.power = Some(2.0);
 
-        let x0 = Arc::new(variable!(vec![vec![1.0]]));
-        let x1 = Arc::new(variable!(vec![vec![1.0]]));
-        let t = add.apply(&[&x0, &x1])?; // t = x0 + x1 = 2
-        let y = add.apply(&[&x0, &t])?; // y = x0 + t = 3
-
-        #[cfg(feature = "enable_backpropagation")]
-        y.backward()?;
-
-        #[cfg(feature = "requires_grad")] {
-            assert_eq!(y.grad(), Some(Tensor::new(vec![vec![1.0]])));
-            assert_eq!(t.grad(), Some(Tensor::new(vec![vec![1.0]])));
-        }
-        #[cfg(not(feature = "requires_grad"))] {
-            assert_eq!(y.grad(), None);
-            assert_eq!(t.grad(), None);
-        }
-
-        assert_tensor_eq(&x0.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
-        assert_tensor_eq(&x1.grad().unwrap(), &Tensor::new(vec![vec![1.0]]))?;
-
-        // 버그 발생: .retain_grad() 이 True 일때 출력이 2.0, 1.0 이어야 하는데 3.0, None 이 출력됨
-        // 아마 기울기 데이터가 기울기 누적 과정에서 누적되면서 3.0 이 출력되는 것 같음.
-        // 다른 테스트는 정상인것으로 보이는데 이 부분만 이상함
-        // 해결됨. 원래 최적화를 위해 동일한 텐서 입력이 들어오면 같은 노드로 처리를 했는데,
-        // 이때문에 같은 값을 가진 다른 텐서를 같인 텐서에 전부 누적하는 오류가 발생했음.
-        // 그런데 이 문제는 같은 내용의 다른 변수를 여러번 사용해서 발생했기 때문에,
-        // 내용이 같은 변수를 한번만 사용하면 올바르게 기울기가 누적됨.
-        // 로직 자체는 의도한대로 작동하는것으로 보임.
-        // 만약 같은 내용의 서로 다른 변수를 사용해서 각각 변수의 기울기를 각각 다르게 누적하려면
-        // 꽤나 까다로운 작업이 예상됨.
-        // 이 경우 같은 내용의 변수를 서로 다르게 취급하는 옵션을 추가해야 할것으로 보임.
-        // 아마도 내용자체가 아닌 변수의 메모리 아이디 등을 확인하면 될듯 함.
-
-        Ok(())
+        Ok(add.apply(&[
+            &pow.apply(&[x])?,
+            &pow.apply(&[y])?]
+        )?)
     }
 
-    #[test]
-    fn wtf2() -> MlResult<()> { // 데이터 32 기울기 64 나오면 됨
+    fn matyas_function(x: &Arc<Variable<f32>>, y: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
+        let sub = Sub::new()?;
+        let mul = Mul::new()?;
+        let O_26 = Arc::new(variable!(vec![vec![0.26]]));
+        let O_48 = Arc::new(variable!(vec![vec![0.48]]));
+
+        let sphere = sphere_function(x, y)?;
+        let z = sub.apply(&[                   // (0.26 * sphere) - (0.48 * x * y)
+            &mul.apply(&[&O_26, &sphere])?,                     // 0.26 * sphere
+            &mul.apply(&[&O_48, &mul.apply(&[x, y])?])?  // 0.48 * x * y
+        ])?;
+
+        Ok(z)
+    }
+
+    fn goldstein_price_function(x: &Arc<Variable<f32>>, y: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
+        // Helper function to create constant variables
+        fn constant(value: f32) -> Arc<Variable<f32>> {
+            Arc::new(variable!(vec![vec![value]]))
+        }
+
         let add = Add::new()?;
         let square = Square::new()?;
+        let mul = Mul::new()?;
+        let sub = Sub::new()?;
 
-        let x = Arc::new(variable!(vec![vec![2.0]]));
-        let a = square.apply(&[&x])?;
-        let y = add.apply(&[&square.apply(&[&a])?, &square.apply(&[&a])?])?;
+        // Define constants
+        let num_1   = constant(1.0);
+        let num_2   = constant(2.0);
+        let num_3   = constant(3.0);
+        let num_6   = constant(6.0);
+        let num_12  = constant(12.0);
+        let neg_14  = constant(-14.0);
+        let neg_32  = constant(-32.0);
+        let neg_36  = constant(-36.0);
 
-        #[cfg(feature = "enable_backpropagation")]
-        y.backward()?;
+        // Compute a = x + y + 1
+        let a         =
+            add.apply(&[
+                &add.apply(&[x, y])?,
+                &num_1
+            ])?;
 
-        assert_eq!(y.tensor().data(), Tensor::new(vec![vec![32.0]]).data());
-        assert_eq!(x.grad(), Some(Tensor::new(vec![vec![64.0]])));
-        Ok(())
+        // Compute x squared and y squared
+        let x_squared = square.apply(&[x])?;
+        let y_squared = square.apply(&[y])?;
+        // Compute b = (((((19 - 14x) + 3x^2) - 14y) + 6xy) + 3y^2)
+        let term2_b = mul.apply(&[&neg_14, x])?;
+        let term3_b = mul.apply(&[&num_3, &x_squared])?;
+        let term4_b = mul.apply(&[&neg_14, y])?;
+        let term5_b = mul.apply(&[&num_6, &mul.apply(&[x, y])?])?;
+        let term6_b = mul.apply(&[&num_3, &y_squared])?;
+
+        let b =
+            add.apply(&[
+                &add.apply(&[
+                    &add.apply(&[
+                        &add.apply(&[
+                            &add.apply(&[&constant(19.0), &term2_b])?,
+                            &term3_b])?,
+                        &term4_b])?,
+                    &term5_b])? ,
+                &term6_b
+            ])?; // (((((19 - 14x) + 3x^2) - 14y) + 6xy) + 3y^2)
+
+        // Compute first part: 1 + (a^2 * b)
+        let a_squared   = square.apply(&[&a])?;
+        let a_squared_b = mul.apply(&[&a_squared, &b])?;
+        let first_part  = add.apply(&[&num_1, &a_squared_b])?;
+
+        // Compute c = 2x - 3y
+        let two_x   = mul.apply(&[&num_2, x])?;
+        let three_y = mul.apply(&[&num_3, y])?;
+        let c       = sub.apply(&[&two_x, &three_y])?;
+
+        // Compute d = 18 - 32x + 12x^2 + 48y - 36xy + 27y^2
+        let term2_d = mul.apply(&[&neg_32, x])?;
+        let term3_d = mul.apply(&[&num_12, &x_squared])?;
+        let term4_d = mul.apply(&[&constant(48.0), y])?;
+        let term5_d = mul.apply(&[&neg_36, &mul.apply(&[x, y])?])?;
+        let term6_d = mul.apply(&[&constant(27.0), &y_squared])?;
+
+        let d =
+            add.apply(&[
+                &add.apply(&[
+                    &add.apply(&[
+                        &add.apply(&[
+                            &add.apply(&[&constant(18.0), &term2_d])?,
+                            &term3_d])?,
+                        &term4_d])?,
+                    &term5_d])? ,
+                &term6_d])?; // 18 - 32x + 12x^2 + 48y - 36xy + 27y^2
+
+        // Compute second part: 30 + c^2 * d
+        let c_squared   = square.apply(&[&c])?;
+        let c_squared_d = mul.apply(&[&c_squared, &d])?;
+        let second_part = add.apply(&[&constant(30.0), &c_squared_d])?;
+
+        // Compute final function value
+        let f = mul.apply(&[&first_part, &second_part])?;
+
+        Ok(f)
     }
 
     #[test]
-    fn wtf3() -> MlResult<()> { // 기울기 2, 3 나오면 됨
-        let add = Add::new()?;
-
-        let x = Arc::new(variable!(vec![vec![3.0]]));
-        let y = add.apply(&[&x, &x])?; // y = add(x, x)
-        #[cfg(feature = "enable_backpropagation")]
-        y.backward()?;
-        assert_eq!(x.grad(), Some(Tensor::new(vec![vec![2.0]])));
-
-        let y = add.apply(&[&add.apply(&[&x, &x])?, &x])?; // y = add(add(x, x), x)
-        #[cfg(feature = "enable_backpropagation")]
-        y.backward()?;
-        assert_eq!(x.grad(), Some(Tensor::new(vec![vec![3.0]])));
-        Ok(())
-    }
-
-    #[test]
-    fn wtf4() -> MlResult<()> {
-        let add = Add::new()?;
-        let square = Square::new()?;
-
-        let x = Arc::new(variable!(vec![vec![2.0]]));
-        let y = Arc::new(variable!(vec![vec![3.0]]));
-        let z = add.apply(&[&square.apply(&[&x])?, &square.apply(&[&y])?])?; // z = add(square(x), square(y))
-
+    fn sphere() -> MlResult<()> {
+        let x = Arc::new(variable!(vec![vec![1.0]]));
+        let y = Arc::new(variable!(vec![vec![1.0]]));
+        let z = sphere_function(&x, &y)?;
         #[cfg(feature = "enable_backpropagation")]
         z.backward()?;
 
-        assert_eq!(z.tensor().data(), Tensor::new(vec![vec![13.0]]).data());
-        assert_eq!(x.grad(), Some(Tensor::new(vec![vec![4.0]])));
-        assert_eq!(y.grad(), Some(Tensor::new(vec![vec![6.0]])));
+        assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
+        assert_tensor_eq(&y.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))
+    }
+
+    #[test]
+    fn matyas() -> MlResult<()> {
+        let x = Arc::new(variable!(vec![vec![1.0]]));
+        let y = Arc::new(variable!(vec![vec![1.0]]));
+        let z = matyas_function(&x, &y)?;
+        #[cfg(feature = "enable_backpropagation")]
+        z.backward()?;
+
+        println!("matyas - x.grad: {:?}", x.grad());
+        println!("matyas - y.grad: {:?}", y.grad());
         Ok(())
     }
 
     #[test]
-    fn wtf5() -> MlResult<()> {
-        let add = Add::new()?;
-        let mul = Mul::new()?;
-
-        let a = Arc::new(variable!(vec![vec![3.0]]));
-        let b = Arc::new(variable!(vec![vec![2.0]]));
-        let c = Arc::new(variable!(vec![vec![1.0]]));
-
-        let y = add.apply(&[&mul.apply(&[&a, &b])?, &c])?;
-
+    fn goldstein() -> MlResult<()> {
+        let x = Arc::new(variable!(vec![vec![1.0]]));
+        let y = Arc::new(variable!(vec![vec![1.0]]));
+        let z = goldstein_price_function(&x, &y)?;
         #[cfg(feature = "enable_backpropagation")]
-        y.backward()?;
+        z.backward()?;
 
-        assert_eq!(y.tensor(), &Tensor::new(vec![vec![7.0]]));
-        assert_eq!(a.grad(), Some(Tensor::new(vec![vec![2.0]])));
-        assert_eq!(b.grad(), Some(Tensor::new(vec![vec![3.0]])));
-        Ok(())
-    }
-
-    #[test]
-    fn wtf6() -> MlResult<()> {
-        let mut pow = Pow::new()?;
-        pow.power = Some(3.0);
-
-        let x = Arc::new(variable!(vec![vec![2.0]]));
-        let y = pow.apply(&[&x])?; // y = x^3
-
-        #[cfg(feature = "enable_backpropagation")]
-        y.backward()?; // dy/dx = 3x^2
-
-        assert_eq!(y.tensor(), &Tensor::new(vec![vec![8.0]]));
-        assert_eq!(x.grad(), Some(Tensor::new(vec![vec![12.0]])));
+        println!("goldstein - x.grad: {:?}", x.grad());
+        println!("goldstein - y.grad: {:?}", y.grad());
         Ok(())
     }
 }

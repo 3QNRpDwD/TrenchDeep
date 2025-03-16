@@ -1,6 +1,7 @@
 use crate::{MlError, MlResult};
 use crate::MlError::StringError;
 use crate::tensor::*;
+use crate::tensor::operators::Function;
 
 impl  Tensor<f32> {
     pub fn zeros() -> Tensor<f32> {
@@ -309,7 +310,7 @@ impl ComputationGraph<f32> {
     ///
     /// # 반환값
     /// - `Self`: 초기화된 `ComputationGraph` 인스턴스
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             nodes: HashMap::new(),
             next_id: 0,
@@ -328,7 +329,7 @@ impl ComputationGraph<f32> {
     /// # 반환값
     /// - `NodeId`: 추가된 노드의 고유 식별자
     #[cfg(feature = "enable_backpropagation")]
-    pub fn add_input(&mut self, variable: Arc<Variable<f32>>) -> NodeId {
+    fn add_input(&mut self, variable: Arc<Variable<f32>>) -> NodeId {
         let id = self.next_id;
         self.next_id += 1;
 
@@ -357,7 +358,7 @@ impl ComputationGraph<f32> {
     /// # 반환값
     /// - `NodeId`: 추가된 연산 노드의 고유 식별자
     #[cfg(feature = "enable_backpropagation")]
-    pub fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId>) -> NodeId {
+    fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId>) -> NodeId {
         let id = self.next_id;
         self.next_id += 1;
 
@@ -378,7 +379,7 @@ impl ComputationGraph<f32> {
     ///
     /// 이 메서드는 그래프의 노드들을 의존성 순서대로 정렬하여 역전파를 위한 준비를 합니다.
     /// 이미 정렬된 경우에는 아무 작업도 수행하지 않습니다.
-    pub fn topological_sort(&mut self) {
+    fn topological_sort(&mut self) {
         if self.sorted {
             return;
         }

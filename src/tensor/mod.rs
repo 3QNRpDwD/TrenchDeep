@@ -4,10 +4,8 @@ use std::{
     fmt::{Debug, Display, Formatter, Result},
     sync::Arc,
 };
-use std::ops::Deref;
 
-use crate::{backend::Backend, MlResult};
-use crate::tensor::creation::AutogradFunction;
+use crate::MlResult;
 
 pub mod creation;
 pub mod operators;
@@ -274,7 +272,7 @@ type NodeId = usize;
 struct ComputationNode<T: Debug + Clone> {
     id: NodeId,
     variable: Arc<Variable<T>>,
-    function: Option<Arc<dyn Function<T>>>,
+    function: Option<Arc<dyn operators::Function<T>>>,
     // output: Option<Tensor<f32>>,
     inputs: Vec<NodeId>,
 }
@@ -400,65 +398,6 @@ pub trait TensorBase<Type: Debug + Clone> {
     fn chk_shape(&self, other: &dyn TensorBase<Type>) -> MlResult<()>;
 }
 
-/// 계산 그래프에서 연산을 정의하는 트레잇입니다.
-///
-/// 이 트레잇은 순전파와 역전파를 포함한 연산의 동작을 정의하며, 백엔드와의 연계를 지원합니다.
-///
-/// # 특징
-/// 이 트레이트는 연산자의 재활용성과 확장성을 최선으로, 역전파 계산 자체를 연산자와 텐서에 종속적이지 않게 설계하는것을 목표로 합니다.
-/// 따라서 연산자와 텐서 어디에도 자체적인 역전파를 지원하지 않으며, 미분값또한 직접적으로 저장하지 않습니다.
-/// 대신, 연산자는 역전파를 위한 그래프를 생성하고, 그래프는 텐서의 미분값을 저장하고, 그래프를 통해 역전파를 수행합니다.
-/// 이는 연산자와 텐서의 역전파 계산을 분리하여, 연산자의 재사용성과 확장성을 높이고, 역전파 계산을 효율적으로 수행할 수 있도록 합니다.
-/// 단, 이러한 구조 때문에 현재 연산자 오버로딩에서의 역전파 호출 지원이 어렵습니다.
-/// 따라서, 연산자 오버로딩을 통한 역전파 호출은 추후 개선을 통해 지원할 예정입니다.
-///
-/// # 제약
-/// - `T`: `Debug + Clone` 트레잇을 구현해야 함
-pub trait Function<T: Debug + Clone> {
-    /// 새로운 연산 객체를 생성합니다.
-    ///
-    /// # 반환값
-    /// - `MlResult<Self>`: 성공 시 생성된 연산 객체, 실패 시 오류
-    fn new() -> MlResult<Self> where Self: Sized;
-
-    /// 순전파(Forward Pass)를 수행합니다.
-    ///
-    /// 입력 텐서들을 받아 연산을 수행하고 결과 변수를 반환합니다.
-    ///
-    /// # 매개변수
-    /// - `targets`: 연산에 사용될 입력 텐서들의 참조 배열
-    ///
-    /// # 반환값
-    /// - `MlResult<Vec<Variable<T>>>`: 성공 시 결과 변수 벡터, 실패 시 오류
-    ///
-    /// # 오류
-    /// - 입력 텐서의 형태나 데이터가 연산에 적합하지 않을 경우
-    fn forward(&self, targets: &[&Tensor<T>]) -> MlResult<Vec<Tensor<T>>>;
-
-    /// 역전파(Backward Pass)를 수행합니다.
-    ///
-    /// 주어진 입력 텐서와 그래디언트를 기반으로 입력에 대한 그래디언트를 계산합니다.
-    /// 이 메서드는 `enable_backpropagation` 기능이 활성화된 경우에만 사용 가능합니다.
-    ///
-    /// # 매개변수
-    /// - `targets`: 역전파에 사용될 입력 텐서
-    /// - `grad`: 출력에 대한 그래디언트
-    ///
-    /// # 반환값
-    /// - `MlResult<Vec<Tensor<T>>>`: 성공 시 입력에 대한 그래디언트 벡터, 실패 시 오류
-    ///
-    /// # 오류
-    /// - 그래디언트 계산에 실패하거나 입력이 유효하지 않을 경우
-    #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, targets: &[&Tensor<T>], grad: &Tensor<T>) -> MlResult<Vec<Tensor<T>>>;
-
-    /// 연산에 사용되는 백엔드를 반환합니다.
-    ///
-    /// # 반환값
-    /// - `&Arc<dyn Backend>`: 백엔드에 대한 스마트 포인터 참조
-    fn backend(&self) -> &Arc<dyn Backend>;
-}
-
 impl<Type: Debug> Debug for Variable<Type> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut ds = f.debug_struct("Variable");
@@ -508,157 +447,15 @@ impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
     }
 }
 
-impl<Type: Debug + Clone> Debug for &dyn Function<Type> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "Function<{}>", std::any::type_name::<Self>())
-    }
-}
-
-#[derive(Clone)]
-pub struct Exp      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Neg      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Sqrt     { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Abs      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Square   { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Log      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Pow      { backend: Arc<dyn Backend>, pub power: Option<f32> }
-#[derive(Clone)]
-pub struct Topk     { backend: Arc<dyn Backend>, pub topk: Option<(usize, bool)> }
-#[derive(Clone)]
-pub struct Matmax   { backend: Arc<dyn Backend>, pub matmax: Option<(Option<i32>, bool)> }
-#[derive(Clone)]
-pub struct Add      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Sub      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Mul      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Div      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Matmul   { backend: Arc<dyn Backend> }
-
 #[cfg(test)]
 mod tests {
     use crate::MlResult;
-    use crate::tensor::*;
-    use crate::tensor::creation::AutogradFunction;
+    use crate::tensor::{Tensor, TensorBase};
+    use crate::tensor::operators::{Abs, Add, Div, Exp, Function, Log, Matmul, Mul, Neg, Sqrt, Square, Sub, Pow};
 
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
-        Ok(())
-    }
-
-    fn print_forward(
-        x: &Tensor<f32>,
-        a: &Tensor<f32>,
-        b: &Tensor<f32>,
-        y: &Tensor<f32>,
-    ) {
-        println!(
-            "Forward Pass:\n    \
-            Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[Square]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n    \
-            Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[ Exps ]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n    \
-            Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[Square]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n",
-            x.data(), x.shape(),
-            a.data(), a.shape(),
-            a.data(), b.shape(),
-            b.data(), b.shape(),
-            b.data(), b.shape(),
-            y.data(), y.shape(),
-            width = 11,
-            width2 = 3
-        );
-    }
-
-    fn print_backward(
-        x: &Option<Tensor<f32>>,
-        a: &Option<Tensor<f32>>,
-        b: &Option<Tensor<f32>>,
-        y: &Option<Tensor<f32>>,
-    ) {
-        let fmt_tensor = |t: &Option<Tensor<f32>>| {
-            if let Some(tensor) = t {
-                format!(
-                    "Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}",
-                    tensor.data(),
-                    tensor.shape(),
-                    width = 11,
-                    width2 = 3
-                )
-            } else {
-                "Tensor { data: None, shape: None }".to_string()
-            }
-        };
-
-        println!(
-            "Backward Pass:\n    \
-        {} ==[Square]=> {}\n    \
-        {} ==[ Exps ]=> {}\n    \
-        {} ==[Square]=> {}\n",
-            fmt_tensor(x),
-            fmt_tensor(a),
-            fmt_tensor(a),
-            fmt_tensor(b),
-            fmt_tensor(b),
-            fmt_tensor(y),
-        );
-    }
-
-    #[test]
-    fn phase_test() -> MlResult<()>{
-        let square = Square::new()?;
-        let exp = Exp::new()?;
-
-        let x = variable!(vec![vec![0.5]]);
-        let a = Variable::new(square.forward(&[ x.tensor() ])?.remove(0)); // a = A(x)
-        let b = Variable::new(exp   .forward(&[ a.tensor() ])?.remove(0)); // b = B(a)
-        let y = Variable::new(square.forward(&[ b.tensor() ])?.remove(0)); // y = C(b)
-
-        print_forward(x.tensor(), a.tensor(), b.tensor(), y.tensor());
-        assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
-
-        #[cfg(feature = "enable_backpropagation")]
-        {
-            y.set_grad(Tensor::new(vec![vec![1.0]]));                                  // dy = 1
-            b.set_grad(square.backward(&[b.tensor()], &y.grad().unwrap())?.remove(0));   // dy/db = dy/dy * 2b
-            a.set_grad(exp   .backward(&[a.tensor()], &b.grad().unwrap())?.remove(0));   // dy/da = (dy/db) * db/da
-            x.set_grad(square.backward(&[x.tensor()], &a.grad().unwrap())?.remove(0));   // dy/dx = (dy/da) * da/dx
-
-            print!("Manual ");
-            print_backward(&y.grad(), &b.grad(), &a.grad(), &x.grad());
-            assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn autograd_test() -> MlResult<()> {
-        let square = Square::new()?;
-        let exp = Exp::new()?;
-
-        let x = Arc::new(variable!(vec![vec![0.5]]));
-        let a = square.apply(&[&x])?;
-        let b = exp   .apply(&[&a])?;
-        let y = square.apply(&[&b])?;
-
-        assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
-        print_forward(x.tensor(), a.tensor(), b.tensor(), y.tensor());
-
-        #[cfg(feature = "enable_backpropagation")]
-        {
-            y.backward()?;
-
-            print!("Automatic ");
-            print_backward(&y.grad(), &b.grad(), &a.grad(), &x.grad());
-            // assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
-        }
         Ok(())
     }
 
@@ -772,8 +569,7 @@ mod tests {
     fn tensor_add_scalar() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let result = scalar_ops!(first, Add, 2.0)?;
-        // 텐서와 스칼라의 차원이 맞지 않아, 오류 발생.
-        // 스칼라 연산 메서드를 따로 구현하야하나?
+
         assert_tensor_eq(&result, &Tensor::new(vec![vec![3.0, 4.0]]))
     }
     #[test]
