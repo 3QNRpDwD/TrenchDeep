@@ -1,3 +1,4 @@
+use std::sync::Mutex;
 use crate::{MlError, MlResult};
 use crate::MlError::StringError;
 use crate::tensor::*;
@@ -91,7 +92,7 @@ impl TensorBase<f32> for Tensor<f32> {
 // 전역 계산 그래프 (스레드 로컬)
 #[cfg(feature = "enable_backpropagation")]
 thread_local! {
-    static COMPUTATION_GRAPH: RefCell<ComputationGraph<f32>> = RefCell::new(ComputationGraph::new());
+    static COMPUTATION_GRAPH: Mutex<ComputationGraph<f32>> = Mutex::new(ComputationGraph::new());
 }
 
 impl Variable<f32> {
@@ -235,16 +236,20 @@ impl Variable<f32> {
     #[cfg(feature = "enable_backpropagation")]
     pub fn with_grad_fn(self: Arc<Self>, function: Arc<dyn Function<f32>>, inputs: &[&Arc<Variable<f32>>]) {
         COMPUTATION_GRAPH.with(|graph| {
-            let mut graph = graph.borrow_mut();
+            let mut graph = graph.lock().unwrap();
 
             // 입력 노드 ID 찾기 또는 추가
             let input_ids = inputs.iter().map(|&input_var| {
                 // 이미 그래프에 있는지 확인
-                for (id, node) in &graph.nodes {
-                    if node.variable.as_ref() == input_var && Arc::ptr_eq(&node.variable, input_var) {
+                for (id, node) in &mut graph.nodes {
+                    if Arc::ptr_eq(&node.variable, input_var) {
                         // Arc 포인터 비교 wtf 테스트에서도 알수 있듯 Arc 포인터 비교가 필요함 같은 내용을 가지는 서로 다른 변수를 비교할때 같은 변수로 인식되면 기울기가 먼저 계산된 변수에 같은 내용을 가지는 다른 변수의 기울기가 더해지는 문제가 발생함
                         // 이는 최적화의 관점에서 보면 좋지만 같은 내용의 다른 변수를 계산할때 서로 다른 변수이기 때문에 각각 다른 변수로 인식하고 기울기를 계산해야하는것이 바람직함
+                        if node.variable.as_ref() == input_var {
+                            return *id;
+                        }
 
+                        node.variable = input_var.clone();
                         return *id;
                     }
                 }
@@ -258,6 +263,7 @@ impl Variable<f32> {
             }).collect();
 
             // 연산 노드 추가
+
             graph.add_operation(self, function, input_ids);
         });
     }
@@ -298,14 +304,17 @@ impl Variable<f32> {
     #[cfg(feature = "enable_backpropagation")]
     pub fn backward(&self) -> MlResult<()> {
         COMPUTATION_GRAPH.with(|graph| {
-            let mut graph = graph.borrow_mut();
+            let mut graph = graph.lock().unwrap();
 
             let node_id = graph.nodes.iter()
                 .find(|(_, &ref node)| node.variable.as_ref() == self)
                 .map(|(id, _)| *id);
 
             match node_id {
-                Some(id) => { graph.backward(id) },
+                Some(id) => {
+                    if !graph.sorted { graph.topological_sort(); }
+                    graph.backward(id)
+                },
                 None => Err(StringError("계산 그래프가 생성되지 않았습니다.".to_string())),
             }
         })
@@ -449,9 +458,7 @@ impl ComputationGraph<f32> {
     /// - 그래디언트 초기화 실패 시
     /// - 역전파 계산 실패 시
     #[cfg(feature = "enable_backpropagation")]
-    pub fn backward(&mut self, output_id: NodeId) -> MlResult<()> {
-        if !self.sorted { self.topological_sort(); }
-
+    pub fn backward(&self, output_id: NodeId) -> MlResult<()> {
         // 모든 노드의 기울기 초기화
         for (_, node) in &self.nodes {
             node.variable.clear_grad();
