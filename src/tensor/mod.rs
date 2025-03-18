@@ -256,7 +256,7 @@ pub struct Variable<Type> {
 /// # 사용처
 /// - `ComputationNode`와 `ComputationGraph`에서 노드를 식별하는 데 사용
 #[cfg(feature = "enable_backpropagation")]
-type NodeId = usize;
+type NodeId<T> = *const Variable<T>;
 
 /// 계산 그래프의 개별 노드를 나타내는 구조체입니다.
 ///
@@ -270,11 +270,12 @@ type NodeId = usize;
 /// - `inputs`: 이 노드의 입력으로 사용되는 다른 노드들의 ID 목록
 #[cfg(feature = "enable_backpropagation")]
 struct ComputationNode<T: Debug + Clone> {
-    id: NodeId,
+    id: NodeId<T>,
+    ref_count: usize,
     variable: Arc<Variable<T>>,
     function: Option<Arc<dyn operators::Function<T>>>,
     // output: Option<Tensor<f32>>,
-    inputs: Vec<NodeId>,
+    inputs: Vec<NodeId<T>>,
 }
 
 /// 계산 그래프 전체를 관리하는 구조체입니다.
@@ -289,9 +290,8 @@ struct ComputationNode<T: Debug + Clone> {
 /// - `sorted`: 위상 정렬이 완료되었는지 여부
 #[cfg(feature = "enable_backpropagation")]
 struct ComputationGraph<T: Debug + Clone> {
-    nodes: HashMap<NodeId, ComputationNode<T>>,
-    next_id: NodeId,
-    topo_sorted: Vec<NodeId>,
+    nodes: HashMap<NodeId<T>, ComputationNode<T>>,
+    topo_sorted: Vec<NodeId<T>>,
     sorted: bool,
 }
 
@@ -418,7 +418,6 @@ impl<Type: Debug + Clone> Debug for ComputationGraph<Type> {
         let mut ds = f.debug_struct("ComputationGraph");
         ds
             .field("nodes", &self.nodes)
-            .field("next_id", &self.next_id)
             .field("topo_sorted", &self.topo_sorted)
             .field("sorted", &self.sorted)
             .finish()

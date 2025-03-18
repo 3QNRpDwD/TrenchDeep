@@ -277,7 +277,7 @@ mod benchmark {
         let mut x0 = Arc::new(variable!(vec![vec![0.0]]));
         let mut x1 = Arc::new(variable!(vec![vec![2.0]]));
         let iter: usize = 10;
-        let learning_rate: f32 = 0.005;
+        let learning_rate: f32 = 0.001;
 
         for i in 0..iter {
             println!("iter - {}: x0.tensor(): {:?}, x1.tensor(): {:?}", i, &x0.tensor(), &x1.tensor());
