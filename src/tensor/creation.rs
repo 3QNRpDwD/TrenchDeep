@@ -92,7 +92,7 @@ impl TensorBase<f32> for Tensor<f32> {
 // 전역 계산 그래프 (스레드 로컬)
 #[cfg(feature = "enable_backpropagation")]
 thread_local! {
-    static COMPUTATION_GRAPH: Mutex<ComputationGraph<f32>> = Mutex::new(ComputationGraph::new());
+    pub(crate) static COMPUTATION_GRAPH: Mutex<ComputationGraph<f32>> = Mutex::new(ComputationGraph::new());
 }
 
 impl Variable<f32> {
@@ -326,7 +326,7 @@ impl ComputationGraph<f32> {
     ///
     /// # 반환값
     /// - `Self`: 초기화된 `ComputationGraph` 인스턴스
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             nodes: HashMap::new(),
             topo_sorted: Vec::new(),
@@ -344,7 +344,7 @@ impl ComputationGraph<f32> {
     /// # 반환값
     /// - `NodeId`: 추가된 노드의 고유 식별자
     #[cfg(feature = "enable_backpropagation")]
-    fn add_input(&mut self, variable: Arc<Variable<f32>>, id: NodeId<f32>) -> NodeId<f32> {
+    pub(crate) fn add_input(&mut self, variable: Arc<Variable<f32>>, id: NodeId<f32>) -> NodeId<f32> {
         let node = ComputationNode {
             id,
             ref_count: 0,
@@ -371,7 +371,7 @@ impl ComputationGraph<f32> {
     /// # 반환값
     /// - `NodeId`: 추가된 연산 노드의 고유 식별자
     #[cfg(feature = "enable_backpropagation")]
-    fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId<f32>>) -> NodeId<f32> {
+    pub(crate) fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId<f32>>) -> NodeId<f32> {
         let id = Arc::as_ptr(&variable);
 
         let node = ComputationNode {
@@ -392,7 +392,7 @@ impl ComputationGraph<f32> {
     ///
     /// 이 메서드는 그래프의 노드들을 의존성 순서대로 정렬하여 역전파를 위한 준비를 합니다.
     /// 이미 정렬된 경우에는 아무 작업도 수행하지 않습니다.
-    fn topological_sort(&mut self) {
+    pub(crate) fn topological_sort(&mut self) {
         if self.sorted {
             return;
         }
@@ -452,14 +452,14 @@ impl ComputationGraph<f32> {
     /// - 그래디언트 초기화 실패 시
     /// - 역전파 계산 실패 시
     #[cfg(feature = "enable_backpropagation")]
-    pub fn backward(&self, output_id: NodeId<f32>) -> MlResult<()> {
-        // 모든 노드의 기울기 초기화
+    pub(crate) fn backward(&self, output_id: NodeId<f32>) -> MlResult<()> {
+        // Clear gradients for all nodes
         for (_, node) in &self.nodes {
             node.variable.clear_grad();
         }
 
-        // 출력 노드의 기울기를 1.0으로 설정
-        let output_var = &self.nodes.get(&output_id).ok_or("출력 노드를 찾을 수 없습니다.")?.variable;
+        // Set output node's gradient to 1.0
+        let output_var = &self.nodes.get(&output_id).ok_or("Output node not found.")?.variable;
         if output_var.grad().is_none() {
             let grad = Tensor::from_vec(
                 vec![1.0; output_var.tensor.shape().iter().product()],
@@ -468,22 +468,21 @@ impl ComputationGraph<f32> {
             output_var.set_grad(grad);
         }
 
-        // 위상 정렬된 순서의 역순으로 순회
+        // Traverse in reverse topological order
         for &node_id in self.topo_sorted.iter().rev() {
             let node = self.nodes.get(&node_id).unwrap();
             if node.variable.grad().is_none() || node.function.is_none() { continue; }
 
             if let Some(function) = &node.function {
-                for (input_id, grad) in
-                    node.inputs.iter().zip(
-                        function.backward(
-                            node.inputs
-                                .iter()
-                                .map(|&input_id| self.nodes.get(&input_id).unwrap().variable.tensor())
-                                .collect::<Vec<&Tensor<f32>>>().as_slice(), &node.variable.grad().unwrap()
-                            ).map_err(|e| format!("Backward failure: {:?}", e))?
-                        )
-                {
+                let inputs_tensor: Vec<&Tensor<f32>> = node.inputs
+                    .iter()
+                    .map(|&input_id| self.nodes.get(&input_id).unwrap().variable.tensor())
+                    .collect();
+
+                let gradients = function.backward(&inputs_tensor, &node.variable.grad().unwrap())
+                    .map_err(|e| format!("Backward failure: {:?}", e))?;
+
+                for (input_id, grad) in node.inputs.iter().zip(gradients) {
                     self.nodes.get(input_id).unwrap().variable.accumulate_grad(grad)?;
                     if !node.variable.requires_grad { node.variable.clear_grad(); }
                 }

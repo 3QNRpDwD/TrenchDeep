@@ -269,7 +269,7 @@ type NodeId<T> = *const Variable<T>;
 /// - `function`: 노드에서 수행되는 연산 함수 (옵션, 동적 디스패치 지원)
 /// - `inputs`: 이 노드의 입력으로 사용되는 다른 노드들의 ID 목록
 #[cfg(feature = "enable_backpropagation")]
-struct ComputationNode<T: Debug + Clone> {
+pub(crate) struct ComputationNode<T: Debug + Clone> {
     id: NodeId<T>,
     ref_count: usize,
     variable: Arc<Variable<T>>,
@@ -289,7 +289,7 @@ struct ComputationNode<T: Debug + Clone> {
 /// - `topo_sorted`: 위상 정렬된 노드 ID 목록
 /// - `sorted`: 위상 정렬이 완료되었는지 여부
 #[cfg(feature = "enable_backpropagation")]
-struct ComputationGraph<T: Debug + Clone> {
+pub(crate) struct ComputationGraph<T: Debug + Clone> {
     nodes: HashMap<NodeId<T>, ComputationNode<T>>,
     topo_sorted: Vec<NodeId<T>>,
     sorted: bool,

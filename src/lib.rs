@@ -52,7 +52,7 @@ pub type MlResult<T> = Result<T, MlError>;
 
 #[cfg(test)]
 mod benchmark {
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
     use crate::{MlResult, scalar_ops, variable};
     use crate::tensor::{Tensor, TensorBase, Variable};
     use crate::tensor::creation::AutogradFunction;
@@ -276,10 +276,19 @@ mod benchmark {
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
         let mut x0 = Arc::new(variable!(vec![vec![0.0]]));
         let mut x1 = Arc::new(variable!(vec![vec![2.0]]));
-        let iter: usize = 10;
-        let learning_rate: f32 = 0.001;
+        let iter: usize = 100;
+        let learning_rate: f32 = 0.005;
 
         for i in 0..iter {
+            crate::tensor::creation::COMPUTATION_GRAPH.with(|graph| {
+                let mut graph_guard = graph.lock().unwrap();
+                *graph_guard = crate::tensor::ComputationGraph::new();
+            });
+            // 계산그래프가 초기화되지 않고, 계속해서 텐서가 쌓이던것이 성능 하락의 주요 원인이었으며,
+            // 매번 초기화하는 임시방편을 적용했으나, 이는 바람직한 해결방법이 아니며, 여전히 많은 리소스가 낭비되고 있는것으로 보임.
+            // 기존의 계산그래프를 수정 가능하도록 변경하는것이 필요함
+            // 단 임시방편이더라도 기존의 코드보다 훨신 성능이 나아짐. 5000개를 600ms 미만으로 계산가능하게 되었음.
+
             println!("iter - {}: x0.tensor(): {:?}, x1.tensor(): {:?}", i, &x0.tensor(), &x1.tensor());
 
             let y = rosenbrock_function(&x0, &x1)?;
