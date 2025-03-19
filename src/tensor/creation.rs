@@ -263,7 +263,7 @@ impl Variable<f32> {
             }).collect();
 
             // 연산 노드 추가
-
+            println!("add op: {:?}, inputs: {:?}", self.tensor, input_ids);
             graph.add_operation(self, function, input_ids);
         });
     }
@@ -416,6 +416,8 @@ impl ComputationGraph<f32> {
                 queue.push_back(node_id);
             }
         }
+
+        println!("{:?}, {:?}", in_degree, queue);
 
         while let Some(node_id) = queue.pop_front() {
             // 원래 위상정렬 알고리즘에서 중복 노드를 고려하지 않은 설계 때문에 같은 노드를 여러번 사용하는 계산에서 오류가 발생했음.
