@@ -92,7 +92,7 @@ impl TensorBase<f32> for Tensor<f32> {
 // 전역 계산 그래프 (스레드 로컬)
 #[cfg(feature = "enable_backpropagation")]
 thread_local! {
-    static COMPUTATION_GRAPH: Mutex<ComputationGraph<f32>> = Mutex::new(ComputationGraph::new());
+    pub(crate) static COMPUTATION_GRAPH: Mutex<ComputationGraph<f32>> = Mutex::new(ComputationGraph::new());
 }
 
 impl Variable<f32> {
@@ -239,32 +239,32 @@ impl Variable<f32> {
             let mut graph = graph.lock().unwrap();
 
             // 입력 노드 ID 찾기 또는 추가
-            let input_ids = inputs.iter().map(|&input_var| {
+            let input_ids: Vec<NodeId<f32>> = inputs.iter().map(|&input_var| {
+                let input_id = &Arc::as_ptr(input_var);
+                // println!("graph: {:?}", graph);
+                // println!("{:?} - eq: {:?}", input_id, graph.nodes.contains_key(input_id));
                 // 이미 그래프에 있는지 확인
-                for (id, node) in &mut graph.nodes {
-                    if Arc::ptr_eq(&node.variable, input_var) {
-                        // Arc 포인터 비교 wtf 테스트에서도 알수 있듯 Arc 포인터 비교가 필요함 같은 내용을 가지는 서로 다른 변수를 비교할때 같은 변수로 인식되면 기울기가 먼저 계산된 변수에 같은 내용을 가지는 다른 변수의 기울기가 더해지는 문제가 발생함
-                        // 이는 최적화의 관점에서 보면 좋지만 같은 내용의 다른 변수를 계산할때 서로 다른 변수이기 때문에 각각 다른 변수로 인식하고 기울기를 계산해야하는것이 바람직함
-                        if node.variable.as_ref() == input_var {
-                            return *id;
-                        }
-
-                        node.variable = input_var.clone();
-                        return *id;
-                    }
+                if graph.nodes.contains_key(input_id) {
+                    return *input_id;
                 }
+
                 // 없으면 추가
                 // 현재 경사하강법등의 기존 텐서의 수정이 불가피한 메서드를 사용할때 계속해서 새로운 텐서를 만들기 때문에,
                 // 기존의 생성된 텐서는 더이상 사용되지 않음에도, 계산그래프상에 남아있으며, 이로 인해 계산 그래프 자체가 거대해지고 검색자체도 굉장히 느려지는 현상이 발생함.
                 // 이를 해결하려면 단순히 텐서를 비교하는것이 아니라, 메모리값을 비교후. 메모리값이 같은데 내부값이 다를 경우, 업데이트하는 방식을 사용하거나,
                 // 텐서 자체를 복사하는것이 아닌 메모리값을 계산그래프에 추가하는등의 방식으로, 텐서와 계산그래프의 수정과 연동이 가능하도록 개선해야될듯함.
                 // 이에 대한 자세한 해결책을 시급히 만들어야함.
-                graph.add_input(input_var.clone())
+
+                graph.add_input(input_var.clone(), *input_id)
             }).collect();
 
-            // 연산 노드 추가
-            println!("add op: {:?}, inputs: {:?}", self.tensor, input_ids);
-            graph.add_operation(self, function, input_ids);
+
+            // 원래 고유한 아이디를 만들어서 계산그래프를 구성했으나, 현재 연산구조의 특성상 텐서의 포인터를 노드의 키값으로 설정하는것이
+            // 같은 효과를 내면서도, 훨신 강력한 성능을 이끌어낼것으로 생각되어, 변경했으며, 기존보다 약 1.8배가량 성능이 향상된것으로 보임.
+            // 또한, 이같은 변화로, 향후 개선돠어야할 계산그래프의 쓰레기 텐서(더이상 연산에 사용되지 않는 텐서)의 발생을 줄이는데 도움이 될것으로 보이며,
+            // 계산그래프의 수정또한 더욱 쉽게 가능할것으로 보임.
+            graph.add_operation(self, function, input_ids)
+
         });
     }
 
@@ -302,20 +302,17 @@ impl Variable<f32> {
     /// - Relies on topological ordering stored during forward pass
     /// - Gradient accumulation uses += operator (users should zero gradients when needed)
     #[cfg(feature = "enable_backpropagation")]
-    pub fn backward(&self) -> MlResult<()> {
+    pub fn backward(self: &Arc<Self>) -> MlResult<()> {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
+            let node_id= Arc::as_ptr(&self);
 
-            let node_id = graph.nodes.iter()
-                .find(|(_, &ref node)| node.variable.as_ref() == self)
-                .map(|(id, _)| *id);
-
-            match node_id {
-                Some(id) => {
+            match graph.nodes.contains_key(&node_id) {
+                true => {
                     if !graph.sorted { graph.topological_sort(); }
-                    graph.backward(id)
+                    graph.backward(node_id)
                 },
-                None => Err(StringError("계산 그래프가 생성되지 않았습니다.".to_string())),
+                false => Err(StringError("계산 그래프가 생성되지 않았습니다.".to_string())),
             }
         })
     }
@@ -329,10 +326,9 @@ impl ComputationGraph<f32> {
     ///
     /// # 반환값
     /// - `Self`: 초기화된 `ComputationGraph` 인스턴스
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             nodes: HashMap::new(),
-            next_id: 0,
             topo_sorted: Vec::new(),
             sorted: false,
         }
@@ -348,12 +344,10 @@ impl ComputationGraph<f32> {
     /// # 반환값
     /// - `NodeId`: 추가된 노드의 고유 식별자
     #[cfg(feature = "enable_backpropagation")]
-    fn add_input(&mut self, variable: Arc<Variable<f32>>) -> NodeId {
-        let id = self.next_id;
-        self.next_id += 1;
-
+    pub(crate) fn add_input(&mut self, variable: Arc<Variable<f32>>, id: NodeId<f32>) -> NodeId<f32> {
         let node = ComputationNode {
             id,
+            ref_count: 0,
             variable,
             function: None,
             // output: None,
@@ -377,12 +371,12 @@ impl ComputationGraph<f32> {
     /// # 반환값
     /// - `NodeId`: 추가된 연산 노드의 고유 식별자
     #[cfg(feature = "enable_backpropagation")]
-    fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId>) -> NodeId {
-        let id = self.next_id;
-        self.next_id += 1;
+    pub(crate) fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId<f32>>) -> NodeId<f32> {
+        let id = Arc::as_ptr(&variable);
 
         let node = ComputationNode {
             id,
+            ref_count: 0,
             variable,
             function: Some(function),
             // output,
@@ -398,7 +392,7 @@ impl ComputationGraph<f32> {
     ///
     /// 이 메서드는 그래프의 노드들을 의존성 순서대로 정렬하여 역전파를 위한 준비를 합니다.
     /// 이미 정렬된 경우에는 아무 작업도 수행하지 않습니다.
-    fn topological_sort(&mut self) {
+    pub(crate) fn topological_sort(&mut self) {
         if self.sorted {
             return;
         }
@@ -416,8 +410,6 @@ impl ComputationGraph<f32> {
                 queue.push_back(node_id);
             }
         }
-
-        println!("{:?}, {:?}", in_degree, queue);
 
         while let Some(node_id) = queue.pop_front() {
             // 원래 위상정렬 알고리즘에서 중복 노드를 고려하지 않은 설계 때문에 같은 노드를 여러번 사용하는 계산에서 오류가 발생했음.
@@ -460,14 +452,14 @@ impl ComputationGraph<f32> {
     /// - 그래디언트 초기화 실패 시
     /// - 역전파 계산 실패 시
     #[cfg(feature = "enable_backpropagation")]
-    pub fn backward(&self, output_id: NodeId) -> MlResult<()> {
+    pub fn backward(&self, output_id: NodeId<f32>) -> MlResult<()> {
         // 모든 노드의 기울기 초기화
         for (_, node) in &self.nodes {
             node.variable.clear_grad();
         }
 
-        // 출력 노드의 기울기를 1.0으로 설정
-        let output_var = &self.nodes.get(&output_id).ok_or("출력 노드를 찾을 수 없습니다.")?.variable;
+        // Set output node's gradient to 1.0
+        let output_var = &self.nodes.get(&output_id).ok_or("Output node not found.")?.variable;
         if output_var.grad().is_none() {
             let grad = Tensor::from_vec(
                 vec![1.0; output_var.tensor.shape().iter().product()],
@@ -482,16 +474,15 @@ impl ComputationGraph<f32> {
             if node.variable.grad().is_none() || node.function.is_none() { continue; }
 
             if let Some(function) = &node.function {
-                for (input_id, grad) in
-                    node.inputs.iter().zip(
-                        function.backward(
-                            node.inputs
-                                .iter()
-                                .map(|&input_id| self.nodes.get(&input_id).unwrap().variable.tensor())
-                                .collect::<Vec<&Tensor<f32>>>().as_slice(), &node.variable.grad().unwrap()
-                            ).map_err(|e| format!("Backward failure: {:?}", e))?
-                        )
-                {
+                let inputs_tensor: Vec<&Tensor<f32>> = node.inputs
+                    .iter()
+                    .map(|&input_id| self.nodes.get(&input_id).unwrap().variable.tensor())
+                    .collect();
+
+                let gradients = function.backward(&inputs_tensor, &node.variable.grad().unwrap())
+                    .map_err(|e| format!("Backward failure: {:?}", e))?;
+
+                for (input_id, grad) in node.inputs.iter().zip(gradients) {
                     self.nodes.get(input_id).unwrap().variable.accumulate_grad(grad)?;
                     if !node.variable.requires_grad { node.variable.clear_grad(); }
                 }
@@ -544,6 +535,10 @@ pub trait AutogradFunction: Function<f32> + Clone where Self: 'static {
             result.clone().with_grad_fn(Arc::new(self.clone()), inputs);
             return Ok(result)
         }
+        // 정적계산 그래프를 통해서 메모리 효율성을 증대하려 했으나, 사전에 텐서의 정보가 주입되지 않으면 메모리 관리가 어려워,
+        // 무산될것으로 예상되며, 정적, 동적계산그래프를 전환 가능하도록 향후 추가될것으로 생각하고있음.
+        // 따라서 매 계산마다 계산그래프를 갱신하는 현재 구조를 유지하게될것 같은데, 이는 계산그래프 갱신으로 인한 오버헤드가 예상됨.
+        // 솔직히 어느 방식을 선택해야할지잘 모르겠음.
 
         Ok(Arc::new(results))
     }

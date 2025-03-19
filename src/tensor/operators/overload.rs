@@ -183,7 +183,7 @@ impl std::ops::Neg for &Tensor<f32> {
     }
 }
 
-// impl std::ops::Add for &ArcVariable<f32> {
+// impl std::tensor_ops::Add for &ArcVariable<f32> {
 //     type Output = Arc<Variable<f32>>;
 //
 //     fn add(self, other: &ArcVariable<f32>) -> Self::Output {

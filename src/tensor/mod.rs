@@ -48,7 +48,7 @@ pub mod operators;
 /// 대규모 텐서 연산 시 메모리 할당 오버헤드가 발생할 수 있습니다.
 /// 고성능 연산이 필요한 경우 in-place 연산을 지원하는 별도 메서드 구현을 권장합니다.
 #[macro_export] // 해당 매크로의 존재 의의가 다소 부족함. 제거또는 구조 변경을 고려.
-macro_rules! ops {
+macro_rules! tensor_ops {
     ($tensor:expr, Pow, $exponent:expr) => {{
         let mut op = Pow::new().unwrap();
         op.power = Some($exponent);
@@ -256,7 +256,7 @@ pub struct Variable<Type> {
 /// # 사용처
 /// - `ComputationNode`와 `ComputationGraph`에서 노드를 식별하는 데 사용
 #[cfg(feature = "enable_backpropagation")]
-type NodeId = usize;
+type NodeId<T> = *const Variable<T>;
 
 /// 계산 그래프의 개별 노드를 나타내는 구조체입니다.
 ///
@@ -269,12 +269,13 @@ type NodeId = usize;
 /// - `function`: 노드에서 수행되는 연산 함수 (옵션, 동적 디스패치 지원)
 /// - `inputs`: 이 노드의 입력으로 사용되는 다른 노드들의 ID 목록
 #[cfg(feature = "enable_backpropagation")]
-struct ComputationNode<T: Debug + Clone> {
-    id: NodeId,
+pub(crate) struct ComputationNode<T: Debug + Clone> {
+    id: NodeId<T>,
+    ref_count: usize,
     variable: Arc<Variable<T>>,
     function: Option<Arc<dyn operators::Function<T>>>,
     // output: Option<Tensor<f32>>,
-    inputs: Vec<NodeId>,
+    inputs: Vec<NodeId<T>>,
 }
 
 /// 계산 그래프 전체를 관리하는 구조체입니다.
@@ -288,10 +289,9 @@ struct ComputationNode<T: Debug + Clone> {
 /// - `topo_sorted`: 위상 정렬된 노드 ID 목록
 /// - `sorted`: 위상 정렬이 완료되었는지 여부
 #[cfg(feature = "enable_backpropagation")]
-struct ComputationGraph<T: Debug + Clone> {
-    nodes: HashMap<NodeId, ComputationNode<T>>,
-    next_id: NodeId,
-    topo_sorted: Vec<NodeId>,
+pub(crate) struct ComputationGraph<T: Debug + Clone> {
+    nodes: HashMap<NodeId<T>, ComputationNode<T>>,
+    topo_sorted: Vec<NodeId<T>>,
     sorted: bool,
 }
 
@@ -418,7 +418,6 @@ impl<Type: Debug + Clone> Debug for ComputationGraph<Type> {
         let mut ds = f.debug_struct("ComputationGraph");
         ds
             .field("nodes", &self.nodes)
-            .field("next_id", &self.next_id)
             .field("topo_sorted", &self.topo_sorted)
             .field("sorted", &self.sorted)
             .finish()
@@ -473,7 +472,7 @@ mod tests {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![3.0, 4.0]]);
         let expected = Tensor::new(vec![vec![4.0, 6.0]]);
-        let m_add = ops!(first, Add, second);
+        let m_add = tensor_ops!(first, Add, second);
 
         assert_tensor_eq(&m_add, &expected)
     }
@@ -483,7 +482,7 @@ mod tests {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![3.0, 4.0]]);
         let expected = Tensor::new(vec![vec![-2.0, -2.0]]);
-        let m_sub = ops!(first, Sub, second);
+        let m_sub = tensor_ops!(first, Sub, second);
 
         assert_tensor_eq(&m_sub, &expected)
     }
@@ -493,7 +492,7 @@ mod tests {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![3.0, 4.0]]);
         let expected = Tensor::new(vec![vec![3.0, 8.0]]);
-        let m_mul = ops!(first, Mul, second);
+        let m_mul = tensor_ops!(first, Mul, second);
 
         assert_tensor_eq(&m_mul, &expected)
     }
@@ -502,7 +501,7 @@ mod tests {
     fn test_div_macro() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![2.0, 4.0]]);
-        let m_div = ops!(first, Div, second);
+        let m_div = tensor_ops!(first, Div, second);
 
         assert_tensor_eq(&m_div, &Tensor::new(vec![vec![0.5, 0.5]]))
     }
@@ -511,7 +510,7 @@ mod tests {
     fn test_matmul_macro() {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![3.0], vec![4.0]]);
-        let result = ops!(first, Matmul, second);
+        let result = tensor_ops!(first, Matmul, second);
 
         assert_eq!(result.data(), vec![11.0]);
     }
@@ -519,49 +518,49 @@ mod tests {
     #[test]
     fn tes_macro_exp_macro() {
         let tensor = Tensor::new(vec![vec![1.0, 2.0]]);
-        let result = ops!(tensor, Exp);
+        let result = tensor_ops!(tensor, Exp);
         assert_eq!(result.data(), vec![std::f32::consts::E, 7.389056]);
     }
 
     #[test]
     fn test_neg_macro() {
         let tensor = Tensor::new(vec![vec![1.0, -2.0]]);
-        let result = ops!(tensor, Neg);
+        let result = tensor_ops!(tensor, Neg);
         assert_eq!(result.data(), vec![-1.0, 2.0]);
     }
 
     #[test]
     fn test_sqrt_macro() {
         let tensor = Tensor::new(vec![vec![1.0, 4.0]]);
-        let result = ops!(tensor, Sqrt);
+        let result = tensor_ops!(tensor, Sqrt);
         assert_eq!(result.data(), vec![1.0, 2.0]);
     }
 
     #[test]
     fn test_abs_macro() {
         let tensor = Tensor::new(vec![vec![1.0, -2.0]]);
-        let result = ops!(tensor, Abs);
+        let result = tensor_ops!(tensor, Abs);
         assert_eq!(result.data(), vec![1.0, 2.0]);
     }
 
     #[test]
     fn test_square_macro() {
         let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
-        let result = ops!(tensor, Square);
+        let result = tensor_ops!(tensor, Square);
         assert_eq!(result.data(), vec![4.0, 9.0]);
     }
 
     #[test]
     fn test_log_macro() {
         let tensor = Tensor::new(vec![vec![1.0, std::f32::consts::E]]);
-        let result = ops!(tensor, Log);
+        let result = tensor_ops!(tensor, Log);
         assert_eq!(result.data(), vec![0.0, 0.99999994]);
     }
 
     #[test]
     fn test_pow_macro() {
         let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
-        let result = ops!(tensor, Pow, 2.0);
+        let result = tensor_ops!(tensor, Pow, 2.0);
         assert_eq!(result.data(), vec![4.0, 9.0]);
     }
 

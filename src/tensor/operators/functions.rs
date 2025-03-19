@@ -645,7 +645,7 @@ impl Function<f32> for Cos {
 
 #[cfg(test)]
 mod tests {
-    use crate::{MlResult, ops};
+    use crate::{MlResult, tensor_ops};
     use crate::tensor::{Tensor, TensorBase};
     use crate::tensor::operators::{Function, Matmul, Topk, Matmax};
 
@@ -653,20 +653,20 @@ mod tests {
     fn test_topk() -> MlResult<()> {
         // Test 1: Basic 1D tensor
         let buffer = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
-        let (values, indices) = ops!(buffer, Topk, 3, true);
+        let (values, indices) = tensor_ops!(buffer, Topk, 3, true);
         assert_eq!(values.data(), &[5.0, 4.0, 3.0]);
         assert_eq!(indices.data(), &[4.0, 1.0, 2.0]);
 
         // Test 2: 2D tensor
         let buffer = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0, 2.0, 3.0, 1.0, 4.0, 5.0], &[2, 5], )?;
-        let (values, indices) = ops!(buffer, Topk, 2, true);
+        let (values, indices) = tensor_ops!(buffer, Topk, 2, true);
         assert_eq!(values.shape(), &[2, 2]);
         assert_eq!(values.data(), &[5.0, 4.0, 5.0, 4.0]);
         assert_eq!(indices.data(), &[4.0, 1.0, 4.0, 3.0]);
 
         // Test 3: Unsorted output
         let buffer = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
-        let (values, indices) = ops!(buffer, Topk ,3, false);
+        let (values, indices) = tensor_ops!(buffer, Topk ,3, false);
         assert_eq!(values.data(), &[4.0, 3.0, 5.0]);
         assert_eq!(indices.data(), &[1.0, 2.0, 4.0]);
 
@@ -676,23 +676,23 @@ mod tests {
     fn test_max() -> MlResult<()> {
         // Test global maximum
         let buffer = Tensor::<f32>::new(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]]);
-        let (max_all, _) = ops!(buffer, Matmax, None, false);
+        let (max_all, _) = tensor_ops!(buffer, Matmax, None, false);
         assert_eq!(max_all.data(), &[6.0]);
 
         // Test maximum along dimension 0
-        let (max_dim0, indices0) = ops!(buffer, Matmax, Some(0), true);
+        let (max_dim0, indices0) = tensor_ops!(buffer, Matmax, Some(0), true);
         assert_eq!(max_dim0.shape(), &[1, 3]);
         assert_eq!(max_dim0.data(), &[4.0, 5.0, 6.0]);
         assert_eq!(indices0.data(), &[1.0, 1.0, 1.0]);
 
         // Test maximum along dimension 1
-        let (max_dim1, indices1) = ops!(buffer, Matmax, Some(1), true);
+        let (max_dim1, indices1) = tensor_ops!(buffer, Matmax, Some(1), true);
         assert_eq!(max_dim1.shape(), &[2, 1]);
         assert_eq!(max_dim1.data(), &[3.0, 6.0]);
         assert_eq!(indices1.data(), &[2.0, 2.0]);
 
         // Test maximum with negative dimension
-        let (max_neg, indices_neg) = ops!(buffer, Matmax, Some(-1), true);
+        let (max_neg, indices_neg) = tensor_ops!(buffer, Matmax, Some(-1), true);
         assert_eq!(max_neg.data(), &[3.0, 6.0]);
         assert_eq!(indices_neg.data(), &[2.0, 2.0]);
 
@@ -704,7 +704,7 @@ mod tests {
         // Case 1: 2D * 2D Matrix Multiplication
         let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?;
         let b = Tensor::from_vec(vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0], &[3, 2])?;
-        let c = ops!(a, Matmul, b);
+        let c = tensor_ops!(a, Matmul, b);
 
 
         assert_eq!(c.shape(), &[2, 2]);
@@ -717,7 +717,7 @@ mod tests {
         // Case 2: 1D * 2D (Vector-Matrix Multiplication)
         let a = Tensor::from_vec(vec![1.0, 2.0, 3.0], &[3])?;
         let b = Tensor::from_vec(vec![4.0, 5.0, 6.0, 7.0, 8.0, 9.0], &[3, 2])?;
-        let c = ops!(a, Matmul, b);
+        let c = tensor_ops!(a, Matmul, b);
 
         assert_eq!(c.shape(), &[2]);
         assert_eq!(c.data(), &[40.0, 46.0]);
@@ -729,7 +729,7 @@ mod tests {
         // Case 3: 2D * 1D (Matrix-Vector Multiplication)
         let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?;
         let b = Tensor::from_vec(vec![7.0, 8.0, 9.0], &[3])?;
-        let c = ops!(a, Matmul, b);
+        let c = tensor_ops!(a, Matmul, b);
 
         assert_eq!(c.shape(), &[2]);
         assert_eq!(c.data(), &[50.0, 122.0]);
@@ -741,7 +741,7 @@ mod tests {
         // Case 4: 3D * 3D (Batch Matrix Multiplication)
         let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &[2, 2, 2])?;
         let b = Tensor::from_vec(vec![9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0], &[2, 2, 2])?;
-        let c = ops!(a, Matmul, b);
+        let c = tensor_ops!(a, Matmul, b);
 
         assert_eq!(c.shape(), &[2, 2, 2]);
         assert_eq!(
@@ -776,7 +776,7 @@ mod tests {
         // Case 5: 1x1 Matrix Multiplication
         let a = Tensor::from_vec(vec![2.0], &[1, 1])?;
         let b = Tensor::from_vec(vec![3.0], &[1, 1])?;
-        let c = ops!(a, Matmul, b);
+        let c = tensor_ops!(a, Matmul, b);
 
         assert_eq!(c.shape(), &[1, 1]);
         assert_eq!(c.data(), &[6.0]);
@@ -788,7 +788,7 @@ mod tests {
         // Case 6: 1D * 1D (Dot Product)
         let a = Tensor::from_vec(vec![1.0, 2.0, 3.0], &[3])?;
         let b = Tensor::from_vec(vec![4.0, 5.0, 6.0], &[3])?;
-        let c = ops!(a, Matmul, b);
+        let c = tensor_ops!(a, Matmul, b);
 
         assert_eq!(c.shape(), &[]); // scalar output
         assert_eq!(c.data(), &[32.0]); // 1*4 + 2*5 + 3*6 = 32
@@ -800,7 +800,7 @@ mod tests {
         // Case 7: 3D * 2D Broadcasting
         let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &[2, 2, 2])?;
         let b = Tensor::from_vec(vec![9.0, 10.0, 11.0, 12.0], &[2, 2])?;
-        let c = ops!(a, Matmul, b);
+        let c = tensor_ops!(a, Matmul, b);
 
         assert_eq!(c.shape(), &[2, 2, 2]);
         assert_eq!(
@@ -821,7 +821,7 @@ mod tests {
             vec![5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0,],
             &[2, 2, 2, 2]
         )?;
-        let c = ops!(a, Matmul, b);
+        let c = tensor_ops!(a, Matmul, b);
 
         assert_eq!(c.shape(), &[2, 2, 2, 2]);
         let expected = vec![
@@ -852,7 +852,7 @@ mod tests {
             vec![5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0],
             &[3, 1, 2, 2]
         )?;
-        let c = ops!(a, Matmul, b);
+        let c = tensor_ops!(a, Matmul, b);
 
         assert_eq!(c.shape(), &[3, 1, 2, 2]);
         let expected = vec![
