@@ -102,9 +102,13 @@ pub struct Div      { backend: Arc<dyn Backend> }
 #[derive(Clone)]
 pub struct Matmul   { backend: Arc<dyn Backend> }
 #[derive(Clone)]
-pub struct Sin      { backend: Arc<dyn Backend> }
+pub struct Sin      { backend: Arc<dyn Backend> } // 일반적인 사인 함수입니다.
 #[derive(Clone)]
-pub struct Cos      { backend: Arc<dyn Backend> }
+pub struct Cos      { backend: Arc<dyn Backend> } // 일반적인 코사인 함수입니다.
+#[derive(Clone)]
+pub struct ApproxSin      { backend: Arc<dyn Backend>, threshold: f32 } // 테일러급수를 사용한 사인 함수 입니다.
+#[derive(Clone)]
+pub struct ApproxCos      { backend: Arc<dyn Backend>, threshold: f32 } // 테일러급수를 사용한 코사인 함수 입니다.
 
 #[cfg(test)]
 mod tests {
@@ -112,7 +116,7 @@ mod tests {
 
     use crate::{MlResult, variable};
     use crate::tensor::{creation::AutogradFunction, operators::{Add, Function, Mul, Pow, Square}, Tensor, TensorBase, Variable};
-    use crate::tensor::operators::Exp;
+    use crate::tensor::operators::{Cos, Exp, Sin};
 
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
         if tensor != expected_tensor {
@@ -127,20 +131,23 @@ mod tests {
         b: &Tensor<f32>,
         y: &Tensor<f32>,
     ) {
-        println!(
-            "Forward Pass:\n    \
+        #[cfg(feature = "debugging")]
+        {
+            println!(
+                "Forward Pass:\n    \
             Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[Square]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n    \
             Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[ Exps ]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n    \
             Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[Square]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n",
-            x.data(), x.shape(),
-            a.data(), a.shape(),
-            a.data(), b.shape(),
-            b.data(), b.shape(),
-            b.data(), b.shape(),
-            y.data(), y.shape(),
-            width = 11,
-            width2 = 3
-        );
+                x.data(), x.shape(),
+                a.data(), a.shape(),
+                a.data(), b.shape(),
+                b.data(), b.shape(),
+                b.data(), b.shape(),
+                y.data(), y.shape(),
+                width = 11,
+                width2 = 3
+            );
+        }
     }
 
     fn print_backward(
@@ -149,32 +156,35 @@ mod tests {
         b: &Option<Tensor<f32>>,
         y: &Option<Tensor<f32>>,
     ) {
-        let fmt_tensor = |t: &Option<Tensor<f32>>| {
-            if let Some(tensor) = t {
-                format!(
-                    "Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}",
-                    tensor.data(),
-                    tensor.shape(),
-                    width = 11,
-                    width2 = 3
-                )
-            } else {
-                "Tensor { data: None, shape: None }".to_string()
-            }
-        };
+        #[cfg(feature = "debugging")]
+        {
+            let fmt_tensor = |t: &Option<Tensor<f32>>| {
+                if let Some(tensor) = t {
+                    format!(
+                        "Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}",
+                        tensor.data(),
+                        tensor.shape(),
+                        width = 11,
+                        width2 = 3
+                    )
+                } else {
+                    "Tensor { data: None, shape: None }".to_string()
+                }
+            };
 
-        println!(
-            "Backward Pass:\n    \
+            println!(
+                "Backward Pass:\n    \
         {} ==[Square]=> {}\n    \
         {} ==[ Exps ]=> {}\n    \
         {} ==[Square]=> {}\n",
-            fmt_tensor(x),
-            fmt_tensor(a),
-            fmt_tensor(a),
-            fmt_tensor(b),
-            fmt_tensor(b),
-            fmt_tensor(y),
-        );
+                fmt_tensor(x),
+                fmt_tensor(a),
+                fmt_tensor(a),
+                fmt_tensor(b),
+                fmt_tensor(b),
+                fmt_tensor(y),
+            );
+        }
     }
 
     #[test]
@@ -197,7 +207,6 @@ mod tests {
             a.set_grad(exp   .backward(&[a.tensor()], &b.grad().unwrap())?.remove(0));   // dy/da = (dy/db) * db/da
             x.set_grad(square.backward(&[x.tensor()], &a.grad().unwrap())?.remove(0));   // dy/dx = (dy/da) * da/dx
 
-            print!("Manual ");
             print_backward(&y.grad(), &b.grad(), &a.grad(), &x.grad());
             assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
         }
@@ -221,7 +230,6 @@ mod tests {
         {
             y.backward()?;
 
-            print!("Automatic ");
             print_backward(&y.grad(), &b.grad(), &a.grad(), &x.grad());
             assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
         }
@@ -364,6 +372,23 @@ mod tests {
 
             assert_eq!(y.tensor(), &Tensor::new(vec![vec![8.0]]));
             assert_eq!(x.grad(), Some(Tensor::new(vec![vec![12.0]])));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn trigonometry_sin() -> MlResult<()> {
+        let sin = Sin::new()?;
+
+        let x = Arc::new(variable!(vec![vec![std::f32::consts::PI / 4.0]])); // 45도 (45 * 4 = 180)
+        let y = sin.apply(&[&x])?;
+
+        #[cfg(feature = "enable_backpropagation")]
+        {
+            y.backward()?;
+
+            assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
+            assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
         }
         Ok(())
     }
