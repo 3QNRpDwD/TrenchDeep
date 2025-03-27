@@ -1,9 +1,10 @@
 use std::sync::Arc;
+use std::vec;
 
 use crate::{MlError, MlResult};
 use crate::backend::{Backend, CpuBackend, Device};
 use crate::tensor::{operators::{Abs, Add, Div, Exp, Function, Log, Matmax, Matmul, Mul, Neg, Pow, Sqrt, Square, Sub, Topk}, Tensor, TensorBase, TensorError};
-use crate::tensor::operators::{Cos, Sin};
+use crate::tensor::operators::{ApproxCos, ApproxSin, Cos, Sin};
 
 impl Function<f32> for Abs {
     fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
@@ -34,13 +35,13 @@ impl Function<f32> for Exp {
     }
 
     #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, target: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         let gradiant = grad.data().iter()
-            .zip(target[0].data().iter())
+            .zip(targets[0].data().iter())
             .map(|(grad_data, target_data)|  target_data.exp() * grad_data)
             .collect();
 
-        Ok(vec![Tensor::<f32>::from_vec(gradiant, target[0].shape())?])
+        Ok(vec![Tensor::<f32>::from_vec(gradiant, targets[0].shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -605,29 +606,70 @@ impl Function<f32> for Matmax {
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 }
 
+/// `Sin` 함수는 입력 텐서의 각 요소에 사인 함수를 적용합니다.
+/// 입력 텐서는 각도로, 출력 텐서는 해당 각도의 사인 값을 포함합니다.
 impl Function<f32> for Sin {
+    /// 새로운 `Sin` 인스턴스를 생성합니다.
+    /// CPU 백엔드를 사용합니다.
     fn new() -> MlResult<Self> {
-        todo!()
+        Ok(Self { backend: Arc::new(CpuBackend::new()? )} )
     }
 
+    /// 입력 텐서에 사인 함수를 요소별로 적용하여, 동일한 모양을 가진 새로운 텐서를 반환합니다.
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
-        todo!()
+        Ok(vec![Tensor::<f32>::from_vec(targets[0].data().iter().map(|x| x.sin()).collect(), targets[0].shape())?])
     }
 
+    /// 사인 함수의 기울기를 계산합니다.
+    /// 반환되는 기울기 텐서는 입력 텐서와 동일한 모양을 가집니다.
+    /// 각 요소는 입력 텐서의 해당 요소의 코사인 값과 다음 계층의 기울기 값의 곱입니다.
     #[cfg(feature = "enable_backpropagation")]
     fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
-        todo!()
+        let gradient = grad.data().iter()
+            .zip(targets[0].data().iter())
+            .map(|(grad_data, target)|  target.cos() * grad_data)
+            .collect();
+
+        Ok(vec![Tensor::<f32>::from_vec(gradient, targets[0].shape())?])
     }
 
-    fn backend(&self) -> &Arc<dyn Backend> {
-        todo!()
-    }
+    /// 연산에 사용되는 백엔드 객체의 참조를 반환
+    fn backend(&self) -> &Arc<dyn Backend> { self.backend() }
 }
 
+/// `Cos` 함수는 입력 텐서의 각 요소에 코사인 함수를 적용합니다.
+/// 입력 텐서는 각도로, 출력 텐서는 해당 각도의 코사인 값을 포함합니다.
 impl Function<f32> for Cos {
+    /// 새로운 `Cos` 인스턴스를 생성합니다.
+    /// CPU 백엔드를 사용합니다.
     fn new() -> MlResult<Self> {
-        todo!()
+        Ok(Self { backend: Arc::new(CpuBackend::new()? )} )
     }
+
+    /// 입력 텐서에 코사인 함수를 요소별로 적용하여, 동일한 모양을 가진 새로운 텐서를 반환합니다.
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+        Ok(vec![Tensor::<f32>::from_vec(targets[0].data().iter().map(|x| x.cos()).collect(), targets[0].shape())?])
+    }
+
+    /// 코사인 함수의 기울기를 계산합니다.
+    /// 반환되는 기울기 텐서는 입력 텐서와 동일한 모양을 가집니다.
+    /// 각 요소는 입력 텐서의 해당 요소의 음수 사인 값과 다음 계층의 기울기 값의 곱입니다.
+    #[cfg(feature = "enable_backpropagation")]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+        let gradient = grad.data().iter()
+            .zip(targets[0].data().iter())
+            .map(|(grad_data, target)|  -target.sin() * grad_data)
+            .collect();
+
+        Ok(vec![Tensor::<f32>::from_vec(gradient, targets[0].shape())?])
+    }
+
+    /// 연산에 사용되는 백엔드 객체의 참조를 반환
+    fn backend(&self) -> &Arc<dyn Backend> { self.backend() }
+}
+
+impl Function<f32> for ApproxSin {
+    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()? ), threshold: 0.0001 } ) }
 
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         todo!()
@@ -642,6 +684,24 @@ impl Function<f32> for Cos {
         todo!()
     }
 }
+
+impl Function<f32> for ApproxCos {
+    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()? ), threshold: 0.0001 } ) }
+
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+        todo!()
+    }
+
+    #[cfg(feature = "enable_backpropagation")]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+        todo!()
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        todo!()
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
