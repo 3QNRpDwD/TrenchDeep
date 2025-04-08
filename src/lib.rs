@@ -208,7 +208,6 @@ mod benchmark {
                 ])?
             ])?
         ])
-
     }
 
     #[test]
@@ -216,7 +215,7 @@ mod benchmark {
         let x = Arc::new(variable!(vec![vec![1.0]]));
         let y = Arc::new(variable!(vec![vec![1.0]]));
         let z = sphere_function(&x, &y)?;
-        #[cfg(feature = "enable_backpropagation")]
+        #[cfg(feature = "enableBackpropagation")]
         {
             z.backward()?;
 
@@ -231,7 +230,7 @@ mod benchmark {
         let x = Arc::new(variable!(vec![vec![1.0]]));
         let y = Arc::new(variable!(vec![vec![1.0]]));
         let z = matyas_function(&x, &y)?;
-        #[cfg(feature = "enable_backpropagation")]
+        #[cfg(feature = "enableBackpropagation")]
         {
             z.backward()?;
 
@@ -249,7 +248,7 @@ mod benchmark {
         let x = Arc::new(variable!(vec![vec![1.0]]));
         let y = Arc::new(variable!(vec![vec![1.0]]));
         let z = goldstein_price_function(&x, &y)?;
-        #[cfg(feature = "enable_backpropagation")]{
+        #[cfg(feature = "enableBackpropagation")]{
             z.backward()?;
 
             assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![-5376.0]]))?;
@@ -264,7 +263,7 @@ mod benchmark {
         let x1 = Arc::new(variable!(vec![vec![2.0]]));
 
         let y = rosenbrock_function(&x0, &x1)?;
-        #[cfg(feature = "enable_backpropagation")]
+        #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?;
 
@@ -275,14 +274,14 @@ mod benchmark {
     }
 
     #[test]
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(feature = "enableBackpropagation")]
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
         let mut x0 = Arc::new(variable!(vec![vec![0.0]]));
         let mut x1 = Arc::new(variable!(vec![vec![2.0]]));
         let iter: usize = 10;
-        let learning_rate: f32 = 0.005;
+        let learning_rate: f32 = 0.001;
 
-        for _ in 0..iter {
+        for i in 0..iter { // 0부터
             crate::tensor::creation::COMPUTATION_GRAPH.with(|graph| {
                 let mut graph_guard = graph.lock().unwrap();
                 *graph_guard = crate::tensor::ComputationGraph::new();
@@ -290,8 +289,8 @@ mod benchmark {
             // 계산그래프가 초기화되지 않고, 계속해서 텐서가 쌓이던것이 성능 하락의 주요 원인이었으며,
             // 매번 초기화하는 임시방편을 적용했으나, 이는 바람직한 해결방법이 아니며, 여전히 많은 리소스가 낭비되고 있는것으로 보임.
             // 기존의 계산그래프를 수정 가능하도록 변경하는것이 필요함
-            // 단 임시방편이더라도 기존의 코드보다 훨신 성능이 나아짐. 5000개를 600ms 미만으로 계산가능하게 되었음.
-            // 200개를 22초만에 계산하던 기존의 버전에서 5000개를 600ms 미만으로 계산가능한것은 엄청난 발전임.
+            // 단 임시방편이더라도 기존의 코드보다 훨신 성능이 나아짐. 5000개를 500ms 미만으로 계산가능하게 되었음.
+            // 200개를 22초만에 계산하던 기존의 버전에서 5000개를 500ms 미만으로 계산가능한것은 엄청난 발전임.
 
             #[cfg(feature = "debugging")]
             println!("iter - {}: x0.tensor(): {:?}, x1.tensor(): {:?}", i, &x0.tensor(), &x1.tensor());

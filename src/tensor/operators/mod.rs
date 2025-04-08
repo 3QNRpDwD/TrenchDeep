@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::backend::Backend;
 use crate::MlResult;
-use crate::tensor::Tensor;
+use crate::tensor::{Tensor, Variable};
 
 pub mod functions;
 pub mod overload;
@@ -27,7 +27,9 @@ pub trait Function<T: Debug + Clone> {
     ///
     /// # 반환값
     /// - `MlResult<Self>`: 성공 시 생성된 연산 객체, 실패 시 오류
-    fn new() -> MlResult<Self> where Self: Sized;
+    fn new() -> MlResult<Self> where Self: Sized {
+        unimplemented!("Function::new() is not implemented")
+    }
 
     /// 순전파(Forward Pass)를 수행합니다.
     ///
@@ -41,12 +43,14 @@ pub trait Function<T: Debug + Clone> {
     ///
     /// # 오류
     /// - 입력 텐서의 형태나 데이터가 연산에 적합하지 않을 경우
-    fn forward(&self, targets: &[&Tensor<T>]) -> MlResult<Vec<Tensor<T>>>;
+    fn forward(&self, targets: &[&Tensor<T>]) -> MlResult<Vec<Tensor<T>>>{
+        unimplemented!("Forward pass is not implemented")
+    }
 
     /// 역전파(Backward Pass)를 수행합니다.
     ///
     /// 주어진 입력 텐서와 그래디언트를 기반으로 입력에 대한 그래디언트를 계산합니다.
-    /// 이 메서드는 `enable_backpropagation` 기능이 활성화된 경우에만 사용 가능합니다.
+    /// 이 메서드는 `enableBackpropagation` 기능이 활성화된 경우에만 사용 가능합니다.
     ///
     /// # 매개변수
     /// - `targets`: 역전파에 사용될 입력 텐서
@@ -57,14 +61,19 @@ pub trait Function<T: Debug + Clone> {
     ///
     /// # 오류
     /// - 그래디언트 계산에 실패하거나 입력이 유효하지 않을 경우
-    #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, targets: &[&Tensor<T>], grad: &Tensor<T>) -> MlResult<Vec<Tensor<T>>>;
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn backward(&self, targets: &[&Tensor<T>], grad: &Tensor<T>) -> MlResult<Vec<Tensor<T>>> {
+        // enableBackpropagation만 활성화된 경우의 기본 구현
+        unimplemented!("Backward pass is not implemented")
+    }
 
     /// 연산에 사용되는 백엔드를 반환합니다.
     ///
     /// # 반환값
     /// - `&Arc<dyn Backend>`: 백엔드에 대한 스마트 포인터 참조
-    fn backend(&self) -> &Arc<dyn Backend>;
+    fn backend(&self) -> &Arc<dyn Backend> {
+        unimplemented!("Function::backend() is not implemented")
+    }
 }
 
 impl<Type: Debug + Clone> Debug for &dyn Function<Type> {
@@ -116,7 +125,7 @@ mod tests {
 
     use crate::{MlResult, variable};
     use crate::tensor::{creation::AutogradFunction, operators::{Add, Function, Mul, Pow, Square}, Tensor, TensorBase, Variable};
-    use crate::tensor::operators::{Cos, Exp, Sin};
+    use crate::tensor::operators::{Cos, Exp, Neg, Sin};
 
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
         if tensor != expected_tensor {
@@ -200,7 +209,7 @@ mod tests {
         print_forward(x.tensor(), a.tensor(), b.tensor(), y.tensor());
         assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
 
-        #[cfg(feature = "enable_backpropagation")]
+        #[cfg(feature = "enableBackpropagation")]
         {
             y.set_grad(Tensor::new(vec![vec![1.0]]));                                  // dy = 1
             b.set_grad(square.backward(&[b.tensor()], &y.grad().unwrap())?.remove(0));   // dy/db = dy/dy * 2b
@@ -226,7 +235,7 @@ mod tests {
         crate::tensor::tests::assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
         print_forward(x.tensor(), a.tensor(), b.tensor(), y.tensor());
 
-        #[cfg(feature = "enable_backpropagation")]
+        #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?;
 
@@ -245,15 +254,15 @@ mod tests {
         let t = add.apply(&[&x0, &x1])?; // t = x0 + x1 = 2
         let y = add.apply(&[&x0, &t])?; // y = x0 + t = 3
 
-        #[cfg(feature = "enable_backpropagation")]
+        #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?;
 
-            #[cfg(feature = "requires_grad")] {
+            #[cfg(feature = "requiresGrad")] {
                 assert_eq!(y.grad(), Some(Tensor::new(vec![vec![1.0]])));
                 assert_eq!(t.grad(), Some(Tensor::new(vec![vec![1.0]])));
             }
-            #[cfg(not(feature = "requires_grad"))] {
+            #[cfg(not(feature = "requiresGrad"))] {
                 assert_eq!(y.grad(), None);
                 assert_eq!(t.grad(), None);
             }
@@ -288,7 +297,7 @@ mod tests {
         let y = add.apply(&[&square.apply(&[&a])?, &square.apply(&[&a])?])?;
         assert_eq!(y.tensor().data(), Tensor::new(vec![vec![32.0]]).data());
 
-        #[cfg(feature = "enable_backpropagation")]
+        #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?;
 
@@ -303,13 +312,13 @@ mod tests {
 
         let x = Arc::new(variable!(vec![vec![3.0]]));
         let y = add.apply(&[&x, &x])?; // y = add(x, x)
-        #[cfg(feature = "enable_backpropagation")]
+        #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?;
             assert_eq!(x.grad(), Some(Tensor::new(vec![vec![2.0]])));
 
             let y = add.apply(&[&add.apply(&[&x, &x])?, &x])?; // y = add(add(x, x), x)
-            #[cfg(feature = "enable_backpropagation")]
+            #[cfg(feature = "enableBackpropagation")]
             y.backward()?;
             assert_eq!(x.grad(), Some(Tensor::new(vec![vec![3.0]])));
         }
@@ -326,7 +335,7 @@ mod tests {
         let z = add.apply(&[&square.apply(&[&x])?, &square.apply(&[&y])?])?; // z = add(square(x), square(y))
         assert_eq!(z.tensor().data(), Tensor::new(vec![vec![13.0]]).data());
 
-        #[cfg(feature = "enable_backpropagation")]
+        #[cfg(feature = "enableBackpropagation")]
         {
             z.backward()?;
 
@@ -347,7 +356,7 @@ mod tests {
 
         let y = add.apply(&[&mul.apply(&[&a, &b])?, &c])?;
 
-        #[cfg(feature = "enable_backpropagation")]
+        #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?;
 
@@ -366,7 +375,7 @@ mod tests {
         let x = Arc::new(variable!(vec![vec![2.0]]));
         let y = pow.apply(&[&x])?; // y = x^3
 
-        #[cfg(feature = "enable_backpropagation")]
+        #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?; // dy/dx = 3x^2
 
@@ -383,7 +392,7 @@ mod tests {
         let x = Arc::new(variable!(vec![vec![std::f32::consts::PI / 4.0]])); // 45도 (45 * 4 = 180)
         let y = sin.apply(&[&x])?;
 
-        #[cfg(feature = "enable_backpropagation")]
+        #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?;
 

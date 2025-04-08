@@ -3,7 +3,7 @@ use std::vec;
 
 use crate::{MlError, MlResult};
 use crate::backend::{Backend, CpuBackend, Device};
-use crate::tensor::{operators::{Abs, Add, Div, Exp, Function, Log, Matmax, Matmul, Mul, Neg, Pow, Sqrt, Square, Sub, Topk}, Tensor, TensorBase, TensorError};
+use crate::tensor::{operators::{Abs, Add, Div, Exp, Function, Log, Matmax, Matmul, Mul, Neg, Pow, Sqrt, Square, Sub, Topk}, Tensor, TensorBase, TensorError, Variable};
 use crate::tensor::operators::{ApproxCos, ApproxSin, Cos, Sin};
 
 impl Function<f32> for Abs {
@@ -16,8 +16,8 @@ impl Function<f32> for Abs {
         Ok(vec![Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| x.abs()).collect(), targets[0].shape())?])
     }
 
-    #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, target: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         todo!()
     }
 
@@ -34,7 +34,7 @@ impl Function<f32> for Exp {
         Ok(vec![Tensor::<f32>::from_vec(self.backend().exp(targets[0].data()), targets[0].shape())?])
     }
 
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         let gradiant = grad.data().iter()
             .zip(targets[0].data().iter())
@@ -57,8 +57,8 @@ impl Function<f32> for Log {
         Ok(vec![Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| x.ln()).collect(), targets[0].shape())?])
     }
 
-    #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, target: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         todo!()
     }
 
@@ -75,7 +75,7 @@ impl Function<f32> for Neg {
         Ok(vec![Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| -x).collect(), targets[0].shape())?])
     }
 
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, _: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         Ok(vec![Tensor::<f32>::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?])
     }
@@ -93,8 +93,8 @@ impl Function<f32> for Sqrt {
         Ok(vec![Tensor::<f32>::from_vec(self.backend().sqrt(targets[0].data()), targets[0].shape())?])
     }
 
-    #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, target: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         todo!()
     }
 
@@ -111,14 +111,14 @@ impl Function<f32> for Square {
         Ok(vec![Tensor::<f32>::from_vec(targets[0].data().iter().map(|x| x * x).collect(), targets[0].shape())?])
     }
 
-    #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, target: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         let gradiant = grad.data().iter()
-            .zip(target[0].data().iter())
+            .zip(targets[0].data().iter())
             .map(|(grad_data, target_data)| 2.0  * target_data * grad_data )
             .collect();
 
-        Ok(vec![Tensor::<f32>::from_vec(gradiant, target[0].shape())?])
+        Ok(vec![Tensor::<f32>::from_vec(gradiant, targets[0].shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -152,7 +152,7 @@ impl Function<f32> for Add {
         }
     }
 
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, _: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         Ok(vec![grad.clone(), grad.clone()])
     }
@@ -188,7 +188,7 @@ impl Function<f32> for Sub {
         }
     }
 
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, _: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         Ok(vec![grad.clone(), -grad.clone()])
     }
@@ -212,11 +212,11 @@ impl Function<f32> for Mul {
         }
     }
 
-    #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, target: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         Ok(vec![
-            self.forward(&[grad, target[1]])?.remove(0),
-            self.forward(&[grad, target[0]])?.remove(0)
+            self.forward(&[grad, targets[1]])?.remove(0),
+            self.forward(&[grad, targets[0]])?.remove(0)
         ])
     }
 
@@ -239,13 +239,13 @@ impl Function<f32> for Div {
         }
     }
 
-    #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, target: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
-        let x1 = target[1];
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+        let x1 = targets[1];
 
         Ok(vec![
             self.forward(&[grad, x1])?.remove(0), // grad / x2
-            grad * self.forward(&[&-target[0], &(x1 * x1)])?.remove(0) // grad * (-x0 / x1^2)
+            grad * self.forward(&[&-targets[0], &(x1 * x1)])?.remove(0) // grad * (-x0 / x1^2)
         ])
     }
 
@@ -265,10 +265,10 @@ impl Function<f32> for Pow {
         Ok(vec![Tensor::<f32>::from_vec(self.backend().pow(targets[0].data(), self.power.unwrap()), targets[0].shape())?])
     }
 
-    #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, target: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         let power = self.power.unwrap();
-        let target = target[0];
+        let target = targets[0];
         let forwarded = Tensor::<f32>::from_vec(self.backend().pow(target.data(), power - 1.0), target.shape())?; // x ** (c - 1)
         let result = Tensor::from_vec(
             forwarded
@@ -439,8 +439,8 @@ impl Function<f32> for Matmul {
     }
 
 
-    #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, target: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         todo!()
     }
 
@@ -515,8 +515,8 @@ impl Function<f32> for Topk {
         Ok(vec![Tensor::<f32>::from_vec(values, &new_shape)?, Tensor::<f32>::from_vec(indices, &new_shape)?])
     }
 
-    #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, target: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         todo!()
     }
 
@@ -598,8 +598,8 @@ impl Function<f32> for Matmax {
         Ok(buffer)
     }
 
-    #[cfg(feature = "enable_backpropagation")]
-    fn backward(&self, target: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         todo!()
     }
 
@@ -623,7 +623,7 @@ impl Function<f32> for Sin {
     /// 사인 함수의 기울기를 계산합니다.
     /// 반환되는 기울기 텐서는 입력 텐서와 동일한 모양을 가집니다.
     /// 각 요소는 입력 텐서의 해당 요소의 코사인 값과 다음 계층의 기울기 값의 곱입니다.
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         let gradient = grad.data().iter()
             .zip(targets[0].data().iter())
@@ -654,7 +654,7 @@ impl Function<f32> for Cos {
     /// 코사인 함수의 기울기를 계산합니다.
     /// 반환되는 기울기 텐서는 입력 텐서와 동일한 모양을 가집니다.
     /// 각 요소는 입력 텐서의 해당 요소의 음수 사인 값과 다음 계층의 기울기 값의 곱입니다.
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         let gradient = grad.data().iter()
             .zip(targets[0].data().iter())
@@ -675,7 +675,7 @@ impl Function<f32> for ApproxSin {
         todo!()
     }
 
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         todo!()
     }
@@ -692,7 +692,7 @@ impl Function<f32> for ApproxCos {
         todo!()
     }
 
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         todo!()
     }

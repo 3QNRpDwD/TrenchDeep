@@ -90,7 +90,7 @@ impl TensorBase<f32> for Tensor<f32> {
 }
 
 // 전역 계산 그래프 (스레드 로컬)
-#[cfg(feature = "enable_backpropagation")]
+#[cfg(feature = "enableBackpropagation")]
 thread_local! {
     pub(crate) static COMPUTATION_GRAPH: Mutex<ComputationGraph<f32>> = Mutex::new(ComputationGraph::new());
 }
@@ -99,9 +99,9 @@ impl Variable<f32> {
     pub fn new(tensor: Tensor<f32>) -> Self {
         Variable {
             tensor,
-            requires_grad: cfg!(feature = "requires_grad"),
+            requires_grad: cfg!(feature = "requiresGrad"),
 
-            #[cfg(feature = "enable_backpropagation")]
+            #[cfg(feature = "enableBackpropagation")]
             grad: RefCell::new(None),
         }
     }
@@ -129,11 +129,11 @@ impl Variable<f32> {
     /// 저장된 그래디언트 값 조회
     ///
     /// # 특징 동작
-    /// - `enable_backpropagation` 기능 전용 메소드
+    /// - `enableBackpropagation` 기능 전용 메소드
     ///
     /// # 반환 값
     /// - Option<Tensor<f32>>: 현재 저장된 그래디언트 또는 None
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(feature = "enableBackpropagation")]
     pub fn grad(&self) -> Option<Tensor<f32>> {
         self.grad.borrow().clone()
     }
@@ -141,12 +141,12 @@ impl Variable<f32> {
     /// 그래디언트 값 직접 설정
     ///
     /// # 특징 동작
-    /// - `enable_backpropagation` 기능 전용 메소드
+    /// - `enableBackpropagation` 기능 전용 메소드
     /// - 기존 그래디언트 값을 완전히 대체
     ///
     /// # 파라미터
     /// - grad: 설정할 새로운 그래디언트 텐서
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(feature = "enableBackpropagation")]
     pub fn set_grad(&self, grad: Tensor<f32>) {
         *self.grad.borrow_mut() = Some(grad);
     }
@@ -154,10 +154,10 @@ impl Variable<f32> {
     /// 그래디언트 값 초기화
     ///
     /// # 특징 동작
-    /// - `enable_backpropagation` 기능 전용 메소드
+    /// - `enableBackpropagation` 기능 전용 메소드
     /// - 기존 그래디언트 값을 삭제
     ///
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(feature = "enableBackpropagation")]
     pub fn clear_grad(&self) {
         *self.grad.borrow_mut() = None;
     }
@@ -165,7 +165,7 @@ impl Variable<f32> {
     /// 그래디언트 값 누적 추가
     ///
     /// # 특징 동작
-    /// - `enable_backpropagation` 기능 전용 메소드
+    /// - `enableBackpropagation` 기능 전용 메소드
     /// - 기존 그래디언트와 새로운 그래디언트를 요소별 합산
     ///
     /// # 오류 사항
@@ -173,7 +173,7 @@ impl Variable<f32> {
     ///
     /// # 파라미터
     /// - new_grad: 추가할 그래디언트 텐서
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(feature = "enableBackpropagation")]
     pub fn accumulate_grad(&self, new_grad: Tensor<f32>) -> MlResult<()> {
         let mut grad_ref = self.grad.borrow_mut();
 
@@ -233,7 +233,7 @@ impl Variable<f32> {
     /// - Uses Arc pointer equality checks for existing graph node detection
     /// - Maintains DAG structure through node ID tracking
     /// - Operation nodes store backward function and input relationships
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(feature = "enableBackpropagation")]
     pub fn with_grad_fn(self: Arc<Self>, function: Arc<dyn Function<f32>>, inputs: &[&Arc<Variable<f32>>]) {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
@@ -301,7 +301,7 @@ impl Variable<f32> {
     /// - Uses thread-local computation graph storage
     /// - Relies on topological ordering stored during forward pass
     /// - Gradient accumulation uses += operator (users should zero gradients when needed)
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(feature = "enableBackpropagation")]
     pub fn backward(self: &Arc<Self>) -> MlResult<()> {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
@@ -318,7 +318,7 @@ impl Variable<f32> {
     }
 }
 
-#[cfg(feature = "enable_backpropagation")]
+#[cfg(feature = "enableBackpropagation")]
 impl ComputationGraph<f32> {
     /// 새로운 계산 그래프를 생성합니다.
     ///
@@ -343,7 +343,7 @@ impl ComputationGraph<f32> {
     ///
     /// # 반환값
     /// - `NodeId`: 추가된 노드의 고유 식별자
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(feature = "enableBackpropagation")]
     pub(crate) fn add_input(&mut self, variable: Arc<Variable<f32>>, id: NodeId<f32>) -> NodeId<f32> {
         let node = ComputationNode {
             id,
@@ -370,7 +370,7 @@ impl ComputationGraph<f32> {
     ///
     /// # 반환값
     /// - `NodeId`: 추가된 연산 노드의 고유 식별자
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(feature = "enableBackpropagation")]
     pub(crate) fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId<f32>>) -> NodeId<f32> {
         let id = Arc::as_ptr(&variable);
 
@@ -451,9 +451,9 @@ impl ComputationGraph<f32> {
     /// - 출력 노드가 존재하지 않을 경우
     /// - 그래디언트 초기화 실패 시
     /// - 역전파 계산 실패 시
-    #[cfg(feature = "enable_backpropagation")]
-    pub fn backward(&self, output_id: NodeId<f32>) -> MlResult<()> {
-        // 모든 노드의 기울기 초기화
+    #[cfg(feature = "enableBackpropagation")]
+    pub(crate) fn backward(&self, output_id: NodeId<f32>) -> MlResult<()> {
+        // Clear gradients for all nodes
         for (_, node) in &self.nodes {
             node.variable.clear_grad();
         }
@@ -500,7 +500,7 @@ impl ComputationGraph<f32> {
 ///
 /// # 주요 기능
 /// - 입력 변수들로부터 계산 결과 생성
-/// - enable_backpropagation 기능 활성화 시 자동으로 역전파 그래프 구성
+/// - enableBackpropagation 기능 활성화 시 자동으로 역전파 그래프 구성
 /// - 연산 결과에 그라데이션 함수 연결
 ///
 /// # 메서드
@@ -512,7 +512,7 @@ impl ComputationGraph<f32> {
 /// 3. (조건부) 역전파를 위한 계산 그래프 구성
 ///
 /// ### 기능 플래그 동작
-/// - #[cfg(feature = "enable_backpropagation")] 활성화 시:
+/// - #[cfg(feature = "enableBackpropagation")] 활성화 시:
 /// - 단일 입력/출력 연산만 지원 (입력 슬라이스 길이 == 1)
 /// - 계산 결과에 그라데이션 함수와 입력 변수들을 연결
 /// - 기능 비활성화 시 기본 텐서 연산만 수행
@@ -529,7 +529,7 @@ pub trait AutogradFunction: Function<f32> + Clone where Self: 'static {
         let tensors: Vec<&Tensor<f32>> = inputs.iter().map(|&var| var.tensor()).collect();
         let results = Variable::new(self.forward(&tensors)?.remove(0));
 
-        #[cfg(feature = "enable_backpropagation")]
+        #[cfg(feature = "enableBackpropagation")]
         {
             let result = Arc::new(results);
             result.clone().with_grad_fn(Arc::new(self.clone()), inputs);

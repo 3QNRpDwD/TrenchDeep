@@ -240,12 +240,12 @@ pub struct Tensor<Type> {
 /// - `tensor`: 변수의 값이 담긴 텐서
 /// - `requires_grad`: 그래디언트 계산이 필요한지 여부
 /// - `grad`: 역전파를 위한 그래디언트 (옵션으로 저장되며, `RefCell`로 래핑되어 가변성 제공)
-///   - `enable_backpropagation` 기능이 활성화된 경우에만 포함됨
+///   - `enableBackpropagation` 기능이 활성화된 경우에만 포함됨
 pub struct Variable<Type> {
     tensor: Tensor<Type>,
     requires_grad: bool,
 
-    #[cfg(feature = "enable_backpropagation")]
+    #[cfg(all(feature = "enableBackpropagation"))]
     grad: RefCell<Option<Tensor<Type>>>,
 }
 
@@ -255,7 +255,7 @@ pub struct Variable<Type> {
 ///
 /// # 사용처
 /// - `ComputationNode`와 `ComputationGraph`에서 노드를 식별하는 데 사용
-#[cfg(feature = "enable_backpropagation")]
+#[cfg(feature = "enableBackpropagation")]
 type NodeId<T> = *const Variable<T>;
 
 /// 계산 그래프의 개별 노드를 나타내는 구조체입니다.
@@ -268,7 +268,7 @@ type NodeId<T> = *const Variable<T>;
 /// - `variable`: 노드가 나타내는 변수 (스마트 포인터로 감싸짐)
 /// - `function`: 노드에서 수행되는 연산 함수 (옵션, 동적 디스패치 지원)
 /// - `inputs`: 이 노드의 입력으로 사용되는 다른 노드들의 ID 목록
-#[cfg(feature = "enable_backpropagation")]
+#[cfg(feature = "enableBackpropagation")]
 pub(crate) struct ComputationNode<T: Debug + Clone> {
     id: NodeId<T>,
     ref_count: usize,
@@ -288,7 +288,7 @@ pub(crate) struct ComputationNode<T: Debug + Clone> {
 /// - `next_id`: 다음에 생성될 노드에 부여할 ID
 /// - `topo_sorted`: 위상 정렬된 노드 ID 목록
 /// - `sorted`: 위상 정렬이 완료되었는지 여부
-#[cfg(feature = "enable_backpropagation")]
+#[cfg(feature = "enableBackpropagation")]
 pub(crate) struct ComputationGraph<T: Debug + Clone> {
     nodes: HashMap<NodeId<T>, ComputationNode<T>>,
     topo_sorted: Vec<NodeId<T>>,
@@ -301,7 +301,7 @@ impl PartialEq for Tensor<f32> {
     }
 }
 
-#[cfg(feature = "enable_backpropagation")]
+#[cfg(feature = "enableBackpropagation")]
 impl PartialEq for &Variable<f32> {
     fn eq(&self, other: &&Variable<f32>) -> bool {
         self.tensor == other.tensor &&
@@ -404,7 +404,7 @@ impl<Type: Debug> Debug for Variable<Type> {
         ds
             .field("tensor", &self.tensor)
             .field("requires_grad", &self.requires_grad);
-        #[cfg(feature = "enable_backpropagation")]
+        #[cfg(feature = "enableBackpropagation")]
         {
             ds.field("grad", &self.grad);
         }
@@ -412,7 +412,7 @@ impl<Type: Debug> Debug for Variable<Type> {
     }
 }
 
-#[cfg(feature = "enable_backpropagation")]
+#[cfg(feature = "enableBackpropagation")]
 impl<Type: Debug + Clone> Debug for ComputationGraph<Type> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut ds = f.debug_struct("ComputationGraph");
@@ -424,7 +424,7 @@ impl<Type: Debug + Clone> Debug for ComputationGraph<Type> {
     }
 }
 
-#[cfg(feature = "enable_backpropagation")]
+#[cfg(feature = "enableBackpropagation")]
 impl<Type: Debug + Clone> Debug for ComputationNode<Type> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut ds = f.debug_struct("ComputationNode");
