@@ -134,21 +134,27 @@ impl Function<f32> for Add {
     /// # Returns
     /// A new tensor with the result of the element-wise addition
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
-        if targets[0].shape().len() == 2 && targets[1].shape().len() == 1 && targets[0].shape()[1] == targets[1].shape()[0] {
-            let (_, features) = (targets[0].shape()[0], targets[0].shape()[1]);
-            let mut data = vec![0.0; targets[0].data().len()];
+        let first_target = targets[0];
+        let second_target = targets[1];
+        let first_shape = first_target.shape();
+        let second_shape = second_target.shape();
 
-            for (i, chunk) in data.chunks_mut(features).enumerate() {
-                for (j, val) in chunk.iter_mut().enumerate() {
-                    *val = targets[0].data()[i * features + j] + targets[1].data()[j];
+        if first_shape.len() == 2 && second_shape.len() == 1 && first_shape[1] == second_shape[0] {
+            // Special case for matrix + vector broadcasting
+            let (batch_size, features) = (first_shape[0], first_shape[1]);
+            let mut data = vec![0.0; first_target.data().len()];
+
+            for i in 0..batch_size {
+                for j in 0..features {
+                    data[i * features + j] = first_target.data()[i * features + j] + second_target.data()[j];
                 }
             }
-            return Ok(vec![Tensor::<f32>::from_vec(data, targets[0].shape())?])
+            return Ok(vec![Tensor::<f32>::from_vec(data, first_shape)?])
         }
 
-        match targets[0].chk_shape(targets[1]) {
+        match first_target.chk_shape(second_target) {
             Err(e) => Err(e),
-            _ => Ok(vec![Tensor::<f32>::from_vec(self.backend().add(targets[0].data(), targets[1].data()), targets[0].shape())?])
+            _ => Ok(vec![Tensor::<f32>::from_vec(self.backend().add(first_target.data(), second_target.data()), first_target.shape())?])
         }
     }
 
@@ -634,7 +640,7 @@ impl Function<f32> for Sin {
     }
 
     /// 연산에 사용되는 백엔드 객체의 참조를 반환
-    fn backend(&self) -> &Arc<dyn Backend> { self.backend() }
+    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 }
 
 /// `Cos` 함수는 입력 텐서의 각 요소에 코사인 함수를 적용합니다.
@@ -665,7 +671,7 @@ impl Function<f32> for Cos {
     }
 
     /// 연산에 사용되는 백엔드 객체의 참조를 반환
-    fn backend(&self) -> &Arc<dyn Backend> { self.backend() }
+    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 }
 
 impl Function<f32> for ApproxSin {

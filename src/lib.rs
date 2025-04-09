@@ -4,6 +4,8 @@ use crate::tensor::TensorError;
 
 pub mod tensor;
 pub mod backend;
+pub mod nn;
+mod optimizer;
 
 #[derive(Debug)]
 pub enum MlError {

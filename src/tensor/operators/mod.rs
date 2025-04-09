@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::backend::Backend;
 use crate::MlResult;
-use crate::tensor::{Tensor, Variable};
+use crate::tensor::{Tensor};
 
 pub mod functions;
 pub mod overload;
@@ -125,7 +125,7 @@ mod tests {
 
     use crate::{MlResult, variable};
     use crate::tensor::{creation::AutogradFunction, operators::{Add, Function, Mul, Pow, Square}, Tensor, TensorBase, Variable};
-    use crate::tensor::operators::{Cos, Exp, Neg, Sin};
+    use crate::tensor::operators::{Cos, Exp, Sin};
 
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
         if tensor != expected_tensor {
