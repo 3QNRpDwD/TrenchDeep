@@ -18,7 +18,6 @@ impl Function<f32> for Sigmoid {
         )
     }
 
-
     fn forward(&self, x: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         // σ(x) = 1/(1+e^(-x))
         Ok(vec![
