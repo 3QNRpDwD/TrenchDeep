@@ -7,7 +7,7 @@ pub mod pooling;
 pub mod linear;
 
 pub trait Layer {
-    fn forward(&self, input: &[f32]) -> MlResult<Tensor<f32>>;
+    fn forward(&self, input: &Tensor<f32>) -> MlResult<Tensor<f32>>;
     fn backward(
         &mut self,
         input: &Tensor<f32>,

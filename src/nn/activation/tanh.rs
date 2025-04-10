@@ -1,6 +1,13 @@
 use super::*;
 
-impl Activation<f32> for Tanh {}
+impl Activation<f32> for Tanh {
+    fn new() -> MlResult<Self> where Self: Sized {
+        unimplemented!()
+    }
+    fn apply(&self, input: &Arc<Variable<f32>>) -> Arc<Variable<f32>> {
+        unimplemented!()
+    }
+}
 impl Function<f32> for Tanh {
     fn new() -> MlResult<Self> {
         Ok(

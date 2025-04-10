@@ -14,7 +14,7 @@ pub trait Activation<Type: Debug + Clone>: Layer {
     fn new() -> MlResult<Self> where Self: Sized {
         unimplemented!()
     }
-    fn activation(&self, input: &Arc<Variable<Type>>) -> Arc<Variable<Type>> {
+    fn apply(&self, input: &Arc<Variable<Type>>) -> Arc<Variable<Type>> {
         unimplemented!()
     }
 }
@@ -54,6 +54,11 @@ pub struct Tanh {
     mul: Arc<dyn Function<f32>>,
 }
 pub struct Relu {
+    #[cfg(all(feature = "enableBackpropagation"))]
+    mul: Arc<dyn Function<f32>>
+}
+
+pub struct Softmax {
     #[cfg(all(feature = "enableBackpropagation"))]
     mul: Arc<dyn Function<f32>>
 }
