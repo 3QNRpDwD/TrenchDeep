@@ -271,9 +271,8 @@ type NodeId<T> = *const Variable<T>;
 #[cfg(feature = "enableBackpropagation")]
 pub(crate) struct ComputationNode<T: Debug + Clone> {
     id: NodeId<T>,
-    ref_count: usize,
     variable: Arc<Variable<T>>,
-    function: Option<Arc<dyn operators::Function<T>>>,
+    function: Option<Arc<dyn Function<T>>>,
     // output: Option<Tensor<f32>>,
     inputs: Vec<NodeId<T>>,
 }

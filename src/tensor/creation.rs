@@ -343,7 +343,6 @@ impl ComputationGraph<f32> {
     pub(crate) fn add_input(&mut self, variable: Arc<Variable<f32>>, id: NodeId<f32>) -> NodeId<f32> {
         let node = ComputationNode {
             id,
-            ref_count: 0,
             variable,
             function: None,
             // output: None,
@@ -372,7 +371,6 @@ impl ComputationGraph<f32> {
 
         let node = ComputationNode {
             id,
-            ref_count: 0,
             variable,
             function: Some(function),
             // output,
