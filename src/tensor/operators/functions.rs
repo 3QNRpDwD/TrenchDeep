@@ -1,10 +1,4 @@
-use std::sync::Arc;
-use std::vec;
-
-use crate::{MlError, MlResult};
-use crate::backend::{Backend, CpuBackend, Device};
-use crate::tensor::{operators::{Abs, Add, Div, Exp, Function, Log, Matmax, Matmul, Mul, Neg, Pow, Sqrt, Square, Sub, Topk}, Tensor, TensorBase, TensorError, Variable};
-use crate::tensor::operators::{ApproxCos, ApproxSin, Cos, Sin};
+use super::*;
 
 impl Function<f32> for Abs {
     fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }

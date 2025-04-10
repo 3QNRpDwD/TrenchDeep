@@ -1,30 +1,37 @@
-mod functions;
+pub mod sigmoid;
+pub mod tanh;
+pub mod relu;
+mod softmax;
 
 use std::fmt::Debug;
 use std::sync::Arc;
 use crate::MlResult;
 use crate::nn::Layer;
-use crate::tensor::operators::Function;
-use crate::tensor::{Tensor, TensorBase};
+use crate::tensor::{Tensor, TensorBase, Variable};
+use crate::tensor::operators::{Add, Div, Exp, Function, Mul, Sub};
 
-pub trait Activation<T: Debug + Clone>: Layer {
-    fn act_forward(&self, input: &Tensor<f32>) -> MlResult<Tensor<f32>>;
-    fn act_backward(&self, input: &Tensor<f32>, grad_output: &Tensor<f32>) -> MlResult<Tensor<f32>>;
+pub trait Activation<Type: Debug + Clone>: Layer {
+    fn new() -> MlResult<Self> where Self: Sized {
+        unimplemented!()
+    }
+    fn activation(&self, input: &Arc<Variable<Type>>) -> Arc<Variable<Type>> {
+        unimplemented!()
+    }
 }
 
 
 impl<T: Activation<f32>> Layer for T {
-    fn forward_pass(&self, input: &Tensor<f32>) -> MlResult<Tensor<f32>> {
-        Self::act_forward(self, input)
+    fn forward(&self, input: &Tensor<f32>) -> MlResult<Tensor<f32>> {
+        unimplemented!()
     }
 
-    fn backward_pass(
+    fn backward(
         &mut self,
         input: &Tensor<f32>,
         grad_output: &Tensor<f32>,
         _learning_rate: f32,
     ) -> MlResult<Tensor<f32>> {
-        Self::act_backward(self, input, grad_output)
+        unimplemented!()
     }
 }
 

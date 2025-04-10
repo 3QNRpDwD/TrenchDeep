@@ -1,8 +1,4 @@
-use std::sync::Mutex;
-use crate::{MlError, MlResult};
-use crate::MlError::StringError;
-use crate::tensor::*;
-use crate::tensor::operators::Function;
+use super::*;
 
 impl  Tensor<f32> {
     pub fn zeros() -> Tensor<f32> {
@@ -312,7 +308,7 @@ impl Variable<f32> {
                     if !graph.sorted { graph.topological_sort(); }
                     graph.backward(node_id)
                 },
-                false => Err(StringError("계산 그래프가 생성되지 않았습니다.".to_string())),
+                false => Err(MlError::StringError("계산 그래프가 생성되지 않았습니다.".to_string())),
             }
         })
     }
@@ -399,7 +395,7 @@ impl ComputationGraph<f32> {
 
         let mut result = Vec::new();
         let mut in_degree = HashMap::new();
-        let mut queue = VecDeque::new();
+        let mut queue = std::collections::VecDeque::new();
 
         // 진입차수 초기화
         for (&node_id, node) in &self.nodes {

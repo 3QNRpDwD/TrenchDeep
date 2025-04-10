@@ -1,14 +1,14 @@
 use std::{
     cell::RefCell,
-    collections::{HashMap, VecDeque},
+    collections::HashMap,
     fmt::{Debug, Display, Formatter, Result},
-    sync::Arc,
+    sync::{Arc, Mutex}
 };
-
-use crate::MlResult;
 
 pub mod creation;
 pub mod operators;
+
+use crate::{MlResult, MlError, tensor::operators::Function};
 
 /// 다양한 텐서 연산을 위한 편리한 매크로를 제공합니다.
 ///
