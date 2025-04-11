@@ -10,14 +10,7 @@ impl Activation<f32> for Relu {
 }
 
 impl Function<f32> for Relu {
-    fn new() -> MlResult<Self> {
-        Ok(
-            Relu {
-                #[cfg(all(feature = "enableBackpropagation"))]
-                mul: Arc::new(Mul::new()?)
-            }
-        )
-    }
+    fn new() -> MlResult<Self> { Ok(Relu { backend: Arc::new(CpuBackend::new()?) }) }
 
     fn forward(&self, x: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         // ReLU(x) = max(0, x)
@@ -34,14 +27,15 @@ impl Function<f32> for Relu {
 
         // ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * mask
         Ok(vec![
-            self.mul.forward(&[
-                grad,
-                &Tensor::from_vec(
-                    relu_output.data().iter()
+            Tensor::from_vec(
+                self.backend.multiply(
+                    &grad.data(),
+                    &relu_output.data().iter()
                         .map(|&val| if val > 0.0 { 1.0 } else { 0.0 })
-                        .collect::<Vec<f32>>(),
-                    relu_output.shape()
-                )?
-            ])?.remove(0)])
+                        .collect::<Vec<f32>>()
+                ),
+                grad.shape()
+            )?
+        ])
     }
 }

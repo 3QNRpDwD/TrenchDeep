@@ -669,39 +669,26 @@ impl Function<f32> for Cos {
 }
 
 impl Function<f32> for ApproxSin {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()? ), threshold: 0.0001 } ) }
-
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
-        todo!()
+    fn new() -> MlResult<Self> {
+        Ok(Self {
+            backend: Arc::new(CpuBackend::new()?),
+            threshold: 0.0001
+        })
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
-        todo!()
-    }
-
-    fn backend(&self) -> &Arc<dyn Backend> {
-        todo!()
-    }
+    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 }
 
 impl Function<f32> for ApproxCos {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()? ), threshold: 0.0001 } ) }
-
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
-        todo!()
+    fn new() -> MlResult<Self> {
+        Ok(Self {
+            backend: Arc::new(CpuBackend::new()?),
+            threshold: 0.0001
+        })
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
-        todo!()
-    }
-
-    fn backend(&self) -> &Arc<dyn Backend> {
-        todo!()
-    }
+    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 }
-
 
 #[cfg(test)]
 mod tests {

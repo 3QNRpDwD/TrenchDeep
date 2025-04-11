@@ -5,10 +5,13 @@ mod softmax;
 
 use std::fmt::Debug;
 use std::sync::Arc;
+use crate::backend::Backend;
+use crate::backend::CpuBackend;
+use crate::backend::Device;
 use crate::MlResult;
 use crate::nn::Layer;
 use crate::tensor::{Tensor, TensorBase, Variable};
-use crate::tensor::operators::{Add, Div, Exp, Function, Mul, Sub};
+use crate::tensor::operators::Function;
 
 pub trait Activation<Type: Debug + Clone>: Layer {
     fn new() -> MlResult<Self> where Self: Sized {
@@ -37,28 +40,15 @@ impl<T: Activation<f32>> Layer for T {
 
 
 pub struct Sigmoid {
-    exp: Arc<dyn Function<f32>>,
-
-    #[cfg(all(feature = "enableBackpropagation"))]
-    mul: Arc<dyn Function<f32>>,
-    #[cfg(all(feature = "enableBackpropagation"))]
-    sub: Arc<dyn Function<f32>>,
+    backend: Arc<dyn Backend>
 }
 pub struct Tanh {
-    exp: Arc<dyn Function<f32>>,
-    sub: Arc<dyn Function<f32>>,
-    div: Arc<dyn Function<f32>>,
-    add: Arc<dyn Function<f32>>,
-
-    #[cfg(all(feature = "enableBackpropagation"))]
-    mul: Arc<dyn Function<f32>>,
+    backend: Arc<dyn Backend>
 }
 pub struct Relu {
-    #[cfg(all(feature = "enableBackpropagation"))]
-    mul: Arc<dyn Function<f32>>
+    backend: Arc<dyn Backend>
 }
 
 pub struct Softmax {
-    #[cfg(all(feature = "enableBackpropagation"))]
-    mul: Arc<dyn Function<f32>>
+    backend: Arc<dyn Backend>
 }

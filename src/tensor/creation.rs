@@ -345,7 +345,6 @@ impl ComputationGraph<f32> {
             id,
             variable,
             function: None,
-            // output: None,
             inputs: Vec::new(),
         };
 
@@ -373,7 +372,6 @@ impl ComputationGraph<f32> {
             id,
             variable,
             function: Some(function),
-            // output,
             inputs,
         };
 
