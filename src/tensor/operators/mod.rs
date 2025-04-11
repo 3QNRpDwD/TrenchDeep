@@ -117,6 +117,19 @@ pub struct ApproxSin      { backend: Arc<dyn Backend>, threshold: f32 } // 테�
 #[derive(Clone)]
 pub struct ApproxCos      { backend: Arc<dyn Backend>, threshold: f32 } // 테일러급수를 사용한 코사인 함수 입니다.
 
+// Add helper method to create instances with backend
+impl ApproxSin {
+    pub fn with_backend(backend: Arc<dyn Backend>, threshold: f32) -> MlResult<Self> {
+        Ok(Self { backend, threshold })
+    }
+}
+
+impl ApproxCos {
+    pub fn with_backend(backend: Arc<dyn Backend>, threshold: f32) -> MlResult<Self> {
+        Ok(Self { backend, threshold })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
