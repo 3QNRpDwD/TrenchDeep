@@ -3,15 +3,7 @@ pub mod tanh;
 pub mod relu;
 mod softmax;
 
-use std::fmt::Debug;
-use std::sync::Arc;
-use crate::backend::Backend;
-use crate::backend::CpuBackend;
-use crate::backend::Device;
-use crate::MlResult;
-use crate::nn::Layer;
-use crate::tensor::{Tensor, TensorBase, Variable};
-use crate::tensor::operators::Function;
+use super::*;
 
 pub trait Activation<Type: Debug + Clone>: Layer {
     fn new() -> MlResult<Self> where Self: Sized {

@@ -1,5 +1,4 @@
 use std::fmt::{Display, Formatter};
-
 use crate::tensor::TensorError;
 
 pub mod tensor;
