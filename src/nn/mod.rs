@@ -21,3 +21,8 @@ pub trait Layer {
         learning_rate: f32,
     ) -> MlResult<Tensor<f32>>;
 }
+
+pub struct Linear<Type>    { operators: Arc<dyn Function<Type>> }
+pub struct Conv<Type>      { operators: Arc<dyn Function<Type>> }
+pub struct Pooling<Type>   { operators: Arc<dyn Function<Type>> }
+

@@ -5,13 +5,9 @@ mod softmax;
 
 use super::*;
 
-pub trait Activation<Type: Debug + Clone>: Layer {
-    fn new() -> MlResult<Self> where Self: Sized {
-        unimplemented!()
-    }
-    fn apply(&self, input: &Arc<Variable<Type>>) -> Arc<Variable<Type>> {
-        unimplemented!()
-    }
+pub trait Activation<Type: Debug + Clone>: Function<Type> {
+    fn new() -> Self;
+    fn apply(&mut self, input: &Arc<Variable<Type>>);
 }
 
 
@@ -30,17 +26,7 @@ impl<T: Activation<f32>> Layer for T {
     }
 }
 
-
-pub struct Sigmoid {
-    backend: Arc<dyn Backend>
-}
-pub struct Tanh {
-    backend: Arc<dyn Backend>
-}
-pub struct Relu {
-    backend: Arc<dyn Backend>
-}
-
-pub struct Softmax {
-    backend: Arc<dyn Backend>
-}
+pub struct Sigmoid { backend: Arc<dyn Backend> }
+pub struct Tanh    { backend: Arc<dyn Backend> }
+pub struct Relu    { backend: Arc<dyn Backend> }
+pub struct Softmax { backend: Arc<dyn Backend> }
