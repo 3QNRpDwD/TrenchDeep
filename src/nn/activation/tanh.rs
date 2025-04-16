@@ -4,7 +4,7 @@ impl Activation<f32> for Tanh {
     fn new() -> MlResult<Self> where Self: Sized {
         unimplemented!()
     }
-    fn apply(&self, input: &Arc<Variable<f32>>) -> Arc<Variable<f32>> {
+    fn apply(&mut self, input: &Arc<Variable<f32>>) -> MlResult<Variable<f32>> {
         unimplemented!()
     }
 }

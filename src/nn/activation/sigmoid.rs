@@ -1,11 +1,10 @@
-use crate::variable;
 use super::*;
 
 impl Activation<f32> for Sigmoid {
     fn new() -> MlResult<Self> where Self: Sized {
         unimplemented!()
     }
-    fn apply(&self, input: &Arc<Variable<f32>>) -> MlResult<Variable<f32>> {
+    fn apply(&mut self, input: &Arc<Variable<f32>>) -> MlResult<Variable<f32>> {
         self.apply(input)
     }
 }

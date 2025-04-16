@@ -6,8 +6,8 @@ mod softmax;
 use super::*;
 
 pub trait Activation<Type: Debug + Clone>: Function<Type> {
-    fn new() -> Self;
-    fn apply(&mut self, input: &Arc<Variable<Type>>);
+    fn new() -> MlResult<Self> where Self: Sized;
+    fn apply(&mut self, input: &Arc<Variable<Type>>) -> MlResult<Variable<f32>>;
 }
 
 

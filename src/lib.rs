@@ -279,10 +279,12 @@ mod benchmark {
     #[test]
     #[cfg(feature = "enableBackpropagation")]
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
+        let sub = Sub::new()?;
+        let mul = Mul::new()?;
         let mut x0 = Arc::new(variable!(vec![vec![0.0]]));
         let mut x1 = Arc::new(variable!(vec![vec![2.0]]));
-        let iter: usize = 10;
-        let learning_rate: f32 = 0.001;
+        let iter: usize = 50000;
+        let learning_rate = Tensor::new(vec![vec![0.001]]);
 
         for i in 0..iter { // 0부터
             crate::tensor::creation::COMPUTATION_GRAPH.with(|graph| {
@@ -295,14 +297,22 @@ mod benchmark {
             // 단 임시방편이더라도 기존의 코드보다 훨신 성능이 나아짐. 5000개를 500ms 미만으로 계산가능하게 되었음.
             // 200개를 22초만에 계산하던 기존의 버전에서 5000개를 500ms 미만으로 계산가능한것은 엄청난 발전임.
 
-            #[cfg(feature = "debugging")]
-            println!("iter - {}: x0.tensor(): {:?}, x1.tensor(): {:?}", i, &x0.tensor(), &x1.tensor());
-
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
 
-            x0 = Arc::new(Variable::new(x0.tensor() - scalar_ops!(x0.grad().unwrap(), Mul, learning_rate)?));
-            x1 = Arc::new(Variable::new(x1.tensor() - scalar_ops!(x1.grad().unwrap(), Mul, learning_rate)?));
+            if i == 50000-1 {
+                println!(
+                    "iter - {}\n\
+                    [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
+                    [ x1.tensor: {:?}, x1.grad: {:?} ]"
+                    , i, x0.tensor(), x0.grad(), x1.tensor(), x1.grad()
+                );
+            }
+
+            let x0_mul_lr = mul.forward(&[&x0.grad().unwrap(), &learning_rate])?.remove(0);
+            let x1_mul_lr = mul.forward(&[&x1.grad().unwrap(), &learning_rate])?.remove(0);
+            x0 = Arc::new(Variable::new(sub.forward(&[x0.tensor(), &x0_mul_lr])?.remove(0)));
+            x1 = Arc::new(Variable::new(sub.forward(&[x1.tensor(), &x1_mul_lr])?.remove(0)));
             // 현재 텐서의 불변성 유지 때문에 기존 텐서를 수정하는것이 아닌, 새로 생성하기 때문에,
             // 계산 그래프가 불필요하게 거대해지고, 연산시간이 오래걸리는 문제가 발생함.
             // 이는 Mutex 를 도입해서 멀티스레딩과 함께 텐서를 수정하는 메서드를 추가하는 해결책이 필요해보임.
