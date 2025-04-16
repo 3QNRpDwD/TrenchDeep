@@ -1,6 +1,7 @@
+use std::collections::HashSet;
 use super::*;
 
-impl  Tensor<f32> {
+impl Tensor<f32> {
     pub fn zeros() -> Tensor<f32> {
         Self {
             data: vec![],
@@ -484,39 +485,7 @@ impl ComputationGraph<f32> {
     }
 }
 
-
-/// 자동 미분(autograd)을 지원하는 함수 트레잇
-///
-/// 이 트레잇은 Function<f32>와 Clone을 구현하는 타입에 자동 미분 기능을 추가합니다.
-/// 신경망의 순전파(forward pass)와 역전파(backward pass)를 연결하는 함수를 생성하는 역할을 수행합니다.
-///
-/// # 주요 기능
-/// - 입력 변수들로부터 계산 결과 생성
-/// - enableBackpropagation 기능 활성화 시 자동으로 역전파 그래프 구성
-/// - 연산 결과에 그라데이션 함수 연결
-///
-/// # 메서드
-///
-/// ## apply(&self, inputs: &[&Arc<Variable<f32>>]) -> MlResult<Arc<Variable<f32>>>
-/// 입력 변수 슬라이스를 받아 다음 단계를 처리합니다:
-/// 1. 모든 입력 변수에서 텐서 추출
-/// 2. forward 메소드를 호출하여 순전파 수행
-/// 3. (조건부) 역전파를 위한 계산 그래프 구성
-///
-/// ### 기능 플래그 동작
-/// - #[cfg(feature = "enableBackpropagation")] 활성화 시:
-/// - 단일 입력/출력 연산만 지원 (입력 슬라이스 길이 == 1)
-/// - 계산 결과에 그라데이션 함수와 입력 변수들을 연결
-/// - 기능 비활성화 시 기본 텐서 연산만 수행
-///
-/// # 구현 참고사항
-/// - Function<f32> + Clone + 'static을 구현하는 모든 타입에 자동 구현 제공
-/// - 사용자 정의 연산 구현 시 forward 메소드의 정확한 구현이 필요
-///
-/// # 제약 사항
-/// - 현재 버전에서는 다중 입력/출력에 대한 역전파를 지원하지 않음
-/// - f32 데이터 타입 전용으로 특화됨
-pub trait AutogradFunction: Function<f32> + Clone where Self: 'static {
+impl<F: Function<f32> + Clone +  'static> AutogradFunction<f32> for F {
     fn apply(&self, inputs: &[&Arc<Variable<f32>>]) -> MlResult<Arc<Variable<f32>>> {
         let tensors: Vec<&Tensor<f32>> = inputs.iter().map(|&var| var.tensor()).collect();
         let results = Variable::new(self.forward(&tensors)?.remove(0));
@@ -535,5 +504,3 @@ pub trait AutogradFunction: Function<f32> + Clone where Self: 'static {
         Ok(Arc::new(results))
     }
 }
-
-impl<F: Function<f32> + Clone +  'static> AutogradFunction for F {}

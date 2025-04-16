@@ -1,13 +1,5 @@
 use super::*;
 
-impl Activation<f32> for Tanh {
-    fn new() -> MlResult<Self> where Self: Sized {
-        unimplemented!()
-    }
-    fn apply(&mut self, input: &Arc<Variable<f32>>) -> MlResult<Variable<f32>> {
-        unimplemented!()
-    }
-}
 impl Function<f32> for Tanh {
     fn new() -> MlResult<Self> { Ok(Tanh { backend: Arc::new(CpuBackend::new()?) }) }
 

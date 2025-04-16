@@ -1,14 +1,5 @@
 use super::*;
 
-impl Activation<f32> for Sigmoid {
-    fn new() -> MlResult<Self> where Self: Sized {
-        unimplemented!()
-    }
-    fn apply(&mut self, input: &Arc<Variable<f32>>) -> MlResult<Variable<f32>> {
-        self.apply(input)
-    }
-}
-
 impl Function<f32> for Sigmoid {
     fn new() -> MlResult<Self> { Ok(Sigmoid { backend: Arc::new(CpuBackend::new()?) }) }
 

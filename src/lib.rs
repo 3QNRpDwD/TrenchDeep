@@ -1,5 +1,4 @@
 use std::fmt::{Display, Formatter};
-use crate::tensor::TensorError;
 
 pub mod tensor;
 pub mod backend;
@@ -7,20 +6,38 @@ pub mod nn;
 pub mod optimizer;
 pub mod loss;
 
+#[derive(Debug, Clone)]
+pub enum TensorError {
+    InvalidShape {
+        expected: Vec<usize>,
+        got: Vec<usize>,
+    },
+
+    InvalidDataLength {
+        expected: usize,
+        got: usize,
+    },
+    InvalidOperation {
+        op: &'static str,
+        reason: String,
+    },
+    InvalidAxis {
+        axis: usize,
+        shape: Vec<usize>,
+    },
+    MatrixMultiplicationError {
+        left_shape: Vec<usize>,
+        right_shape: Vec<usize>,
+    },
+    EmptyTensor,
+}
+
+impl std::error::Error for TensorError {}
 
 #[derive(Debug)]
 pub enum MlError {
     TensorError(TensorError),
     StringError(String),
-}
-
-impl Display for MlError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            MlError::TensorError(e) => write!(f, "Tensor error: {}", e),
-            MlError::StringError(s) => write!(f, "{}", s),
-        }
-    }
 }
 
 impl std::error::Error for MlError {}
@@ -56,9 +73,9 @@ pub type MlResult<T> = Result<T, MlError>;
 #[cfg(test)]
 mod benchmark {
     use std::sync::{Arc};
-    use crate::{MlResult, scalar_ops, variable};
+    use crate::{MlResult, variable};
     use crate::tensor::{Tensor, TensorBase, Variable};
-    use crate::tensor::creation::AutogradFunction;
+    use crate::tensor::AutogradFunction;
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
 
     fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
@@ -283,7 +300,7 @@ mod benchmark {
         let mul = Mul::new()?;
         let mut x0 = Arc::new(variable!(vec![vec![0.0]]));
         let mut x1 = Arc::new(variable!(vec![vec![2.0]]));
-        let iter: usize = 50000;
+        let iter: usize = 100;
         let learning_rate = Tensor::new(vec![vec![0.001]]);
 
         for i in 0..iter { // 0부터
@@ -300,7 +317,7 @@ mod benchmark {
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
 
-            if i == 50000-1 {
+            if i == 100 {
                 println!(
                     "iter - {}\n\
                     [ x0.tensor: {:?}, x0.grad: {:?} ]\n\

@@ -11,6 +11,7 @@ use crate::backend::Device;
 use crate::MlResult;
 use crate::tensor::{Tensor, TensorBase, Variable};
 use crate::tensor::operators::Function;
+use crate::tensor::AutogradFunction;
 
 pub trait Layer {
     fn forward(&self, input: &Tensor<f32>) -> MlResult<Tensor<f32>>;

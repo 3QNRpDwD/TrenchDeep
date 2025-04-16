@@ -1,14 +1,15 @@
 use std::{
     cell::RefCell,
     collections::HashMap,
-    fmt::{Debug, Display, Formatter, Result},
+    fmt::{Debug, Formatter, Result},
     sync::{Arc, Mutex}
 };
 
 pub mod creation;
 pub mod operators;
+mod display;
 
-use crate::{MlResult, MlError, tensor::operators::Function};
+use crate::{MlResult, MlError, TensorError, tensor::operators::Function};
 
 /// 다양한 텐서 연산을 위한 편리한 매크로를 제공합니다.
 ///
@@ -162,62 +163,6 @@ macro_rules! variable {
     };
 }
 
-#[derive(Debug, Clone)]
-pub enum TensorError {
-    InvalidShape {
-        expected: Vec<usize>,
-        got: Vec<usize>,
-    },
-
-    InvalidDataLength {
-        expected: usize,
-        got: usize,
-    },
-    InvalidOperation {
-        op: &'static str,
-        reason: String,
-    },
-    InvalidAxis {
-        axis: usize,
-        shape: Vec<usize>,
-    },
-    MatrixMultiplicationError {
-        left_shape: Vec<usize>,
-        right_shape: Vec<usize>,
-    },
-    EmptyTensor,
-}
-
-impl std::error::Error for TensorError {}
-
-impl Display for TensorError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        match self {
-            TensorError::InvalidShape { expected, got } => {
-                write!(f, "Invalid shape: expected {:?}, got {:?}", expected, got)
-            }
-            TensorError::InvalidDataLength { expected, got } => {
-                write!(f, "Invalid data length: expected {}, got {}", expected, got)
-            }
-            TensorError::InvalidOperation { op, reason } => {
-                write!(f, "Invalid operation '{}': {}", op, reason)
-            }
-            TensorError::InvalidAxis { axis, shape } => {
-                write!(f, "Invalid axis {} for tensor with shape {:?}", axis, shape)
-            }
-            TensorError::MatrixMultiplicationError {
-                left_shape,
-                right_shape,
-            } => {
-                write!(f, "Invalid dimensions for matrix multiplication: left shape {:?}, right shape {:?}", left_shape, right_shape)
-            }
-            TensorError::EmptyTensor => {
-                write!(f, "Empty tensor")
-            }
-        }
-    }
-}
-
 /// 다차원 배열을 나타내는 텐서 구조체입니다.
 ///
 /// 이 구조체는 데이터와 그 형태(shape)를 저장하여 수학적 연산을 수행하는 데 사용됩니다.
@@ -268,12 +213,12 @@ type NodeId<T> = *const Variable<T>;
 /// - `variable`: 노드가 나타내는 변수 (스마트 포인터로 감싸짐)
 /// - `function`: 노드에서 수행되는 연산 함수 (옵션, 동적 디스패치 지원)
 /// - `inputs`: 이 노드의 입력으로 사용되는 다른 노드들의 ID 목록
+///
 #[cfg(feature = "enableBackpropagation")]
 pub(crate) struct ComputationNode<T: Debug + Clone> {
     id: NodeId<T>,
     variable: Arc<Variable<T>>,
     function: Option<Arc<dyn Function<T>>>,
-    // output: Option<Tensor<f32>>,
     inputs: Vec<NodeId<T>>,
 }
 
@@ -339,7 +284,9 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 반환값
     /// - `Tensor<Type>`: 생성된 텐서 객체
-    fn new(data: Vec<Vec<Type>>) -> Tensor<Type> where Self: Sized;
+    fn new(data: Vec<Vec<Type>>) -> Self where Self: Sized {
+        unimplemented!(" TensorBase::new() is not implemented ")
+    }
 
     /// 1차원 벡터와 형태를 기반으로 새로운 텐서를 생성합니다.
     ///
@@ -352,19 +299,25 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 오류
     /// - 데이터 길이와 형태가 일치하지 않을 경우
-    fn from_vec(data: Vec<Type>, shape: &[usize]) -> MlResult<Tensor<Type>> where Self: Sized;
+    fn from_vec(data: Vec<Type>, shape: &[usize]) -> MlResult<Self> where Self: Sized {
+        unimplemented!(" TensorBase::from_vec() is not implemented ")
+    }
 
     /// 텐서의 형태를 반환합니다.
     ///
     /// # 반환값
     /// - `&[usize]`: 텐서의 차원을 나타내는 슬라이스
-    fn shape(&self) -> &[usize];
+    fn shape(&self) -> &[usize] {
+        unimplemented!(" TensorBase::shape() is not implemented ")
+    }
 
     /// 텐서의 데이터를 반환합니다.
     ///
     /// # 반환값
     /// - `&[Type]`: 텐서의 데이터를 나타내는 슬라이스
-    fn data(&self) -> &[Type];
+    fn data(&self) -> &[Type] {
+        unimplemented!(" TensorBase::data() is not implemented ")
+    }
 
     /// 주어진 인덱스에서 텐서의 값을 반환합니다.
     ///
@@ -373,7 +326,9 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 반환값
     /// - `Option<&Type>`: 해당 위치의 값에 대한 참조, 유효하지 않은 인덱스면 `None`
-    fn get(&self, indices: &[usize]) -> Option<&Type>;
+    fn get(&self, indices: &[usize]) -> Option<&Type> {
+        unimplemented!(" TensorBase::get() is not implemented ")
+    }
 
     /// 주어진 인덱스를 데이터 벡터 내의 오프셋으로 변환합니다.
     ///
@@ -382,7 +337,9 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 반환값
     /// - `Option<usize>`: 데이터 벡터 내 해당 위치의 오프셋, 유효하지 않은 인덱스면 `None`
-    fn index(&self, indices: &[usize]) -> Option<usize>;
+    fn index(&self, indices: &[usize]) -> Option<usize> {
+        unimplemented!(" TensorBase::index() is not implemented ")
+    }
 
     /// 두 텐서의 형태가 동일한지 확인합니다.
     ///
@@ -394,54 +351,52 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 오류
     /// - 두 텐서의 형태가 일치하지 않을 경우
-    fn chk_shape(&self, other: &dyn TensorBase<Type>) -> MlResult<()>;
-}
-
-impl<Type: Debug> Debug for Variable<Type> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let mut ds = f.debug_struct("Variable");
-        ds
-            .field("tensor", &self.tensor)
-            .field("requires_grad", &self.requires_grad);
-        #[cfg(feature = "enableBackpropagation")]
-        {
-            ds.field("grad", &self.grad);
+    fn chk_shape(&self, other: &dyn TensorBase<Type>) -> MlResult<()> {
+        if self.shape() == other.shape() {
+            Ok(())
+        } else {
+            Err(MlError::TensorError(TensorError::InvalidShape {
+                expected: self.shape().to_vec(),
+                got: other.shape().to_vec(),
+            }))
         }
-        ds.finish()
     }
 }
 
-#[cfg(feature = "enableBackpropagation")]
-impl<Type: Debug + Clone> Debug for ComputationGraph<Type> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let mut ds = f.debug_struct("ComputationGraph");
-        ds
-            .field("nodes", &self.nodes)
-            .field("topo_sorted", &self.topo_sorted)
-            .field("sorted", &self.sorted)
-            .finish()
-    }
-}
-
-#[cfg(feature = "enableBackpropagation")]
-impl<Type: Debug + Clone> Debug for ComputationNode<Type> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let mut ds = f.debug_struct("ComputationNode");
-        ds
-            .field("id", &self.id)
-            .field("variable", &self.variable)
-            .field("function", &self.function.as_ref().map(|f| f.as_ref()))
-            .field("inputs", &self.inputs)
-            .finish()
-    }
-}
-
-impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(
-            f, "data: {:?}, shape: {:?}",
-            self.data(), self.shape()
-        )
+/// 자동 미분(autograd)을 지원하는 함수 트레잇
+///
+/// 이 트레잇은 Function<f32>와 Clone을 구현하는 타입에 자동 미분 기능을 추가합니다.
+/// 신경망의 순전파(forward pass)와 역전파(backward pass)를 연결하는 함수를 생성하는 역할을 수행합니다.
+///
+/// # 주요 기능
+/// - 입력 변수들로부터 계산 결과 생성
+/// - enableBackpropagation 기능 활성화 시 자동으로 역전파 그래프 구성
+/// - 연산 결과에 그라데이션 함수 연결
+///
+/// # 메서드
+///
+/// ## apply(&self, inputs: &[&Arc<Variable<f32>>]) -> MlResult<Arc<Variable<f32>>>
+/// 입력 변수 슬라이스를 받아 다음 단계를 처리합니다:
+/// 1. 모든 입력 변수에서 텐서 추출
+/// 2. forward 메소드를 호출하여 순전파 수행
+/// 3. (조건부) 역전파를 위한 계산 그래프 구성
+///
+/// ### 기능 플래그 동작
+/// - #[cfg(feature = "enableBackpropagation")] 활성화 시:
+/// - 단일 입력/출력 연산만 지원 (입력 슬라이스 길이 == 1)
+/// - 계산 결과에 그라데이션 함수와 입력 변수들을 연결
+/// - 기능 비활성화 시 기본 텐서 연산만 수행
+///
+/// # 구현 참고사항
+/// - Function<f32> + Clone + 'static을 구현하는 모든 타입에 자동 구현 제공
+/// - 사용자 정의 연산 구현 시 forward 메소드의 정확한 구현이 필요
+///
+/// # 제약 사항
+/// - 현재 버전에서는 다중 입력/출력에 대한 역전파를 지원하지 않음
+/// - f32 데이터 타입 전용으로 특화됨
+pub trait AutogradFunction<Type: Debug + Clone>: Function<Type> + Clone where Self: 'static {
+    fn apply(&self, inputs: &[&Arc<Variable<Type>>]) -> MlResult<Arc<Variable<Type>>> {
+        unimplemented!(" AutogradFunction::apply() not implemented for this type")
     }
 }
 

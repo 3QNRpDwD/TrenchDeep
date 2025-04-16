@@ -135,8 +135,8 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{MlResult, variable};
-    use crate::tensor::{creation::AutogradFunction, operators::{Add, Function, Mul, Pow, Square}, Tensor, TensorBase, Variable};
-    use crate::tensor::operators::{Cos, Exp, Sin};
+    use crate::tensor::{AutogradFunction, operators::{Add, Function, Mul, Pow, Square}, Tensor, TensorBase, Variable};
+    use crate::tensor::operators::{Exp, Sin};
 
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
         if tensor != expected_tensor {
