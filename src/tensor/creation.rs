@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use super::*;
 
 impl Tensor<f32> {

@@ -1,35 +1,9 @@
-use std::fmt::Display;
 use super::*;
 
-#[derive(Debug, Clone)]
-pub enum TensorError {
-    InvalidShape {
-        expected: Vec<usize>,
-        got: Vec<usize>,
-    },
-
-    InvalidDataLength {
-        expected: usize,
-        got: usize,
-    },
-    InvalidOperation {
-        op: &'static str,
-        reason: String,
-    },
-    InvalidAxis {
-        axis: usize,
-        shape: Vec<usize>,
-    },
-    MatrixMultiplicationError {
-        left_shape: Vec<usize>,
-        right_shape: Vec<usize>,
-    },
-    EmptyTensor,
-}
-impl Display for crate::TensorError {
+impl Display for TensorError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            crate::TensorError::InvalidShape { expected, got } => {
+            TensorError::InvalidShape { expected, got } => {
                 write!(f, "Invalid shape: expected {:?}, got {:?}", expected, got)
             }
             crate::TensorError::InvalidDataLength { expected, got } => {

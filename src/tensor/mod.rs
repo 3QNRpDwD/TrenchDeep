@@ -4,10 +4,11 @@ use std::{
     fmt::{Debug, Formatter, Result},
     sync::{Arc, Mutex}
 };
+use std::fmt::Display;
 
 pub mod creation;
 pub mod operators;
-mod display;
+pub mod display;
 
 use crate::{MlResult, MlError, TensorError, tensor::operators::Function};
 

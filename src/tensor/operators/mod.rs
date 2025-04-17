@@ -6,6 +6,48 @@ use crate::backend::Device;
 pub mod functions;
 pub mod overload;
 
+macro_rules! define_op {
+    // 기본 구조체 (매개변수 없음)
+    ($name:ident) => {
+        #[derive(Clone)]
+        pub struct $name { backend: Arc<dyn Backend> }
+    };
+
+    // 추가 필드가 있는 구조체
+    ($name:ident, $field:ident: $type:ty) => {
+        #[derive(Clone)]
+        pub struct $name {
+            backend: Arc<dyn Backend>,
+            pub $field: $type
+        }
+    };
+}
+
+// 기본 연산자들
+define_op!(Sum);
+define_op!(Exp);
+define_op!(Neg);
+define_op!(Sqrt);
+define_op!(Abs);
+define_op!(Square);
+define_op!(Log);
+define_op!(Add);
+define_op!(Sub);
+define_op!(Mul);
+define_op!(Div);
+define_op!(Matmul);
+define_op!(Sin);  // 일반적인 사인 함수입니다.
+define_op!(Cos);  // 일반적인 코사인 함수입니다.
+
+// 추가 필드가 있는 연산자들
+define_op!(Pow, power: Option<f32>);
+define_op!(Topk, topk: Option<(usize, bool)>);
+define_op!(Matmax, matmax: Option<(Option<i32>, bool)>);
+define_op!(ApproxSin, threshold: f32);  // 테일러급수를 사용한 사인 함수 입니다.
+define_op!(ApproxCos, threshold: f32);  // 테일러급수를 사용한 코사인 함수 입니다
+
+
+
 /// 계산 그래프에서 연산을 정의하는 트레잇입니다.
 ///
 /// 이 트레잇은 순전파와 역전파를 포함한 연산의 동작을 정의하며, 백엔드와의 연계를 지원합니다.
@@ -79,43 +121,6 @@ impl<Type: Debug + Clone> Debug for &dyn Function<Type> {
         write!(f, "Function<{}>", std::any::type_name::<Self>())
     }
 }
-
-#[derive(Clone)]
-pub struct Exp      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Neg      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Sqrt     { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Abs      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Square   { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Log      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Pow      { backend: Arc<dyn Backend>, pub power: Option<f32> }
-#[derive(Clone)]
-pub struct Topk     { backend: Arc<dyn Backend>, pub topk: Option<(usize, bool)> }
-#[derive(Clone)]
-pub struct Matmax   { backend: Arc<dyn Backend>, pub matmax: Option<(Option<i32>, bool)> }
-#[derive(Clone)]
-pub struct Add      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Sub      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Mul      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Div      { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Matmul   { backend: Arc<dyn Backend> }
-#[derive(Clone)]
-pub struct Sin      { backend: Arc<dyn Backend> } // 일반적인 사인 함수입니다.
-#[derive(Clone)]
-pub struct Cos      { backend: Arc<dyn Backend> } // 일반적인 코사인 함수입니다.
-#[derive(Clone)]
-pub struct ApproxSin      { backend: Arc<dyn Backend>, threshold: f32 } // 테일러급수를 사용한 사인 함수 입니다.
-#[derive(Clone)]
-pub struct ApproxCos      { backend: Arc<dyn Backend>, threshold: f32 } // 테일러급수를 사용한 코사인 함수 입니다.
 
 // Add helper method to create instances with backend
 impl ApproxSin {

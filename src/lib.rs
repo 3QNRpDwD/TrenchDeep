@@ -1,5 +1,3 @@
-use std::fmt::{Display, Formatter};
-
 pub mod tensor;
 pub mod backend;
 pub mod nn;

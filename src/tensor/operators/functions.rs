@@ -1,5 +1,6 @@
 use super::*;
 
+
 impl Function<f32> for Abs {
     fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
     /// Computes the absolute value of each element in the tensor.
@@ -75,6 +76,20 @@ impl Function<f32> for Neg {
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+}
+
+impl Function<f32> for Sum {
+    fn new() -> MlResult<Self> {
+        todo!()
+    }
+
+    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+        todo!()
+    }
+
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+        todo!()
+    }
 }
 
 impl Function<f32> for Sqrt {
