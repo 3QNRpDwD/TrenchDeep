@@ -825,9 +825,9 @@ impl Function<f32> for ApproxCos {
 
 #[cfg(test)]
 mod tests {
-    use crate::{MlResult, tensor_ops};
+    use crate::tensor::operators::{Function, Matmax, Matmul, Topk};
     use crate::tensor::{Tensor, TensorBase};
-    use crate::tensor::operators::{Function, Matmul, Topk, Matmax};
+    use crate::{tensor_ops, MlResult};
 
     #[test]
     fn test_topk() -> MlResult<()> {

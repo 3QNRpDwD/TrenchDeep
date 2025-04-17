@@ -192,8 +192,8 @@ impl std::ops::Neg for &Tensor<f32> {
 
 #[cfg(test)]
 mod tests {
-    use crate::MlResult;
     use crate::tensor::{Tensor, TensorBase, Variable};
+    use crate::MlResult;
 
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());

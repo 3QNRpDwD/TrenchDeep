@@ -139,9 +139,9 @@ impl ApproxCos {
 mod tests {
     use std::sync::Arc;
 
-    use crate::{MlResult, variable};
-    use crate::tensor::{AutogradFunction, operators::{Add, Function, Mul, Pow, Square}, Tensor, TensorBase, Variable};
     use crate::tensor::operators::{Exp, Sin};
+    use crate::tensor::{operators::{Add, Function, Mul, Pow, Square}, AutogradFunction, Tensor, TensorBase, Variable};
+    use crate::{variable, MlResult};
 
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
         if tensor != expected_tensor {

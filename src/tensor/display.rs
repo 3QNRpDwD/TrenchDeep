@@ -6,22 +6,22 @@ impl Display for TensorError {
             TensorError::InvalidShape { expected, got } => {
                 write!(f, "Invalid shape: expected {:?}, got {:?}", expected, got)
             }
-            crate::TensorError::InvalidDataLength { expected, got } => {
+            TensorError::InvalidDataLength { expected, got } => {
                 write!(f, "Invalid data length: expected {}, got {}", expected, got)
             }
-            crate::TensorError::InvalidOperation { op, reason } => {
+            TensorError::InvalidOperation { op, reason } => {
                 write!(f, "Invalid operation '{}': {}", op, reason)
             }
-            crate::TensorError::InvalidAxis { axis, shape } => {
+            TensorError::InvalidAxis { axis, shape } => {
                 write!(f, "Invalid axis {} for tensor with shape {:?}", axis, shape)
             }
-            crate::TensorError::MatrixMultiplicationError {
+            TensorError::MatrixMultiplicationError {
                 left_shape,
                 right_shape,
             } => {
                 write!(f, "Invalid dimensions for matrix multiplication: left shape {:?}, right shape {:?}", left_shape, right_shape)
             }
-            crate::TensorError::EmptyTensor => {
+            TensorError::EmptyTensor => {
                 write!(f, "Empty tensor")
             }
         }
@@ -29,7 +29,7 @@ impl Display for TensorError {
 }
 
 impl Display for MlError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             MlError::TensorError(e) => write!(f, "Tensor error: {}", e),
             MlError::StringError(s) => write!(f, "{}", s),

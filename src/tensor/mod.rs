@@ -1,16 +1,16 @@
+use std::fmt::Display;
 use std::{
     cell::RefCell,
     collections::HashMap,
     fmt::{Debug, Formatter, Result},
     sync::{Arc, Mutex}
 };
-use std::fmt::Display;
 
 pub mod creation;
 pub mod operators;
 pub mod display;
 
-use crate::{MlResult, MlError, TensorError, tensor::operators::Function};
+use crate::{tensor::operators::Function, MlError, MlResult, TensorError};
 
 /// 다양한 텐서 연산을 위한 편리한 매크로를 제공합니다.
 ///
@@ -403,9 +403,9 @@ pub trait AutogradFunction<Type: Debug + Clone>: Function<Type> + Clone where Se
 
 #[cfg(test)]
 mod tests {
-    use crate::MlResult;
+    use crate::tensor::operators::{Abs, Add, Div, Exp, Function, Log, Matmul, Mul, Neg, Pow, Sqrt, Square, Sub};
     use crate::tensor::{Tensor, TensorBase};
-    use crate::tensor::operators::{Abs, Add, Div, Exp, Function, Log, Matmul, Mul, Neg, Sqrt, Square, Sub, Pow};
+    use crate::MlResult;
 
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
