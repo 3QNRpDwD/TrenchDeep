@@ -1,10 +1,10 @@
 pub use compute::CpuCompute;
 pub use core::CpuCore;
 
-use crate::backend::{Backend, Device, DeviceType};
 use crate::backend::feature::{
-    CPU_FEATURE_AVX, CPU_FEATURE_AVX2, CPU_FEATURE_AVX512F, DeviceFeatures,
+    DeviceFeatures, CPU_FEATURE_AVX, CPU_FEATURE_AVX2, CPU_FEATURE_AVX512F,
 };
+use crate::backend::{Backend, Device, DeviceType};
 use crate::MlResult;
 
 mod compute;

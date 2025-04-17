@@ -70,11 +70,11 @@ pub type MlResult<T> = Result<T, MlError>;
 
 #[cfg(test)]
 mod benchmark {
-    use std::sync::{Arc};
-    use crate::{MlResult, variable};
-    use crate::tensor::{Tensor, TensorBase, Variable};
-    use crate::tensor::AutogradFunction;
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
+    use crate::tensor::AutogradFunction;
+    use crate::tensor::{Tensor, TensorBase, Variable};
+    use crate::{variable, MlResult};
+    use std::sync::Arc;
 
     fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
         if tensor.shape() != expected_tensor.shape() {
