@@ -4,9 +4,9 @@ use super::*;
 // 전역 계산 그래프 (스레드 로컬)
 #[cfg(feature = "enableBackpropagation")]
 thread_local! {
-    pub(crate) static COMPUTATION_GRAPH: Mutex<ComputationGraph<f32>> = Mutex::new(ComputationGraph::new());
+    pub(crate) static COMPUTATION_GRAPH: std::sync::Mutex<ComputationGraph<f32>> = std::sync::Mutex::new(ComputationGraph::new());
     #[cfg(feature = "enableVisualization")]
-    pub(crate) static VISUALIZATION_GRAPH: RefCell<String> = RefCell::new(String::new());
+    pub(crate) static VISUALIZATION_GRAPH: std::cell::RefCell<String> = std::cell::RefCell::new(String::new());
 
 }
 
@@ -138,7 +138,7 @@ impl ComputationGraph<f32> {
     /// - `Self`: 초기화된 `ComputationGraph` 인스턴스
     pub(crate) fn new() -> Self {
         Self {
-            nodes: HashMap::new(),
+            nodes: std::collections::HashMap::new(),
             topo_sorted: Vec::new(),
             sorted: false,
         }
@@ -295,7 +295,7 @@ impl ComputationGraph<f32> {
         }
 
         let mut result = Vec::new();
-        let mut in_degree = HashMap::new();
+        let mut in_degree = std::collections::HashMap::new();
         let mut queue = std::collections::VecDeque::new();
 
         // 진입차수 초기화

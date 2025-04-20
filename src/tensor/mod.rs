@@ -1,9 +1,7 @@
 use std::fmt::Display;
 use std::{
-    cell::RefCell,
-    collections::HashMap,
     fmt::{Debug, Formatter, Result},
-    sync::{Arc, Mutex}
+    sync::{Arc}
 };
 
 pub mod creation;
@@ -193,7 +191,7 @@ pub struct Variable<Type> {
     requires_grad: bool,
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    grad: RefCell<Option<Tensor<Type>>>,
+    grad: std::cell::RefCell<Option<Tensor<Type>>>,
 }
 
 /// 계산 그래프에서 노드의 고유 식별자를 나타내는 타입 별칭입니다.
@@ -238,7 +236,7 @@ pub(crate) struct ComputationNode<T: Debug + Clone> {
 /// - `sorted`: 위상 정렬이 완료되었는지 여부
 #[cfg(feature = "enableBackpropagation")]
 pub(crate) struct ComputationGraph<T: Debug + Clone> {
-    nodes: HashMap<NodeId<T>, ComputationNode<T>>,
+    nodes: std::collections::HashMap<NodeId<T>, ComputationNode<T>>,
     topo_sorted: Vec<NodeId<T>>,
     sorted: bool,
 }
@@ -288,7 +286,7 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 반환값
     /// - `Tensor<Type>`: 생성된 텐서 객체
-    fn new(data: Vec<Vec<Type>>) -> Self where Self: Sized {
+    fn new(_data: Vec<Vec<Type>>) -> Self where Self: Sized {
         unimplemented!(" TensorBase::new() is not implemented ")
     }
 
@@ -303,7 +301,7 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 오류
     /// - 데이터 길이와 형태가 일치하지 않을 경우
-    fn from_vec(data: Vec<Type>, shape: &[usize]) -> MlResult<Self> where Self: Sized {
+    fn from_vec(_data: Vec<Type>, _shape: &[usize]) -> MlResult<Self> where Self: Sized {
         unimplemented!(" TensorBase::from_vec() is not implemented ")
     }
 
@@ -330,7 +328,7 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 반환값
     /// - `Option<&Type>`: 해당 위치의 값에 대한 참조, 유효하지 않은 인덱스면 `None`
-    fn get(&self, indices: &[usize]) -> Option<&Type> {
+    fn get(&self, _indices: &[usize]) -> Option<&Type> {
         unimplemented!(" TensorBase::get() is not implemented ")
     }
 
@@ -341,7 +339,7 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 반환값
     /// - `Option<usize>`: 데이터 벡터 내 해당 위치의 오프셋, 유효하지 않은 인덱스면 `None`
-    fn index(&self, indices: &[usize]) -> Option<usize> {
+    fn index(&self, _indices: &[usize]) -> Option<usize> {
         unimplemented!(" TensorBase::index() is not implemented ")
     }
 
@@ -399,7 +397,7 @@ pub trait TensorBase<Type: Debug + Clone> {
 /// - 현재 버전에서는 다중 입력/출력에 대한 역전파를 지원하지 않음
 /// - f32 데이터 타입 전용으로 특화됨
 pub trait AutogradFunction<Type: Debug + Clone>: Function<Type> + Clone where Self: 'static {
-    fn apply(&self, inputs: &[&Arc<Variable<Type>>]) -> MlResult<Arc<Variable<Type>>> {
+    fn apply(&self, _inputs: &[&Arc<Variable<Type>>]) -> MlResult<Arc<Variable<Type>>> {
         unimplemented!(" AutogradFunction::apply() not implemented for this type")
     }
 }

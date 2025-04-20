@@ -13,6 +13,8 @@ pub mod topk;
 pub mod matmax;
 pub mod sum;
 pub mod trigonometric;
+mod reshape;
+mod transpose;
 
 macro_rules! define_op {
     // 기본 구조체 (매개변수 없음)
@@ -45,7 +47,9 @@ define_op!(Mul);
 define_op!(Div);
 define_op!(Matmul);
 define_op!(Sin);  // 일반적인 사인 함수입니다.
-define_op!(Cos);  // 일반적인 코사인 함수입니다.
+define_op!(Cos);  // 일반적인 코사인 함수입니다.d
+define_op!(Reshape);
+define_op!(Transpose);
 define_op!(Pow, power: Option<f32>);
 define_op!(Topk, topk: Option<(usize, bool)>);
 define_op!(Matmax, matmax: Option<(Option<i32>, bool)>);
@@ -93,7 +97,7 @@ pub trait Function<T: Debug + Clone> {
     ///
     /// # 오류
     /// - 입력 텐서의 형태나 데이터가 연산에 적합하지 않을 경우
-    fn forward(&self, targets: &[&Tensor<T>]) -> MlResult<Vec<Tensor<T>>>{
+    fn forward(&self, _targets: &[&Tensor<T>]) -> MlResult<Vec<Tensor<T>>>{
         unimplemented!("Forward pass is not implemented")
     }
 

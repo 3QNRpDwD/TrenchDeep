@@ -1,11 +1,17 @@
 use super::*;
 
 impl Tensor<f32> {
-    pub fn zeros() -> Tensor<f32> {
-        Self {
-            data: vec![],
-            shape: vec![],
+    pub fn zeros(shape: &[usize]) -> Tensor<f32> {
+        let size: usize = shape.iter().product();
+        let data = vec![0.0; size];
+        Tensor {
+            data,
+            shape: shape.to_vec(),
         }
+    }
+
+    pub fn zeros_like(&self) -> Self {
+        Self::zeros(&self.shape)
     }
 
     pub fn scalar(scalar: f32) -> Tensor<f32> {
@@ -92,7 +98,7 @@ impl Variable<f32> {
             requires_grad: cfg!(feature = "requiresGrad"),
 
             #[cfg(feature = "enableBackpropagation")]
-            grad: RefCell::new(None),
+            grad: std::cell::RefCell::new(None),
         }
     }
 

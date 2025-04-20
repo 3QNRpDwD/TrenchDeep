@@ -25,14 +25,14 @@ impl<T: Function<f32> + Clone + 'static> Activation<f32> for T {
 
 
 impl<T: Activation<f32>> Layer for T {
-    fn forward(&self, input: &Tensor<f32>) -> MlResult<Tensor<f32>> {
+    fn forward(&self, _input: &Tensor<f32>) -> MlResult<Tensor<f32>> {
         unimplemented!()
     }
 
     fn backward(
         &mut self,
-        input: &Tensor<f32>,
-        grad_output: &Tensor<f32>,
+        _input: &Tensor<f32>,
+        _grad_output: &Tensor<f32>,
         _learning_rate: f32,
     ) -> MlResult<Tensor<f32>> {
         unimplemented!()

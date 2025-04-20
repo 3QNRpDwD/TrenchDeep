@@ -15,37 +15,43 @@ impl Function<f32> for Matmul {
         if targets[0].data().is_empty() || targets[1].data().is_empty() {
             return Err(MlError::TensorError(TensorError::EmptyTensor));
         }
+        let target_0 = targets[0];
+        let target_0_shape = target_0.shape();
+        let target_0_data = target_0.data();
+        let target_1 = targets[1];
+        let target_1_shape = target_1.shape();
+        let target_1_data = target_1.data();
 
-        let a = targets[0].shape().len();
-        let b = targets[1].shape().len();
+        let a = target_0_shape.len();
+        let b = target_1_shape.len();
 
         let buffer = match (a, b) {
             // Case 1: 1D * 1D (dot product)
             (1, 1) => {
-                match targets[0].chk_shape(targets[1]) {
+                match target_0.chk_shape(target_1) {
                     Err(e) => return Err(e),
-                    _ => Tensor::<f32>::from_vec(vec![targets[0].data().iter().zip(targets[1].data().iter()).map(|(&a, &b)| a * b).sum::<f32>()], &vec![])?
+                    _ => Tensor::<f32>::from_vec(vec![target_0_data.iter().zip(target_1_data.iter()).map(|(&a, &b)| a * b).sum::<f32>()], &vec![])?
                 }
             }
 
             // Case 2: 2D * 1D or 1D * 2D
             (2, 1) => {
-                if targets[0].shape()[1] != targets[1].shape()[0] {
+                if target_0_shape[1] != target_1_shape[0] {
                     return Err(MlError::TensorError(
                         TensorError::MatrixMultiplicationError {
-                            left_shape: targets[0].shape().to_vec(),
-                            right_shape: targets[1].shape().to_vec(),
+                            left_shape: target_0_shape.to_vec(),
+                            right_shape: target_1_shape.to_vec(),
                         },
                     ));
                 }
-                let m = targets[0].shape()[0];
-                let k = targets[0].shape()[1];
+                let m = target_0_shape[0];
+                let k = target_0_shape[1];
                 let mut data = vec![0.0; m];
 
                 for i in 0..m {
                     let mut sum = 0.0;
                     for j in 0..k {
-                        sum += targets[0].data()[i * k + j] * targets[1].data()[j];
+                        sum += target_0_data[i * k + j] * target_1_data[j];
                     }
                     data[i] = sum;
                 }
@@ -53,22 +59,22 @@ impl Function<f32> for Matmul {
             }
 
             (1, 2) => {
-                if targets[0].shape()[0] != targets[1].shape()[0] {
+                if target_0_shape[0] != target_1_shape[0] {
                     return Err(MlError::TensorError(
                         TensorError::MatrixMultiplicationError {
-                            left_shape: targets[0].shape().to_vec(),
-                            right_shape: targets[1].shape().to_vec(),
+                            left_shape: target_0_shape.to_vec(),
+                            right_shape: target_1_shape.to_vec(),
                         },
                     ));
                 }
-                let k = targets[0].shape()[0];
-                let n = targets[1].shape()[1];
+                let k = target_0_shape[0];
+                let n = target_1_shape[1];
                 let mut data = vec![0.0; n];
 
                 for j in 0..n {
                     let mut sum = 0.0;
                     for i in 0..k {
-                        sum += targets[0].data()[i] * targets[1].data()[i * n + j];
+                        sum += target_0_data[i] * target_1_data[i * n + j];
                     }
                     data[j] = sum;
                 }
@@ -79,26 +85,26 @@ impl Function<f32> for Matmul {
             (a, b) => {
                 // Get batch dimensions
                 let batch_size = if a > 2 {
-                    targets[0].shape()[..a - 2].iter().product()
+                    target_0_shape[..a - 2].iter().product()
                 } else {
                     1
                 };
-                let m = targets[0].shape()[a - 2];
-                let k = targets[0].shape()[a - 1];
-                let n = targets[1].shape()[b - 1];
+                let m = target_0_shape[a - 2];
+                let k = target_0_shape[a - 1];
+                let n = target_1_shape[b - 1];
 
-                if k != targets[1].shape()[b - 2] {
+                if k != target_1_shape[b - 2] {
                     return Err(MlError::TensorError(
                         TensorError::MatrixMultiplicationError {
-                            left_shape: targets[0].shape().to_vec(),
-                            right_shape: targets[1].shape().to_vec(),
+                            left_shape: target_0_shape.to_vec(),
+                            right_shape: target_1_shape.to_vec(),
                         },
                     ));
                 }
 
                 // Handle broadcasting for batch dimensions
                 let other_batch_size = if b > 2 {
-                    targets[1].shape()[..b - 2].iter().product()
+                    target_1_shape[..b - 2].iter().product()
                 } else {
                     1
                 };
@@ -112,8 +118,8 @@ impl Function<f32> for Matmul {
                 } else {
                     return Err(MlError::TensorError(
                         TensorError::MatrixMultiplicationError {
-                            left_shape: targets[0].shape().to_vec(),
-                            right_shape: targets[1].shape().to_vec()
+                            left_shape: target_0_shape.to_vec(),
+                            right_shape: target_1_shape.to_vec()
                         },
                     ));
                 };
@@ -133,7 +139,7 @@ impl Function<f32> for Matmul {
                             let mut sum = 0.0;
                             for l in 0..k {
                                 sum +=
-                                    targets[0].data()[start1 + i * k + l] * targets[1].data()[start2 + l * n + j];
+                                    target_0_data[start1 + i * k + l] * target_1_data[start2 + l * n + j];
                             }
                             data[result_start + i * n + j] = sum;
                         }
@@ -144,9 +150,9 @@ impl Function<f32> for Matmul {
                 let mut shape = Vec::new();
                 if a > 2 || b > 2 {
                     if batch_size > 1 {
-                        shape.extend_from_slice(&targets[0].shape()[..a - 2]);
+                        shape.extend_from_slice(&target_0_shape[..a - 2]);
                     } else {
-                        shape.extend_from_slice(&targets[1].shape()[..b - 2]);
+                        shape.extend_from_slice(&target_1_shape[..b - 2]);
                     }
                 }
                 shape.push(m);

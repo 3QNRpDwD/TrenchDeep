@@ -15,40 +15,43 @@ impl Function<f32> for Matmax {
     /// If dim is specified, returns a tuple of two tensors (values, indices) containing the
     /// maximum values and their indices along the specified dimension.
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+        let target_0 = targets[0];
+        let target_0_shape = target_0.shape();
+        let target_0_data = target_0.data();
         let buffer = match self.matmax.unwrap().0 {
             None => {
                 // Find global maximum
-                let max_val = targets[0].data().iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-                vec![Tensor::<f32>::from_vec(vec![max_val], &vec![1])?, Tensor::<f32>::zeros()]
+                let max_val = target_0_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+                vec![Tensor::<f32>::from_vec(vec![max_val], &vec![1])?, Tensor::<f32>::zeros(target_0_shape)]
             }
             Some(d) => {
                 let dim = if d < 0 {
-                    (targets[0].shape().len() as i32 + d) as usize
+                    (target_0_shape.len() as i32 + d) as usize
                 } else {
                     d as usize
                 };
 
-                if dim >= targets[0].shape().len() {
+                if dim >= target_0_shape.len() {
                     return Err(MlError::TensorError(TensorError::InvalidAxis {
                         axis: dim,
-                        shape: targets[0].shape().to_vec(),
+                        shape: target_0_shape.to_vec(),
                     }));
                 }
 
-                let mut new_shape = targets[0].shape().to_vec();
+                let mut new_shape = target_0_shape.to_vec();
                 if !self.matmax.unwrap().1 {
                     new_shape.remove(dim);
                 } else {
                     new_shape[dim] = 1;
                 }
 
-                let stride: usize = targets[0].shape()[dim + 1..].iter().product();
-                let outer_stride: usize = targets[0].shape()[dim..].iter().product();
-                let outer_dims: usize = targets[0].shape()[..dim].iter().product();
-                let dim_size = targets[0].shape()[dim];
+                let stride: usize = target_0_shape[dim + 1..].iter().product();
+                let outer_stride: usize = target_0_shape[dim..].iter().product();
+                let outer_dims: usize = target_0_shape[..dim].iter().product();
+                let dim_size = target_0_shape[dim];
 
-                let mut max_values = Vec::with_capacity(targets[0].data().len() / dim_size);
-                let mut max_indices = Vec::with_capacity(targets[0].data().len() / dim_size);
+                let mut max_values = Vec::with_capacity(target_0_data.len() / dim_size);
+                let mut max_indices = Vec::with_capacity(target_0_data.len() / dim_size);
 
                 for i in 0..outer_dims {
                     for j in 0..stride {
@@ -57,7 +60,7 @@ impl Function<f32> for Matmax {
 
                         for k in 0..dim_size {
                             let idx = i * outer_stride + k * stride + j;
-                            let val = targets[0].data()[idx];
+                            let val = target_0_data[idx];
                             if val > max_val {
                                 max_val = val;
                                 max_idx = k;

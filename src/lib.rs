@@ -335,4 +335,29 @@ mod benchmark {
 
         Ok(())
     }
+
+
+    fn approx_rosenbrock_function(x0: &Arc<Variable<f32>>, x1: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
+        let sub = Sub::new()?;
+        let add = Add::new()?;
+        let square = Square::new()?;
+        let mul = Mul::new()?;
+
+        add.apply(&[
+            &mul.apply(&[
+                &Arc::new(variable!(vec![vec![100.0]])),
+                &square.apply(&[
+                    &sub.apply(&[
+                        &x1,
+                        &square.apply(&[&x0])?])?
+                ])?
+            ])?,
+            &square.apply(&[
+                &sub.apply(&[
+                    &Arc::new(variable!(vec![vec![1.0]])),
+                    &x0
+                ])?
+            ])?
+        ])
+    }
 }
