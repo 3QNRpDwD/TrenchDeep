@@ -189,9 +189,9 @@ impl ComputationGraph<f32> {
             self._dot_var(output_id, variable.tpye_name().as_str());
             VISUALIZATION_GRAPH.with(|dot_graph| {
                 for input_id in &inputs {
-                    dot_graph.borrow_mut().push_str(&format!("    \"{:?}\" -> \"{:?}\";\n", input_id, func_id));
+                    dot_graph.borrow_mut().push_str(&format!("    \"{:?}\" -> \"{:?}\" [style=dashed, color=blue, arrowhead=vee];\n", input_id, func_id));
                 }
-                dot_graph.borrow_mut().push_str(&format!("    \"{:?}\" -> \"{:?}\";\n", func_id, output_id));
+                dot_graph.borrow_mut().push_str(&format!("    \"{:?}\" -> \"{:?}\" [style=solid, color=red, arrowtail=vee];\n", func_id, output_id));
             });
         }
 
@@ -235,8 +235,32 @@ impl ComputationGraph<f32> {
     pub fn get_dot_graph() -> String {
         VISUALIZATION_GRAPH.with(|dot_graph| {
             let body = dot_graph.borrow();
-            // Use raw formatting (`{}`) instead of debug (`{:?}`) to preserve newlines
-            format!("digraph ComputationGraph {{\n{}\n}}", body)
+            // Build header with global graph attributes
+            let mut dot = String::from(
+                "digraph ComputationGraph {\n      // start graph
+                    splines=ortho;\n                  // orthogonal edges
+                    node [shape=ellipse, style=filled, fillcolor=lightgoldenrod1, fontsize=10];\n"
+            );
+
+            // Identify leaf nodes (no inputs) and pin them at the top
+            COMPUTATION_GRAPH.with(|graph| {
+                let leaves: Vec<String> = graph.lock().unwrap().nodes.values()
+                    .filter(|n| n.inputs.is_empty())
+                    .map(|n| format!("\"{:?}\"; ", n.id))
+                    .collect();
+                if !leaves.is_empty() {
+                    dot.push_str("    { rank=source; ");
+                    dot.push_str(&leaves.concat());
+                    dot.push_str("}\n");
+                }
+            });
+
+            // Append the body of node/edge definitions
+            dot.push_str(&body);
+
+            // Close graph
+            dot.push_str("}\n");
+            dot
         })
     }
 
