@@ -1,7 +1,7 @@
 pub mod sigmoid;
 pub mod tanh;
 pub mod relu;
-mod softmax;
+pub mod softmax;
 
 use super::*;
 
@@ -38,6 +38,7 @@ impl<T: Activation<f32>> Layer for T {
         unimplemented!()
     }
 }
+
 
 pub struct Sigmoid { backend: Arc<dyn Backend> }
 pub struct Tanh    { backend: Arc<dyn Backend> }

@@ -2,9 +2,17 @@ use super::*;
 use crate::backend::Backend;
 use crate::backend::CpuBackend;
 use crate::backend::Device;
-
-pub mod functions;
-pub mod overload;
+pub mod add;
+pub mod sub;
+pub mod mul;
+pub mod div;
+pub mod neg;
+pub mod unary;
+pub mod matmul;
+pub mod topk;
+pub mod matmax;
+pub mod sum;
+pub mod trigonometric;
 
 macro_rules! define_op {
     // 기본 구조체 (매개변수 없음)
@@ -38,8 +46,6 @@ define_op!(Div);
 define_op!(Matmul);
 define_op!(Sin);  // 일반적인 사인 함수입니다.
 define_op!(Cos);  // 일반적인 코사인 함수입니다.
-
-// 추가 필드가 있는 연산자들
 define_op!(Pow, power: Option<f32>);
 define_op!(Topk, topk: Option<(usize, bool)>);
 define_op!(Matmax, matmax: Option<(Option<i32>, bool)>);
@@ -135,6 +141,7 @@ impl ApproxCos {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -148,6 +155,56 @@ mod tests {
             return Err(format!("Expected {:?}, got {:?}", expected_tensor, tensor).into());
         }
         Ok(())
+    }
+
+    pub fn assert_variable_eq(variable: &Variable<f32>, expected_variable: &Variable<f32>) -> MlResult<()> {
+        assert_eq!(variable.tensor.data(), expected_variable.tensor.data());
+        assert_eq!(variable.tensor.shape(), expected_variable.tensor.shape());
+        Ok(())
+    }
+
+    #[test]
+    fn tensor_add_operator() -> MlResult<()> {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![3.0, 4.0]]);
+        let expected = Tensor::new(vec![vec![4.0, 6.0]]);
+        let result = first + second;
+
+        assert_tensor_eq(&result, &expected)
+    }
+
+    #[test]
+    fn tensor_sub_operator() -> MlResult<()> {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![3.0, 4.0]]);
+        let result = first - second;
+
+        assert_tensor_eq(&result, &Tensor::new(vec![vec![-2.0, -2.0]]))
+    }
+
+    #[test]
+    fn tensor_mul_operator() -> MlResult<()> {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![3.0, 4.0]]);
+        let result = first * second;
+
+        assert_tensor_eq(&result, &Tensor::new(vec![vec![3.0, 8.0]]))
+    }
+
+    #[test]
+    fn tensor_div_operator() -> MlResult<()> {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+        let second = Tensor::new(vec![vec![2.0, 4.0]]);
+        let result = first / second;
+
+        assert_tensor_eq(&result, &Tensor::new(vec![vec![0.5, 0.5]]))
+    }
+
+    #[test]
+    fn tensor_neg_operator() -> MlResult<()> {
+        let first = Tensor::new(vec![vec![1.0, 2.0]]);
+
+        assert_tensor_eq(&-first, &Tensor::new(vec![vec![-1.0, -2.0]]))
     }
 
     fn print_forward(
