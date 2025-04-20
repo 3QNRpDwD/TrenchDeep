@@ -249,15 +249,7 @@ mod benchmark {
         let y = Arc::new(variable!(vec![vec![1.0]]));
         let z = matyas_function(&x, &y)?;
         #[cfg(feature = "enableBackpropagation")]
-        {
-            z.backward()?;
-
-            #[cfg(feature = "debugging")]
-            {
-                println!("matyas - x.grad: {:?}", x.grad());
-                println!("matyas - y.grad: {:?}", y.grad());
-            }
-        }
+        z.backward()?;
         Ok(())
     }
 
@@ -266,12 +258,15 @@ mod benchmark {
         let x = Arc::new(variable!(vec![vec![1.0]]));
         let y = Arc::new(variable!(vec![vec![1.0]]));
         let z = goldstein_price_function(&x, &y)?;
-        #[cfg(feature = "enableBackpropagation")]{
+        #[cfg(feature = "enableBackpropagation")]
+        {
             z.backward()?;
 
             assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![-5376.0]]))?;
             assert_tensor_eq(&y.grad().unwrap(), &Tensor::new(vec![vec![8064.0]]))?;
         }
+        #[cfg(feature = "enableVisualization")]
+        crate::tensor::ComputationGraph::save_graph("test.dot").unwrap();
         Ok(())
     }
 
@@ -298,14 +293,11 @@ mod benchmark {
         let mul = Mul::new()?;
         let mut x0 = Arc::new(variable!(vec![vec![0.0]]));
         let mut x1 = Arc::new(variable!(vec![vec![2.0]]));
-        let iter: usize = 100;
+        let iter: usize = 1;
         let learning_rate = Tensor::new(vec![vec![0.001]]);
 
         for i in 0..iter { // 0부터
-            crate::tensor::creation::COMPUTATION_GRAPH.with(|graph| {
-                let mut graph_guard = graph.lock().unwrap();
-                *graph_guard = crate::tensor::ComputationGraph::new();
-            });
+            crate::tensor::ComputationGraph::reset_graph();
             // 계산그래프가 초기화되지 않고, 계속해서 텐서가 쌓이던것이 성능 하락의 주요 원인이었으며,
             // 매번 초기화하는 임시방편을 적용했으나, 이는 바람직한 해결방법이 아니며, 여전히 많은 리소스가 낭비되고 있는것으로 보임.
             // 기존의 계산그래프를 수정 가능하도록 변경하는것이 필요함
@@ -315,14 +307,15 @@ mod benchmark {
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
 
-            if i == 100 {
-                println!(
-                    "iter - {}\n\
-                    [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
-                    [ x1.tensor: {:?}, x1.grad: {:?} ]"
-                    , i, x0.tensor(), x0.grad(), x1.tensor(), x1.grad()
-                );
-            }
+            // #[cfg(feature = "debugging")]
+            // {
+            //     println!(
+            //         "iter - {}\n\
+            //     [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
+            //     [ x1.tensor: {:?}, x1.grad: {:?} ]"
+            //         , i, x0.tensor(), x0.grad(), x1.tensor(), x1.grad()
+            //     );
+            // }
 
             let x0_mul_lr = mul.forward(&[&x0.grad().unwrap(), &learning_rate])?.remove(0);
             let x1_mul_lr = mul.forward(&[&x1.grad().unwrap(), &learning_rate])?.remove(0);

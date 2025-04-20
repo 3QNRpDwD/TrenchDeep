@@ -5,7 +5,7 @@ pub mod softmax;
 
 use super::*;
 
-pub trait Activation<Type: Debug + Clone>: Function<Type> {
+pub trait Activation<Type: Debug + Clone>: Function<Type> + Layer + AutogradFunction<Type> {
     fn new() -> MlResult<Self> where Self: Sized {
         <Self as Function<Type>>::new()
     }

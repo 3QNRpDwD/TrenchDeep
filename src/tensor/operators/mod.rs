@@ -77,6 +77,10 @@ pub trait Function<T: Debug + Clone> {
         unimplemented!("Function::new() is not implemented")
     }
 
+    fn type_name(&self) -> &str {
+        std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
+    }
+
     /// 순전파(Forward Pass)를 수행합니다.
     ///
     /// 입력 텐서들을 받아 연산을 수행하고 결과 변수를 반환합니다.
@@ -147,8 +151,8 @@ mod tests {
     use std::sync::Arc;
 
     use crate::tensor::operators::{Exp, Sin};
-    use crate::tensor::{operators::{Add, Function, Mul, Pow, Square}, AutogradFunction, Tensor, TensorBase, Variable};
-    use crate::{variable, MlResult};
+    use crate::tensor::{AutogradFunction, operators::{Add, Function, Mul, Pow, Square}, Tensor, TensorBase, Variable};
+    use crate::{MlResult, variable};
 
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
         if tensor != expected_tensor {

@@ -9,8 +9,9 @@ use std::{
 pub mod creation;
 pub mod operators;
 pub mod display;
+pub mod graph;
 
-use crate::{tensor::operators::Function, MlError, MlResult, TensorError};
+use crate::{MlError, MlResult, tensor::operators::Function, TensorError};
 
 /// 다양한 텐서 연산을 위한 편리한 매크로를 제공합니다.
 ///
@@ -203,6 +204,8 @@ pub struct Variable<Type> {
 /// - `ComputationNode`와 `ComputationGraph`에서 노드를 식별하는 데 사용
 #[cfg(feature = "enableBackpropagation")]
 type NodeId<T> = *const Variable<T>;
+#[cfg(feature = "enableBackpropagation")]
+type FuncId<T> = *const dyn Function<T>;
 
 /// 계산 그래프의 개별 노드를 나타내는 구조체입니다.
 ///
