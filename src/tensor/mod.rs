@@ -1,6 +1,10 @@
-use std::fmt::Display;
 use std::{
-    fmt::{Debug, Formatter, Result},
+    fmt::{
+        Display,
+        Debug,
+        Formatter,
+        Result
+    },
     sync::{Arc}
 };
 

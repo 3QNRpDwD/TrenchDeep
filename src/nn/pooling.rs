@@ -1,11 +1,15 @@
 use super::*;
 
-impl<T> Layer for Pooling<T> {
-    fn forward(&self, _input: &Tensor<f32>) -> MlResult<Tensor<f32>> {
+impl Layer<f32> for Pooling<f32> {
+    fn new() -> MlResult<Self> {
         todo!()
     }
 
-    fn backward(&mut self, _input: &Tensor<f32>, _grad_output: &Tensor<f32>, _learning_rate: f32) -> MlResult<Tensor<f32>> {
+    fn apply(&self, input: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
+        todo!()
+    }
+
+    fn forward(&self, _input: &Tensor<f32>) -> MlResult<Tensor<f32>> {
         todo!()
     }
 }

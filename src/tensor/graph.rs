@@ -7,7 +7,6 @@ thread_local! {
     pub(crate) static COMPUTATION_GRAPH: std::sync::Mutex<ComputationGraph<f32>> = std::sync::Mutex::new(ComputationGraph::new());
     #[cfg(feature = "enableVisualization")]
     pub(crate) static VISUALIZATION_GRAPH: std::cell::RefCell<String> = std::cell::RefCell::new(String::new());
-
 }
 
 #[cfg(feature = "enableBackpropagation")]

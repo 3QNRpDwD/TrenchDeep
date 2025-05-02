@@ -3,24 +3,30 @@ pub mod conv;
 pub mod pooling;
 pub mod linear;
 
-use crate::backend::Backend;
-use crate::backend::CpuBackend;
-use crate::backend::Device;
-use crate::tensor::operators::Function;
-use crate::tensor::AutogradFunction;
-use crate::tensor::{Tensor, TensorBase, Variable};
-use crate::MlResult;
-use std::fmt::Debug;
-use std::sync::Arc;
+use crate::{
+    backend::{
+        Backend,
+        CpuBackend,
+        Device
+    },
+    tensor::{
+        operators::Function,
+        AutogradFunction,
+        Tensor,
+        TensorBase,
+        Variable
+    },
+    MlResult
+};
+use std::{
+    fmt::Debug,
+    sync::Arc
+};
 
-pub trait Layer {
-    fn forward(&self, input: &Tensor<f32>) -> MlResult<Tensor<f32>>;
-    fn backward(
-        &mut self,
-        input: &Tensor<f32>,
-        grad_output: &Tensor<f32>,
-        learning_rate: f32,
-    ) -> MlResult<Tensor<f32>>;
+pub trait Layer<Type> {
+    fn new() -> MlResult<Self> where Self: Sized;
+    fn apply(&self, input: &Arc<Variable<Type>>) -> MlResult<Arc<Variable<Type>>>;
+    fn forward(&self, input: &Tensor<Type>) -> MlResult<Tensor<Type>>;
 }
 
 pub struct Linear<Type>    { operators: Arc<dyn Function<Type>> }

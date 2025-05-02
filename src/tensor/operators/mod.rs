@@ -1,7 +1,11 @@
 use super::*;
-use crate::backend::Backend;
-use crate::backend::CpuBackend;
-use crate::backend::Device;
+use crate::{
+    backend::{
+        Backend,
+        CpuBackend,
+        Device
+    }
+};
 pub mod add;
 pub mod sub;
 pub mod mul;
@@ -13,8 +17,8 @@ pub mod topk;
 pub mod matmax;
 pub mod sum;
 pub mod trigonometric;
-mod reshape;
-mod transpose;
+pub mod reshape;
+pub mod transpose;
 
 macro_rules! define_op {
     // 기본 구조체 (매개변수 없음)
