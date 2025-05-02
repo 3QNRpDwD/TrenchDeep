@@ -161,6 +161,7 @@ impl ComputationGraph<f32> {
             variable,
             function: None,
             inputs: Vec::new(),
+            is_life: true
         };
 
         self.nodes.insert(id, node);
@@ -200,6 +201,7 @@ impl ComputationGraph<f32> {
             variable,
             function: Some(function),
             inputs,
+            is_life: true
         };
 
         self.nodes.insert(output_id, node);

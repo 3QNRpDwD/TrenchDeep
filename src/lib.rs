@@ -71,8 +71,7 @@ pub type MlResult<T> = Result<T, MlError>;
 #[cfg(test)]
 mod benchmark {
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
-    use crate::tensor::AutogradFunction;
-    use crate::tensor::{Tensor, TensorBase, Variable};
+    use crate::tensor::{Tensor, TensorBase, Variable, AutogradFunction};
     use crate::{variable, MlResult};
     use std::sync::Arc;
 
@@ -293,7 +292,7 @@ mod benchmark {
         let mul = Mul::new()?;
         let mut x0 = Arc::new(variable!(vec![vec![0.0]]));
         let mut x1 = Arc::new(variable!(vec![vec![2.0]]));
-        let iter: usize = 1;
+        let iter: usize = 100;
         let learning_rate = Tensor::new(vec![vec![0.001]]);
 
         for i in 0..iter { // 0부터
@@ -307,15 +306,15 @@ mod benchmark {
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
 
-            // #[cfg(feature = "debugging")]
-            // {
-            //     println!(
-            //         "iter - {}\n\
-            //     [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
-            //     [ x1.tensor: {:?}, x1.grad: {:?} ]"
-            //         , i, x0.tensor(), x0.grad(), x1.tensor(), x1.grad()
-            //     );
-            // }
+            #[cfg(feature = "debugging")]
+            {
+                println!(
+                    "iter - {}\n\
+                [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
+                [ x1.tensor: {:?}, x1.grad: {:?} ]"
+                    , i, x0.tensor(), x0.grad(), x1.tensor(), x1.grad()
+                );
+            }
 
             let x0_mul_lr = mul.forward(&[&x0.grad().unwrap(), &learning_rate])?.remove(0);
             let x1_mul_lr = mul.forward(&[&x1.grad().unwrap(), &learning_rate])?.remove(0);
@@ -334,30 +333,5 @@ mod benchmark {
         }
 
         Ok(())
-    }
-
-
-    fn approx_rosenbrock_function(x0: &Arc<Variable<f32>>, x1: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
-        let sub = Sub::new()?;
-        let add = Add::new()?;
-        let square = Square::new()?;
-        let mul = Mul::new()?;
-
-        add.apply(&[
-            &mul.apply(&[
-                &Arc::new(variable!(vec![vec![100.0]])),
-                &square.apply(&[
-                    &sub.apply(&[
-                        &x1,
-                        &square.apply(&[&x0])?])?
-                ])?
-            ])?,
-            &square.apply(&[
-                &sub.apply(&[
-                    &Arc::new(variable!(vec![vec![1.0]])),
-                    &x0
-                ])?
-            ])?
-        ])
     }
 }

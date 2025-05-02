@@ -72,6 +72,7 @@ impl<Type: Debug + Clone> Debug for ComputationNode<Type> {
             .field("variable", &self.variable)
             .field("function", &self.function.as_ref().map(|f| f.type_name()))
             .field("inputs", &self.inputs)
+            .field("is_life", &self.is_life)
             .finish()
     }
 }

@@ -222,6 +222,7 @@ pub(crate) struct ComputationNode<T: Debug + Clone> {
     variable: Arc<Variable<T>>,
     function: Option<Arc<dyn Function<T>>>,
     inputs: Vec<NodeId<T>>,
+    is_life: bool,
 }
 
 /// 계산 그래프 전체를 관리하는 구조체입니다.
