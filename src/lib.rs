@@ -71,8 +71,7 @@ pub type MlResult<T> = Result<T, MlError>;
 #[cfg(test)]
 mod benchmark {
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
-    use crate::tensor::AutogradFunction;
-    use crate::tensor::{Tensor, TensorBase, Variable};
+    use crate::tensor::{Tensor, TensorBase, Variable, AutogradFunction};
     use crate::{variable, MlResult};
     use std::sync::Arc;
 
@@ -267,6 +266,7 @@ mod benchmark {
         }
         #[cfg(feature = "enableVisualization")]
         crate::tensor::ComputationGraph::save_graph("test.dot").unwrap();
+        crate::tensor::ComputationGraph::reset_graph();
         Ok(())
     }
 
@@ -293,7 +293,8 @@ mod benchmark {
         let mul = Mul::new()?;
         let mut x0 = Arc::new(variable!(vec![vec![0.0]]));
         let mut x1 = Arc::new(variable!(vec![vec![2.0]]));
-        let iter: usize = 1;
+
+        let iter: usize = 100;
         let learning_rate = Tensor::new(vec![vec![0.001]]);
 
         for i in 0..iter { // 0부터
@@ -317,8 +318,10 @@ mod benchmark {
             //     );
             // }
 
+            //stap 정의
             let x0_mul_lr = mul.forward(&[&x0.grad().unwrap(), &learning_rate])?.remove(0);
             let x1_mul_lr = mul.forward(&[&x1.grad().unwrap(), &learning_rate])?.remove(0);
+            //파라미터 갱신
             x0 = Arc::new(Variable::new(sub.forward(&[x0.tensor(), &x0_mul_lr])?.remove(0)));
             x1 = Arc::new(Variable::new(sub.forward(&[x1.tensor(), &x1_mul_lr])?.remove(0)));
             // 현재 텐서의 불변성 유지 때문에 기존 텐서를 수정하는것이 아닌, 새로 생성하기 때문에,
@@ -332,31 +335,6 @@ mod benchmark {
             // 입력 텐서를 외부에서 흘려넣는 방식이 될것이라고 생각됨.
             // 이는 그래프 구조체를 통해서 구현될지, 출력 텐서를 통해서 구현될지 아직 모호함. 하지만 정적 계산 그래프를 사용하는것은 확정된 사안임.
         }
-
         Ok(())
-    }
-
-    fn approx_rosenbrock_function(x0: &Arc<Variable<f32>>, x1: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
-        let sub = Sub::new()?;
-        let add = Add::new()?;
-        let square = Square::new()?;
-        let mul = Mul::new()?;
-
-        add.apply(&[
-            &mul.apply(&[
-                &Arc::new(variable!(vec![vec![100.0]])),
-                &square.apply(&[
-                    &sub.apply(&[
-                        &x1,
-                        &square.apply(&[&x0])?])?
-                ])?
-            ])?,
-            &square.apply(&[
-                &sub.apply(&[
-                    &Arc::new(variable!(vec![vec![1.0]])),
-                    &x0
-                ])?
-            ])?
-        ])
     }
 }

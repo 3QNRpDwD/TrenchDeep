@@ -3,25 +3,38 @@ pub mod conv;
 pub mod pooling;
 pub mod linear;
 
-use crate::backend::Backend;
-use crate::backend::CpuBackend;
-use crate::backend::Device;
-use crate::tensor::operators::Function;
-use crate::tensor::AutogradFunction;
-use crate::tensor::{Tensor, TensorBase, Variable};
-use crate::MlResult;
-use std::fmt::Debug;
-use std::sync::Arc;
+use crate::{
+    backend::{
+        Backend,
+        CpuBackend,
+        Device
+    },
+    tensor::{
+        operators::Function,
+        AutogradFunction,
+        Tensor,
+        TensorBase,
+        Variable
+    },
+    MlResult
+};
+use std::{
+    fmt::Debug,
+    sync::Arc,
+    collections::HashSet
+};
 
-pub trait Layer {
-    fn forward(&self, input: &Tensor<f32>) -> MlResult<Tensor<f32>>;
-    fn backward(
-        &mut self,
-        input: &Tensor<f32>,
-        grad_output: &Tensor<f32>,
-        learning_rate: f32,
-    ) -> MlResult<Tensor<f32>>;
+pub trait Layer<Type> {
+    fn new() -> MlResult<Self> where Self: Sized;
+    fn parms(&self) -> MlResult<&[String]>;
+    fn set_parms(&self, name: String, parm: &Arc<dyn Parameter>) -> MlResult<&HashSet<Arc<dyn Parameter>>>;
+    fn get_parms(&self, name: String) -> MlResult<Arc<dyn Parameter>>;
+    fn apply(&self, input: &Arc<dyn Parameter>) -> MlResult<Arc<dyn Parameter>>;
+    fn forward(&self, input: &Tensor<Type>) -> MlResult<Tensor<Type>>;
 }
+
+pub trait Parameter {}
+impl<Type> Parameter for Variable<Type> {}
 
 pub struct Linear<Type>    { operators: Arc<dyn Function<Type>> }
 pub struct Conv<Type>      { operators: Arc<dyn Function<Type>> }

@@ -1,7 +1,11 @@
 use super::*;
-use crate::backend::Backend;
-use crate::backend::CpuBackend;
-use crate::backend::Device;
+use crate::{
+    backend::{
+        Backend,
+        CpuBackend,
+        Device
+    }
+};
 pub mod add;
 pub mod sub;
 pub mod mul;
@@ -13,8 +17,8 @@ pub mod topk;
 pub mod matmax;
 pub mod sum;
 pub mod trigonometric;
-mod reshape;
-mod transpose;
+pub mod reshape;
+pub mod transpose;
 
 macro_rules! define_op {
     // 기본 구조체 (매개변수 없음)
@@ -49,7 +53,7 @@ define_op!(Matmul);
 define_op!(Sin);  // 일반적인 사인 함수입니다.
 define_op!(Cos);  // 일반적인 코사인 함수입니다.d
 define_op!(Reshape);
-define_op!(Transpose);
+define_op!(Transpose, dims: (i32, i32));
 define_op!(Pow, power: Option<f32>);
 define_op!(Topk, topk: Option<(usize, bool)>);
 define_op!(Matmax, matmax: Option<(Option<i32>, bool)>);

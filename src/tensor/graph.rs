@@ -7,7 +7,6 @@ thread_local! {
     pub(crate) static COMPUTATION_GRAPH: std::sync::Mutex<ComputationGraph<f32>> = std::sync::Mutex::new(ComputationGraph::new());
     #[cfg(feature = "enableVisualization")]
     pub(crate) static VISUALIZATION_GRAPH: std::cell::RefCell<String> = std::cell::RefCell::new(String::new());
-
 }
 
 #[cfg(feature = "enableBackpropagation")]
@@ -161,6 +160,7 @@ impl ComputationGraph<f32> {
             variable,
             function: None,
             inputs: Vec::new(),
+            is_life: true
         };
 
         self.nodes.insert(id, node);
@@ -180,11 +180,11 @@ impl ComputationGraph<f32> {
     /// # 반환값
     /// - `NodeId`: 추가된 연산 노드의 고유 식별자
     pub(crate) fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId<f32>>) -> NodeId<f32> {
-        let func_id = Arc::as_ptr(&function);
         let output_id = Arc::as_ptr(&variable);
 
         #[cfg(feature = "enableVisualization")]
         {
+            let func_id = Arc::as_ptr(&function);
             self._dot_func(func_id, function.type_name());
             self._dot_var(output_id, variable.tpye_name().as_str());
             VISUALIZATION_GRAPH.with(|dot_graph| {
@@ -200,6 +200,7 @@ impl ComputationGraph<f32> {
             variable,
             function: Some(function),
             inputs,
+            is_life: true
         };
 
         self.nodes.insert(output_id, node);

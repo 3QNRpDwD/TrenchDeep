@@ -1,11 +1,27 @@
 use super::*;
 
-impl<T> Layer for Linear<T> {
-    fn forward(&self, _input: &Tensor<f32>) -> MlResult<Tensor<f32>> {
+impl Layer<f32> for Linear<f32> {
+    fn new() -> MlResult<Self> {
         todo!()
     }
 
-    fn backward(&mut self, _input: &Tensor<f32>, _grad_output: &Tensor<f32>, _learning_rate: f32) -> MlResult<Tensor<f32>> {
+    fn parms(&self) -> MlResult<&[String]> {
+        todo!()
+    }
+
+    fn set_parms(&self, name: String, parm: &Arc<dyn Parameter>) -> MlResult<&HashSet<Arc<dyn Parameter>>> {
+        todo!()
+    }
+
+    fn get_parms(&self, name: String) -> MlResult<Arc<dyn Parameter>> {
+        todo!()
+    }
+
+    fn apply(&self, input: &Arc<dyn Parameter>) -> MlResult<Arc<dyn Parameter>> {
+        todo!()
+    }
+
+    fn forward(&self, _input: &Tensor<f32>) -> MlResult<Tensor<f32>> {
         todo!()
     }
 }

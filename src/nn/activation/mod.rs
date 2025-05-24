@@ -5,7 +5,7 @@ pub mod softmax;
 
 use super::*;
 
-pub trait Activation<Type: Debug + Clone>: Function<Type> + Layer + AutogradFunction<Type> {
+pub trait Activation<Type: Debug + Clone>: Function<Type> + AutogradFunction<Type> {
     fn new() -> MlResult<Self> where Self: Sized {
         <Self as Function<Type>>::new()
     }
@@ -22,23 +22,6 @@ impl<T: Function<f32> + Clone + 'static> Activation<f32> for T {
         <Self as AutogradFunction<f32>>::apply(self, &[input])
     }
 }
-
-
-impl<T: Activation<f32>> Layer for T {
-    fn forward(&self, _input: &Tensor<f32>) -> MlResult<Tensor<f32>> {
-        unimplemented!()
-    }
-
-    fn backward(
-        &mut self,
-        _input: &Tensor<f32>,
-        _grad_output: &Tensor<f32>,
-        _learning_rate: f32,
-    ) -> MlResult<Tensor<f32>> {
-        unimplemented!()
-    }
-}
-
 
 pub struct Sigmoid { backend: Arc<dyn Backend> }
 pub struct Tanh    { backend: Arc<dyn Backend> }
