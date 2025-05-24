@@ -160,7 +160,7 @@ mod tests {
 
     use crate::tensor::operators::{Exp, Sin};
     use crate::tensor::{AutogradFunction, operators::{Add, Function, Mul, Pow, Square}, Tensor, TensorBase, Variable};
-    use crate::{MlResult, variable};
+    use crate::{variable, MlResult};
 
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
         if tensor != expected_tensor {

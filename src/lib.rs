@@ -72,7 +72,7 @@ pub type MlResult<T> = Result<T, MlError>;
 mod benchmark {
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
     use crate::tensor::{Tensor, TensorBase, Variable, AutogradFunction};
-    use crate::{variable, MlResult};
+    use crate::{var_input, variable, MlResult};
     use std::sync::Arc;
 
     fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
@@ -254,8 +254,8 @@ mod benchmark {
 
     #[test]
     fn goldstein() -> MlResult<()> {
-        let x = Arc::new(variable!(vec![vec![1.0]]));
-        let y = Arc::new(variable!(vec![vec![1.0]]));
+        let x = Arc::new(variable!(vec![1.0], &[1,1], "x"));
+        let y = Arc::new(variable!(vec![1.0], &[1,1], "y"));
         let z = goldstein_price_function(&x, &y)?;
         #[cfg(feature = "enableBackpropagation")]
         {
@@ -264,15 +264,16 @@ mod benchmark {
             assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![-5376.0]]))?;
             assert_tensor_eq(&y.grad().unwrap(), &Tensor::new(vec![vec![8064.0]]))?;
         }
+
         #[cfg(feature = "enableVisualization")]
-        crate::tensor::ComputationGraph::save_graph("test.dot").unwrap();
+        crate::tensor::VisualizationGraph::save_graph("graph/goldstein.dot").unwrap();
         Ok(())
     }
 
     #[test]
     fn rosenbrock() -> MlResult<()> {
-        let x0 = Arc::new(variable!(vec![vec![0.0]]));
-        let x1 = Arc::new(variable!(vec![vec![2.0]]));
+        let x0 = Arc::new(variable!(vec![0.0], &[1,1], "x0"));
+        let x1 = Arc::new(variable!(vec![2.0], &[1,1], "x1"));
 
         let y = rosenbrock_function(&x0, &x1)?;
         #[cfg(feature = "enableBackpropagation")]
@@ -282,6 +283,9 @@ mod benchmark {
             assert_tensor_eq(&x0.grad().unwrap(), &Tensor::new(vec![vec![-2.0]]))?;
             assert_tensor_eq(&x1.grad().unwrap(), &Tensor::new(vec![vec![400.0]]))?;
         }
+
+        #[cfg(feature = "enableVisualization")]
+        crate::tensor::VisualizationGraph::save_graph("graph/rosenbrock.dot").unwrap();
         Ok(())
     }
 
@@ -290,10 +294,10 @@ mod benchmark {
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
         let sub = Sub::new()?;
         let mul = Mul::new()?;
-        let mut x0 = Arc::new(variable!(vec![vec![0.0]]));
-        let mut x1 = Arc::new(variable!(vec![vec![2.0]]));
+        let mut x0 = Arc::new(var_input!(Tensor::new(vec![vec![0.0]])));
+        let mut x1 = Arc::new(var_input!(Tensor::new(vec![vec![2.0]])));
 
-        let iter: usize = 25000;
+        let iter: usize = 100;
         let learning_rate = Tensor::new(vec![vec![0.001]]);
 
         for i in 0..iter { // 0부터

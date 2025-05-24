@@ -7,6 +7,7 @@ use std::{
     },
     sync::{Arc}
 };
+use std::collections::HashSet;
 
 pub mod creation;
 pub mod operators;
@@ -156,6 +157,7 @@ macro_rules! scalar_ops {
     };
 }
 
+
 #[macro_export]
 macro_rules! variable {
     ($vec:expr) => {
@@ -165,7 +167,22 @@ macro_rules! variable {
     ($data:expr, $shape:expr) => {
         Variable::new(Tensor::from_vec($data, $shape).unwrap())
     };
+
+    ($data:expr, $shape:expr, $label:expr) => {
+        {
+            #[cfg(feature = "enableVisualization")]
+            {
+                Variable::with_label(Tensor::from_vec($data, $shape).unwrap(), $label)
+            }
+
+            #[cfg(not(feature = "enableVisualization"))]
+            {
+                Variable::new(Tensor::from_vec($data, $shape).unwrap())
+            }
+        }
+    };
 }
+
 
 /// 다차원 배열을 나타내는 텐서 구조체입니다.
 ///
@@ -191,6 +208,8 @@ pub struct Tensor<Type> {
 /// - `grad`: 역전파를 위한 그래디언트 (옵션으로 저장되며, `RefCell`로 래핑되어 가변성 제공)
 ///   - `enableBackpropagation` 기능이 활성화된 경우에만 포함됨
 pub struct Variable<Type> {
+    #[cfg(all(feature = "enableVisualization"))]
+    label: String,
     tensor: Tensor<Type>,
     requires_grad: bool,
 
@@ -229,6 +248,7 @@ pub(crate) struct ComputationNode<T: Debug + Clone> {
     is_life: bool,
 }
 
+
 /// 계산 그래프 전체를 관리하는 구조체입니다.
 ///
 /// 이 구조체는 노드 집합과 위상 정렬 정보를 저장하며, 역전파를 수행하는 데 필요한 데이터를 유지합니다.
@@ -244,6 +264,25 @@ pub(crate) struct ComputationGraph<T: Debug + Clone> {
     nodes: std::collections::HashMap<NodeId<T>, ComputationNode<T>>,
     topo_sorted: Vec<NodeId<T>>,
     sorted: bool,
+}
+
+
+#[cfg(feature = "enableVisualization")]
+#[derive(Debug, Clone)]
+pub struct VisualizationGraph {
+    pub nodes: HashSet<String>,
+    pub edges: Vec<String>,
+    pub node_types: std::collections::HashMap<String, NodeType>,
+    pub node_labels: std::collections::HashMap<String, String>,
+}
+
+#[cfg(feature = "enableVisualization")]
+#[derive(Debug, Clone, PartialEq)]
+pub enum NodeType {
+    Variable,
+    Function,
+    Input,
+    Output,
 }
 
 impl PartialEq for Tensor<f32> {

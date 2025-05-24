@@ -1,12 +1,12 @@
 use super::*;
-
+use std::collections::HashSet;
 
 // 전역 계산 그래프 (스레드 로컬)
 #[cfg(feature = "enableBackpropagation")]
 thread_local! {
     pub(crate) static COMPUTATION_GRAPH: std::sync::Mutex<ComputationGraph<f32>> = std::sync::Mutex::new(ComputationGraph::new());
     #[cfg(feature = "enableVisualization")]
-    pub(crate) static VISUALIZATION_GRAPH: std::cell::RefCell<String> = std::cell::RefCell::new(String::new());
+    pub(crate) static VISUALIZATION_GRAPH: std::cell::RefCell<VisualizationGraph> = std::cell::RefCell::new(VisualizationGraph::new());
 }
 
 #[cfg(feature = "enableBackpropagation")]
@@ -154,7 +154,13 @@ impl ComputationGraph<f32> {
     /// - `NodeId`: 추가된 노드의 고유 식별자
     pub(crate) fn add_input(&mut self, variable: Arc<Variable<f32>>, id: NodeId<f32>) -> NodeId<f32> {
         #[cfg(feature = "enableVisualization")]
-        self._dot_var(id, variable.tpye_name().as_str());
+        {
+            VISUALIZATION_GRAPH.with(|viz_graph| {
+                let mut viz = viz_graph.borrow_mut();
+                let id_str = format!("{:?}", id);
+                viz.add_variable_node(&id_str, variable.label(), true, false);
+            });
+        }
         let node = ComputationNode {
             id,
             variable,
@@ -185,15 +191,32 @@ impl ComputationGraph<f32> {
         #[cfg(feature = "enableVisualization")]
         {
             let func_id = Arc::as_ptr(&function);
-            self._dot_func(func_id, function.type_name());
-            self._dot_var(output_id, variable.tpye_name().as_str());
-            VISUALIZATION_GRAPH.with(|dot_graph| {
+            let func_id_str = format!("{:?}", func_id);
+            let output_id_str = format!("{:?}", output_id);
+
+            // 출력 노드가 최종 출력인지 확인 (간단한 휴리스틱)
+            let is_output = variable.label().contains("output") || if !self.topo_sorted.is_empty() { self.topo_sorted[0] == output_id } else { false };
+
+            VISUALIZATION_GRAPH.with(|viz_graph| {
+                let mut viz = viz_graph.borrow_mut();
+
+                // 함수 노드 추가
+                viz.add_function_node(&func_id_str, &function.type_name());
+
+                // 출력 변수 노드 추가
+                viz.add_variable_node(&output_id_str, &variable.label(), false, is_output);
+
+                // 입력에서 함수로의 엣지
                 for input_id in &inputs {
-                    dot_graph.borrow_mut().push_str(&format!("    \"{:?}\" -> \"{:?}\" [style=dashed, color=blue, arrowhead=vee];\n", input_id, func_id));
+                    let input_id_str = format!("{:?}", input_id);
+                    viz.add_edge(&input_id_str, &func_id_str, "data_flow");
                 }
-                dot_graph.borrow_mut().push_str(&format!("    \"{:?}\" -> \"{:?}\" [style=solid, color=red, arrowtail=vee];\n", func_id, output_id));
+
+                // 함수에서 출력으로의 엣지
+                viz.add_edge(&func_id_str, &output_id_str, "data_flow");
             });
         }
+
 
         let node = ComputationNode {
             id: output_id,
@@ -208,80 +231,14 @@ impl ComputationGraph<f32> {
         output_id
     }
 
-    // DOT 노드 정보 추가
-    // When adding nodes/functions, continue building VISUALIZATION_GRAPH with raw lines:
-    #[cfg(feature = "enableVisualization")]
-    pub(crate) fn _dot_var(&self, dot_id: NodeId<f32>, label: &str) {
-        VISUALIZATION_GRAPH.with(|graph| {
-            graph.borrow_mut().push_str(&format!(
-                "    \"{:?}\" [label=\"{}\", style=filled, fillcolor=orange];\n",
-                dot_id, label
-            ));
-        });
-    }
-
-    #[cfg(feature = "enableVisualization")]
-    pub(crate) fn _dot_func(&self, dot_id: FuncId<f32>, label: &str) {
-        VISUALIZATION_GRAPH.with(|graph| {
-            graph.borrow_mut().push_str(&format!(
-                "    \"{:?}\" [label=\"{}\", shape=box, style=filled, fillcolor=lightblue];\n",
-                dot_id, label
-            ));
-        });
-    }
-
-
-    /// Returns a DOT-format string for the current graph
-    #[cfg(feature = "enableVisualization")]
-    pub fn get_dot_graph() -> String {
-        VISUALIZATION_GRAPH.with(|dot_graph| {
-            let body = dot_graph.borrow();
-            // Build header with global graph attributes
-            let mut dot = String::from(
-                "digraph ComputationGraph {\n      // start graph
-                    splines=ortho;\n                  // orthogonal edges
-                    node [shape=ellipse, style=filled, fillcolor=lightgoldenrod1, fontsize=10];\n"
-            );
-
-            // Identify leaf nodes (no inputs) and pin them at the top
-            COMPUTATION_GRAPH.with(|graph| {
-                let leaves: Vec<String> = graph.lock().unwrap().nodes.values()
-                    .filter(|n| n.inputs.is_empty())
-                    .map(|n| format!("\"{:?}\"; ", n.id))
-                    .collect();
-                if !leaves.is_empty() {
-                    dot.push_str("    { rank=source; ");
-                    dot.push_str(&leaves.concat());
-                    dot.push_str("}\n");
-                }
-            });
-
-            // Append the body of node/edge definitions
-            dot.push_str(&body);
-
-            // Close graph
-            dot.push_str("}\n");
-            dot
-        })
-    }
-
-    /// Save the DOT graph to a file
-    #[cfg(feature = "enableVisualization")]
-    pub fn save_graph<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<()> {
-        let dot = ComputationGraph::get_dot_graph();
-        std::fs::write(path, dot)
-    }
-
-    /// 그래프 초기화 (필요 시)
     pub fn reset_graph() {
-        COMPUTATION_GRAPH.with(|graph| {
-            let mut graph_guard = graph.lock().unwrap();
-            *graph_guard = ComputationGraph::new();
+        COMPUTATION_GRAPH.with(|graph| { 
+            graph.lock().unwrap().clear();
         });
         #[cfg(feature = "enableVisualization")]
         {
-            VISUALIZATION_GRAPH.with(|dot_graph| {
-                *dot_graph.borrow_mut() = String::new();
+            VISUALIZATION_GRAPH.with(|viz_graph| {
+                viz_graph.borrow_mut().clear();
             });
         }
     }
@@ -330,6 +287,7 @@ impl ComputationGraph<f32> {
             }
         }
 
+        result.reverse();
         self.topo_sorted = result;
         self.sorted = true;
     }
@@ -367,7 +325,7 @@ impl ComputationGraph<f32> {
         }
 
         // 위상 정렬된 순서의 역순으로 순회
-        for &node_id in self.topo_sorted.iter().rev() {
+        for &node_id in self.topo_sorted.iter() {
             let node = self.nodes.get(&node_id).unwrap();
             if node.variable.grad().is_none() || node.function.is_none() { continue; }
 
@@ -387,6 +345,226 @@ impl ComputationGraph<f32> {
             }
         }
         Ok(())
+    }
+
+    pub fn clear(&mut self) {
+        self.nodes.clear();
+        self.topo_sorted.clear();
+        self.sorted = false;
+    }
+
+    #[cfg(feature = "enableVisualization")]
+    pub fn get_graph_stats() -> (usize, bool) {
+        COMPUTATION_GRAPH.with(|compute_graph| {
+            let graph = compute_graph.lock().unwrap();
+            (graph.nodes.len(), graph.sorted)
+        })
+    }
+}
+
+#[cfg(feature = "enableVisualization")]
+impl VisualizationGraph {
+    pub fn new() -> Self {
+        Self {
+            nodes: HashSet::new(),
+            edges: Vec::new(),
+            node_types: std::collections::HashMap::new(),
+            node_labels: std::collections::HashMap::new(),
+        }
+    }
+
+    pub fn add_variable_node(&mut self, id: &str, label: &str, is_input: bool, is_output: bool) {
+        self.nodes.insert(id.to_string());
+        self.node_labels.insert(id.to_string(), label.to_string());
+
+        let node_type = match (is_output, is_input) {
+            (true, _) => NodeType::Output,
+            (false, true) => NodeType::Input,
+            _ => NodeType::Variable,
+        };
+
+        self.node_types.insert(id.to_string(), node_type);
+    }
+
+    pub fn add_function_node(&mut self, id: &str, label: &str) {
+        self.nodes.insert(id.to_string());
+        self.node_labels.insert(id.to_string(), label.to_string());
+        self.node_types.insert(id.to_string(), NodeType::Function);
+    }
+
+    pub fn add_edge(&mut self, from: &str, to: &str, edge_type: &str) {
+        let style = match edge_type {
+            "data_flow" => "style=solid, color=\"#2E86AB\", penwidth=2",
+            "gradient_flow" => "style=dashed, color=\"#A23B72\", penwidth=2",
+            "control_flow" => "style=dotted, color=\"#F18F01\", penwidth=1",
+            _ => "style=solid, color=black, penwidth=1",
+        };
+
+        self.edges.push(format!("    \"{}\" -> \"{}\" [{}];", from, to, style));
+    }
+
+    pub fn clear(&mut self) {
+        self.nodes.clear();
+        self.edges.clear();
+        self.node_types.clear();
+        self.node_labels.clear();
+    }
+
+    // DOT 그래프 생성 (개선된 스타일)
+    pub fn generate_dot(&self) -> String {
+        let mut dot = String::from(
+            "digraph ComputationGraph {\n\
+                bgcolor=\"#F8F9FA\";\n\
+                rankdir=LR;  // 좌우 배치로 데이터 흐름을 더 직관적으로\n\
+                splines=ortho;\n\
+                nodesep=0.8;\n\
+                ranksep=1.5;\n\
+                node [fontname=\"Arial\", fontsize=10];\n\
+                edge [fontname=\"Arial\", fontsize=8];\n\n"
+        );
+
+        // 노드 타입별 그룹화 및 스타일링
+        let mut input_nodes = Vec::new();
+        let mut output_nodes = Vec::new();
+        let mut function_nodes = Vec::new();
+        let mut variable_nodes = Vec::new();
+
+        for node_id in &self.nodes {
+            let label = self.node_labels.get(node_id).unwrap_or(node_id);
+            let node_type = self.node_types.get(node_id).unwrap_or(&NodeType::Variable);
+
+            let (shape, style, color, font_color) = match node_type {
+                NodeType::Input => {
+                    input_nodes.push(node_id.clone());
+                    ("ellipse", "filled,bold", "#81C784", "white")  // 연한 초록
+                },
+                NodeType::Output => {
+                    output_nodes.push(node_id.clone());
+                    ("ellipse", "filled,bold", "#E57373", "white")  // 연한 빨강
+                },
+                NodeType::Function => {
+                    function_nodes.push(node_id.clone());
+                    ("box", "filled,rounded", "#64B5F6", "white")   // 연한 파랑
+                },
+                NodeType::Variable => {
+                    variable_nodes.push(node_id.clone());
+                    ("ellipse", "filled", "#FFB74D", "white")       // 연한 주황
+                },
+            };
+
+            dot.push_str(&format!(
+                "    \"{}\" [label=\"{}\", shape={}, style=\"{}\", fillcolor=\"{}\", fontcolor=\"{}\"];\n",
+                node_id, label, shape, style, color, font_color
+            ));
+        }
+
+        // 계층별 랭킹 설정 (더 직관적인 배치)
+        if !input_nodes.is_empty() {
+            dot.push_str(&format!(
+                "    {{ rank=source; {}; }}\n",
+                input_nodes.iter().map(|n| format!("\"{}\"", n)).collect::<Vec<_>>().join("; ")
+            ));
+        }
+
+        if !output_nodes.is_empty() {
+            dot.push_str(&format!(
+                "    {{ rank=sink; {}; }}\n",
+                output_nodes.iter().map(|n| format!("\"{}\"", n)).collect::<Vec<_>>().join("; ")
+            ));
+        }
+
+        // 범례 추가
+        dot.push_str("\n    // 범례\n");
+        dot.push_str("    subgraph cluster_legend {\n");
+        dot.push_str("        label=\"Legend\";\n");
+        dot.push_str("        style=filled;\n");
+        dot.push_str("        fillcolor=\"#FFFFFF\";\n");
+        dot.push_str("        fontsize=12;\n");
+        dot.push_str("        fontname=\"Arial Bold\";\n");
+        dot.push_str("        \n");
+        dot.push_str("        legend_input [label=\"Input\", shape=ellipse, style=\"filled,bold\", fillcolor=\"#81C784\", fontcolor=\"white\"];\n");
+        dot.push_str("        legend_func [label=\"Function\", shape=box, style=\"filled,rounded\", fillcolor=\"#64B5F6\", fontcolor=\"white\"];\n");
+        dot.push_str("        legend_var [label=\"Variable\", shape=ellipse, style=\"filled\", fillcolor=\"#FFB74D\", fontcolor=\"white\"];\n");
+        dot.push_str("        legend_output [label=\"Output\", shape=ellipse, style=\"filled,bold\", fillcolor=\"#E57373\", fontcolor=\"white\"];\n");
+        dot.push_str("        \n");
+        dot.push_str("        legend_input -> legend_func -> legend_var -> legend_output [style=invis];\n");
+        dot.push_str("    }\n\n");
+
+        // 엣지 추가
+        for edge in &self.edges {
+            dot.push_str(edge);
+            dot.push('\n');
+        }
+
+        dot.push_str("}\n");
+        dot
+    }
+
+    // 그래프 통계 정보 제공
+    #[cfg(feature = "enableVisualization")]
+    pub fn get_graph_stats() -> (usize, usize) {
+        VISUALIZATION_GRAPH.with(|viz_graph| {
+            let viz = viz_graph.borrow();
+            (viz.nodes.len(), viz.edges.len())
+        })
+    }
+
+    // 시각화 그래프에 노드 추가하는 헬퍼 메서드
+    #[cfg(feature = "enableVisualization")]
+    fn add_to_visualization(&self, id: NodeId<f32>, label: &str, is_input: bool, is_output: bool) {
+        VISUALIZATION_GRAPH.with(|viz_graph| {
+            let mut viz = viz_graph.borrow_mut();
+            let id_str = format!("{:?}", id);
+            viz.add_variable_node(&id_str, label, is_input, is_output);
+        });
+    }
+
+    // 개선된 DOT 그래프 생성
+    #[cfg(feature = "enableVisualization")]
+    pub fn get_dot_graph() -> String {
+        VISUALIZATION_GRAPH.with(|viz_graph| {
+            viz_graph.borrow().generate_dot()
+        })
+    }
+
+    // DOT 그래프를 파일로 저장 (SVG도 지원)
+    #[cfg(feature = "enableVisualization")]
+    pub fn save_graph<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<()> {
+        let dot = Self::get_dot_graph();
+        std::fs::write(path, dot)
+    }
+
+    // SVG로 직접 렌더링 (graphviz가 설치된 경우)
+    #[cfg(feature = "enableVisualization")]
+    pub fn render_to_svg<P: AsRef<std::path::Path>>(output_path: P) -> std::io::Result<()> {
+        let dot = Self::get_dot_graph();
+
+        // 임시 DOT 파일 생성
+        let temp_dot_path = std::env::temp_dir().join("computation_graph.dot");
+        std::fs::write(&temp_dot_path, dot)?;
+
+        // graphviz로 SVG 렌더링
+        let output = std::process::Command::new("dot")
+            .arg("-Tsvg")
+            .arg(&temp_dot_path)
+            .arg("-o")
+            .arg(output_path.as_ref())
+            .output();
+
+        // 임시 파일 정리
+        let _ = std::fs::remove_file(&temp_dot_path);
+
+        match output {
+            Ok(output) if output.status.success() => Ok(()),
+            Ok(output) => Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Graphviz error: {}", String::from_utf8_lossy(&output.stderr))
+            )),
+            Err(e) => Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("Graphviz not found. Please install graphviz: {}", e)
+            )),
+        }
     }
 }
 
