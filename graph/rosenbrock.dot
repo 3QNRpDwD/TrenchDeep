@@ -1,0 +1,43 @@
+digraph ComputationGraph {
+      // start graph
+                    splines=ortho;
+                  // orthogonal edges
+                    node [shape=ellipse, style=filled, fillcolor=lightgoldenrod1, fontsize=10];
+    { rank=source; "0x26dd244c310"; "0x26dd244b870"; "0x26dd244c3b0"; "0x26dd244b0f0"; }
+    "0x26dd244c3b0" [label="x0", style=filled, fillcolor=orange];
+    "0x26dd2447d80" [label="Square", shape=box, style=filled, fillcolor=lightblue];
+    "0x26dd244bff0" [label="var_0", style=filled, fillcolor=orange];
+    "0x26dd244c3b0" -> "0x26dd2447d80" [style=dashed, color=blue, arrowhead=vee];
+    "0x26dd2447d80" -> "0x26dd244bff0" [style=solid, color=red, arrowtail=vee];
+    "0x26dd244b0f0" [label="x1", style=filled, fillcolor=orange];
+    "0x26dd2447f00" [label="Sub", shape=box, style=filled, fillcolor=lightblue];
+    "0x26dd244c1d0" [label="var_381", style=filled, fillcolor=orange];
+    "0x26dd244b0f0" -> "0x26dd2447f00" [style=dashed, color=blue, arrowhead=vee];
+    "0x26dd244bff0" -> "0x26dd2447f00" [style=dashed, color=blue, arrowhead=vee];
+    "0x26dd2447f00" -> "0x26dd244c1d0" [style=solid, color=red, arrowtail=vee];
+    "0x26dd2447db0" [label="Square", shape=box, style=filled, fillcolor=lightblue];
+    "0x26dd244a8d0" [label="var_843", style=filled, fillcolor=orange];
+    "0x26dd244c1d0" -> "0x26dd2447db0" [style=dashed, color=blue, arrowhead=vee];
+    "0x26dd2447db0" -> "0x26dd244a8d0" [style=solid, color=red, arrowtail=vee];
+    "0x26dd244c310" [label="var_0", style=filled, fillcolor=orange];
+    "0x26dd2447f30" [label="Mul", shape=box, style=filled, fillcolor=lightblue];
+    "0x26dd244add0" [label="var_1160", style=filled, fillcolor=orange];
+    "0x26dd244c310" -> "0x26dd2447f30" [style=dashed, color=blue, arrowhead=vee];
+    "0x26dd244a8d0" -> "0x26dd2447f30" [style=dashed, color=blue, arrowhead=vee];
+    "0x26dd2447f30" -> "0x26dd244add0" [style=solid, color=red, arrowtail=vee];
+    "0x26dd244b870" [label="var_1626", style=filled, fillcolor=orange];
+    "0x26dd2447c30" [label="Sub", shape=box, style=filled, fillcolor=lightblue];
+    "0x26dd244b910" [label="var_1626", style=filled, fillcolor=orange];
+    "0x26dd244b870" -> "0x26dd2447c30" [style=dashed, color=blue, arrowhead=vee];
+    "0x26dd244c3b0" -> "0x26dd2447c30" [style=dashed, color=blue, arrowhead=vee];
+    "0x26dd2447c30" -> "0x26dd244b910" [style=solid, color=red, arrowtail=vee];
+    "0x26dd2447de0" [label="Square", shape=box, style=filled, fillcolor=lightblue];
+    "0x26dd244beb0" [label="var_2095", style=filled, fillcolor=orange];
+    "0x26dd244b910" -> "0x26dd2447de0" [style=dashed, color=blue, arrowhead=vee];
+    "0x26dd2447de0" -> "0x26dd244beb0" [style=solid, color=red, arrowtail=vee];
+    "0x26dd24480b0" [label="Add", shape=box, style=filled, fillcolor=lightblue];
+    "0x26dd244b9b0" [label="var_2413", style=filled, fillcolor=orange];
+    "0x26dd244add0" -> "0x26dd24480b0" [style=dashed, color=blue, arrowhead=vee];
+    "0x26dd244beb0" -> "0x26dd24480b0" [style=dashed, color=blue, arrowhead=vee];
+    "0x26dd24480b0" -> "0x26dd244b9b0" [style=solid, color=red, arrowtail=vee];
+}
