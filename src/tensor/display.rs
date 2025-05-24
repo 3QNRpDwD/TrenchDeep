@@ -45,7 +45,7 @@ impl<Type: Debug> Debug for Variable<Type> {
             .field("requires_grad", &self.requires_grad);
         #[cfg(feature = "enableBackpropagation")]
         {
-            ds.field("grad", &self.grad);
+            ds.field("grad", &self.grad_buffer);
         }
         ds.finish()
     }
@@ -57,8 +57,8 @@ impl<Type: Debug + Clone> Debug for ComputationGraph<Type> {
         let mut ds = f.debug_struct("ComputationGraph");
         ds
             .field("nodes", &self.nodes)
-            .field("topo_sorted", &self.topo_sorted)
-            .field("sorted", &self.sorted)
+            .field("adjacency_list", &self.adjacency_list)
+            .field("sorted", &self.is_sorted)
             .finish()
     }
 }
@@ -72,7 +72,7 @@ impl<Type: Debug + Clone> Debug for ComputationNode<Type> {
             .field("variable", &self.variable)
             .field("function", &self.function.as_ref().map(|f| f.type_name()))
             .field("inputs", &self.inputs)
-            .field("is_life", &self.is_life)
+            .field("is_leaf", &self.is_leaf)
             .finish()
     }
 }

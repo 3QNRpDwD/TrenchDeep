@@ -5,20 +5,20 @@ pub mod softmax;
 
 use super::*;
 
-pub trait Activation<Type: Debug + Clone>: Function<Type> + AutogradFunction<Type> {
+pub trait Activation<Type: Debug + Clone>: Function + AutogradFunction<Type> {
     fn new() -> MlResult<Self> where Self: Sized {
-        <Self as Function<Type>>::new()
+        <Self as Function>::new()
     }
-    fn apply(&mut self, input: &Arc<Variable<Type>>) -> MlResult<Arc<Variable<Type>>> where Self: AutogradFunction<Type> {
+    fn apply(&mut self, input: &Arc<Variable<Type>>) -> MlResult<Variable<Type>> where Self: AutogradFunction<Type> {
         <Self as AutogradFunction<Type>>::apply(self, &[input])
     }
 }
 
-impl<T: Function<f32> + Clone + 'static> Activation<f32> for T {
+impl<T: Function + Clone + 'static> Activation<f32> for T {
     fn new() -> MlResult<Self> where Self: Sized {
-        <Self as Function<f32>>::new()
+        <Self as Function>::new()
     }
-    fn apply(&mut self, input: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
+    fn apply(&mut self, input: &Arc<Variable<f32>>) -> MlResult<Variable<f32>> {
         <Self as AutogradFunction<f32>>::apply(self, &[input])
     }
 }

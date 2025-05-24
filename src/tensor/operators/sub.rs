@@ -1,6 +1,6 @@
 use super::*;
 
-impl Function<f32> for Sub {
+impl Function for Sub {
     fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
     /// Subtracts two tensors element-wise
     ///
@@ -9,7 +9,7 @@ impl Function<f32> for Sub {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise subtraction
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         if targets[0].shape().len() == 2 && targets[1].shape().len() == 1 && targets[0].shape()[1] == targets[1].shape()[0] {
             let (batch_size, features) = (targets[0].shape()[0], targets[0].shape()[1]);
             let mut data = vec![0.0; targets[0].data().len()];
@@ -19,17 +19,17 @@ impl Function<f32> for Sub {
                     data[i * features + j] = targets[0].data()[i * features + j] - targets[1].data()[j];
                 }
             }
-            return Ok(vec![Tensor::<f32>::from_vec(data, &targets[0].shape())?])
+            return Ok(vec![Tensor::from_vec(data, &targets[0].shape())?])
         }
 
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
-            _ => Ok(vec![Tensor::<f32>::from_vec(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape())?])
+            _ => Ok(vec![Tensor::from_vec(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape())?])
         }
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, _: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, _: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         Ok(vec![grad.clone(), -grad.clone()])
     }
 
@@ -47,34 +47,34 @@ impl Function<f32> for Sub {
 ///
 /// # Broadcasting
 /// * Supports broadcasting when subtracting a 1D tensor from each row of a 2D tensor
-impl std::ops::Sub<Tensor<f32>> for Tensor<f32> {
-    type Output = Tensor<f32>;
+impl std::ops::Sub<Tensor> for Tensor {
+    type Output = Tensor;
 
-    fn sub(self, other: Tensor<f32>) -> Self::Output {
+    fn sub(self, other: Tensor) -> Self::Output {
         Sub::new().unwrap().forward(&[&self, &other]).unwrap().remove(0)
     }
 }
 
-impl std::ops::Sub<&Tensor<f32>> for Tensor<f32> {
-    type Output = Tensor<f32>;
+impl std::ops::Sub<&Tensor> for Tensor {
+    type Output = Tensor;
 
-    fn sub(self, other: &Tensor<f32>) -> Self::Output {
+    fn sub(self, other: &Tensor) -> Self::Output {
         Sub::new().unwrap().forward(&[&self, other]).unwrap().remove(0)
     }
 }
 
-impl std::ops::Sub<Tensor<f32>> for &Tensor<f32> {
-    type Output = Tensor<f32>;
+impl std::ops::Sub<Tensor> for &Tensor {
+    type Output = Tensor;
 
-    fn sub(self, other: Tensor<f32>) -> Self::Output {
+    fn sub(self, other: Tensor) -> Self::Output {
         Sub::new().unwrap().forward(&[self, &other]).unwrap().remove(0)
     }
 }
 
-impl std::ops::Sub<&Tensor<f32>> for &Tensor<f32> {
-    type Output = Tensor<f32>;
+impl std::ops::Sub<&Tensor> for &Tensor {
+    type Output = Tensor;
 
-    fn sub(self, other: &Tensor<f32>) -> Self::Output {
+    fn sub(self, other: &Tensor) -> Self::Output {
         Sub::new().unwrap().forward(&[self, other]).unwrap().remove(0)
     }
 }

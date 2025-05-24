@@ -7,7 +7,9 @@ use std::{
     },
     sync::{Arc}
 };
-use std::collections::HashSet;
+use std::collections::HashMap;
+use std::sync::atomic::Ordering;
+use std::sync::Mutex;
 
 pub mod creation;
 pub mod operators;
@@ -193,9 +195,106 @@ macro_rules! variable {
 /// - `data`: 텐서의 데이터를 1차원 벡터 형태로 저장
 /// - `shape`: 텐서의 차원을 나타내는 크기 배열 (예: `[행, 열]` 또는 `[채널, 높이, 너비]`)
 #[derive(Debug, Clone)]
-pub struct Tensor<Type> {
+pub struct TensorData<Type> {
     data: Vec<Type>,
     shape: Vec<usize>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Hash)]
+pub struct Tensor(NodeId);
+
+pub struct TensorPool {
+    pools: HashMap<Vec<usize>, Vec<Tensor>>,
+    max_pool_size: usize,
+}
+
+impl Tensor {
+    fn get_id(&self) -> NodeId {
+        self.0
+    }
+}
+
+pub struct TensorStorage<T> {
+    tensors: HashMap<NodeId, *mut TensorData<T>>
+}
+
+
+impl TensorStorage<f32> {
+    pub fn new() -> Self {
+        Self {
+            tensors: HashMap::new(),
+        }
+    }
+
+    pub fn insert(&mut self, id: NodeId, tensor: *mut TensorData<f32>) {
+        self.tensors.insert(id, tensor);
+    }
+
+    pub fn get(&self, id: &NodeId) -> Option<&*mut TensorData<f32>> {
+        self.tensors.get(id)
+    }
+
+    pub fn remove(&mut self, id: &NodeId) -> Option<*mut TensorData<f32>> {
+        self.tensors.remove(id)
+    }
+
+    pub fn clear(&mut self) {
+        self.tensors.clear();
+    }
+
+    pub fn contains(&self, id: &NodeId) -> bool {
+        self.tensors.contains_key(id)
+    }
+}
+static TENSOR_STORAGE: Arc<Mutex<TensorStorage<f32>>> = Arc::new(Mutex::new(TensorStorage::new()));
+
+#[derive(Debug, Clone)]
+pub struct GradientBuffer<T> {
+    buffer: Vec<T>,
+    shape: Vec<usize>,
+    initialized: bool,
+}
+
+impl GradientBuffer<f32> {
+    pub fn new(shape: &[usize]) -> Self {
+        let size = shape.iter().product();
+        Self {
+            buffer: vec![0.0; size],
+            shape: shape.to_vec(),
+            initialized: false,
+        }
+    }
+
+    pub fn accumulate(&mut self, grad: &Tensor) -> MlResult<()> {
+        if grad.shape() != self.shape() {
+            return Err(MlError::StringError("Shape mismatch in gradient accumulation".to_string()));
+        }
+
+        if !self.initialized {
+            self.buffer.copy_from_slice(&grad.data());
+            self.initialized = true;
+        } else {
+            for (acc, &val) in self.buffer.iter_mut().zip(&grad.data()) {
+                *acc += val;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn get_tensor(&self) -> Option<Tensor> {
+        if self.initialized {
+            Tensor::from_vec(self.buffer.clone(), &self.shape).ok()
+        } else {
+            None
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.initialized = false;
+        for item in &mut self.buffer {
+            *item = 0.0;
+        }
+    }
 }
 
 /// 계산 그래프에서 사용되는 변수 구조체입니다.
@@ -207,14 +306,18 @@ pub struct Tensor<Type> {
 /// - `requires_grad`: 그래디언트 계산이 필요한지 여부
 /// - `grad`: 역전파를 위한 그래디언트 (옵션으로 저장되며, `RefCell`로 래핑되어 가변성 제공)
 ///   - `enableBackpropagation` 기능이 활성화된 경우에만 포함됨
-pub struct Variable<Type> {
-    #[cfg(all(feature = "enableVisualization"))]
+pub struct Variable<T> {
+    #[cfg(feature = "enableVisualization")]
     label: String,
-    tensor: Tensor<Type>,
-    requires_grad: bool,
 
-    #[cfg(all(feature = "enableBackpropagation"))]
-    grad: std::cell::RefCell<Option<Tensor<Type>>>,
+    tensor: Tensor,
+    pub requires_grad: bool,
+
+    #[cfg(feature = "enableBackpropagation")]
+    grad_buffer: Arc<Mutex<Option<GradientBuffer<T>>>>,
+
+    #[cfg(feature = "enableBackpropagation")]
+    grad_accumulated: Arc<Mutex<bool>>,
 }
 
 /// 계산 그래프에서 노드의 고유 식별자를 나타내는 타입 별칭입니다.
@@ -223,10 +326,33 @@ pub struct Variable<Type> {
 ///
 /// # 사용처
 /// - `ComputationNode`와 `ComputationGraph`에서 노드를 식별하는 데 사용
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NodeId(u64);
+
+pub struct NodeIdGenerator {
+    counter: std::sync::atomic::AtomicU64,
+}
+
+impl NodeIdGenerator {
+    pub const fn new() -> Self {
+        Self {
+            counter: std::sync::atomic::AtomicU64::new(0),
+        }
+    }
+
+    pub fn next(&self) -> NodeId {
+        NodeId(self.counter.fetch_add(1, Ordering::Relaxed))
+    }
+
+    pub fn reset(&self) {
+        self.counter.store(0, Ordering::Relaxed);
+    }
+}
+
+static NODE_ID_GEN: NodeIdGenerator = NodeIdGenerator::new();
+
 #[cfg(feature = "enableBackpropagation")]
-type NodeId<T> = *const Variable<T>;
-#[cfg(feature = "enableBackpropagation")]
-type FuncId<T> = *const dyn Function<T>;
+type FuncId = *const dyn Function;
 
 /// 계산 그래프의 개별 노드를 나타내는 구조체입니다.
 ///
@@ -240,37 +366,30 @@ type FuncId<T> = *const dyn Function<T>;
 /// - `inputs`: 이 노드의 입력으로 사용되는 다른 노드들의 ID 목록
 ///
 #[cfg(feature = "enableBackpropagation")]
-pub(crate) struct ComputationNode<T: Debug + Clone> {
-    id: NodeId<T>,
-    variable: Arc<Variable<T>>,
-    function: Option<Arc<dyn Function<T>>>,
-    inputs: Vec<NodeId<T>>,
-    is_life: bool,
+pub struct ComputationNode<T> {
+    pub id: NodeId,
+    pub variable: Arc<Variable<T>>,
+    pub function: Option<Arc<dyn Function>>,
+    pub inputs: Vec<NodeId>,
+    pub is_leaf: bool,
 }
 
-
-/// 계산 그래프 전체를 관리하는 구조체입니다.
-///
-/// 이 구조체는 노드 집합과 위상 정렬 정보를 저장하며, 역전파를 수행하는 데 필요한 데이터를 유지합니다.
-/// 제네릭 타입 `T`는 디버깅과 복제를 지원해야 합니다.
-///
-/// # 필드
-/// - `nodes`: 노드 ID와 `ComputationNode`를 매핑하는 해시맵
-/// - `next_id`: 다음에 생성될 노드에 부여할 ID
-/// - `topo_sorted`: 위상 정렬된 노드 ID 목록
-/// - `sorted`: 위상 정렬이 완료되었는지 여부
 #[cfg(feature = "enableBackpropagation")]
-pub(crate) struct ComputationGraph<T: Debug + Clone> {
-    nodes: std::collections::HashMap<NodeId<T>, ComputationNode<T>>,
-    topo_sorted: Vec<NodeId<T>>,
-    sorted: bool,
+pub struct ComputationGraph<T> {
+    nodes: Vec<ComputationNode<T>>,
+    node_map: std::collections::HashMap<NodeId, usize>,
+    adjacency_list: Vec<Vec<usize>>,
+    reverse_adjacency: Vec<Vec<usize>>,
+    topo_order: Vec<usize>,
+    is_sorted: bool,
+    // memory_pool: TensorPool<T>,
 }
 
 
 #[cfg(feature = "enableVisualization")]
 #[derive(Debug, Clone)]
 pub struct VisualizationGraph {
-    pub nodes: HashSet<String>,
+    pub nodes: std::collections::HashSet<String>,
     pub edges: Vec<String>,
     pub node_types: std::collections::HashMap<String, NodeType>,
     pub node_labels: std::collections::HashMap<String, String>,
@@ -285,32 +404,31 @@ pub enum NodeType {
     Output,
 }
 
-impl PartialEq for Tensor<f32> {
-    fn eq(&self, other: &Self) -> bool {
-        self.data == other.data && self.shape == other.shape
-    }
-}
-
 #[cfg(feature = "enableBackpropagation")]
 impl PartialEq for &Variable<f32> {
     fn eq(&self, other: &&Variable<f32>) -> bool {
         self.tensor == other.tensor &&
             self.requires_grad == other.requires_grad &&
-            self.grad == other.grad
+            self.label== other.label
     }
 }
 
-impl Eq for Tensor<f32> {
+impl Eq for TensorData<f32> {
     // Todo: 구현 필요
 }
 
-impl PartialOrd for Tensor<f32> {
+impl PartialEq for TensorData<f32> {
+    fn eq(&self, other: &Self) -> bool {
+        self.data() == other.data() && self.shape() == other.shape()
+    }
+}
+impl PartialOrd for TensorData<f32> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.data.partial_cmp(&other.data)
+        self.data().partial_cmp(&other.data())
     }
 }
 
-impl Ord for Tensor<f32> {
+impl Ord for TensorData<f32> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
     }
@@ -440,8 +558,8 @@ pub trait TensorBase<Type: Debug + Clone> {
 /// # 제약 사항
 /// - 현재 버전에서는 다중 입력/출력에 대한 역전파를 지원하지 않음
 /// - f32 데이터 타입 전용으로 특화됨
-pub trait AutogradFunction<Type: Debug + Clone>: Function<Type> + Clone where Self: 'static {
-    fn apply(&self, _inputs: &[&Arc<Variable<Type>>]) -> MlResult<Arc<Variable<Type>>> {
+pub trait AutogradFunction<Type: Debug + Clone>: Function + Clone where Self: 'static {
+    fn apply(&self, _inputs: &[&Variable<Type>]) -> MlResult<Variable<Type>> {
         unimplemented!(" AutogradFunction::apply() not implemented for this type")
     }
 }
@@ -452,7 +570,7 @@ mod tests {
     use crate::tensor::{Tensor, TensorBase};
     use crate::MlResult;
 
-    pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
+    pub fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
         Ok(())

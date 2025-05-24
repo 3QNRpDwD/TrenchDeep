@@ -24,7 +24,9 @@ macro_rules! define_op {
     // 기본 구조체 (매개변수 없음)
     ($name:ident) => {
         #[derive(Clone)]
-        pub struct $name { backend: Arc<dyn Backend> }
+        pub struct $name {
+            backend: Arc<dyn Backend>
+        }
     };
 
     // 추가 필드가 있는 구조체
@@ -76,7 +78,7 @@ define_op!(ApproxCos, threshold: f32);  // 테일러급수를 사용한 코사�
 ///
 /// # 제약
 /// - `T`: `Debug + Clone` 트레잇을 구현해야 함
-pub trait Function<T: Debug + Clone> {
+pub trait Function {
     /// 새로운 연산 객체를 생성합니다.
     ///
     /// # 반환값
@@ -101,8 +103,14 @@ pub trait Function<T: Debug + Clone> {
     ///
     /// # 오류
     /// - 입력 텐서의 형태나 데이터가 연산에 적합하지 않을 경우
-    fn forward(&self, _targets: &[&Tensor<T>]) -> MlResult<Vec<Tensor<T>>>{
+    fn forward(&self, _targets: &[&Tensor]) -> MlResult<Vec<Tensor>>{
         unimplemented!("Forward pass is not implemented")
+    }
+
+    fn forward_inplace(&self, inputs: &[&Tensor], output: &mut Tensor) -> MlResult<()> {
+        let result = self.forward(inputs)?;
+        *output = result.into_iter().next().unwrap();
+        Ok(())
     }
 
     /// 역전파(Backward Pass)를 수행합니다.
@@ -120,7 +128,7 @@ pub trait Function<T: Debug + Clone> {
     /// # 오류
     /// - 그래디언트 계산에 실패하거나 입력이 유효하지 않을 경우
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor<T>], grad: &Tensor<T>) -> MlResult<Vec<Tensor<T>>> {
+    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         // enableBackpropagation만 활성화된 경우의 기본 구현
         unimplemented!("Backward pass is not implemented")
     }
@@ -132,9 +140,27 @@ pub trait Function<T: Debug + Clone> {
     fn backend(&self) -> &Arc<dyn Backend> {
         unimplemented!("Function::backend() is not implemented")
     }
+
+    #[cfg(feature = "enableBackpropagation")]
+    fn backward_inplace(&self, inputs: &[&Tensor], grad_output: &Tensor,
+                        grad_inputs: &mut [Tensor]) -> MlResult<()> {
+        let grads = self.backward(inputs, grad_output)?;
+        for (dst, src) in grad_inputs.iter_mut().zip(grads) {
+            *dst = src;
+        }
+        Ok(())
+    }
+
+    fn can_fuse_with(&self, _other: &dyn Function) -> bool {
+        false
+    }
+
+    fn fuse_with(&self, _other: Box<dyn Function>) -> Option<Box<dyn Function>> {
+        None
+    }
 }
 
-impl<Type: Debug + Clone> Debug for &dyn Function<Type> {
+impl Debug for &dyn Function {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Function<{}>", std::any::type_name::<Self>())
     }
@@ -162,7 +188,7 @@ mod tests {
     use crate::tensor::{AutogradFunction, operators::{Add, Function, Mul, Pow, Square}, Tensor, TensorBase, Variable};
     use crate::{variable, MlResult};
 
-    pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
+    pub fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
         if tensor != expected_tensor {
             return Err(format!("Expected {:?}, got {:?}", expected_tensor, tensor).into());
         }
@@ -220,10 +246,10 @@ mod tests {
     }
 
     fn print_forward(
-        x: &Tensor<f32>,
-        a: &Tensor<f32>,
-        b: &Tensor<f32>,
-        y: &Tensor<f32>,
+        x: &Tensor,
+        a: &Tensor,
+        b: &Tensor,
+        y: &Tensor,
     ) {
         #[cfg(feature = "debugging")]
         {
@@ -245,14 +271,14 @@ mod tests {
     }
 
     fn print_backward(
-        x: &Option<Tensor<f32>>,
-        a: &Option<Tensor<f32>>,
-        b: &Option<Tensor<f32>>,
-        y: &Option<Tensor<f32>>,
+        x: &Option<Tensor>,
+        a: &Option<Tensor>,
+        b: &Option<Tensor>,
+        y: &Option<Tensor>,
     ) {
         #[cfg(feature = "debugging")]
         {
-            let fmt_tensor = |t: &Option<Tensor<f32>>| {
+            let fmt_tensor = |t: &Option<Tensor>| {
                 if let Some(tensor) = t {
                     format!(
                         "Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}",

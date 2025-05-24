@@ -75,7 +75,7 @@ mod benchmark {
     use crate::{var_input, variable, MlResult};
     use std::sync::Arc;
 
-    fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
+    fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
         if tensor.shape() != expected_tensor.shape() {
             return Err("Shape mismatch".into());
         }
@@ -92,7 +92,7 @@ mod benchmark {
         Ok(())
     }
 
-    fn sphere_function(x: &Arc<Variable<f32>>, y: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
+    fn sphere_function(x: &Variable<f32>, y: &Variable<f32>) -> MlResult<Variable<f32>> {
         let mut pow = Pow::new()?;
         let add = Add::new()?;
         pow.power = Some(2.0);
@@ -103,7 +103,7 @@ mod benchmark {
         )
     }
 
-    fn matyas_function(x: &Arc<Variable<f32>>, y: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
+    fn matyas_function(x: &Variable<f32>, y: &Variable<f32>) -> MlResult<Variable<f32>> {
         let sub = Sub::new()?;
         let mul = Mul::new()?;
         let O_26 = Arc::new(variable!(vec![vec![0.26]]));
@@ -116,7 +116,7 @@ mod benchmark {
         ])
     }
 
-    fn goldstein_price_function(x: &Arc<Variable<f32>>, y: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
+    fn goldstein_price_function(x: &Arc<Variable<f32>>, y: &Arc<Variable<f32>>) -> MlResult<Variable<f32>> {
         // Helper function to create constant variables
         fn constant(value: f32) -> Arc<Variable<f32>> {
             Arc::new(variable!(vec![vec![value]]))
@@ -203,7 +203,7 @@ mod benchmark {
         mul.apply(&[&first_part, &second_part])
     }
 
-    fn rosenbrock_function(x0: &Arc<Variable<f32>>, x1: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
+    fn rosenbrock_function(x0: &Variable<f32>, x1: &Variable<f32>) -> MlResult<Variable<f32>> {
         let sub = Sub::new()?;
         let add = Add::new()?;
         let square = Square::new()?;
@@ -294,49 +294,24 @@ mod benchmark {
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
         let sub = Sub::new()?;
         let mul = Mul::new()?;
-        let mut x0 = Arc::new(var_input!(Tensor::new(vec![vec![0.0]])));
-        let mut x1 = Arc::new(var_input!(Tensor::new(vec![vec![2.0]])));
+        let mut x0 = var_input!(Tensor::new(vec![vec![0.0]]));
+        let mut x1 = var_input!(Tensor::new(vec![vec![2.0]]));
 
-        let iter: usize = 100;
+        let iter: usize = 1000;
         let learning_rate = Tensor::new(vec![vec![0.001]]);
 
         for i in 0..iter { // 0부터
-            crate::tensor::ComputationGraph::reset_graph();
-            // 계산그래프가 초기화되지 않고, 계속해서 텐서가 쌓이던것이 성능 하락의 주요 원인이었으며,
-            // 매번 초기화하는 임시방편을 적용했으나, 이는 바람직한 해결방법이 아니며, 여전히 많은 리소스가 낭비되고 있는것으로 보임.
-            // 기존의 계산그래프를 수정 가능하도록 변경하는것이 필요함
-            // 단 임시방편이더라도 기존의 코드보다 훨신 성능이 나아짐. 5000개를 500ms 미만으로 계산가능하게 되었음.
-            // 200개를 22초만에 계산하던 기존의 버전에서 5000개를 500ms 미만으로 계산가능한것은 엄청난 발전임.
-
+            // crate::tensor::ComputationGraph::reset_graph();
+            println!("{:?}", crate::tensor::ComputationGraph::get_graph_stats());
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
-
-            // #[cfg(feature = "debugging")]
-            // {
-            //     println!(
-            //         "iter - {}\n\
-            //     [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
-            //     [ x1.tensor: {:?}, x1.grad: {:?} ]"
-            //         , i, x0.tensor(), x0.grad(), x1.tensor(), x1.grad()
-            //     );
-            // }
 
             //stap 정의
             let x0_mul_lr = mul.forward(&[&x0.grad().unwrap(), &learning_rate])?.remove(0);
             let x1_mul_lr = mul.forward(&[&x1.grad().unwrap(), &learning_rate])?.remove(0);
             //파라미터 갱신
-            x0 = Arc::new(Variable::new(sub.forward(&[x0.tensor(), &x0_mul_lr])?.remove(0)));
-            x1 = Arc::new(Variable::new(sub.forward(&[x1.tensor(), &x1_mul_lr])?.remove(0)));
-            // 현재 텐서의 불변성 유지 때문에 기존 텐서를 수정하는것이 아닌, 새로 생성하기 때문에,
-            // 계산 그래프가 불필요하게 거대해지고, 연산시간이 오래걸리는 문제가 발생함.
-            // 이는 Mutex 를 도입해서 멀티스레딩과 함께 텐서를 수정하는 메서드를 추가하는 해결책이 필요해보임.
-            // 또한 기존의 계산그래프를 최적화해서 내부의 값을 수정하거나, 수정된 노드가 등록될 경우에 이전 노드를 삭제하는등의 방안 마련이 시급해보임.
-            // 위와같이 생각했었지만. 동적그래프 기반의 역전파 구조가 잘못된 것이었음.
-            // 결국 신경망은 한번 구현된 이후에 계속해서 데이터를 흘려보내기 때문에, 매 계산마다 노드를 추가할 필요가 없으며,
-            // 계산 그래프에서는 텐서를 같이 저장하는것이 아닌, 계산 순서만 저장하는 방식으로 전환하는것이 바람직해보임.
-            // 따라서 이러한 방향을 적용할 경우, apply 함수는 더이상 텐서를 입력받지 않을것으로 보이며, 내부적으로 계산그래프를 생성 후,
-            // 입력 텐서를 외부에서 흘려넣는 방식이 될것이라고 생각됨.
-            // 이는 그래프 구조체를 통해서 구현될지, 출력 텐서를 통해서 구현될지 아직 모호함. 하지만 정적 계산 그래프를 사용하는것은 확정된 사안임.
+            x0 = sub.forward(&[x0.tensor(), &x0_mul_lr])?.remove(0);
+            x1 = sub.forward(&[x1.tensor(), &x1_mul_lr])?.remove(0);
         }
         Ok(())
     }

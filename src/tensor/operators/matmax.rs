@@ -1,7 +1,7 @@
 use super::*;
 
 
-impl Function<f32> for Matmax {
+impl Function for Matmax {
     fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), matmax: None }) }
     /// Returns the maximum value of all elements in the input tensor.
     /// If dim is specified, returns the maximum values along the given dimension.
@@ -14,7 +14,7 @@ impl Function<f32> for Matmax {
     /// If dim is None, returns a tensor with a single element containing the maximum value.
     /// If dim is specified, returns a tuple of two tensors (values, indices) containing the
     /// maximum values and their indices along the specified dimension.
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         let target_0 = targets[0];
         let target_0_shape = target_0.shape();
         let target_0_data = target_0.data();
@@ -22,7 +22,7 @@ impl Function<f32> for Matmax {
             None => {
                 // Find global maximum
                 let max_val = target_0_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-                vec![Tensor::<f32>::from_vec(vec![max_val], &vec![1])?, Tensor::<f32>::zeros(target_0_shape)]
+                vec![Tensor::from_vec(vec![max_val], &vec![1])?, Tensor::zeros(target_0_shape)]
             }
             Some(d) => {
                 let dim = if d < 0 {
@@ -72,7 +72,7 @@ impl Function<f32> for Matmax {
                     }
                 }
 
-                vec![Tensor::<f32>::from_vec(max_values, &new_shape)?, Tensor::<f32>::from_vec(max_indices, &new_shape)?]
+                vec![Tensor::from_vec(max_values, &new_shape)?, Tensor::from_vec(max_indices, &new_shape)?]
             }
         };
 
@@ -80,7 +80,7 @@ impl Function<f32> for Matmax {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         todo!()
     }
 
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn test_max() -> MlResult<()> {
         // Test global maximum
-        let buffer = Tensor::<f32>::new(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]]);
+        let buffer = Tensor::new(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]]);
         let (max_all, _) = tensor_ops!(buffer, Matmax, None, false);
         assert_eq!(max_all.data(), &[6.0]);
 
