@@ -3,19 +3,19 @@ use super::*;
 impl Function for Sigmoid {
     fn new() -> MlResult<Self> { Ok(Sigmoid { backend: Arc::new(CpuBackend::new()?) }) }
 
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
         let x = targets[0];
         let ones = vec![1.0f32; x.data().len()];
         Ok(vec![
             Tensor::from_vec(
-                self.backend.div(&ones, &self.backend.add(&ones, &self.backend.exp(x.data()))),
-                x.shape()
+                self.backend.div(&ones, &self.backend.add(&ones, &self.backend.exp(x.data().as_slice()))),
+                x.shape().as_slice()
             )?]
         )
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
         let sigmoid_output = targets[0];
         // σ'(x) = σ(x) * (1 - σ(x))
         // ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * σ'(x)
@@ -32,7 +32,7 @@ impl Function for Sigmoid {
                         )
                     )
                 ),
-                grad.shape()
+                grad.shape().as_slice()
             )?
         ])
     }

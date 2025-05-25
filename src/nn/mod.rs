@@ -34,7 +34,7 @@ pub trait Layer {
 }
 
 pub trait Parameter {}
-impl<Type> Parameter for Variable<Type> {}
+impl Parameter for Variable {}
 
 pub struct Linear    { operators: Arc<dyn Function> }
 pub struct Conv      { operators: Arc<dyn Function> }

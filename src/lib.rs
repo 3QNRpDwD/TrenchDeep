@@ -92,7 +92,7 @@ mod benchmark {
         Ok(())
     }
 
-    fn sphere_function(x: &Variable<f32>, y: &Variable<f32>) -> MlResult<Variable<f32>> {
+    fn sphere_function(x: &Variable, y: &Variable) -> MlResult<Variable> {
         let mut pow = Pow::new()?;
         let add = Add::new()?;
         pow.power = Some(2.0);
@@ -103,7 +103,7 @@ mod benchmark {
         )
     }
 
-    fn matyas_function(x: &Variable<f32>, y: &Variable<f32>) -> MlResult<Variable<f32>> {
+    fn matyas_function(x: &Variable, y: &Variable) -> MlResult<Variable> {
         let sub = Sub::new()?;
         let mul = Mul::new()?;
         let O_26 = Arc::new(variable!(vec![vec![0.26]]));
@@ -116,9 +116,9 @@ mod benchmark {
         ])
     }
 
-    fn goldstein_price_function(x: &Arc<Variable<f32>>, y: &Arc<Variable<f32>>) -> MlResult<Variable<f32>> {
+    fn goldstein_price_function(x: &Arc<Variable>, y: &Arc<Variable>) -> MlResult<Variable> {
         // Helper function to create constant variables
-        fn constant(value: f32) -> Arc<Variable<f32>> {
+        fn constant(value: f32) -> Arc<Variable> {
             Arc::new(variable!(vec![vec![value]]))
         }
 
@@ -203,7 +203,7 @@ mod benchmark {
         mul.apply(&[&first_part, &second_part])
     }
 
-    fn rosenbrock_function(x0: &Variable<f32>, x1: &Variable<f32>) -> MlResult<Variable<f32>> {
+    fn rosenbrock_function(x0: &Variable, x1: &Variable) -> MlResult<Variable> {
         let sub = Sub::new()?;
         let add = Add::new()?;
         let square = Square::new()?;
@@ -307,11 +307,11 @@ mod benchmark {
             y.backward()?;
 
             //stap 정의
-            let x0_mul_lr = mul.forward(&[&x0.grad().unwrap(), &learning_rate])?.remove(0);
-            let x1_mul_lr = mul.forward(&[&x1.grad().unwrap(), &learning_rate])?.remove(0);
+            let x0_mul_lr = mul.forward(&[x0.grad().unwrap(), learning_rate])?.remove(0);
+            let x1_mul_lr = mul.forward(&[x1.grad().unwrap(), learning_rate])?.remove(0);
             //파라미터 갱신
-            x0 = sub.forward(&[x0.tensor(), &x0_mul_lr])?.remove(0);
-            x1 = sub.forward(&[x1.tensor(), &x1_mul_lr])?.remove(0);
+            x0.update_tensor(sub.forward(&[x0.tensor(), x0_mul_lr])?.remove(0));
+            x1.update_tensor(sub.forward(&[x1.tensor(), x1_mul_lr])?.remove(0));
         }
         Ok(())
     }

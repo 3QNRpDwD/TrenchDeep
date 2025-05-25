@@ -11,7 +11,7 @@ impl Function for Matmul {
     /// # Returns
     /// A new tensor with the result of the matrix multiplication
     // Handle empty tensors
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
         if targets[0].data().is_empty() || targets[1].data().is_empty() {
             return Err(MlError::TensorError(TensorError::EmptyTensor));
         }
@@ -28,7 +28,7 @@ impl Function for Matmul {
         let buffer = match (a, b) {
             // Case 1: 1D * 1D (dot product)
             (1, 1) => {
-                match target_0.chk_shape(target_1) {
+                match target_0.chk_shape(&target_1) {
                     Err(e) => return Err(e),
                     _ => Tensor::from_vec(vec![target_0_data.iter().zip(target_1_data.iter()).map(|(&a, &b)| a * b).sum::<f32>()], &vec![])?
                 }
@@ -165,7 +165,7 @@ impl Function for Matmul {
 
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
         todo!()
     }
 
@@ -239,14 +239,14 @@ mod tests {
         let b = Tensor::from_vec(vec![4.0, 5.0], &[2])?;
 
         // This should return an error since the shapes are incompatible
-        assert!(matmul.forward(&[&a, &b]).is_err());
+        assert!(matmul.forward(&[a, b]).is_err());
 
         // Test incompatible batch dimensions
         let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], &[2, 2])?;
         let b = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[3, 2])?;
 
         // This should return an error since the batch dimensions don't match
-        assert!(matmul.forward(&[&a, &b]).is_err());
+        assert!(matmul.forward(&[a, b]).is_err());
 
         Ok(())
     }
@@ -308,7 +308,7 @@ mod tests {
             19.0, 22.0, 43.0, 50.0, 19.0, 22.0, 43.0, 50.0, 19.0, 22.0, 43.0, 50.0, 19.0, 22.0,
             43.0, 50.0,
         ];
-        assert_eq!(c.data(), &expected);
+        assert_eq!(c.data(), expected);
         Ok(())
     }
 
@@ -320,7 +320,7 @@ mod tests {
         let b = Tensor::from_vec(vec![], &[2, 0])?;
 
         // This should return an error for empty tensors
-        assert!(matmul.forward(&[&a, &b]).is_err());
+        assert!(matmul.forward(&[a, b]).is_err());
         Ok(())
     }
 
@@ -338,7 +338,7 @@ mod tests {
         let expected = vec![
             19.0, 22.0, 43.0, 50.0, 19.0, 22.0, 43.0, 50.0, 19.0, 22.0, 43.0, 50.0,
         ];
-        assert_eq!(c.data(), &expected);
+        assert_eq!(c.data(), expected);
         Ok(())
     }
 }

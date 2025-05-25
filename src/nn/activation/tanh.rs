@@ -3,7 +3,7 @@ use super::*;
 impl Function for Tanh {
     fn new() -> MlResult<Self> { Ok(Tanh { backend: Arc::new(CpuBackend::new()?) }) }
 
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
         let x = targets[0];
         let pos_exp = self.backend.exp(&x.data());
         let neg_exp = self.backend.exp(&x.data().iter().map(|&val| -val).collect::<Vec<f32>>());
@@ -21,13 +21,13 @@ impl Function for Tanh {
                         &neg_exp
                     )
                 ),
-                x.shape()
+                x.shape().as_slice()
             )?
         ])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
         let tanh_output = targets[0];
         let ones = vec![1.0f32; tanh_output.data().len()];
 
@@ -44,7 +44,7 @@ impl Function for Tanh {
                         )
                     )
                 ),
-                grad.shape()
+                grad.shape().as_slice()
             )?
         ])
     }

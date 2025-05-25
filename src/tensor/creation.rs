@@ -6,14 +6,13 @@ impl Tensor {
         let size: usize = shape.iter().product();
         let data = vec![0.0; size];
 
-        let mut tensor = TensorData {
+        let tensor = TensorData {
             data,
             shape: shape.to_vec(),
         };
-
-        Self(TENSOR_STORAGE.lock().unwrap()
-            .insert(NODE_ID_GEN.next(), *tensor)
-            .expect("Failed to insert tensor into storage"))
+        let node_id = NODE_ID_GEN.next();
+        TENSOR_STORAGE.lock().unwrap().insert(node_id, tensor);
+        Self(node_id)
     }
 
     pub fn zeros_like(&self) -> Self {
@@ -21,14 +20,14 @@ impl Tensor {
     }
 
     pub fn scalar(scalar: f32) -> Self {
-        let mut tensor = TensorData {
-            data: scalar.into(),
+        let tensor = TensorData {
+            data: vec![scalar],
             shape: vec![],
         };
 
-        Self(TENSOR_STORAGE.lock().unwrap()
-            .insert(NODE_ID_GEN.next(), *tensor)
-            .expect("Failed to insert tensor into storage"))
+        let node_id = NODE_ID_GEN.next();
+        TENSOR_STORAGE.lock().unwrap().insert(node_id, tensor);
+        Self(node_id)
     }
 }
 
@@ -37,14 +36,14 @@ impl TensorBase<f32> for Tensor {
         let shape = vec![data.len(), data[0].len()];
         let data: Vec<f32> = data.into_iter().flatten().collect();
 
-        let mut tensor = TensorData {
+        let tensor = TensorData {
             data,
             shape,
         };
 
-        Self(TENSOR_STORAGE.lock().unwrap()
-            .insert(NODE_ID_GEN.next(), *tensor)
-            .expect("Failed to insert tensor into storage"))
+        let node_id = NODE_ID_GEN.next();
+        TENSOR_STORAGE.lock().unwrap().insert(node_id, tensor);
+        Self(node_id)
     }
 
     fn from_vec(data: Vec<f32>, shape: &[usize]) -> MlResult<Tensor> {
@@ -56,32 +55,22 @@ impl TensorBase<f32> for Tensor {
             }));
         }
 
-        let mut tensor = TensorData {
+        let tensor = TensorData {
             data,
             shape: shape.to_vec(),
         };
 
-        TENSOR_STORAGE.lock().unwrap()
-            .insert(NODE_ID_GEN.next(), *tensor)
-            .expect("Failed to insert tensor into storage");
+        let node_id = NODE_ID_GEN.next();
+        TENSOR_STORAGE.lock().unwrap().insert(node_id, tensor);
+        Ok(Self(node_id))
     }
 
-    fn shape(&self) -> &[usize] {
-        &TENSOR_STORAGE.lock().unwrap().tensors.get(&self.0).unwrap().shape
-            .unwrap_or_else(|| {
-                panic!("Tensor {:?} not found in storage", self.0);
-            })
+    fn shape(&self) -> Vec<usize> {
+        TENSOR_STORAGE.lock().unwrap().tensors.get(&self.0).unwrap().shape.clone()
     }
 
-    fn data(&self) -> &[f32] {
-        &TENSOR_STORAGE.lock().unwrap().tensors.get(&self.0).unwrap().data
-            .unwrap_or_else(|| {
-                panic!("Tensor {:?} not found in storage", self.0);
-            })
-    }
-
-    fn get(&self, indices: &[usize]) -> Option<&f32> {
-        self.data().get(self.index(indices)?)
+    fn data(&self) -> Vec<f32> {
+        TENSOR_STORAGE.lock().unwrap().tensors.get(&self.0).unwrap().data.clone()
     }
 
     fn index(&self, indices: &[usize]) -> Option<usize> {
@@ -89,9 +78,8 @@ impl TensorBase<f32> for Tensor {
             return None;
         }
         Some(
-            indices
-                .iter()
-                .zip(&self.shape())
+            indices.iter()
+                .zip(self.shape().as_slice())
                 .fold(0, |acc, (&i, &dim)| acc * dim + i),
         )
     }
@@ -128,15 +116,16 @@ pub struct LabelGenerator;
 #[cfg(feature = "enableVisualization")]
 impl LabelGenerator {
     /// 텐서의 특성을 기반으로 직관적인 라벨 생성
-    pub fn generate_label(tensor: &NodeId, hint: Option<&str>) -> String {
+    pub fn generate_label(tensor: &Tensor, hint: Option<&str>) -> String {
         // 힌트가 제공된 경우 우선 사용
         if let Some(hint) = hint {
             return Self::get_unique_label(hint);
         }
 
         // 텐서 모양 기반 라벨 생성
-        let shape_label = Self::shape_to_label(tensor.shape());
-        let context_label = Self::infer_context_from_shape(tensor.shape());
+        let shape = tensor.shape();
+        let shape_label = Self::shape_to_label(shape.as_slice());
+        let context_label = Self::infer_context_from_shape(shape.as_slice());
 
         // 컨텍스트가 있으면 컨텍스트 우선, 없으면 모양 기반
         if !context_label.is_empty() {
@@ -243,12 +232,12 @@ impl LabelGenerator {
     }
 }
 
-impl Variable<f32> {
+impl Variable {
     /// 기본 생성자 - 텐서 모양 기반 자동 라벨링
     pub fn new(tensor: Tensor) -> Self {
         Self {
             #[cfg(feature = "enableVisualization")]
-            label: LabelGenerator::generate_label(&tensor.0, None),
+            label: LabelGenerator::generate_label(&tensor, None),
             tensor,
             requires_grad: false,
 
@@ -263,7 +252,7 @@ impl Variable<f32> {
     pub fn with_label(tensor: Tensor, label_hint: &str) -> Self {
         Variable {
             #[cfg(feature = "enableVisualization")]
-            label: LabelGenerator::generate_label(&tensor.0, Some(label_hint)),
+            label: LabelGenerator::generate_label(&tensor, Some(label_hint)),
             tensor,
             requires_grad: false,
 
@@ -340,12 +329,20 @@ impl Variable<f32> {
         self.tensor = tensor
     }
 
+    /// 변수가 보유한 텐서 아이디의 참조 반환
+    ///
+    /// # 반환 값
+    /// - 내부 텐서 아이디의 불변 참조
+    pub fn node_id(&self) -> &NodeId {
+        &self.tensor.0
+    }
+
     /// 변수가 보유한 텐서의 참조 반환
     ///
     /// # 반환 값
-    /// - 내부 텐서 데이터의 불변 참조
-    pub fn node_id(&self) -> &NodeId {
-        &self.tensor.0
+    /// - 내부 텐서의 불변 참조
+    pub fn tensor(&self) -> Tensor {
+        self.tensor
     }
 
     /// 그래디언트 보존 여부 확인
@@ -381,7 +378,7 @@ impl Variable<f32> {
     pub fn accumulate_grad(&self, grad: Tensor) -> MlResult<()> {
         let mut buffer = self.grad_buffer.lock().unwrap();
         if buffer.is_none() {
-            *buffer = Some(GradientBuffer::new(self.tensor.shape()));
+            *buffer = Some(GradientBuffer::new(self.tensor.shape().as_slice()));
         }
 
         if let Some(ref mut buf) = *buffer {
@@ -402,7 +399,7 @@ impl Variable<f32> {
     pub fn set_grad(&self, grad: Tensor) -> MlResult<()> {
         let mut buffer = self.grad_buffer.lock().unwrap();
         *buffer = Some({
-            let mut buf = GradientBuffer::new(self.tensor.shape());
+            let mut buf = GradientBuffer::new(self.tensor.shape().as_slice());
             buf.accumulate(&grad)?;
             buf
         });

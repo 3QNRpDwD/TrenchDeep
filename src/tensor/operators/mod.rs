@@ -103,11 +103,11 @@ pub trait Function {
     ///
     /// # 오류
     /// - 입력 텐서의 형태나 데이터가 연산에 적합하지 않을 경우
-    fn forward(&self, _targets: &[&Tensor]) -> MlResult<Vec<Tensor>>{
+    fn forward(&self, _targets: &[Tensor]) -> MlResult<Vec<Tensor>>{
         unimplemented!("Forward pass is not implemented")
     }
 
-    fn forward_inplace(&self, inputs: &[&Tensor], output: &mut Tensor) -> MlResult<()> {
+    fn forward_inplace(&self, inputs: &[Tensor], output: &mut Tensor) -> MlResult<()> {
         let result = self.forward(inputs)?;
         *output = result.into_iter().next().unwrap();
         Ok(())
@@ -128,7 +128,7 @@ pub trait Function {
     /// # 오류
     /// - 그래디언트 계산에 실패하거나 입력이 유효하지 않을 경우
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
         // enableBackpropagation만 활성화된 경우의 기본 구현
         unimplemented!("Backward pass is not implemented")
     }
@@ -142,7 +142,7 @@ pub trait Function {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward_inplace(&self, inputs: &[&Tensor], grad_output: &Tensor,
+    fn backward_inplace(&self, inputs: &[Tensor], grad_output: Tensor,
                         grad_inputs: &mut [Tensor]) -> MlResult<()> {
         let grads = self.backward(inputs, grad_output)?;
         for (dst, src) in grad_inputs.iter_mut().zip(grads) {
@@ -182,8 +182,6 @@ impl ApproxCos {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use crate::tensor::operators::{Exp, Sin};
     use crate::tensor::{AutogradFunction, operators::{Add, Function, Mul, Pow, Square}, Tensor, TensorBase, Variable};
     use crate::{variable, MlResult};
@@ -195,7 +193,7 @@ mod tests {
         Ok(())
     }
 
-    pub fn assert_variable_eq(variable: &Variable<f32>, expected_variable: &Variable<f32>) -> MlResult<()> {
+    pub fn assert_variable_eq(variable: &Variable, expected_variable: &Variable) -> MlResult<()> {
         assert_eq!(variable.tensor.data(), expected_variable.tensor.data());
         assert_eq!(variable.tensor.shape(), expected_variable.tensor.shape());
         Ok(())
@@ -317,15 +315,15 @@ mod tests {
         let b = Variable::new(exp   .forward(&[ a.tensor() ])?.remove(0)); // b = B(a)
         let y = Variable::new(square.forward(&[ b.tensor() ])?.remove(0)); // y = C(b)
 
-        print_forward(x.tensor(), a.tensor(), b.tensor(), y.tensor());
-        assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
+        print_forward(&x.tensor(), &a.tensor(), &b.tensor(), &y.tensor());
+        assert_tensor_eq(&y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
 
         #[cfg(feature = "enableBackpropagation")]
         {
-            y.set_grad(Tensor::new(vec![vec![1.0]]));                                  // dy = 1
-            b.set_grad(square.backward(&[b.tensor()], &y.grad().unwrap())?.remove(0));   // dy/db = dy/dy * 2b
-            a.set_grad(exp   .backward(&[a.tensor()], &b.grad().unwrap())?.remove(0));   // dy/da = (dy/db) * db/da
-            x.set_grad(square.backward(&[x.tensor()], &a.grad().unwrap())?.remove(0));   // dy/dx = (dy/da) * da/dx
+            y.set_grad(Tensor::new(vec![vec![1.0]]))?;                                  // dy = 1
+            b.set_grad(square.backward(&[b.tensor()], y.grad().unwrap())?.remove(0))?;   // dy/db = dy/dy * 2b
+            a.set_grad(exp   .backward(&[a.tensor()], b.grad().unwrap())?.remove(0))?;   // dy/da = (dy/db) * db/da
+            x.set_grad(square.backward(&[x.tensor()], a.grad().unwrap())?.remove(0))?;   // dy/dx = (dy/da) * da/dx
 
             print_backward(&y.grad(), &b.grad(), &a.grad(), &x.grad());
             assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
@@ -338,13 +336,13 @@ mod tests {
         let square = Square::new()?;
         let exp = Exp::new()?;
 
-        let x = Arc::new(variable!(vec![vec![0.5]]));
+        let x = variable!(vec![vec![0.5]]);
         let a = square.apply(&[&x])?;
         let b = exp   .apply(&[&a])?;
         let y = square.apply(&[&b])?;
 
-        crate::tensor::tests::assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
-        print_forward(x.tensor(), a.tensor(), b.tensor(), y.tensor());
+        crate::tensor::tests::assert_tensor_eq(&y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
+        print_forward(&x.tensor(), &a.tensor(), &b.tensor(), &y.tensor());
 
         #[cfg(feature = "enableBackpropagation")]
         {
@@ -360,8 +358,8 @@ mod tests {
     fn wtf() -> MlResult<()> {
         let add = Add::new()?;
 
-        let x0 = Arc::new(variable!(vec![vec![1.0]]));
-        let x1 = Arc::new(variable!(vec![vec![1.0]]));
+        let x0 = variable!(vec![vec![1.0]]);
+        let x1 = variable!(vec![vec![1.0]]);
         let t = add.apply(&[&x0, &x1])?; // t = x0 + x1 = 2
         let y = add.apply(&[&x0, &t])?; // y = x0 + t = 3
 
@@ -403,7 +401,7 @@ mod tests {
         let add = Add::new()?;
         let square = Square::new()?;
 
-        let x = Arc::new(variable!(vec![vec![2.0]]));
+        let x = variable!(vec![vec![2.0]]);
         let a = square.apply(&[&x])?;
         let y = add.apply(&[&square.apply(&[&a])?, &square.apply(&[&a])?])?;
         assert_eq!(y.tensor().data(), Tensor::new(vec![vec![32.0]]).data());
@@ -421,7 +419,7 @@ mod tests {
     fn wtf3() -> MlResult<()> { // 기울기 2, 3 나오면 됨
         let add = Add::new()?;
 
-        let x = Arc::new(variable!(vec![vec![3.0]]));
+        let x = variable!(vec![vec![3.0]]);
         let y = add.apply(&[&x, &x])?; // y = add(x, x)
         #[cfg(feature = "enableBackpropagation")]
         {
@@ -441,8 +439,8 @@ mod tests {
         let add = Add::new()?;
         let square = Square::new()?;
 
-        let x = Arc::new(variable!(vec![vec![2.0]]));
-        let y = Arc::new(variable!(vec![vec![3.0]]));
+        let x = variable!(vec![vec![2.0]]);
+        let y = variable!(vec![vec![3.0]]);
         let z = add.apply(&[&square.apply(&[&x])?, &square.apply(&[&y])?])?; // z = add(square(x), square(y))
         assert_eq!(z.tensor().data(), Tensor::new(vec![vec![13.0]]).data());
 
@@ -461,9 +459,9 @@ mod tests {
         let add = Add::new()?;
         let mul = Mul::new()?;
 
-        let a = Arc::new(variable!(vec![vec![3.0]]));
-        let b = Arc::new(variable!(vec![vec![2.0]]));
-        let c = Arc::new(variable!(vec![vec![1.0]]));
+        let a = variable!(vec![vec![3.0]]);
+        let b = variable!(vec![vec![2.0]]);
+        let c = variable!(vec![vec![1.0]]);
 
         let y = add.apply(&[&mul.apply(&[&a, &b])?, &c])?;
 
@@ -471,7 +469,7 @@ mod tests {
         {
             y.backward()?;
 
-            assert_eq!(y.tensor(), &Tensor::new(vec![vec![7.0]]));
+            assert_eq!(&y.tensor(), &Tensor::new(vec![vec![7.0]]));
             assert_eq!(a.grad(), Some(Tensor::new(vec![vec![2.0]])));
             assert_eq!(b.grad(), Some(Tensor::new(vec![vec![3.0]])));
         }
@@ -483,14 +481,14 @@ mod tests {
         let mut pow = Pow::new()?;
         pow.power = Some(3.0);
 
-        let x = Arc::new(variable!(vec![vec![2.0]]));
+        let x = variable!(vec![vec![2.0]]);
         let y = pow.apply(&[&x])?; // y = x^3
 
         #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?; // dy/dx = 3x^2
 
-            assert_eq!(y.tensor(), &Tensor::new(vec![vec![8.0]]));
+            assert_eq!(&y.tensor(), &Tensor::new(vec![vec![8.0]]));
             assert_eq!(x.grad(), Some(Tensor::new(vec![vec![12.0]])));
         }
         Ok(())
@@ -500,14 +498,14 @@ mod tests {
     fn trigonometry_sin() -> MlResult<()> {
         let sin = Sin::new()?;
 
-        let x = Arc::new(variable!(vec![vec![std::f32::consts::PI / 4.0]])); // 45도 (45 * 4 = 180)
+        let x = variable!(vec![vec![std::f32::consts::PI / 4.0]]); // 45도 (45 * 4 = 180)
         let y = sin.apply(&[&x])?;
 
         #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?;
 
-            assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
+            assert_tensor_eq(&y.tensor(), &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
             assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
         }
         Ok(())

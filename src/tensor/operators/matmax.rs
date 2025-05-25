@@ -14,7 +14,7 @@ impl Function for Matmax {
     /// If dim is None, returns a tensor with a single element containing the maximum value.
     /// If dim is specified, returns a tuple of two tensors (values, indices) containing the
     /// maximum values and their indices along the specified dimension.
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
         let target_0 = targets[0];
         let target_0_shape = target_0.shape();
         let target_0_data = target_0.data();
@@ -22,7 +22,7 @@ impl Function for Matmax {
             None => {
                 // Find global maximum
                 let max_val = target_0_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-                vec![Tensor::from_vec(vec![max_val], &vec![1])?, Tensor::zeros(target_0_shape)]
+                vec![Tensor::from_vec(vec![max_val], &vec![1])?, Tensor::zeros(target_0_shape.as_slice())]
             }
             Some(d) => {
                 let dim = if d < 0 {
@@ -80,7 +80,7 @@ impl Function for Matmax {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
         todo!()
     }
 

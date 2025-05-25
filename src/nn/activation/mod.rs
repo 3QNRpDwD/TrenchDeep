@@ -9,7 +9,7 @@ pub trait Activation<Type: Debug + Clone>: Function + AutogradFunction<Type> {
     fn new() -> MlResult<Self> where Self: Sized {
         <Self as Function>::new()
     }
-    fn apply(&mut self, input: &Arc<Variable<Type>>) -> MlResult<Variable<Type>> where Self: AutogradFunction<Type> {
+    fn apply(&mut self, input: &Arc<Variable>) -> MlResult<Variable> where Self: AutogradFunction<Type> {
         <Self as AutogradFunction<Type>>::apply(self, &[input])
     }
 }
@@ -18,7 +18,7 @@ impl<T: Function + Clone + 'static> Activation<f32> for T {
     fn new() -> MlResult<Self> where Self: Sized {
         <Self as Function>::new()
     }
-    fn apply(&mut self, input: &Arc<Variable<f32>>) -> MlResult<Variable<f32>> {
+    fn apply(&mut self, input: &Arc<Variable>) -> MlResult<Variable> {
         <Self as AutogradFunction<f32>>::apply(self, &[input])
     }
 }

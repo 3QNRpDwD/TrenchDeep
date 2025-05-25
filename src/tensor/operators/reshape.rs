@@ -13,7 +13,7 @@ impl Function for Reshape {
     ///
     /// # Returns
     /// A new tensor with the specified shape.
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
         let target = targets[0];
         let target_shape = target.shape();
         let target_size: usize = target_shape.iter().product();
@@ -28,11 +28,11 @@ impl Function for Reshape {
             }));
         }
 
-        Ok(vec![Tensor::from_vec(target.data().to_vec(), new_shape)?])
+        Ok(vec![Tensor::from_vec(target.data().to_vec(), new_shape.as_slice())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
         let target = targets[0];
         let target_shape = target.shape();
         let target_size: usize = target_shape.iter().product();
@@ -46,6 +46,6 @@ impl Function for Reshape {
             }));
         }
 
-        Ok(vec![Tensor::from_vec(grad.data().to_vec(), target_shape)?])
+        Ok(vec![Tensor::from_vec(grad.data().to_vec(), target_shape.as_slice())?])
     }
 }

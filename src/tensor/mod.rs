@@ -9,7 +9,8 @@ use std::{
 };
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
+use once_cell::unsync::Lazy;
 
 pub mod creation;
 pub mod operators;
@@ -17,6 +18,7 @@ pub mod display;
 pub mod graph;
 
 use crate::{MlError, MlResult, tensor::operators::Function, TensorError};
+use crate::tensor::operators::Matmax;
 
 /// 다양한 텐서 연산을 위한 편리한 매크로를 제공합니다.
 ///
@@ -60,28 +62,28 @@ macro_rules! tensor_ops {
     ($tensor:expr, Pow, $exponent:expr) => {{
         let mut op = Pow::new().unwrap();
         op.power = Some($exponent);
-        op.forward(&[&$tensor]).unwrap().remove(0)
+        op.forward(&[$tensor]).unwrap().remove(0)
     }};
 
     ($tensor:expr, $op:ident, $second_tensor:expr) => {
-        $op::new().unwrap().forward(&[&$tensor, &$second_tensor]).unwrap().remove(0)
+        $op::new().unwrap().forward(&[$tensor, $second_tensor]).unwrap().remove(0)
     };
 
     ($tensor:expr, $op:ident) => {
-        $op::new().unwrap().forward(&[&$tensor]).unwrap().remove(0)
+        $op::new().unwrap().forward(&[$tensor]).unwrap().remove(0)
     };
 
     ($tensor:expr, Topk, $k:expr, $sorted:expr) => {{
         let mut op = Topk::new().unwrap();
         op.topk = Some(($k, $sorted));
-        let mut result = op.forward(&[&$tensor]).unwrap();
+        let mut result = op.forward(&[$tensor]).unwrap();
         (result.remove(0), result.remove(0))
     }};
 
     ($tensor:expr, Matmax, $dim:expr, $keepdim:expr) => {{
         let mut op = Matmax::new().unwrap();
         op.matmax = Some(($dim, $keepdim));
-        let mut result = op.forward(&[&$tensor]).unwrap();
+        let mut result = op.forward(&[$tensor]).unwrap();
         (result.remove(0), result.remove(0))
     }};
 }
@@ -194,7 +196,7 @@ macro_rules! variable {
 /// # 필드
 /// - `data`: 텐서의 데이터를 1차원 벡터 형태로 저장
 /// - `shape`: 텐서의 차원을 나타내는 크기 배열 (예: `[행, 열]` 또는 `[채널, 높이, 너비]`)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct TensorData<Type> {
     data: Vec<Type>,
     shape: Vec<usize>,
@@ -215,7 +217,7 @@ impl Tensor {
 }
 
 pub struct TensorStorage<T> {
-    tensors: HashMap<NodeId, *mut TensorData<T>>
+    tensors: HashMap<NodeId, TensorData<T>>
 }
 
 
@@ -226,15 +228,16 @@ impl TensorStorage<f32> {
         }
     }
 
-    pub fn insert(&mut self, id: NodeId, tensor: *mut TensorData<f32>) {
+    pub fn insert(&mut self, id: NodeId, tensor: TensorData<f32>) -> NodeId {
         self.tensors.insert(id, tensor);
+        id
     }
 
-    pub fn get(&self, id: &NodeId) -> Option<&*mut TensorData<f32>> {
+    pub fn get(&self, id: &NodeId) -> Option<&TensorData<f32>> {
         self.tensors.get(id)
     }
 
-    pub fn remove(&mut self, id: &NodeId) -> Option<*mut TensorData<f32>> {
+    pub fn remove(&mut self, id: &NodeId) -> Option<TensorData<f32>> {
         self.tensors.remove(id)
     }
 
@@ -245,45 +248,51 @@ impl TensorStorage<f32> {
     pub fn contains(&self, id: &NodeId) -> bool {
         self.tensors.contains_key(id)
     }
-}
-static TENSOR_STORAGE: Arc<Mutex<TensorStorage<f32>>> = Arc::new(Mutex::new(TensorStorage::new()));
 
+    pub fn update(&mut self, id: &NodeId, f: impl FnOnce(&mut TensorData<f32>)) {
+        if let Some(tensor) = self.tensors.get_mut(id) {
+            f(&mut *tensor); // 락 획득 후 수정
+        }
+    }
+}
+static TENSOR_STORAGE: Lazy<Mutex<TensorStorage<f32>>> =Lazy::new(|| Mutex::new(TensorStorage::new()));
 #[derive(Debug, Clone)]
-pub struct GradientBuffer<T> {
-    buffer: Vec<T>,
-    shape: Vec<usize>,
+pub struct GradientBuffer {
+    buffer: Tensor,
     initialized: bool,
 }
 
-impl GradientBuffer<f32> {
+impl GradientBuffer {
     pub fn new(shape: &[usize]) -> Self {
-        let size = shape.iter().product();
         Self {
-            buffer: vec![0.0; size],
-            shape: shape.to_vec(),
+            buffer: Tensor::zeros(shape),
             initialized: false,
         }
     }
 
     pub fn accumulate(&mut self, grad: &Tensor) -> MlResult<()> {
-        if grad.shape() != self.shape() {
+        if grad.shape() != self.buffer.shape() {
             return Err(MlError::StringError("Shape mismatch in gradient accumulation".to_string()));
         }
 
         if !self.initialized {
-            self.buffer.copy_from_slice(&grad.data());
+            TENSOR_STORAGE.lock().unwrap().update(&self.buffer.get_id(), |tensor| {
+                tensor.data = grad.data().to_vec();
+            });
             self.initialized = true;
         } else {
-            for (acc, &val) in self.buffer.iter_mut().zip(&grad.data()) {
-                *acc += val;
-            }
+            TENSOR_STORAGE.lock().unwrap().update(&self.buffer.get_id(), |tensor| {
+                for (acc, val) in tensor.data.iter_mut().zip(grad.data()) {
+                    *acc += val;
+                }
+            });
         }
         Ok(())
     }
 
     pub fn get_tensor(&self) -> Option<Tensor> {
         if self.initialized {
-            Tensor::from_vec(self.buffer.clone(), &self.shape).ok()
+            Tensor::from_vec(self.buffer.data().to_vec(), &self.buffer.shape()).ok()
         } else {
             None
         }
@@ -291,9 +300,9 @@ impl GradientBuffer<f32> {
 
     pub fn clear(&mut self) {
         self.initialized = false;
-        for item in &mut self.buffer {
-            *item = 0.0;
-        }
+        TENSOR_STORAGE.lock().unwrap().update(&self.buffer.get_id(), |tensor| {
+            tensor.data.fill(0.0); // 모든 요소를 0으로 초기화
+        });
     }
 }
 
@@ -306,7 +315,8 @@ impl GradientBuffer<f32> {
 /// - `requires_grad`: 그래디언트 계산이 필요한지 여부
 /// - `grad`: 역전파를 위한 그래디언트 (옵션으로 저장되며, `RefCell`로 래핑되어 가변성 제공)
 ///   - `enableBackpropagation` 기능이 활성화된 경우에만 포함됨
-pub struct Variable<T> {
+#[derive(Debug, Clone)]
+pub struct Variable {
     #[cfg(feature = "enableVisualization")]
     label: String,
 
@@ -314,7 +324,7 @@ pub struct Variable<T> {
     pub requires_grad: bool,
 
     #[cfg(feature = "enableBackpropagation")]
-    grad_buffer: Arc<Mutex<Option<GradientBuffer<T>>>>,
+    grad_buffer: Arc<Mutex<Option<GradientBuffer>>>,
 
     #[cfg(feature = "enableBackpropagation")]
     grad_accumulated: Arc<Mutex<bool>>,
@@ -366,17 +376,19 @@ type FuncId = *const dyn Function;
 /// - `inputs`: 이 노드의 입력으로 사용되는 다른 노드들의 ID 목록
 ///
 #[cfg(feature = "enableBackpropagation")]
-pub struct ComputationNode<T> {
+#[derive(Clone)]
+pub struct ComputationNode {
     pub id: NodeId,
-    pub variable: Arc<Variable<T>>,
+    pub variable: Arc<RwLock<Variable>>,
     pub function: Option<Arc<dyn Function>>,
     pub inputs: Vec<NodeId>,
     pub is_leaf: bool,
 }
 
 #[cfg(feature = "enableBackpropagation")]
-pub struct ComputationGraph<T> {
-    nodes: Vec<ComputationNode<T>>,
+#[derive(Clone)]
+pub struct ComputationGraph {
+    nodes: Vec<ComputationNode>,
     node_map: std::collections::HashMap<NodeId, usize>,
     adjacency_list: Vec<Vec<usize>>,
     reverse_adjacency: Vec<Vec<usize>>,
@@ -405,34 +417,14 @@ pub enum NodeType {
 }
 
 #[cfg(feature = "enableBackpropagation")]
-impl PartialEq for &Variable<f32> {
-    fn eq(&self, other: &&Variable<f32>) -> bool {
+impl PartialEq for &Variable {
+    fn eq(&self, other: &&Variable) -> bool {
         self.tensor == other.tensor &&
             self.requires_grad == other.requires_grad &&
             self.label== other.label
     }
 }
 
-impl Eq for TensorData<f32> {
-    // Todo: 구현 필요
-}
-
-impl PartialEq for TensorData<f32> {
-    fn eq(&self, other: &Self) -> bool {
-        self.data() == other.data() && self.shape() == other.shape()
-    }
-}
-impl PartialOrd for TensorData<f32> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.data().partial_cmp(&other.data())
-    }
-}
-
-impl Ord for TensorData<f32> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
-    }
-}
 /// 텐서의 기본 동작을 정의하는 트레잇입니다.
 ///
 /// 이 트레잇은 텐서 생성, 데이터 접근, 형태 확인 등의 기본 기능을 제공합니다.
@@ -471,7 +463,7 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 반환값
     /// - `&[usize]`: 텐서의 차원을 나타내는 슬라이스
-    fn shape(&self) -> &[usize] {
+    fn shape(&self) -> Vec<usize> {
         unimplemented!(" TensorBase::shape() is not implemented ")
     }
 
@@ -479,7 +471,7 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 반환값
     /// - `&[Type]`: 텐서의 데이터를 나타내는 슬라이스
-    fn data(&self) -> &[Type] {
+    fn data(&self) -> Vec<Type> {
         unimplemented!(" TensorBase::data() is not implemented ")
     }
 
@@ -559,7 +551,7 @@ pub trait TensorBase<Type: Debug + Clone> {
 /// - 현재 버전에서는 다중 입력/출력에 대한 역전파를 지원하지 않음
 /// - f32 데이터 타입 전용으로 특화됨
 pub trait AutogradFunction<Type: Debug + Clone>: Function + Clone where Self: 'static {
-    fn apply(&self, _inputs: &[&Variable<Type>]) -> MlResult<Variable<Type>> {
+    fn apply(&self, _inputs: &[&Variable]) -> MlResult<Variable> {
         unimplemented!(" AutogradFunction::apply() not implemented for this type")
     }
 }

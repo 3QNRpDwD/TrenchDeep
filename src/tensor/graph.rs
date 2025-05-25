@@ -4,35 +4,35 @@ use std::collections::{HashMap};
 // 전역 계산 그래프 (스레드 로컬)
 #[cfg(feature = "enableBackpropagation")]
 thread_local! {
-    pub(crate) static COMPUTATION_GRAPH: Arc<Mutex<ComputationGraph<f32>>> = Arc::new(Mutex::new(ComputationGraph::new()));
+    pub(crate) static COMPUTATION_GRAPH: Arc<Mutex<ComputationGraph>> = Arc::new(Mutex::new(ComputationGraph::new()));
     #[cfg(feature = "enableVisualization")]
     pub(crate) static VISUALIZATION_GRAPH: std::cell::RefCell<VisualizationGraph> = std::cell::RefCell::new(VisualizationGraph::new());
 }
 
 #[cfg(feature = "enableBackpropagation")]
-impl Variable<f32> {
-    pub fn with_grad_fn(self: Arc<Self>, function: Arc<dyn Function>,
-                        inputs: &[&Arc<Variable<f32>>]) {
+impl Variable {
+    pub fn with_grad_fn(&self, function: Arc<dyn Function>,
+                        inputs: &[&Variable]) {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
 
             // 입력 노드들이 그래프에 없으면 추가
             let input_ids: Vec<NodeId> = inputs.iter().map(|&input_var| {
-                if !graph.node_map.contains_key(&input_var.node_id()) {
-                    graph.add_input(input_var.clone());
+                if !graph.node_map.contains_key(input_var.node_id()) {
+                    graph.add_input(input_var);
                 }
-                input_var.node_id()
+                *input_var.node_id()
             }).collect();
 
             graph.add_operation(self, function, input_ids);
         });
     }
 
-    pub fn backward(self: &Arc<Self>) -> MlResult<()> {
+    pub fn backward(&self) -> MlResult<()> {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
 
-            if graph.node_map.contains_key(&self.node_id()) {
+            if graph.node_map.contains_key(self.node_id()) {
                 graph.backward(self.node_id())
             } else {
                 Err(MlError::StringError("계산 그래프가 생성되지 않았습니다.".to_string()))
@@ -99,7 +99,7 @@ impl Variable<f32> {
 // }
 
 #[cfg(feature = "enableBackpropagation")]
-impl ComputationGraph<f32> {
+impl ComputationGraph {
     pub fn new() -> Self {
         Self {
             nodes: Vec::new(),
@@ -113,7 +113,7 @@ impl ComputationGraph<f32> {
     }
 
 
-    pub(crate) fn add_input(&mut self, variable: Arc<Variable<f32>>) -> NodeId {
+    pub(crate) fn add_input(&mut self, variable: &Variable) -> NodeId {
         let node_id = variable.node_id();
         let node_idx = self.nodes.len();
 
@@ -127,7 +127,7 @@ impl ComputationGraph<f32> {
 
         let node = ComputationNode {
             id: *node_id,
-            variable,
+            variable: Arc::new(RwLock::new(variable.clone())),
             function: None,
             inputs: Vec::new(),
             is_leaf: true,
@@ -142,7 +142,7 @@ impl ComputationGraph<f32> {
         *node_id
     }
 
-    pub(crate) fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function>,  inputs: Vec<NodeId>) -> NodeId {
+    pub(crate) fn add_operation(&mut self, variable: &Variable, function: Arc<dyn Function>,  inputs: Vec<NodeId>) -> NodeId {
         let output_id = variable.node_id();
 
         #[cfg(feature = "enableVisualization")]
@@ -163,7 +163,7 @@ impl ComputationGraph<f32> {
 
                 // 입력에서 함수로의 엣지
                 for input_id in &inputs {
-                    viz.add_var_to_func(&input_id, &func_id, "data_flow");
+                    viz.add_var_to_func(input_id, &func_id, "data_flow");
                 }
 
                 // 함수에서 출력으로의 엣지
@@ -182,7 +182,7 @@ impl ComputationGraph<f32> {
 
         let node = ComputationNode {
             id: *output_id,
-            variable,
+            variable: Arc::new(RwLock::new(variable.clone())),
             function: Some(function),
             inputs,
             is_leaf: false,
@@ -248,7 +248,7 @@ impl ComputationGraph<f32> {
 
         // 모든 노드의 gradient 초기화
         for node in &self.nodes {
-            node.variable.clear_grad();
+            node.variable.write().unwrap().clear_grad();
         }
 
         // 출력 노드의 gradient를 1.0으로 설정
@@ -256,12 +256,16 @@ impl ComputationGraph<f32> {
             .ok_or_else(|| MlError::StringError("Output node not found".to_string()))?;
 
         let output_var = &self.nodes[output_idx].variable;
-        if output_var.grad().is_none() {
+        let output_read = output_var.read().unwrap();
+        let binding = output_read.tensor().shape();
+        let output_shape = binding.as_slice();
+
+        if output_read.grad().is_none() {
             let grad = Tensor::from_vec(
-                vec![1.0; output_var.tensor.shape().iter().product()],
-                output_var.tensor.shape()
+                vec![1.0; output_shape.iter().product()],
+                output_shape
             ).map_err(|_| MlError::StringError("Failed to create gradient tensor".to_string()))?;
-            output_var.set_grad(grad)?
+            output_var.write().unwrap().set_grad(grad)?
         }
 
 
@@ -269,25 +273,27 @@ impl ComputationGraph<f32> {
         for &node_idx in &self.topo_order {
             let node = &self.nodes[node_idx];
 
-            if node.function.is_none() || node.variable.grad().is_none() {
+            let var = node.variable.read().unwrap();
+            let grad = var.grad();
+            if node.function.is_none() || grad.is_none() {
                 continue;
             }
 
             if let Some(function) = &node.function {
-                let input_tensors: Vec<&Tensor> = node.inputs
+                let input_tensors: Vec<Tensor> = node.inputs
                     .iter()
                     .map(|&input_id| {
                         let input_idx = self.node_map[&input_id];
-                        self.nodes[input_idx].variable.tensor()
+                        self.nodes[input_idx].variable.read().unwrap().tensor()
                     })
-                    .collect();
+                    .collect::<Vec<Tensor>>();
 
-                if let Some(output_grad) = node.variable.grad() {
-                    let input_grads = function.backward(&input_tensors, &output_grad)?;
+                if let Some(output_grad) = grad {
+                    let input_grads = function.backward(input_tensors.as_slice(), output_grad)?;
 
                     for (input_id, grad) in node.inputs.iter().zip(input_grads) {
                         let input_idx = self.node_map[input_id];
-                        self.nodes[input_idx].variable.accumulate_grad(grad)?;
+                        self.nodes[input_idx].variable.write().unwrap().accumulate_grad(grad)?;
                     }
                 }
             }
@@ -664,13 +670,12 @@ impl VisualizationGraph {
 
 
 impl<F: Function + Clone +  'static> AutogradFunction<f32> for F {
-    fn apply(&self, inputs: &[&Variable<f32>]) -> MlResult<Variable<f32>> {
-        let tensors: Vec<&Tensor> = inputs.iter().map(|&var| var.tensor()).collect();
-        let results = Variable::new(self.forward(&tensors)?.remove(0));
+    fn apply(&self, inputs: &[&Variable]) -> MlResult<Variable> {
+        let tensors: Vec<Tensor> = inputs.iter().map(|&var| var.tensor()).collect::<Vec<Tensor>>();
+        let result = Variable::new(self.forward(&tensors)?.remove(0));
 
         #[cfg(feature = "enableBackpropagation")]
         {
-            let result = Arc::new(results);
             result.clone().with_grad_fn(Arc::new(self.clone()), inputs);
             return Ok(result)
         }
@@ -679,6 +684,6 @@ impl<F: Function + Clone +  'static> AutogradFunction<f32> for F {
         // 따라서 매 계산마다 계산그래프를 갱신하는 현재 구조를 유지하게될것 같은데, 이는 계산그래프 갱신으로 인한 오버헤드가 예상됨.
         // 솔직히 어느 방식을 선택해야할지잘 모르겠음.
 
-        Ok(Arc::new(results))
+        Ok(result)
     }
 }

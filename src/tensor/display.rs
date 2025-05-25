@@ -37,34 +37,32 @@ impl Display for MlError {
     }
 }
 
-impl<Type: Debug> Debug for Variable<Type> {
+impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let mut ds = f.debug_struct("Variable");
-        ds
-            .field("tensor", &self.tensor)
-            .field("requires_grad", &self.requires_grad);
-        #[cfg(feature = "enableBackpropagation")]
-        {
-            ds.field("grad", &self.grad_buffer);
-        }
-        ds.finish()
+        write!(
+            f, "data: {:?}, shape: {:?}",
+            self.data(), self.shape()
+        )
     }
 }
 
 #[cfg(feature = "enableBackpropagation")]
-impl<Type: Debug + Clone> Debug for ComputationGraph<Type> {
+impl Debug for ComputationGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut ds = f.debug_struct("ComputationGraph");
         ds
             .field("nodes", &self.nodes)
+            .field("node_map", &self.node_map)
             .field("adjacency_list", &self.adjacency_list)
-            .field("sorted", &self.is_sorted)
+            .field("reverse_adjacency", &self.reverse_adjacency)
+            .field("topo_order", &self.topo_order)
+            .field("is_sorted", &self.is_sorted)
             .finish()
     }
 }
 
 #[cfg(feature = "enableBackpropagation")]
-impl<Type: Debug + Clone> Debug for ComputationNode<Type> {
+impl Debug for ComputationNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut ds = f.debug_struct("ComputationNode");
         ds
@@ -74,14 +72,5 @@ impl<Type: Debug + Clone> Debug for ComputationNode<Type> {
             .field("inputs", &self.inputs)
             .field("is_leaf", &self.is_leaf)
             .finish()
-    }
-}
-
-impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(
-            f, "data: {:?}, shape: {:?}",
-            self.data(), self.shape()
-        )
     }
 }
