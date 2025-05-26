@@ -23,6 +23,9 @@ impl Display for TensorError {
             }
             TensorError::EmptyTensor => {
                 write!(f, "Empty tensor")
+            },
+            &TensorError::TensorNotFound => {
+                write!(f, "Tensor not found")
             }
         }
     }
@@ -37,34 +40,32 @@ impl Display for MlError {
     }
 }
 
-impl<Type: Debug> Debug for Variable<Type> {
+impl Debug for Tensor {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let mut ds = f.debug_struct("Variable");
-        ds
-            .field("tensor", &self.tensor)
-            .field("requires_grad", &self.requires_grad);
-        #[cfg(feature = "enableBackpropagation")]
-        {
-            ds.field("grad", &self.grad);
-        }
-        ds.finish()
+        write!(
+            f, "data: {:?}, shape: {:?}",
+            self.with_data(|data| data.to_vec()), self.with_shape(|shape| shape.to_vec())
+        )
     }
 }
 
 #[cfg(feature = "enableBackpropagation")]
-impl<Type: Debug + Clone> Debug for ComputationGraph<Type> {
+impl Debug for ComputationGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut ds = f.debug_struct("ComputationGraph");
         ds
             .field("nodes", &self.nodes)
-            .field("topo_sorted", &self.topo_sorted)
-            .field("sorted", &self.sorted)
+            .field("node_map", &self.node_map)
+            .field("adjacency_list", &self.adjacency_list)
+            .field("reverse_adjacency", &self.reverse_adjacency)
+            .field("topo_order", &self.topo_order)
+            .field("is_sorted", &self.is_sorted)
             .finish()
     }
 }
 
 #[cfg(feature = "enableBackpropagation")]
-impl<Type: Debug + Clone> Debug for ComputationNode<Type> {
+impl Debug for ComputationNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut ds = f.debug_struct("ComputationNode");
         ds
@@ -72,16 +73,7 @@ impl<Type: Debug + Clone> Debug for ComputationNode<Type> {
             .field("variable", &self.variable)
             .field("function", &self.function.as_ref().map(|f| f.type_name()))
             .field("inputs", &self.inputs)
-            .field("is_life", &self.is_life)
+            .field("is_leaf", &self.is_leaf)
             .finish()
-    }
-}
-
-impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(
-            f, "data: {:?}, shape: {:?}",
-            self.data(), self.shape()
-        )
     }
 }

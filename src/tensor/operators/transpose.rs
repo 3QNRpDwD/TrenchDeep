@@ -1,8 +1,8 @@
 use super::*;
 
 
-impl Function<f32> for Transpose {
-    fn forward(&self, input: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+impl Function for Transpose {
+    fn forward(&self, input: &[Tensor]) -> MlResult<Vec<Tensor>> {
         let input = input[0];
         let rank = input.shape().len();
         if rank < 2 {
@@ -19,25 +19,25 @@ impl Function<f32> for Transpose {
         if d0 >= rank || d1 >= rank {
             return Err(MlError::TensorError(TensorError::InvalidAxis {
                 axis: d0.max(d1),
-                shape: input.shape.clone(),
+                shape: input.shape().to_vec(),
             }));
         }
 
         // Create new shape with dimensions swapped
-        let mut new_shape = input.shape.clone();
+        let mut new_shape = input.shape().to_vec();
         new_shape.swap(d0, d1);
 
         // Calculate strides for the original shape
         let mut strides = vec![1usize; rank];
         for i in (0..rank - 1).rev() {
-            strides[i] = strides[i + 1] * input.shape[i + 1];
+            strides[i] = strides[i + 1] * input.shape()[i + 1];
         }
 
         // Create transposed data
-        let mut result = vec![0.0; input.data.len()];
+        let mut result = vec![0.0; input.data().len()];
         let mut coords = vec![0usize; rank];
 
-        for i in 0..input.data.len() {
+        for i in 0..input.data().len() {
             // Calculate source coordinates
             let mut idx = i;
             for j in 0..rank {
@@ -56,13 +56,13 @@ impl Function<f32> for Transpose {
                 stride *= new_shape[j];
             }
 
-            result[target_idx] = input.data[i];
+            result[target_idx] = input.data()[i];
         }
 
         Ok(vec![Tensor::from_vec(result, &new_shape)?])
     }
 
-    fn backward(&self, input: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, input: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
         let input = grad;
         let rank = input.shape().len();
         if rank < 2 {
@@ -79,25 +79,25 @@ impl Function<f32> for Transpose {
         if d0 >= rank || d1 >= rank {
             return Err(MlError::TensorError(TensorError::InvalidAxis {
                 axis: d0.max(d1),
-                shape: input.shape.clone(),
+                shape: input.shape().to_vec(),
             }));
         }
 
         // Create new shape with dimensions swapped
-        let mut new_shape = input.shape.clone();
+        let mut new_shape = input.shape().to_vec();
         new_shape.swap(d0, d1);
 
         // Calculate strides for the original shape
         let mut strides = vec![1usize; rank];
         for i in (0..rank - 1).rev() {
-            strides[i] = strides[i + 1] * input.shape[i + 1];
+            strides[i] = strides[i + 1] * input.shape()[i + 1];
         }
 
         // Create transposed data
-        let mut result = vec![0.0; input.data.len()];
+        let mut result = vec![0.0; input.data().len()];
         let mut coords = vec![0usize; rank];
 
-        for i in 0..input.data.len() {
+        for i in 0..input.data().len() {
             // Calculate source coordinates
             let mut idx = i;
             for j in 0..rank {
@@ -116,7 +116,7 @@ impl Function<f32> for Transpose {
                 stride *= new_shape[j];
             }
 
-            result[target_idx] = input.data[i];
+            result[target_idx] = input.data()[i];
         }
 
         Ok(vec![Tensor::from_vec(result, &new_shape)?])

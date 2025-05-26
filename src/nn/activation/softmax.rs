@@ -1,3 +1,3 @@
 use super::*;
 
-impl Function<f32> for Softmax {}
+impl Function for Softmax {}

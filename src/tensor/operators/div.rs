@@ -1,6 +1,6 @@
 use super::*;
 
-impl Function<f32> for Div {
+impl Function for Div {
     fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
     /// Divides two tensors element-wise
     ///
@@ -9,21 +9,24 @@ impl Function<f32> for Div {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise division
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
-        match targets[0].chk_shape(targets[1]) {
-            Err(e) => Err(e),
-            _ => Ok(vec![Tensor::<f32>::from_vec(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape())?])
-        }
+    fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
+        targets[0].chk_shape(&targets[1])?;
+        let result = targets[0].with_data(|data0| {
+            targets[1].with_data(|data1| {
+                self.backend().div(data0, data1)
+            })
+        });
+        let shape = targets[0].with_shape(|s| s.to_vec());
+        Ok(vec![Tensor::from_vec(result, &shape)?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
+        let x0 = targets[0];
         let x1 = targets[1];
-
-        Ok(vec![
-            self.forward(&[grad, x1])?.remove(0), // grad / x2
-            grad * self.forward(&[&-targets[0], &(x1 * x1)])?.remove(0) // grad * (-x0 / x1^2)
-        ])
+        let grad_x0 = grad / x1;
+        let grad_x1 = grad * (-(x0) / (x1 * x1));
+        Ok(vec![grad_x0, grad_x1])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -36,34 +39,34 @@ impl Function<f32> for Div {
 ///
 /// # Returns
 /// A new tensor containing the element-wise quotient
-impl std::ops::Div<Tensor<f32>> for Tensor<f32> {
-    type Output = Tensor<f32>;
+impl std::ops::Div<Tensor> for Tensor {
+    type Output = Tensor;
 
-    fn div(self, other: Tensor<f32>) -> Self::Output {
-        Div::new().unwrap().forward(&[&self, &other]).unwrap().remove(0)
-    }
-}
-
-impl std::ops::Div<&Tensor<f32>> for Tensor<f32> {
-    type Output = Tensor<f32>;
-
-    fn div(self, other: &Tensor<f32>) -> Self::Output {
-        Div::new().unwrap().forward(&[&self, other]).unwrap().remove(0)
-    }
-}
-
-impl std::ops::Div<&Tensor<f32>> for &Tensor<f32> {
-    type Output = Tensor<f32>;
-
-    fn div(self, other: &Tensor<f32>) -> Self::Output {
+    fn div(self, other: Tensor) -> Self::Output {
         Div::new().unwrap().forward(&[self, other]).unwrap().remove(0)
     }
 }
 
-impl std::ops::Div<Tensor<f32>> for &Tensor<f32> {
-    type Output = Tensor<f32>;
+impl std::ops::Div<&Tensor> for Tensor {
+    type Output = Tensor;
 
-    fn div(self, other: Tensor<f32>) -> Self::Output {
-        Div::new().unwrap().forward(&[self, &other]).unwrap().remove(0)
+    fn div(self, other: &Tensor) -> Self::Output {
+        Div::new().unwrap().forward(&[self, *other]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Div<&Tensor> for &Tensor {
+    type Output = Tensor;
+
+    fn div(self, other: &Tensor) -> Self::Output {
+        Div::new().unwrap().forward(&[*self, *other]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Div<Tensor> for &Tensor {
+    type Output = Tensor;
+
+    fn div(self, other: Tensor) -> Self::Output {
+        Div::new().unwrap().forward(&[*self, other]).unwrap().remove(0)
     }
 }

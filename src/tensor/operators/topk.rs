@@ -1,6 +1,6 @@
 use super::*;
 
-impl Function<f32> for Topk {
+impl Function for Topk {
     fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), topk: None }) }
     /// Returns the k largest elements of the tensor along the last dimension.
     ///
@@ -10,7 +10,7 @@ impl Function<f32> for Topk {
     ///
     /// # Returns
     /// A tuple of two tensors (values, indices) containing the top k values and their indices
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+    fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
         if self.topk.unwrap().0 == 0 {
             return Err(MlError::TensorError(TensorError::InvalidOperation {
                 op: "topk",
@@ -65,11 +65,11 @@ impl Function<f32> for Topk {
         let mut new_shape = targets[0].shape().to_vec();
         new_shape[last_dim] = self.topk.unwrap().0;
 
-        Ok(vec![Tensor::<f32>::from_vec(values, &new_shape)?, Tensor::<f32>::from_vec(indices, &new_shape)?])
+        Ok(vec![Tensor::from_vec(values, &new_shape)?, Tensor::from_vec(indices, &new_shape)?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
         todo!()
     }
 
@@ -86,20 +86,20 @@ mod tests {
     #[test]
     fn test_topk() -> MlResult<()> {
         // Test 1: Basic 1D tensor
-        let buffer = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
+        let buffer = Tensor::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
         let (values, indices) = tensor_ops!(buffer, Topk, 3, true);
         assert_eq!(values.data(), &[5.0, 4.0, 3.0]);
         assert_eq!(indices.data(), &[4.0, 1.0, 2.0]);
 
         // Test 2: 2D tensor
-        let buffer = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0, 2.0, 3.0, 1.0, 4.0, 5.0], &[2, 5], )?;
+        let buffer = Tensor::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0, 2.0, 3.0, 1.0, 4.0, 5.0], &[2, 5], )?;
         let (values, indices) = tensor_ops!(buffer, Topk, 2, true);
         assert_eq!(values.shape(), &[2, 2]);
         assert_eq!(values.data(), &[5.0, 4.0, 5.0, 4.0]);
         assert_eq!(indices.data(), &[4.0, 1.0, 4.0, 3.0]);
 
         // Test 3: Unsorted output
-        let buffer = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
+        let buffer = Tensor::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
         let (values, indices) = tensor_ops!(buffer, Topk ,3, false);
         assert_eq!(values.data(), &[4.0, 3.0, 5.0]);
         assert_eq!(indices.data(), &[1.0, 2.0, 4.0]);

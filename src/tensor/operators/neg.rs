@@ -1,35 +1,47 @@
 use super::*;
 
-impl Function<f32> for Neg {
+impl Function for Neg {
     fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
     /// Negates each element in the tensor
     ///
     /// # Returns
     /// A new tensor with each element being the negation of tensor_element
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
-        Ok(vec![Tensor::<f32>::from_vec(targets[0].data().iter().map(|&x| -x).collect(), targets[0].shape())?])
+    fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
+        let result = targets[0].with_data(|data| {
+            data.iter().map(|&x| -x).collect::<Vec<f32>>()
+        });
+
+        targets[0].with_shape(|shape| {
+            Ok(vec![Tensor::from_vec(result, shape)?])
+        })
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, _: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
-        Ok(vec![Tensor::<f32>::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?])
+    fn backward(&self, _: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
+        let result = grad.with_data(|data| {
+            data.iter().map(|&x| -x).collect::<Vec<f32>>()
+        });
+
+        grad.with_shape(|shape| {
+            Ok(vec![Tensor::from_vec(result, shape)?])
+        })
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 }
 
-impl std::ops::Neg for Tensor<f32> {
-    type Output = Tensor<f32>;
-
-    fn neg(self) -> Self::Output {
-        Neg::new().unwrap().forward(&[&self]).unwrap().remove(0)
-    }
-}
-
-impl std::ops::Neg for &Tensor<f32> {
-    type Output = Tensor<f32>;
+impl std::ops::Neg for Tensor {
+    type Output = Tensor;
 
     fn neg(self) -> Self::Output {
         Neg::new().unwrap().forward(&[self]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Neg for &Tensor {
+    type Output = Tensor;
+
+    fn neg(self) -> Self::Output {
+        Neg::new().unwrap().forward(&[*self]).unwrap().remove(0)
     }
 }

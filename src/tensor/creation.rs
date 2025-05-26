@@ -1,94 +1,33 @@
 use super::*;
 use std::collections::HashMap;
 
-impl Tensor<f32> {
-    pub fn zeros(shape: &[usize]) -> Tensor<f32> {
+impl Tensor {
+    pub fn zeros(shape: &[usize]) -> Self {
         let size: usize = shape.iter().product();
         let data = vec![0.0; size];
-        Tensor {
+
+        let tensor = TensorData {
             data,
             shape: shape.to_vec(),
-        }
+        };
+        let node_id = NODE_ID_GEN.next();
+        TENSOR_STORAGE.lock().unwrap().insert(node_id, tensor);
+        Self(node_id)
     }
 
     pub fn zeros_like(&self) -> Self {
-        Self::zeros(&self.shape)
+        self.with_shape(|shape| Self::zeros(shape))
     }
 
-    pub fn scalar(scalar: f32) -> Tensor<f32> {
-        Self {
+    pub fn scalar(scalar: f32) -> Self {
+        let tensor = TensorData {
             data: vec![scalar],
             shape: vec![],
-        }
-    }
-}
+        };
 
-impl TensorBase<f32> for Tensor<f32> {
-    fn new(data: Vec<Vec<f32>>) -> Tensor<f32> {
-        let shape = vec![data.len(), data[0].len()];
-        let data: Vec<f32> = data.into_iter().flatten().collect();
-
-        Self {
-            data,
-            shape,
-        }
-    }
-
-    fn from_vec(data: Vec<f32>, shape: &[usize]) -> MlResult<Tensor<f32>> {
-        let expected_len: usize = shape.iter().product();
-        if data.len() != expected_len {
-            return Err(MlError::TensorError(TensorError::InvalidDataLength {
-                expected: expected_len,
-                got: data.len(),
-            }));
-        }
-
-        Ok(Self {
-            data,
-            shape: shape.to_vec(),
-        })
-    }
-
-    fn shape(&self) -> &[usize] {
-        &self.shape
-    }
-
-    fn data(&self) -> &[f32] {
-        &self.data
-    }
-
-    fn get(&self, indices: &[usize]) -> Option<&f32> {
-        self.data.get(self.index(indices)?)
-    }
-
-    fn index(&self, indices: &[usize]) -> Option<usize> {
-        if indices.len() != self.shape.len() {
-            return None;
-        }
-        Some(
-            indices
-                .iter()
-                .zip(&self.shape)
-                .fold(0, |acc, (&i, &dim)| acc * dim + i),
-        )
-    }
-
-    /// Verifies if two tensors can perform element-wise operations
-    ///
-    /// # Arguments
-    /// * `other` - The tensor to compare shapes with
-    ///
-    /// # Returns
-    /// * `Ok(())` if the shapes match
-    /// * `Err(MlError::TensorError)` if shapes don't match
-    fn chk_shape(&self, other: &dyn TensorBase<f32>) -> MlResult<()> {
-        if self.shape != other.shape() {
-            return Err(MlError::TensorError(TensorError::InvalidShape {
-                expected: self.shape.to_vec(),
-                got: other.shape().to_vec(),
-            }));
-        }
-        Ok(())
+        let node_id = NODE_ID_GEN.next();
+        TENSOR_STORAGE.lock().unwrap().insert(node_id, tensor);
+        Self(node_id)
     }
 }
 
@@ -105,22 +44,24 @@ pub struct LabelGenerator;
 #[cfg(feature = "enableVisualization")]
 impl LabelGenerator {
     /// 텐서의 특성을 기반으로 직관적인 라벨 생성
-    pub fn generate_label(tensor: &Tensor<f32>, hint: Option<&str>) -> String {
+    pub fn generate_label(tensor: &Tensor, hint: Option<&str>) -> String {
         // 힌트가 제공된 경우 우선 사용
         if let Some(hint) = hint {
             return Self::get_unique_label(hint);
         }
 
         // 텐서 모양 기반 라벨 생성
-        let shape_label = Self::shape_to_label(tensor.shape());
-        let context_label = Self::infer_context_from_shape(tensor.shape());
+        tensor.with_shape(|shape| {
+            let shape_label = Self::shape_to_label(shape);
+            let context_label = Self::infer_context_from_shape(shape);
 
-        // 컨텍스트가 있으면 컨텍스트 우선, 없으면 모양 기반
-        if !context_label.is_empty() {
-            Self::get_unique_label(&context_label)
-        } else {
-            Self::get_unique_label(&shape_label)
-        }
+            // 컨텍스트가 있으면 컨텍스트 우선, 없으면 모양 기반
+            if !context_label.is_empty() {
+                Self::get_unique_label(&context_label)
+            } else {
+                Self::get_unique_label(&shape_label)
+            }
+        })
     }
 
     /// 텐서 모양을 기반으로 컨텍스트 추론
@@ -156,7 +97,7 @@ impl LabelGenerator {
                     (_, _, 3) => "rgb_image".to_string(),
                     (_, _, 4) => "rgba_image".to_string(),
                     (1, _, _) => "batch_1".to_string(),
-                    (b, h, w) if h == w => "square_tensor".to_string(),
+                    (_, h, w) if h == w => "square_tensor".to_string(),
                     _ => "tensor_3d".to_string(),
                 }
             },
@@ -220,70 +161,68 @@ impl LabelGenerator {
     }
 }
 
-impl Variable<f32> {
+impl Variable {
     /// 기본 생성자 - 텐서 모양 기반 자동 라벨링
-    pub fn new(tensor: Tensor<f32>) -> Self {
-        #[cfg(feature = "enableVisualization")]
-        let label = LabelGenerator::generate_label(&tensor, None);
-
-        Variable {
+    pub fn new(tensor: Tensor) -> Self {
+        Self {
             #[cfg(feature = "enableVisualization")]
-            label,
+            label: LabelGenerator::generate_label(&tensor, None),
             tensor,
-            requires_grad: cfg!(feature = "requiresGrad"),
+            requires_grad: false,
 
             #[cfg(feature = "enableBackpropagation")]
-            grad: std::cell::RefCell::new(None),
+            grad_buffer: Arc::new(Mutex::new(None)),
+            #[cfg(feature = "enableBackpropagation")]
+            grad_accumulated: Arc::new(Mutex::new(false)),
         }
     }
 
     /// 사용자 정의 라벨로 변수 생성
-    pub fn with_label(tensor: Tensor<f32>, label_hint: &str) -> Self {
-        #[cfg(feature = "enableVisualization")]
-        let label = LabelGenerator::generate_label(&tensor, Some(label_hint));
-
+    pub fn with_label(tensor: Tensor, label_hint: &str) -> Self {
         Variable {
             #[cfg(feature = "enableVisualization")]
-            label,
+            label: LabelGenerator::generate_label(&tensor, Some(label_hint)),
             tensor,
-            requires_grad: cfg!(feature = "requiresGrad"),
+            requires_grad: false,
 
             #[cfg(feature = "enableBackpropagation")]
-            grad: std::cell::RefCell::new(None),
+            grad_buffer: Arc::new(Mutex::new(None)),
+            #[cfg(feature = "enableBackpropagation")]
+            grad_accumulated: Arc::new(Mutex::new(false)),
         }
     }
 
     /// 특정 용도에 맞는 변수 생성자들
-    pub fn new_input(tensor: Tensor<f32>) -> Self {
+    pub fn new_input(tensor: Tensor) -> Self {
         Self::with_label(tensor, "input")
     }
 
-    pub fn new_weight(tensor: Tensor<f32>) -> Self {
+    pub fn new_weight(tensor: Tensor) -> Self {
         Self::with_label(tensor, "weight")
     }
 
-    pub fn new_bias(tensor: Tensor<f32>) -> Self {
+    pub fn new_bias(tensor: Tensor) -> Self {
         Self::with_label(tensor, "bias")
     }
 
-    pub fn new_output(tensor: Tensor<f32>) -> Self {
+    pub fn new_output(tensor: Tensor) -> Self {
         Self::with_label(tensor, "output")
     }
 
-    pub fn new_hidden(tensor: Tensor<f32>) -> Self {
+    pub fn new_hidden(tensor: Tensor) -> Self {
         Self::with_label(tensor, "hidden")
     }
 
     /// 신경망 레이어별 변수 생성자들
-    pub fn new_conv_weight(tensor: Tensor<f32>, layer_idx: usize) -> Self {
+    pub fn new_conv_weight(tensor: Tensor, layer_idx: usize) -> Self {
         Self::with_label(tensor, &format!("conv{}_weight", layer_idx))
     }
 
-    pub fn new_linear_weight(tensor: Tensor<f32>, layer_idx: usize) -> Self {
+    pub fn new_linear_weight(tensor: Tensor, layer_idx: usize) -> Self {
         Self::with_label(tensor, &format!("fc{}_weight", layer_idx))
     }
 
-    pub fn new_activation(tensor: Tensor<f32>, activation_type: &str) -> Self {
+    pub fn new_activation(tensor: Tensor, activation_type: &str) -> Self {
         Self::with_label(tensor, &format!("{}_out", activation_type))
     }
 
@@ -309,22 +248,30 @@ impl Variable<f32> {
         format!(
             "Variable '{}': shape={:?}, requires_grad={}, has_grad={}",
             self.label(),
-            self.tensor.shape(),
+            self.tensor.with_shape(|shape| shape.to_vec()),
             self.requires_grad,
             self.grad().is_some(),
         )
     }
 
-    pub fn update_tensor(&mut self, tensor: Tensor<f32>) {
+    pub fn update_tensor(&mut self, tensor: Tensor) {
         self.tensor = tensor
+    }
+
+    /// 변수가 보유한 텐서 아이디의 참조 반환
+    ///
+    /// # 반환 값
+    /// - 내부 텐서 아이디의 불변 참조
+    pub fn node_id(&self) -> &NodeId {
+        &self.tensor.0
     }
 
     /// 변수가 보유한 텐서의 참조 반환
     ///
     /// # 반환 값
-    /// - 내부 텐서 데이터의 불변 참조
-    pub fn tensor(&self) -> &Tensor<f32> {
-        &self.tensor
+    /// - 내부 텐서의 불변 참조
+    pub fn tensor(&self) -> Tensor {
+        self.tensor
     }
 
     /// 그래디언트 보존 여부 확인
@@ -333,42 +280,6 @@ impl Variable<f32> {
     /// - 현재 변수의 requires_grad 플래그 상태
     pub fn retain_grad(&self) -> bool {
         self.requires_grad
-    }
-
-    /// 저장된 그래디언트 값 조회
-    ///
-    /// # 특징 동작
-    /// - `enableBackpropagation` 기능 전용 메소드
-    ///
-    /// # 반환 값
-    /// - Option<Tensor<f32>>: 현재 저장된 그래디언트 또는 None
-    #[cfg(feature = "enableBackpropagation")]
-    pub fn grad(&self) -> Option<Tensor<f32>> {
-        self.grad.borrow().clone()
-    }
-
-    /// 그래디언트 값 직접 설정
-    ///
-    /// # 특징 동작
-    /// - `enableBackpropagation` 기능 전용 메소드
-    /// - 기존 그래디언트 값을 완전히 대체
-    ///
-    /// # 파라미터
-    /// - grad: 설정할 새로운 그래디언트 텐서
-    #[cfg(feature = "enableBackpropagation")]
-    pub fn set_grad(&self, grad: Tensor<f32>) {
-        *self.grad.borrow_mut() = Some(grad);
-    }
-
-    /// 그래디언트 값 초기화
-    ///
-    /// # 특징 동작
-    /// - `enableBackpropagation` 기능 전용 메소드
-    /// - 기존 그래디언트 값을 삭제
-    ///
-    #[cfg(feature = "enableBackpropagation")]
-    pub fn clear_grad(&self) {
-        *self.grad.borrow_mut() = None;
     }
 
     /// 그래디언트 값 누적 추가
@@ -382,32 +293,52 @@ impl Variable<f32> {
     ///
     /// # 파라미터
     /// - new_grad: 추가할 그래디언트 텐서
-    #[cfg(feature = "enableBackpropagation")]
-    pub fn accumulate_grad(&self, new_grad: Tensor<f32>) -> MlResult<()> {
-        let mut grad_ref = self.grad.borrow_mut();
-
-        if let Some(ref existing_grad) = *grad_ref {
-            // 차원 검증 추가
-            if existing_grad.shape() != new_grad.shape() {
-                return Err(TensorError::InvalidShape {
-                    expected: existing_grad.shape().to_vec(),
-                    got: new_grad.shape().to_vec(),
-                }.into());
+    pub fn clear_grad(&self) {
+        if let Ok(mut buffer) = self.grad_buffer.lock() {
+            if let Some(ref mut buf) = *buffer {
+                buf.clear();
             }
-
-            // 가능하다면 in-place 연산을 사용하여 효율성 개선
-            let mut accumulated_data = existing_grad.data().to_vec();
-            for (i, &val) in new_grad.data().iter().enumerate() {
-                accumulated_data[i] += val;
-            }
-
-            let accumulated_grad = Tensor::from_vec(accumulated_data, existing_grad.shape())
-                .map_err(|e| format!("Failed gradient accumulation: {:?}", e))?;
-
-            *grad_ref = Some(accumulated_grad);
-        } else {
-            *grad_ref = Some(new_grad);
         }
+        if let Ok(mut accumulated) = self.grad_accumulated.lock() {
+            *accumulated = false;
+        }
+    }
+
+    pub fn accumulate_grad(&self, grad: Tensor) -> MlResult<()> {
+        let mut buffer = self.grad_buffer.lock().unwrap();
+        if buffer.is_none() {
+            self.tensor().with_shape(|shape| {
+                *buffer = Some(GradientBuffer::new(shape));
+            })
+        }
+
+        if let Some(ref mut buf) = *buffer {
+            buf.accumulate(&grad)?;
+        }
+
+        let mut accumulated = self.grad_accumulated.lock().unwrap();
+        *accumulated = true;
+
+        Ok(())
+    }
+
+    pub fn grad(&self) -> Option<Tensor> {
+        let buffer = self.grad_buffer.lock().unwrap();
+        buffer.as_ref()?.get_tensor()
+    }
+
+    pub fn set_grad(&self, grad: Tensor) -> MlResult<()> {
+        let mut buffer = self.grad_buffer.lock().unwrap();
+        *buffer = Some({ 
+            self.tensor().with_shape(|shape| {
+                let mut buf = GradientBuffer::new(shape);
+                buf.accumulate(&grad).expect("Tensor shape mismatch");
+                buf
+            })
+        });
+
+        let mut accumulated = self.grad_accumulated.lock().unwrap();
+        *accumulated = true;
 
         Ok(())
     }
@@ -442,7 +373,7 @@ macro_rules! var_with_label {
 }
 
 // 사용 예시를 위한 테스트 함수들
-#[cfg(test)]
+#[cfg(feature = "enableVisualization")]
 #[cfg(test)]
 mod tests {
     use super::*;
