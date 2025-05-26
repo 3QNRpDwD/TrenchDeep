@@ -224,7 +224,7 @@ pub struct TensorData<Type> {
     shape: Vec<usize>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Hash)]
+#[derive(Clone, Copy, PartialEq, Hash)]
 pub struct Tensor(NodeId);
 
 pub struct TensorPool {
@@ -238,23 +238,23 @@ pub struct TensorStorage<T> {
 
 static TENSOR_STORAGE: LazyLock<Mutex<TensorStorage<f32>>> = LazyLock::new(|| Mutex::new(TensorStorage::<f32>::new()));
 
-impl<Type> TensorStorage<Type> {
+impl TensorStorage<f32> {
     pub fn new() -> Self {
         Self {
             tensors: HashMap::new(),
         }
     }
 
-    pub fn insert(&mut self, id: NodeId, tensor: TensorData<Type>) -> NodeId {
+    pub fn insert(&mut self, id: NodeId, tensor: TensorData<f32>) -> NodeId {
         self.tensors.insert(id, tensor);
         id
     }
 
-    pub fn get(&self, id: &NodeId) -> Option<&TensorData<Type>> {
+    pub fn get(&self, id: &NodeId) -> Option<&TensorData<f32>> {
         self.tensors.get(id)
     }
 
-    pub fn remove(&mut self, id: &NodeId) -> Option<TensorData<Type>> {
+    pub fn remove(&mut self, id: &NodeId) -> Option<TensorData<f32>> {
         self.tensors.remove(id)
     }
 
@@ -266,7 +266,7 @@ impl<Type> TensorStorage<Type> {
         self.tensors.contains_key(id)
     }
 
-    pub fn update(&mut self, id: &NodeId, f: impl FnOnce(&mut TensorData<Type>)) {
+    pub fn update(&mut self, id: &NodeId, f: impl FnOnce(&mut TensorData<f32>)) {
         if let Some(tensor) = self.tensors.get_mut(id) {
             f(&mut *tensor); // 락 획득 후 수정
         }
@@ -461,7 +461,7 @@ impl PartialEq for &Variable {
 ///
 /// # 제약
 /// - `Type`: `Debug + Clone` 트레잇을 구현해야 함
-pub trait TensorBase<Type: Debug + Clone> {
+pub trait TensorBase {
     /// 2차원 벡터 데이터를 기반으로 새로운 텐서를 생성합니다.
     ///
     /// # 매개변수
@@ -469,7 +469,7 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 반환값
     /// - `Tensor<Type>`: 생성된 텐서 객체
-    fn new(data: Vec<Vec<f32>>) -> Tensor {
+    fn new(data: Vec<Vec<f32>>) -> Tensor where Self: Sized {
         let shape = vec![data.len(), data[0].len()];
         let data: Vec<f32> = data.into_iter().flatten().collect();
 
@@ -536,7 +536,7 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 반환값
     /// - `Option<&Type>`: 해당 위치의 값에 대한 참조, 유효하지 않은 인덱스면 `None`
-    fn get(&self, _indices: &[usize]) -> Option<&Type> {
+    fn get(&self, _indices: &[usize]) -> Option<&f32> {
         unimplemented!(" TensorBase::get() is not implemented ")
     }
 
@@ -572,7 +572,7 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 오류
     /// - 두 텐서의 형태가 일치하지 않을 경우
-    fn chk_shape(&self, other: &impl TensorBase<Type>) -> MlResult<()> {
+    fn chk_shape(&self, other: &impl TensorBase) -> MlResult<()> {
         let self_shape = TENSOR_STORAGE
             .lock()
             .unwrap()
@@ -600,7 +600,7 @@ pub trait TensorBase<Type: Debug + Clone> {
     }
 }
 
-impl TensorBase<f32> for Tensor {}
+impl TensorBase for Tensor {}
 
 /// 자동 미분(autograd)을 지원하는 함수 트레잇
 ///
@@ -640,7 +640,7 @@ pub trait AutogradFunction<Type: Debug + Clone>: Function + Clone where Self: 's
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use crate::tensor::operators::{Abs, Add, Div, Exp, Function, Log, Matmul, Mul, Neg, Pow, Sqrt, Square, Sub};
     use crate::tensor::{Tensor, TensorBase};
     use crate::MlResult;
@@ -706,7 +706,7 @@ mod tests {
         let second = Tensor::new(vec![vec![3.0], vec![4.0]]);
         let result = tensor_ops!(first, Matmul, second);
 
-        first.with_data(|data|assert_eq!(data, vec![11.0]));
+        result.with_data(|data|assert_eq!(data, vec![11.0]));
     }
 
     #[test]

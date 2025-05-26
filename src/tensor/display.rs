@@ -40,11 +40,11 @@ impl Display for MlError {
     }
 }
 
-impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
+impl Debug for Tensor {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f, "data: {:?}, shape: {:?}",
-            self.data(), self.shape()
+            self.with_data(|data| data.to_vec()), self.with_shape(|shape| shape.to_vec())
         )
     }
 }

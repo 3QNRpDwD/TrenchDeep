@@ -10,28 +10,34 @@ impl Function for Sub {
     /// # Returns
     /// A new tensor with the result of the element-wise subtraction
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        let first_shape = targets[0].shape();
-        let second_shape = targets[1].shape();
-        let first_data = targets[0].data();
-        let second_data = targets[1].data();
-
-
-        if first_shape.len() == 2 && second_shape.len() == 1 && first_shape[1] == second_shape[0] {
-            let (batch_size, features) = (first_shape[0], first_shape[1]);
-            let mut data = vec![0.0; first_data.len()];
-
-            for i in 0..batch_size {
-                for j in 0..features {
-                    data[i * features + j] = first_data[i * features + j] - second_data[j];
-                }
-            }
-            return Ok(vec![Tensor::from_vec(data, &first_shape)?])
-        }
-
-        match targets[0].chk_shape(&targets[1]) {
-            Err(e) => Err(e),
-            _ => Ok(vec![Tensor::from_vec(self.backend().sub(first_data, second_data), first_shape)?])
-        }
+        let result = targets[0].with_shape(|first_shape| {
+            targets[1].with_shape(|second_shape| {
+                targets[0].with_data(|first_data| {
+                    targets[1].with_data(|second_data| {
+                        if first_shape.len() == 2 && second_shape.len() == 1 && first_shape[1] == second_shape[0] {
+                            let (batch_size, features) = (first_shape[0], first_shape[1]);
+                            let mut data = vec![0.0; first_data.len()];
+                            for i in 0..batch_size {
+                                for j in 0..features {
+                                    data[i * features + j] = first_data[i * features + j] - second_data[j];
+                                }
+                            }
+                            Tensor::from_vec(data, first_shape)
+                        } else if first_shape == second_shape {
+                            let data: Vec<f32> = first_data.iter().zip(second_data.iter())
+                                .map(|(a, b)| a - b).collect();
+                            Tensor::from_vec(data, first_shape)
+                        } else {
+                            Err(crate::MlError::TensorError(crate::TensorError::InvalidShape {
+                                expected: first_shape.to_vec(),
+                                got: second_shape.to_vec(),
+                            }))
+                        }
+                    })
+                })
+            })
+        })?;
+        Ok(vec![result])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]

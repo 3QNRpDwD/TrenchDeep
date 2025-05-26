@@ -12,15 +12,8 @@ impl Function for Add {
         let first_target = targets[0];
         let second_target = targets[1];
 
-        let first_shape_opt = first_target.with_shape(|shape| shape.to_vec());
-        let second_shape_opt = second_target.with_shape(|shape| shape.to_vec());
-
-        if first_shape_opt.is_none() || second_shape_opt.is_none() {
-            return Err(MlError::from(TensorError::TensorNotFound));
-        }
-
-        let first_shape = first_shape_opt.unwrap();
-        let second_shape = second_shape_opt.unwrap();
+        let first_shape = first_target.with_shape(|shape| shape.to_vec());
+        let second_shape = second_target.with_shape(|shape| shape.to_vec());
 
         // 행렬 + 벡터 특수 케이스 처리
         if first_shape.len() == 2 && second_shape.len() == 1 && first_shape[1] == second_shape[0] {
@@ -35,8 +28,8 @@ impl Function for Add {
                         }
                     }
                     data
-                }).ok_or(MlError::from(TensorError::TensorNotFound))
-            }).ok_or(MlError::from(TensorError::TensorNotFound))??;
+                })
+            });
 
             return Ok(vec![Tensor::from_vec(result, &first_shape)?]);
         }
@@ -47,8 +40,8 @@ impl Function for Add {
                 let result = first_target.with_data(|first_data| {
                     second_target.with_data(|second_data| {
                         self.backend().add(first_data, second_data)
-                    }).ok_or(MlError::from(TensorError::TensorNotFound))
-                }).ok_or(MlError::from(TensorError::TensorNotFound))??;
+                    })
+                });
 
                 Ok(vec![Tensor::from_vec(result, &first_shape)?])
             }

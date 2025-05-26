@@ -449,6 +449,28 @@ impl ComputationGraph {
     //         (graph.nodes.len(), graph.sorted)
     //     })
     // }
+
+    pub fn print_graph_details(&self) {
+        println!("=== Computation Graph Details ===");
+        for (order, &node_idx) in self.topo_order.iter().enumerate() {
+            let node = &self.nodes[node_idx];
+            let var = node.variable.read().unwrap();
+            let tensor = var.tensor();
+            let first_data = tensor.with_data(|d| d.get(0).cloned()).unwrap_or(f32::NAN);
+            let shape = tensor.with_shape(|s| s.to_vec());
+
+            let func_name = node.function
+                .as_ref()
+                .map(|f| f.type_name())
+                .unwrap_or_else(|| "Input");
+
+            println!(
+                "[{}] Func: {:<12} | First data: {:>8.4} | Shape: {:?}",
+                order, func_name, first_data, shape
+            );
+        }
+        println!("=================================");
+    }
 }
 
 #[cfg(feature = "enableVisualization")]

@@ -16,12 +16,12 @@ impl Function for Mul {
                 let result = targets[0].with_data(|data1| {
                     targets[1].with_data(|data2| {
                         self.backend().multiply(data1, data2)
-                    }).ok_or(MlError::from(TensorError::TensorNotFound))
-                }).ok_or(MlError::from(TensorError::TensorNotFound))??;
+                    })
+                });
 
                 targets[0].with_shape(|shape| {
                     Ok(vec![Tensor::from_vec(result, shape)?])
-                }).ok_or(MlError::from(TensorError::TensorNotFound))?
+                })
             }
         }
     }

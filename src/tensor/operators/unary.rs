@@ -1,131 +1,225 @@
-use super::*;
+use std::sync::Arc; // Assuming this is used by super::* for backend.
 
+use super::*; // Assuming this brings in Tensor, Function, MlResult, Backend types, etc.
+
+// Abs
 impl Function for Abs {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
-    /// Computes the absolute value of each element in the tensor.
-    ///
-    /// # Returns
-    /// A new tensor with the absolute values of each element
+    fn new() -> MlResult<Self> {
+        Ok(Self {
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|&x| x.abs()).collect(), targets[0].shape())?])
+        let target_tensor = targets[0];
+        target_tensor.with_shape(|shape_slice| {
+            target_tensor.with_data(|data_slice| {
+                let result_data = data_slice.iter().map(|&x| x.abs()).collect();
+                Tensor::from_vec(result_data, shape_slice)
+            })
+        })
+            .map(|t| vec![t]) // Wrap the resulting Tensor in Ok(vec![...])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, _targets: &[Tensor], _grad: Tensor) -> MlResult<Vec<Tensor>> {
         todo!()
     }
 
-    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
+    }
 }
 
+// Exp
 impl Function for Exp {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
-    /// Applies the exponential function to each element in the tensor
-    ///
-    /// # Returns
-    /// A new tensor with each element being e ^ tensor_element
+    fn new() -> MlResult<Self> {
+        Ok(Self {
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(self.backend().exp(targets[0].data()), targets[0].shape())?])
+        let target_tensor = targets[0];
+        target_tensor.with_shape(|shape_slice| {
+            target_tensor.with_data(|data_slice| {
+                // Assuming self.backend().exp() takes &[f32] and returns Vec<f32>
+                let result_data = self.backend().exp(data_slice);
+                Tensor::from_vec(result_data, shape_slice)
+            })
+        })
+            .map(|t| vec![t])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
-        let gradiant = grad.data().iter()
-            .zip(targets[0].data().iter())
-            .map(|(grad_data, target_data)|  target_data.exp() * grad_data)
-            .collect();
-
-        Ok(vec![Tensor::from_vec(gradiant, targets[0].shape())?])
+        let target_tensor = targets[0];
+        let result_tensor = target_tensor.with_shape(|target_shape_slice| {
+            target_tensor.with_data(|target_data_slice| {
+                grad.with_data(|grad_data_slice| {
+                    let gradient_data: Vec<f32> = grad_data_slice
+                        .iter()
+                        .zip(target_data_slice.iter())
+                        .map(|(&grad_val, &target_val)| target_val.exp() * grad_val)
+                        .collect();
+                    Tensor::from_vec(gradient_data, target_shape_slice)
+                })
+            })
+        })?;
+        Ok(vec![result_tensor])
     }
 
-    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
+    }
 }
 
+// Log
 impl Function for Log {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
-    /// Applies the natural logarithm to each element in the tensor
-    ///
-    /// # Returns
-    /// A new tensor with each element being the natural logarithm of tensor_element
+    fn new() -> MlResult<Self> {
+        Ok(Self {
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|&x| x.ln()).collect(), targets[0].shape())?])
+        let target_tensor = targets[0];
+        target_tensor.with_shape(|shape_slice| {
+            target_tensor.with_data(|data_slice| {
+                let result_data = data_slice.iter().map(|&x| x.ln()).collect();
+                Tensor::from_vec(result_data, shape_slice)
+            })
+        })
+            .map(|t| vec![t])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, _targets: &[Tensor], _grad: Tensor) -> MlResult<Vec<Tensor>> {
         todo!()
     }
 
-    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
+    }
 }
 
+// Pow
 impl Function for Pow {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), power: None }) }
-    /// Raises each element in the tensor to a power
-    ///
-    /// # Arguments
-    /// * `power` - The power to raise each element to
-    ///
-    /// # Returns
-    /// A new tensor with each element being tensor_element ^ power
+    fn new() -> MlResult<Self> {
+        Ok(Self {
+            backend: Arc::new(CpuBackend::new()?),
+            power: None,
+        })
+    }
+
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(self.backend().pow(targets[0].data(), self.power.unwrap()), targets[0].shape())?])
+        let target_tensor = targets[0];
+        let power_val = self.power.ok_or_else(|| MlError::StringError("Power not set for Pow op".to_string()))?;
+        target_tensor.with_shape(|shape_slice| {
+            target_tensor.with_data(|data_slice| {
+                // Assuming self.backend().pow() takes &[f32] and f32, returns Vec<f32>
+                let result_data = self.backend().pow(data_slice, power_val);
+                Tensor::from_vec(result_data, shape_slice)
+            })
+        })
+            .map(|t| vec![t])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
-        let power = self.power.unwrap();
-        let target = targets[0];
-        let forwarded = Tensor::from_vec(self.backend().pow(target.data(), power - 1.0), target.shape())?; // x ** (c - 1)
-        let result = Tensor::from_vec(
-            forwarded
-                .data()
-                .iter()
-                .map(|&x| power * x)
-                .collect(), target.shape())?; // c * x ** (c - 1)
-        Ok(vec![result * grad]) // c * x ** (c -1) * gy
+        let target_tensor = targets[0];
+        let power_val = self.power.ok_or_else(|| MlError::StringError("Power not set for Pow op".to_string()))?;
+
+        let term_tensor = target_tensor.with_shape(|shape_slice| {
+            target_tensor.with_data(|data_slice| {
+                // Calculate data for c * x**(c-1)
+                // Step 1: x_data_pow_c_minus_1 = x**(c-1)
+                let x_data_pow_c_minus_1 = self.backend().pow(data_slice, power_val - 1.0);
+
+                // Step 2: term_data = c * x**(c-1)
+                let term_data: Vec<f32> = x_data_pow_c_minus_1.iter().map(|&x| power_val * x).collect();
+                Tensor::from_vec(term_data, shape_slice)
+            })
+        })?;
+
+        // Assuming Tensor * Tensor (term_tensor * grad) is a defined operation
+        // that handles its own data access correctly.
+        Ok(vec![term_tensor * grad])
     }
 
-    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
+    }
 }
 
+// Square
 impl Function for Square {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
-    /// Returns a new tensor with the square of the elements of input
-    ///
-    /// # Returns
-    /// A new tensor with each element being the square of the corresponding element in the input tensor
+    fn new() -> MlResult<Self> {
+        Ok(Self {
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|x| x * x).collect(), targets[0].shape())?])
+        let target_tensor = targets[0];
+        target_tensor.with_shape(|shape_slice| {
+            target_tensor.with_data(|data_slice| {
+                let result_data = data_slice.iter().map(|x| x * x).collect();
+                Tensor::from_vec(result_data, shape_slice)
+            })
+        })
+            .map(|t| vec![t])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
-        let gradiant = grad.data().iter()
-            .zip(targets[0].data().iter())
-            .map(|(grad_data, target_data)| 2.0  * target_data * grad_data )
-            .collect();
-
-        Ok(vec![Tensor::from_vec(gradiant, targets[0].shape())?])
+        let target_tensor = targets[0];
+        let result_tensor = target_tensor.with_shape(|target_shape_slice| {
+            target_tensor.with_data(|target_data_slice| {
+                grad.with_data(|grad_data_slice| {
+                    let gradient_data: Vec<f32> = grad_data_slice
+                        .iter()
+                        .zip(target_data_slice.iter())
+                        .map(|(&grad_val, &target_val)| 2.0 * target_val * grad_val)
+                        .collect();
+                    Tensor::from_vec(gradient_data, target_shape_slice)
+                })
+            })
+        })?;
+        Ok(vec![result_tensor])
     }
 
-    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
+    }
 }
 
+// Sqrt
 impl Function for Sqrt {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
-    /// Takes the square root of each element in the tensor
-    ///
-    /// # Returns
-    /// A new tensor with each element being the square root of tensor_element
+    fn new() -> MlResult<Self> {
+        Ok(Self {
+            backend: Arc::new(CpuBackend::new()?),
+        })
+    }
+
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(self.backend().sqrt(targets[0].data()), targets[0].shape())?])
+        let target_tensor = targets[0];
+        target_tensor.with_shape(|shape_slice| {
+            target_tensor.with_data(|data_slice| {
+                // Assuming self.backend().sqrt() takes &[f32] and returns Vec<f32>
+                let result_data = self.backend().sqrt(data_slice);
+                Tensor::from_vec(result_data, shape_slice)
+            })
+        })
+            .map(|t| vec![t])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, _targets: &[Tensor], _grad: Tensor) -> MlResult<Vec<Tensor>> {
         todo!()
     }
 
-    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
+    }
 }

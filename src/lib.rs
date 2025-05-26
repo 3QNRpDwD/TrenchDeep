@@ -30,7 +30,15 @@ pub enum TensorError {
         right_shape: Vec<usize>,
     },
     EmptyTensor, 
-    TensorNotFound
+    TensorNotFound,
+    UnsupportedShapeForMatmul {
+        left_shape: Vec<usize>,
+        right_shape: Vec<usize>,
+    },
+    BroadcastError{
+        from_shape: Vec<usize>,
+        to_shape: Vec<usize>,
+    }
 }
 
 impl std::error::Error for TensorError {}
@@ -74,26 +82,9 @@ pub type MlResult<T> = Result<T, MlError>;
 #[cfg(test)]
 mod benchmark {
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
-    use crate::tensor::{Tensor, TensorBase, Variable, AutogradFunction};
+    use crate::tensor::{Tensor, TensorBase, Variable, AutogradFunction, tests::assert_tensor_eq};
     use crate::{var_input, variable, MlResult};
     use std::sync::Arc;
-
-    fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
-        if tensor.shape() != expected_tensor.shape() {
-            return Err("Shape mismatch".into());
-        }
-
-        let tensor_data = tensor.data();
-        let expected_data = expected_tensor.data();
-
-        for (t, e) in tensor_data.iter().zip(expected_data.iter()) {
-            if (t - e).abs() > 1e-6 {
-                return Err("Data mismatch".into());
-            }
-        }
-
-        Ok(())
-    }
 
     fn sphere_function(x: &Variable, y: &Variable) -> MlResult<Variable> {
         let mut pow = Pow::new()?;

@@ -17,8 +17,6 @@ use crate::{
         Variable
     },
     MlResult,
-    MlError,
-    TensorError
 };
 use std::{
     fmt::Debug,

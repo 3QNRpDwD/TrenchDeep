@@ -9,22 +9,22 @@ impl Function for Neg {
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
         let result = targets[0].with_data(|data| {
             data.iter().map(|&x| -x).collect::<Vec<f32>>()
-        }).ok_or(MlError::from(TensorError::TensorNotFound))?;
+        });
 
         targets[0].with_shape(|shape| {
             Ok(vec![Tensor::from_vec(result, shape)?])
-        }).ok_or(MlError::from(TensorError::TensorNotFound))?
+        })
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, _: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
         let result = grad.with_data(|data| {
             data.iter().map(|&x| -x).collect::<Vec<f32>>()
-        }).ok_or(MlError::from(TensorError::TensorNotFound))?;
+        });
 
         grad.with_shape(|shape| {
             Ok(vec![Tensor::from_vec(result, shape)?])
-        }).ok_or(MlError::from(TensorError::TensorNotFound))?
+        })
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

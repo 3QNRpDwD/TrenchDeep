@@ -182,20 +182,12 @@ impl ApproxCos {
 
 #[cfg(test)]
 mod tests {
-    use crate::tensor::operators::{Exp, Sin};
-    use crate::tensor::{AutogradFunction, operators::{Add, Function, Mul, Pow, Square}, Tensor, TensorBase, Variable};
+    use crate::tensor::{AutogradFunction, operators::{Add, Function, Mul, Pow, Square, Exp, Sin}, Tensor, TensorBase, Variable, tests::assert_tensor_eq};
     use crate::{variable, MlResult};
 
-    pub fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
-        if tensor != expected_tensor {
-            return Err(format!("Expected {:?}, got {:?}", expected_tensor, tensor).into());
-        }
-        Ok(())
-    }
-
     pub fn assert_variable_eq(variable: &Variable, expected_variable: &Variable) -> MlResult<()> {
-        assert_eq!(variable.tensor.data(), expected_variable.tensor.data());
-        assert_eq!(variable.tensor.shape(), expected_variable.tensor.shape());
+        assert_eq!(variable, expected_variable);
+        assert_eq!(variable, expected_variable);
         Ok(())
     }
 
@@ -243,64 +235,51 @@ mod tests {
         assert_tensor_eq(&-first, &Tensor::new(vec![vec![-1.0, -2.0]]))
     }
 
-    fn print_forward(
-        x: &Tensor,
-        a: &Tensor,
-        b: &Tensor,
-        y: &Tensor,
-    ) {
+    fn format_tensor(tensor: &Tensor) -> String {
+        format!(
+            "Tensor {{ data: {:^11?}, shape: {:^3?} }}",
+            tensor.with_data(|d| d.to_vec()),
+            tensor.with_shape(|s| s.to_vec())
+        )
+    }
+
+    fn print_forward(x: &Tensor, a: &Tensor, b: &Tensor, y: &Tensor) {
         #[cfg(feature = "debugging")]
         {
             println!(
-                "Forward Pass:\n    \
-            Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[Square]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n    \
-            Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[ Exps ]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n    \
-            Tensor {{ data: {:^width$?}, shape: {:^width2$?} }} ==[Square]=> Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}\n",
-                x.data(), x.shape(),
-                a.data(), a.shape(),
-                a.data(), b.shape(),
-                b.data(), b.shape(),
-                b.data(), b.shape(),
-                y.data(), y.shape(),
-                width = 11,
-                width2 = 3
+                "Forward Pass:\n\
+            {x} ==[Square]=> {a}\n\
+            {a} ==[Exp]=> {b}\n\
+            {b} ==[Square]=> {y}\n",
+                x = format_tensor(x),
+                a = format_tensor(a),
+                b = format_tensor(b),
+                y = format_tensor(y),
             );
         }
     }
 
-    fn print_backward(
-        x: &Option<Tensor>,
-        a: &Option<Tensor>,
-        b: &Option<Tensor>,
-        y: &Option<Tensor>,
-    ) {
+    fn format_option_tensor(t: &Option<Tensor>) -> String {
+        match t {
+            Some(tensor) => format_tensor(tensor),
+            None => "Tensor { data: None, shape: None }".to_string(),
+        }
+    }
+
+    fn print_backward(x: &Option<Tensor>, a: &Option<Tensor>, b: &Option<Tensor>, y: &Option<Tensor>) {
         #[cfg(feature = "debugging")]
         {
-            let fmt_tensor = |t: &Option<Tensor>| {
-                if let Some(tensor) = t {
-                    format!(
-                        "Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}",
-                        tensor.data(),
-                        tensor.shape(),
-                        width = 11,
-                        width2 = 3
-                    )
-                } else {
-                    "Tensor { data: None, shape: None }".to_string()
-                }
-            };
-
             println!(
-                "Backward Pass:\n    \
-        {} ==[Square]=> {}\n    \
-        {} ==[ Exps ]=> {}\n    \
-        {} ==[Square]=> {}\n",
-                fmt_tensor(x),
-                fmt_tensor(a),
-                fmt_tensor(a),
-                fmt_tensor(b),
-                fmt_tensor(b),
-                fmt_tensor(y),
+                "Backward Pass:\n\
+            {} ==[Square]=> {}\n\
+            {} ==[Exp]=> {}\n\
+            {} ==[Square]=> {}\n",
+                format_option_tensor(x),
+                format_option_tensor(a),
+                format_option_tensor(a),
+                format_option_tensor(b),
+                format_option_tensor(b),
+                format_option_tensor(y),
             );
         }
     }
@@ -404,7 +383,7 @@ mod tests {
         let x = variable!(vec![vec![2.0]]);
         let a = square.apply(&[&x])?;
         let y = add.apply(&[&square.apply(&[&a])?, &square.apply(&[&a])?])?;
-        assert_eq!(y.tensor().data(), Tensor::new(vec![vec![32.0]]).data());
+        assert_eq!(y.tensor(), Tensor::new(vec![vec![32.0]]));
 
         #[cfg(feature = "enableBackpropagation")]
         {
@@ -442,7 +421,7 @@ mod tests {
         let x = variable!(vec![vec![2.0]]);
         let y = variable!(vec![vec![3.0]]);
         let z = add.apply(&[&square.apply(&[&x])?, &square.apply(&[&y])?])?; // z = add(square(x), square(y))
-        assert_eq!(z.tensor().data(), Tensor::new(vec![vec![13.0]]).data());
+        assert_eq!(z.tensor(), Tensor::new(vec![vec![13.0]]));
 
         #[cfg(feature = "enableBackpropagation")]
         {

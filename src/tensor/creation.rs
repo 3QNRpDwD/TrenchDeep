@@ -1,6 +1,5 @@
 use super::*;
 use std::collections::HashMap;
-use std::ops::Deref;
 
 impl Tensor {
     pub fn zeros(shape: &[usize]) -> Self {
