@@ -12,7 +12,7 @@ impl Function for Div {
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
         match targets[0].chk_shape(&targets[1]) {
             Err(e) => Err(e),
-            _ => Ok(vec![Tensor::from_vec(self.backend().div(targets[0].data().as_slice(), targets[1].data().as_slice()), targets[0].shape().as_slice())?])
+            _ => Ok(vec![Tensor::from_vec(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape())?])
         }
     }
 

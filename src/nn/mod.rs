@@ -16,7 +16,9 @@ use crate::{
         TensorBase,
         Variable
     },
-    MlResult
+    MlResult,
+    MlError,
+    TensorError
 };
 use std::{
     fmt::Debug,

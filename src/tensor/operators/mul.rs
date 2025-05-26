@@ -12,7 +12,17 @@ impl Function for Mul {
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
         match targets[0].chk_shape(&targets[1]) {
             Err(e) => Err(e),
-            _ => Ok(vec![Tensor::from_vec(self.backend().multiply(targets[0].data().as_slice(), targets[1].data().as_slice()), targets[0].shape().as_slice())?])
+            _ => {
+                let result = targets[0].with_data(|data1| {
+                    targets[1].with_data(|data2| {
+                        self.backend().multiply(data1, data2)
+                    }).ok_or(MlError::from(TensorError::TensorNotFound))
+                }).ok_or(MlError::from(TensorError::TensorNotFound))??;
+
+                targets[0].with_shape(|shape| {
+                    Ok(vec![Tensor::from_vec(result, shape)?])
+                }).ok_or(MlError::from(TensorError::TensorNotFound))?
+            }
         }
     }
 

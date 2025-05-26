@@ -7,7 +7,7 @@ impl Function for Abs {
     /// # Returns
     /// A new tensor with the absolute values of each element
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|&x| x.abs()).collect(), targets[0].shape().as_slice())?])
+        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|&x| x.abs()).collect(), targets[0].shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
@@ -25,7 +25,7 @@ impl Function for Exp {
     /// # Returns
     /// A new tensor with each element being e ^ tensor_element
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(self.backend().exp(targets[0].data().as_slice()), targets[0].shape().as_slice())?])
+        Ok(vec![Tensor::from_vec(self.backend().exp(targets[0].data()), targets[0].shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
@@ -35,7 +35,7 @@ impl Function for Exp {
             .map(|(grad_data, target_data)|  target_data.exp() * grad_data)
             .collect();
 
-        Ok(vec![Tensor::from_vec(gradiant, targets[0].shape().as_slice())?])
+        Ok(vec![Tensor::from_vec(gradiant, targets[0].shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -48,7 +48,7 @@ impl Function for Log {
     /// # Returns
     /// A new tensor with each element being the natural logarithm of tensor_element
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|&x| x.ln()).collect(), targets[0].shape().as_slice())?])
+        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|&x| x.ln()).collect(), targets[0].shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
@@ -69,20 +69,20 @@ impl Function for Pow {
     /// # Returns
     /// A new tensor with each element being tensor_element ^ power
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(self.backend().pow(targets[0].data().as_slice(), self.power.unwrap()), targets[0].shape().as_slice())?])
+        Ok(vec![Tensor::from_vec(self.backend().pow(targets[0].data(), self.power.unwrap()), targets[0].shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
         let power = self.power.unwrap();
         let target = targets[0];
-        let forwarded = Tensor::from_vec(self.backend().pow(target.data().as_slice(), power - 1.0), target.shape().as_slice())?; // x ** (c - 1)
+        let forwarded = Tensor::from_vec(self.backend().pow(target.data(), power - 1.0), target.shape())?; // x ** (c - 1)
         let result = Tensor::from_vec(
             forwarded
                 .data()
                 .iter()
                 .map(|&x| power * x)
-                .collect(), target.shape().as_slice())?; // c * x ** (c - 1)
+                .collect(), target.shape())?; // c * x ** (c - 1)
         Ok(vec![result * grad]) // c * x ** (c -1) * gy
     }
 
@@ -96,7 +96,7 @@ impl Function for Square {
     /// # Returns
     /// A new tensor with each element being the square of the corresponding element in the input tensor
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|x| x * x).collect(), targets[0].shape().as_slice())?])
+        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|x| x * x).collect(), targets[0].shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
@@ -106,7 +106,7 @@ impl Function for Square {
             .map(|(grad_data, target_data)| 2.0  * target_data * grad_data )
             .collect();
 
-        Ok(vec![Tensor::from_vec(gradiant, targets[0].shape().as_slice())?])
+        Ok(vec![Tensor::from_vec(gradiant, targets[0].shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -119,7 +119,7 @@ impl Function for Sqrt {
     /// # Returns
     /// A new tensor with each element being the square root of tensor_element
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(self.backend().sqrt(targets[0].data().as_slice()), targets[0].shape().as_slice())?])
+        Ok(vec![Tensor::from_vec(self.backend().sqrt(targets[0].data()), targets[0].shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]

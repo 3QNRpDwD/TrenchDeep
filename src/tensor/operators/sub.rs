@@ -30,7 +30,7 @@ impl Function for Sub {
 
         match targets[0].chk_shape(&targets[1]) {
             Err(e) => Err(e),
-            _ => Ok(vec![Tensor::from_vec(self.backend().sub(first_data.as_slice(), second_data.as_slice()), first_shape.as_slice())?])
+            _ => Ok(vec![Tensor::from_vec(self.backend().sub(first_data, second_data), first_shape)?])
         }
     }
 

@@ -11,31 +11,47 @@ impl Function for Add {
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
         let first_target = targets[0];
         let second_target = targets[1];
-        let binding = first_target.shape();
-        let first_shape = binding.as_slice();
-        let binding = second_target.shape();
-        let second_shape = binding.as_slice();
-        let binding = first_target.data();
-        let first_data = binding.as_slice();
-        let binding = second_target.data();
-        let second_data = binding.as_slice();
 
+        let first_shape_opt = first_target.with_shape(|shape| shape.to_vec());
+        let second_shape_opt = second_target.with_shape(|shape| shape.to_vec());
+
+        if first_shape_opt.is_none() || second_shape_opt.is_none() {
+            return Err(MlError::from(TensorError::TensorNotFound));
+        }
+
+        let first_shape = first_shape_opt.unwrap();
+        let second_shape = second_shape_opt.unwrap();
+
+        // 행렬 + 벡터 특수 케이스 처리
         if first_shape.len() == 2 && second_shape.len() == 1 && first_shape[1] == second_shape[0] {
-            // Special case for matrix + vector broadcasting
             let (batch_size, features) = (first_shape[0], first_shape[1]);
-            let mut data = vec![0.0; first_data.len()];
 
-            for i in 0..batch_size {
-                for j in 0..features {
-                    data[i * features + j] = first_data[i * features + j] + second_data[j];
-                }
-            }
-            return Ok(vec![Tensor::from_vec(data, first_shape)?])
+            let result = first_target.with_data(|first_data| {
+                second_target.with_data(|second_data| {
+                    let mut data = vec![0.0; first_data.len()];
+                    for i in 0..batch_size {
+                        for j in 0..features {
+                            data[i * features + j] = first_data[i * features + j] + second_data[j];
+                        }
+                    }
+                    data
+                }).ok_or(MlError::from(TensorError::TensorNotFound))
+            }).ok_or(MlError::from(TensorError::TensorNotFound))??;
+
+            return Ok(vec![Tensor::from_vec(result, &first_shape)?]);
         }
 
         match first_target.chk_shape(&second_target) {
             Err(e) => Err(e),
-            _ => Ok(vec![Tensor::from_vec(self.backend().add(first_data, second_data), first_shape)?])
+            _ => {
+                let result = first_target.with_data(|first_data| {
+                    second_target.with_data(|second_data| {
+                        self.backend().add(first_data, second_data)
+                    }).ok_or(MlError::from(TensorError::TensorNotFound))
+                }).ok_or(MlError::from(TensorError::TensorNotFound))??;
+
+                Ok(vec![Tensor::from_vec(result, &first_shape)?])
+            }
         }
     }
 

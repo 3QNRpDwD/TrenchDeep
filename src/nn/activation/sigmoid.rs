@@ -1,3 +1,4 @@
+
 use super::*;
 
 impl Function for Sigmoid {
@@ -5,13 +6,15 @@ impl Function for Sigmoid {
 
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
         let x = targets[0];
-        let ones = vec![1.0f32; x.data().len()];
-        Ok(vec![
-            Tensor::from_vec(
-                self.backend.div(&ones, &self.backend.add(&ones, &self.backend.exp(x.data().as_slice()))),
-                x.shape().as_slice()
-            )?]
-        )
+
+        let result = x.with_data(|data| {
+            let ones = vec![1.0f32; data.len()];
+            self.backend.div(&ones, &self.backend.add(&ones, &self.backend.exp(data)))
+        });
+
+        x.with_shape(|shape| {
+            Ok(vec![Tensor::from_vec(result, shape)?])
+        })
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
@@ -20,21 +23,25 @@ impl Function for Sigmoid {
         // σ'(x) = σ(x) * (1 - σ(x))
         // ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * σ'(x)
 
-        Ok(vec![
-            Tensor::from_vec(
+        let result = grad.with_data(|grad_data| {
+            sigmoid_output.with_data(|sigmoid_data| {
+                let ones = vec![1.0f32; sigmoid_data.len()];
                 self.backend.multiply(
-                    &grad.data(),
+                    grad_data,
                     &self.backend.multiply(
-                        &sigmoid_output.data(),
+                        sigmoid_data,
                         &self.backend.sub(
-                            &vec![1.0f32; sigmoid_output.data().len()],
-                            &sigmoid_output.data()
+                            &ones,
+                            sigmoid_data
                         )
                     )
-                ),
-                grad.shape().as_slice()
-            )?
-        ])
+                )
+            })
+        });
+
+        grad.with_shape(|shape| {
+            Ok(vec![Tensor::from_vec(result, shape)?])
+        })
     }
 
     fn backend(&self) -> &Arc<dyn Backend> {

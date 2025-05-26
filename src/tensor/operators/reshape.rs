@@ -28,7 +28,7 @@ impl Function for Reshape {
             }));
         }
 
-        Ok(vec![Tensor::from_vec(target.data().to_vec(), new_shape.as_slice())?])
+        Ok(vec![Tensor::from_vec(target.data().to_vec(), new_shape)?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
@@ -46,6 +46,6 @@ impl Function for Reshape {
             }));
         }
 
-        Ok(vec![Tensor::from_vec(grad.data().to_vec(), target_shape.as_slice())?])
+        Ok(vec![Tensor::from_vec(grad.data().to_vec(), target_shape)?])
     }
 }

@@ -9,8 +9,7 @@ use std::{
 };
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
-use std::sync::{Mutex, RwLock};
-use once_cell::unsync::Lazy;
+use std::sync::{LazyLock, Mutex, RwLock};
 
 pub mod creation;
 pub mod operators;
@@ -18,7 +17,6 @@ pub mod display;
 pub mod graph;
 
 use crate::{MlError, MlResult, tensor::operators::Function, TensorError};
-use crate::tensor::operators::Matmax;
 
 /// 다양한 텐서 연산을 위한 편리한 매크로를 제공합니다.
 ///
@@ -137,27 +135,51 @@ macro_rules! tensor_ops {
 #[macro_export]
 macro_rules! scalar_ops {
     ($tensor:expr, Add, $scalar:expr) => {
-        Tensor::from_vec($tensor.data().iter().map(|&x| x + $scalar).collect(), &$tensor.shape())
+        $tensor.with_data(|data| {
+            $tensor.with_shape(|shape| {
+                Tensor::from_vec(data.iter().map(|&x| x + $scalar).collect(), shape)
+            })
+        })
     };
 
     ($tensor:expr, Sub, $scalar:expr) => {
-        Tensor::from_vec($tensor.data().iter().map(|&x| x - $scalar).collect(), &$tensor.shape())
+        $tensor.with_data(|data| {
+            $tensor.with_shape(|shape| {
+                Tensor::from_vec(data.iter().map(|&x| x - $scalar).collect(), shape)
+            })
+        })
     };
 
     ($tensor:expr, Mul, $scalar:expr) => {
-        Tensor::from_vec($tensor.data().iter().map(|&x| x * $scalar).collect(), &$tensor.shape())
+        $tensor.with_data(|data| {
+            $tensor.with_shape(|shape| {
+                Tensor::from_vec(data.iter().map(|&x| x * $scalar).collect(), shape)
+            })
+        })
     };
 
     ($tensor:expr, Div, $scalar:expr) => {
-        Tensor::from_vec($tensor.data().iter().map(|&x| x / $scalar).collect(), &$tensor.shape())
+        $tensor.with_data(|data| {
+            $tensor.with_shape(|shape| {
+                Tensor::from_vec(data.iter().map(|&x| x / $scalar).collect(), shape)
+            })
+        })
     };
 
     ($scalar:expr, buS, $tensor:expr) => {
-        Tensor::from_vec($tensor.data().iter().map(|&x| $scalar - x).collect(), &$tensor.shape())
+        $tensor.with_data(|data| {
+            $tensor.with_shape(|shape| {
+                Tensor::from_vec(data.iter().map(|&x| $scalar - x).collect(), shape)
+            })
+        })
     };
 
     ($scalar:expr, viD, $tensor:expr) => {
-        Tensor::from_vec($tensor.data().iter().map(|&x| $scalar / x).collect(), &$tensor.shape())
+        $tensor.with_data(|data| {
+            $tensor.with_shape(|shape| {
+                Tensor::from_vec(data.iter().map(|&x| $scalar / x).collect(), shape)
+            })
+        })
     };
 }
 
@@ -210,34 +232,29 @@ pub struct TensorPool {
     max_pool_size: usize,
 }
 
-impl Tensor {
-    fn get_id(&self) -> NodeId {
-        self.0
-    }
-}
-
 pub struct TensorStorage<T> {
     tensors: HashMap<NodeId, TensorData<T>>
 }
 
+static TENSOR_STORAGE: LazyLock<Mutex<TensorStorage<f32>>> = LazyLock::new(|| Mutex::new(TensorStorage::<f32>::new()));
 
-impl TensorStorage<f32> {
+impl<Type> TensorStorage<Type> {
     pub fn new() -> Self {
         Self {
             tensors: HashMap::new(),
         }
     }
 
-    pub fn insert(&mut self, id: NodeId, tensor: TensorData<f32>) -> NodeId {
+    pub fn insert(&mut self, id: NodeId, tensor: TensorData<Type>) -> NodeId {
         self.tensors.insert(id, tensor);
         id
     }
 
-    pub fn get(&self, id: &NodeId) -> Option<&TensorData<f32>> {
+    pub fn get(&self, id: &NodeId) -> Option<&TensorData<Type>> {
         self.tensors.get(id)
     }
 
-    pub fn remove(&mut self, id: &NodeId) -> Option<TensorData<f32>> {
+    pub fn remove(&mut self, id: &NodeId) -> Option<TensorData<Type>> {
         self.tensors.remove(id)
     }
 
@@ -249,13 +266,13 @@ impl TensorStorage<f32> {
         self.tensors.contains_key(id)
     }
 
-    pub fn update(&mut self, id: &NodeId, f: impl FnOnce(&mut TensorData<f32>)) {
+    pub fn update(&mut self, id: &NodeId, f: impl FnOnce(&mut TensorData<Type>)) {
         if let Some(tensor) = self.tensors.get_mut(id) {
             f(&mut *tensor); // 락 획득 후 수정
         }
     }
 }
-static TENSOR_STORAGE: Lazy<Mutex<TensorStorage<f32>>> =Lazy::new(|| Mutex::new(TensorStorage::new()));
+
 #[derive(Debug, Clone)]
 pub struct GradientBuffer {
     buffer: Tensor,
@@ -271,20 +288,32 @@ impl GradientBuffer {
     }
 
     pub fn accumulate(&mut self, grad: &Tensor) -> MlResult<()> {
-        if grad.shape() != self.buffer.shape() {
-            return Err(MlError::StringError("Shape mismatch in gradient accumulation".to_string()));
-        }
-
         if !self.initialized {
-            TENSOR_STORAGE.lock().unwrap().update(&self.buffer.get_id(), |tensor| {
-                tensor.data = grad.data().to_vec();
+            self.buffer.with_shape(|buffer_shape| {
+                grad.with_shape(|grad_shape| {
+                    if buffer_shape != grad_shape {
+                        return Err(MlError::from(TensorError::InvalidShape {
+                            expected: buffer_shape.to_vec(),
+                            got: grad_shape.to_vec(),
+                        }));
+                    }
+                    Ok(())
+                })
+            })?;
+
+            TENSOR_STORAGE.lock().unwrap().update(&self.buffer.as_ptr(), |tensor| {
+                grad.with_data(|grad_data| {
+                    tensor.data = grad_data.to_vec();
+                });
             });
             self.initialized = true;
         } else {
-            TENSOR_STORAGE.lock().unwrap().update(&self.buffer.get_id(), |tensor| {
-                for (acc, val) in tensor.data.iter_mut().zip(grad.data()) {
-                    *acc += val;
-                }
+            TENSOR_STORAGE.lock().unwrap().update(&self.buffer.as_ptr(), |tensor| {
+                grad.with_data(|grad_data| {
+                    for (acc, val) in tensor.data.iter_mut().zip(grad_data) {
+                        *acc += val;
+                    }
+                });
             });
         }
         Ok(())
@@ -292,7 +321,10 @@ impl GradientBuffer {
 
     pub fn get_tensor(&self) -> Option<Tensor> {
         if self.initialized {
-            Tensor::from_vec(self.buffer.data().to_vec(), &self.buffer.shape()).ok()
+            let tensor_data = TENSOR_STORAGE.lock().unwrap().get(&self.buffer.as_ptr()).map(|tensor| tensor.clone())?;
+            self.buffer.with_shape(|shape| {
+                Tensor::from_vec(tensor_data.data, shape).ok()
+            })
         } else {
             None
         }
@@ -300,7 +332,7 @@ impl GradientBuffer {
 
     pub fn clear(&mut self) {
         self.initialized = false;
-        TENSOR_STORAGE.lock().unwrap().update(&self.buffer.get_id(), |tensor| {
+        TENSOR_STORAGE.lock().unwrap().update(&self.buffer.as_ptr(), |tensor| {
             tensor.data.fill(0.0); // 모든 요소를 0으로 초기화
         });
     }
@@ -343,6 +375,8 @@ pub struct NodeIdGenerator {
     counter: std::sync::atomic::AtomicU64,
 }
 
+static NODE_ID_GEN: NodeIdGenerator = NodeIdGenerator::new();
+
 impl NodeIdGenerator {
     pub const fn new() -> Self {
         Self {
@@ -358,11 +392,6 @@ impl NodeIdGenerator {
         self.counter.store(0, Ordering::Relaxed);
     }
 }
-
-static NODE_ID_GEN: NodeIdGenerator = NodeIdGenerator::new();
-
-#[cfg(feature = "enableBackpropagation")]
-type FuncId = *const dyn Function;
 
 /// 계산 그래프의 개별 노드를 나타내는 구조체입니다.
 ///
@@ -389,7 +418,7 @@ pub struct ComputationNode {
 #[derive(Clone)]
 pub struct ComputationGraph {
     nodes: Vec<ComputationNode>,
-    node_map: std::collections::HashMap<NodeId, usize>,
+    node_map: HashMap<NodeId, usize>,
     adjacency_list: Vec<Vec<usize>>,
     reverse_adjacency: Vec<Vec<usize>>,
     topo_order: Vec<usize>,
@@ -403,8 +432,8 @@ pub struct ComputationGraph {
 pub struct VisualizationGraph {
     pub nodes: std::collections::HashSet<String>,
     pub edges: Vec<String>,
-    pub node_types: std::collections::HashMap<String, NodeType>,
-    pub node_labels: std::collections::HashMap<String, String>,
+    pub node_types: HashMap<String, NodeType>,
+    pub node_labels: HashMap<String, String>,
 }
 
 #[cfg(feature = "enableVisualization")]
@@ -440,8 +469,18 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 반환값
     /// - `Tensor<Type>`: 생성된 텐서 객체
-    fn new(_data: Vec<Vec<Type>>) -> Self where Self: Sized {
-        unimplemented!(" TensorBase::new() is not implemented ")
+    fn new(data: Vec<Vec<f32>>) -> Tensor {
+        let shape = vec![data.len(), data[0].len()];
+        let data: Vec<f32> = data.into_iter().flatten().collect();
+
+        let tensor = TensorData {
+            data,
+            shape,
+        };
+
+        let node_id = NODE_ID_GEN.next();
+        TENSOR_STORAGE.lock().unwrap().insert(node_id, tensor);
+        Tensor(node_id)
     }
 
     /// 1차원 벡터와 형태를 기반으로 새로운 텐서를 생성합니다.
@@ -455,24 +494,39 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 오류
     /// - 데이터 길이와 형태가 일치하지 않을 경우
-    fn from_vec(_data: Vec<Type>, _shape: &[usize]) -> MlResult<Self> where Self: Sized {
-        unimplemented!(" TensorBase::from_vec() is not implemented ")
+    fn from_vec(data: Vec<f32>, shape: &[usize]) -> MlResult<Tensor> where Self: Sized {
+        let expected_len: usize = shape.iter().product();
+        if data.len() != expected_len {
+            return Err(MlError::TensorError(TensorError::InvalidDataLength {
+                expected: expected_len,
+                got: data.len(),
+            }));
+        }
+
+        let node_id = NODE_ID_GEN.next();
+        TENSOR_STORAGE.lock().unwrap().insert(
+            node_id,
+            TensorData::<f32> {
+                data,
+                shape: shape.to_vec(),
+        });
+        Ok(Tensor(node_id))
     }
 
     /// 텐서의 형태를 반환합니다.
     ///
     /// # 반환값
     /// - `&[usize]`: 텐서의 차원을 나타내는 슬라이스
-    fn shape(&self) -> Vec<usize> {
-        unimplemented!(" TensorBase::shape() is not implemented ")
+    fn with_shape<F, R>(&self, f: F) -> R where F: FnOnce(&[usize]) -> R {
+        TENSOR_STORAGE.lock().unwrap().get(&self.as_ptr()).map(|tensor| f(&tensor.shape)).expect("Tensor not found")
     }
 
     /// 텐서의 데이터를 반환합니다.
     ///
     /// # 반환값
     /// - `&[Type]`: 텐서의 데이터를 나타내는 슬라이스
-    fn data(&self) -> Vec<Type> {
-        unimplemented!(" TensorBase::data() is not implemented ")
+    fn with_data<F, R>(&self, f: F) -> R where F: FnOnce(&[f32]) -> R  {
+        TENSOR_STORAGE.lock().unwrap().get(&self.as_ptr()).map(|tensor| f(&tensor.data)).expect("Tensor not found")
     }
 
     /// 주어진 인덱스에서 텐서의 값을 반환합니다.
@@ -493,8 +547,19 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 반환값
     /// - `Option<usize>`: 데이터 벡터 내 해당 위치의 오프셋, 유효하지 않은 인덱스면 `None`
-    fn index(&self, _indices: &[usize]) -> Option<usize> {
-        unimplemented!(" TensorBase::index() is not implemented ")
+
+    fn index(&self, indices: &[usize]) -> Option<usize> {
+        self.with_shape(|shape| {
+            if indices.len() != shape.len() {
+                return None;
+            }
+
+            Some(
+                indices.iter()
+                    .zip(shape)
+                    .fold(0, |acc, (&i, &dim)| acc * dim + i),
+            )
+        })
     }
 
     /// 두 텐서의 형태가 동일한지 확인합니다.
@@ -507,17 +572,35 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 오류
     /// - 두 텐서의 형태가 일치하지 않을 경우
-    fn chk_shape(&self, other: &dyn TensorBase<Type>) -> MlResult<()> {
-        if self.shape() == other.shape() {
+    fn chk_shape(&self, other: &impl TensorBase<Type>) -> MlResult<()> {
+        let self_shape = TENSOR_STORAGE
+            .lock()
+            .unwrap()
+            .get(&self.as_ptr()).map(|tensor| tensor.shape.to_vec())
+            .expect("Tensor not found");
+
+        let other_shape = TENSOR_STORAGE
+            .lock()
+            .unwrap()
+            .get(&other.as_ptr()).map(|tensor| tensor.shape.to_vec())
+            .expect("Tensor not found");
+
+        if self_shape == other_shape {
             Ok(())
         } else {
             Err(MlError::TensorError(TensorError::InvalidShape {
-                expected: self.shape().to_vec(),
-                got: other.shape().to_vec(),
+                expected: self_shape,
+                got: other_shape,
             }))
         }
     }
+
+    fn as_ptr(&self) -> NodeId {
+        unimplemented!(" TensorBase::as_ptr() is not implemented ")
+    }
 }
+
+impl TensorBase<f32> for Tensor {}
 
 /// 자동 미분(autograd)을 지원하는 함수 트레잇
 ///
@@ -563,8 +646,8 @@ mod tests {
     use crate::MlResult;
 
     pub fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
-        assert_eq!(tensor.data(), expected_tensor.data());
-        assert_eq!(tensor.shape(), expected_tensor.shape());
+        assert_eq!(tensor.with_data(|data| data.to_vec()), expected_tensor.with_data(|data| data.to_vec()));
+        assert_eq!(tensor.with_shape(|shape| shape.to_vec()), expected_tensor.with_shape(|shape| shape.to_vec()));
         Ok(())
     }
 
@@ -572,8 +655,9 @@ mod tests {
     fn tensor() -> MlResult<()> {
 
         let t1 = Tensor::new(vec![vec![1.0, 2.0]]);
-        assert_eq!(t1.data(), vec![1.0, 2.0]);
-        assert_eq!(t1.shape(), vec![1, 2]);
+        t1.with_data(|data|assert_eq!(data, vec![1.0, 2.0]));
+        t1.with_shape(|shape| assert_eq!(shape, vec![1, 2]));
+
         Ok(())
     }
 
@@ -622,56 +706,63 @@ mod tests {
         let second = Tensor::new(vec![vec![3.0], vec![4.0]]);
         let result = tensor_ops!(first, Matmul, second);
 
-        assert_eq!(result.data(), vec![11.0]);
+        first.with_data(|data|assert_eq!(data, vec![11.0]));
     }
 
     #[test]
     fn tes_macro_exp_macro() {
         let tensor = Tensor::new(vec![vec![1.0, 2.0]]);
         let result = tensor_ops!(tensor, Exp);
-        assert_eq!(result.data(), vec![std::f32::consts::E, 7.389056]);
+
+        result.with_data(|data|assert_eq!(data, vec![std::f32::consts::E, 7.389056]));
     }
 
     #[test]
     fn test_neg_macro() {
         let tensor = Tensor::new(vec![vec![1.0, -2.0]]);
         let result = tensor_ops!(tensor, Neg);
-        assert_eq!(result.data(), vec![-1.0, 2.0]);
+
+        result.with_data(|data|assert_eq!(data, vec![-1.0, 2.0]));
     }
 
     #[test]
     fn test_sqrt_macro() {
         let tensor = Tensor::new(vec![vec![1.0, 4.0]]);
         let result = tensor_ops!(tensor, Sqrt);
-        assert_eq!(result.data(), vec![1.0, 2.0]);
+
+        result.with_data(|data|assert_eq!(data, vec![-1.0, 2.0]));
     }
 
     #[test]
     fn test_abs_macro() {
         let tensor = Tensor::new(vec![vec![1.0, -2.0]]);
         let result = tensor_ops!(tensor, Abs);
-        assert_eq!(result.data(), vec![1.0, 2.0]);
+
+        result.with_data(|data|assert_eq!(data, vec![1.0, 2.0]));
     }
 
     #[test]
     fn test_square_macro() {
         let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
         let result = tensor_ops!(tensor, Square);
-        assert_eq!(result.data(), vec![4.0, 9.0]);
+
+        result.with_data(|data|assert_eq!(data, vec![4.0, 9.0]));
     }
 
     #[test]
     fn test_log_macro() {
         let tensor = Tensor::new(vec![vec![1.0, std::f32::consts::E]]);
         let result = tensor_ops!(tensor, Log);
-        assert_eq!(result.data(), vec![0.0, 0.99999994]);
+
+        result.with_data(|data|assert_eq!(data, vec![0.0, 0.99999994]));
     }
 
     #[test]
     fn test_pow_macro() {
         let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
         let result = tensor_ops!(tensor, Pow, 2.0);
-        assert_eq!(result.data(), vec![4.0, 9.0]);
+
+        result.with_data(|data|assert_eq!(data, vec![4.0, 9.0]));
     }
 
     #[test]

@@ -257,8 +257,7 @@ impl ComputationGraph {
 
         let output_var = &self.nodes[output_idx].variable;
         let output_read = output_var.read().unwrap();
-        let binding = output_read.tensor().shape();
-        let output_shape = binding.as_slice();
+        let output_shape = output_read.tensor().with_shape(|shape| shape);
 
         if output_read.grad().is_none() {
             let grad = Tensor::from_vec(

@@ -22,7 +22,7 @@ impl Function for Matmax {
             None => {
                 // Find global maximum
                 let max_val = target_0_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-                vec![Tensor::from_vec(vec![max_val], &vec![1])?, Tensor::zeros(target_0_shape.as_slice())]
+                vec![Tensor::from_vec(vec![max_val], &vec![1])?, Tensor::zeros(target_0_shape)]
             }
             Some(d) => {
                 let dim = if d < 0 {

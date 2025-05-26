@@ -7,12 +7,24 @@ impl Function for Neg {
     /// # Returns
     /// A new tensor with each element being the negation of tensor_element
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|&x| -x).collect(), targets[0].shape().as_slice())?])
+        let result = targets[0].with_data(|data| {
+            data.iter().map(|&x| -x).collect::<Vec<f32>>()
+        }).ok_or(MlError::from(TensorError::TensorNotFound))?;
+
+        targets[0].with_shape(|shape| {
+            Ok(vec![Tensor::from_vec(result, shape)?])
+        }).ok_or(MlError::from(TensorError::TensorNotFound))?
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, _: &[Tensor], grad: Tensor) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape().as_slice())?])
+        let result = grad.with_data(|data| {
+            data.iter().map(|&x| -x).collect::<Vec<f32>>()
+        }).ok_or(MlError::from(TensorError::TensorNotFound))?;
+
+        grad.with_shape(|shape| {
+            Ok(vec![Tensor::from_vec(result, shape)?])
+        }).ok_or(MlError::from(TensorError::TensorNotFound))?
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

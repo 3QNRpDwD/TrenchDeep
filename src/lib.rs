@@ -1,3 +1,5 @@
+extern crate core;
+
 pub mod tensor;
 pub mod backend;
 pub mod nn;
@@ -27,7 +29,8 @@ pub enum TensorError {
         left_shape: Vec<usize>,
         right_shape: Vec<usize>,
     },
-    EmptyTensor,
+    EmptyTensor, 
+    TensorNotFound
 }
 
 impl std::error::Error for TensorError {}

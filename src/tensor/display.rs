@@ -23,6 +23,9 @@ impl Display for TensorError {
             }
             TensorError::EmptyTensor => {
                 write!(f, "Empty tensor")
+            },
+            &TensorError::TensorNotFound => {
+                write!(f, "Tensor not found")
             }
         }
     }

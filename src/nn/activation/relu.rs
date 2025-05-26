@@ -1,3 +1,4 @@
+
 use super::*;
 
 impl Function for Relu {
@@ -5,11 +6,13 @@ impl Function for Relu {
 
     fn forward(&self, x: &[Tensor]) -> MlResult<Vec<Tensor>> {
         // ReLU(x) = max(0, x)
-        let result = x[0].data().iter()
-            .map(|&val| if val > 0.0 { val } else { 0.0 })
-            .collect::<Vec<f32>>();
+        let result = x[0].with_data(|data| {
+            data.iter().map(|&val| if val > 0.0 { val } else { 0.0 }).collect::<Vec<f32>>()
+        });
 
-        Ok(vec![Tensor::from_vec(result, x[0].shape().as_slice())?])
+        x[0].with_shape(|shape| {
+            Ok(vec![Tensor::from_vec(result, shape)?])
+        })
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
@@ -17,16 +20,19 @@ impl Function for Relu {
         let relu_output = target[0];
 
         // ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * mask
-        Ok(vec![
-            Tensor::from_vec(
+        let result = grad.with_data(|grad_data| {
+            relu_output.with_data(|output_data| {
                 self.backend.multiply(
-                    &grad.data(),
-                    &relu_output.data().iter()
+                    grad_data,
+                    &output_data.iter()
                         .map(|&val| if val > 0.0 { 1.0 } else { 0.0 })
                         .collect::<Vec<f32>>()
-                ),
-                grad.shape().as_slice()
-            )?
-        ])
+                )
+            })
+        });
+
+        grad.with_shape(|shape| {
+            Ok(vec![Tensor::from_vec(result, shape)?])
+        })
     }
 }

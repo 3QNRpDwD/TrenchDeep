@@ -11,7 +11,7 @@ impl Function for Sin {
 
     /// 입력 텐서에 사인 함수를 요소별로 적용하여, 동일한 모양을 가진 새로운 텐서를 반환합니다.
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|x| x.sin()).collect(), targets[0].shape().as_slice())?])
+        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|x| x.sin()).collect(), targets[0].shape())?])
     }
 
     /// 사인 함수의 기울기를 계산합니다.
@@ -24,7 +24,7 @@ impl Function for Sin {
             .map(|(grad_data, target)|  target.cos() * grad_data)
             .collect();
 
-        Ok(vec![Tensor::from_vec(gradient, targets[0].shape().as_slice())?])
+        Ok(vec![Tensor::from_vec(gradient, targets[0].shape())?])
     }
 
     /// 연산에 사용되는 백엔드 객체의 참조를 반환
@@ -42,7 +42,7 @@ impl Function for Cos {
 
     /// 입력 텐서에 코사인 함수를 요소별로 적용하여, 동일한 모양을 가진 새로운 텐서를 반환합니다.
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|x| x.cos()).collect(), targets[0].shape().as_slice())?])
+        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|x| x.cos()).collect(), targets[0].shape())?])
     }
 
     /// 코사인 함수의 기울기를 계산합니다.
@@ -55,7 +55,7 @@ impl Function for Cos {
             .map(|(grad_data, target)|  -target.sin() * grad_data)
             .collect();
 
-        Ok(vec![Tensor::from_vec(gradient, targets[0].shape().as_slice())?])
+        Ok(vec![Tensor::from_vec(gradient, targets[0].shape())?])
     }
 
     /// 연산에 사용되는 백엔드 객체의 참조를 반환
@@ -73,13 +73,13 @@ impl Function for ApproxSin {
     fn forward(&self, targets: &[Tensor]) -> MlResult<Vec<Tensor>> {
         let x = targets[0];
         let x_data = x.data();
-        let mut result = x.data(); // Start with x (first term of series)
+        let mut result = x.data().to_vec(); // Start with x (first term of series)
 
         // Calculate powers for the series approximation
         let mut term_sign = -1.0;
         let mut current_power = 3;
-        let mut x_power = self.backend.multiply(x_data.as_slice(), x_data.as_slice()); // x²
-        x_power = self.backend.multiply(&x_power, x_data.as_slice()); // x³
+        let mut x_power = self.backend.multiply(x_data, x_data); // x²
+        x_power = self.backend.multiply(&x_power, x_data); // x³
         let mut factorial = 6.0; // 3!
 
         // Continue adding terms until desired threshold
@@ -96,15 +96,15 @@ impl Function for ApproxSin {
             term_sign *= -1.0;
 
             // Update power: x^n -> x^(n+2)
-            x_power = self.backend.multiply(&x_power, x_data.as_slice());
-            x_power = self.backend.multiply(&x_power, x_data.as_slice());
+            x_power = self.backend.multiply(&x_power, x_data);
+            x_power = self.backend.multiply(&x_power, x_data);
 
             // Update factorial: n! -> (n+2)!
             factorial *= (current_power + 1) as f32 * (current_power + 2) as f32;
             current_power += 2;
         }
 
-        Ok(vec![Tensor::from_vec(result, x.shape().as_slice())?])
+        Ok(vec![Tensor::from_vec(result, x.shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
@@ -124,8 +124,8 @@ impl Function for ApproxSin {
 
         let grad_data = grad.data();
         let cos_data = cos_output[0].data();
-        let result = self.backend.multiply(cos_data.as_slice(), grad_data.as_slice());
-        Ok(vec![Tensor::from_vec(result, x.shape().as_slice())?])
+        let result = self.backend.multiply(cos_data, grad_data);
+        Ok(vec![Tensor::from_vec(result, x.shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -145,7 +145,7 @@ impl Function for ApproxCos {
         let mut result = vec![1.0; x_data.len()];
 
         // Calculate x²
-        let x_squared = self.backend.multiply(x_data.as_slice(), x_data.as_slice());
+        let x_squared = self.backend.multiply(x_data, x_data);
         let mut term_sign = -1.0;
         let mut current_power = 2;
         let mut x_power = x_squared.clone(); // Start with x²
@@ -171,7 +171,7 @@ impl Function for ApproxCos {
             current_power += 2;
         }
 
-        Ok(vec![Tensor::from_vec(result, x.shape().as_slice())?])
+        Ok(vec![Tensor::from_vec(result, x.shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
@@ -192,11 +192,11 @@ impl Function for ApproxCos {
         let sin_data = sin_output[0].data();
 
         // Apply negative sign to sin result
-        let neg_sin = self.backend.multiply(sin_data.as_slice(), &vec![-1.0; sin_data.len()]);
+        let neg_sin = self.backend.multiply(sin_data, &vec![-1.0; sin_data.len()]);
         // Then multiply by gradient
-        let result = self.backend.multiply(&neg_sin, grad_data.as_slice());
+        let result = self.backend.multiply(&neg_sin, grad_data);
 
-        Ok(vec![Tensor::from_vec(result, x.shape().as_slice())?])
+        Ok(vec![Tensor::from_vec(result, x.shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

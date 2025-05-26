@@ -1,5 +1,6 @@
 use super::*;
 use std::collections::HashMap;
+use std::ops::Deref;
 
 impl Tensor {
     pub fn zeros(shape: &[usize]) -> Self {
@@ -16,7 +17,7 @@ impl Tensor {
     }
 
     pub fn zeros_like(&self) -> Self {
-        Self::zeros(&self.shape())
+        self.with_shape(|shape| Self::zeros(shape))
     }
 
     pub fn scalar(scalar: f32) -> Self {
@@ -28,78 +29,6 @@ impl Tensor {
         let node_id = NODE_ID_GEN.next();
         TENSOR_STORAGE.lock().unwrap().insert(node_id, tensor);
         Self(node_id)
-    }
-}
-
-impl TensorBase<f32> for Tensor {
-    fn new(data: Vec<Vec<f32>>) -> Tensor {
-        let shape = vec![data.len(), data[0].len()];
-        let data: Vec<f32> = data.into_iter().flatten().collect();
-
-        let tensor = TensorData {
-            data,
-            shape,
-        };
-
-        let node_id = NODE_ID_GEN.next();
-        TENSOR_STORAGE.lock().unwrap().insert(node_id, tensor);
-        Self(node_id)
-    }
-
-    fn from_vec(data: Vec<f32>, shape: &[usize]) -> MlResult<Tensor> {
-        let expected_len: usize = shape.iter().product();
-        if data.len() != expected_len {
-            return Err(MlError::TensorError(TensorError::InvalidDataLength {
-                expected: expected_len,
-                got: data.len(),
-            }));
-        }
-
-        let tensor = TensorData {
-            data,
-            shape: shape.to_vec(),
-        };
-
-        let node_id = NODE_ID_GEN.next();
-        TENSOR_STORAGE.lock().unwrap().insert(node_id, tensor);
-        Ok(Self(node_id))
-    }
-
-    fn shape(&self) -> Vec<usize> {
-        TENSOR_STORAGE.lock().unwrap().tensors.get(&self.0).unwrap().shape.clone()
-    }
-
-    fn data(&self) -> Vec<f32> {
-        TENSOR_STORAGE.lock().unwrap().tensors.get(&self.0).unwrap().data.clone()
-    }
-
-    fn index(&self, indices: &[usize]) -> Option<usize> {
-        if indices.len() != self.shape().len() {
-            return None;
-        }
-        Some(
-            indices.iter()
-                .zip(self.shape().as_slice())
-                .fold(0, |acc, (&i, &dim)| acc * dim + i),
-        )
-    }
-
-    /// Verifies if two tensors can perform element-wise operations
-    ///
-    /// # Arguments
-    /// * `other` - The tensor to compare shapes with
-    ///
-    /// # Returns
-    /// * `Ok(())` if the shapes match
-    /// * `Err(MlError::TensorError)` if shapes don't match
-    fn chk_shape(&self, other: &dyn TensorBase<f32>) -> MlResult<()> {
-        if self.shape() != other.shape() {
-            return Err(MlError::TensorError(TensorError::InvalidShape {
-                expected: self.shape().to_vec(),
-                got: other.shape().to_vec(),
-            }));
-        }
-        Ok(())
     }
 }
 
@@ -123,16 +52,17 @@ impl LabelGenerator {
         }
 
         // 텐서 모양 기반 라벨 생성
-        let shape = tensor.shape();
-        let shape_label = Self::shape_to_label(shape.as_slice());
-        let context_label = Self::infer_context_from_shape(shape.as_slice());
+        tensor.with_shape(|shape| {
+            let shape_label = Self::shape_to_label(shape);
+            let context_label = Self::infer_context_from_shape(shape);
 
-        // 컨텍스트가 있으면 컨텍스트 우선, 없으면 모양 기반
-        if !context_label.is_empty() {
-            Self::get_unique_label(&context_label)
-        } else {
-            Self::get_unique_label(&shape_label)
-        }
+            // 컨텍스트가 있으면 컨텍스트 우선, 없으면 모양 기반
+            if !context_label.is_empty() {
+                Self::get_unique_label(&context_label)
+            } else {
+                Self::get_unique_label(&shape_label)
+            }
+        })
     }
 
     /// 텐서 모양을 기반으로 컨텍스트 추론
@@ -168,7 +98,7 @@ impl LabelGenerator {
                     (_, _, 3) => "rgb_image".to_string(),
                     (_, _, 4) => "rgba_image".to_string(),
                     (1, _, _) => "batch_1".to_string(),
-                    (b, h, w) if h == w => "square_tensor".to_string(),
+                    (_, h, w) if h == w => "square_tensor".to_string(),
                     _ => "tensor_3d".to_string(),
                 }
             },
@@ -319,7 +249,7 @@ impl Variable {
         format!(
             "Variable '{}': shape={:?}, requires_grad={}, has_grad={}",
             self.label(),
-            self.tensor.shape(),
+            self.tensor.with_shape(|shape| shape.to_vec()),
             self.requires_grad,
             self.grad().is_some(),
         )
@@ -378,7 +308,9 @@ impl Variable {
     pub fn accumulate_grad(&self, grad: Tensor) -> MlResult<()> {
         let mut buffer = self.grad_buffer.lock().unwrap();
         if buffer.is_none() {
-            *buffer = Some(GradientBuffer::new(self.tensor.shape().as_slice()));
+            self.tensor().with_shape(|shape| {
+                *buffer = Some(GradientBuffer::new(shape));
+            })
         }
 
         if let Some(ref mut buf) = *buffer {
@@ -398,10 +330,12 @@ impl Variable {
 
     pub fn set_grad(&self, grad: Tensor) -> MlResult<()> {
         let mut buffer = self.grad_buffer.lock().unwrap();
-        *buffer = Some({
-            let mut buf = GradientBuffer::new(self.tensor.shape().as_slice());
-            buf.accumulate(&grad)?;
-            buf
+        *buffer = Some({ 
+            self.tensor().with_shape(|shape| {
+                let mut buf = GradientBuffer::new(shape);
+                buf.accumulate(&grad).expect("Tensor shape mismatch");
+                buf
+            })
         });
 
         let mut accumulated = self.grad_accumulated.lock().unwrap();
