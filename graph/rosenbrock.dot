@@ -7,25 +7,25 @@ ranksep=1.5;
 node [fontname="Arial", fontsize=10];
 edge [fontname="Arial", fontsize=8];
 
-    "0x1455b5e8800" [label="Square", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
-    "0x1455b5e87a0" [label="Sub", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
-    "0x1455b608d10" [label="scalar_3", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
-    "0x1455b609490" [label="scalar", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
-    "0x1455b617400" [label="scalar_9", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
-    "0x1455b6179a0" [label="scalar_8", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
-    "0x1455b61d5c0" [label="Square", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
-    "0x1455b5e8830" [label="Square", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
-    "0x1455b617a40" [label="scalar_4", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
-    "0x1455b61d2c0" [label="Sub", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
-    "0x1455b608c70" [label="scalar_2", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
-    "0x1455b608950" [label="x1", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
-    "0x1455b6175e0" [label="scalar_7", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
-    "0x1455b617900" [label="scalar_6", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
-    "0x1455b61d020" [label="Add", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
-    "0x1455b60a680" [label="x0", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
-    "0x1455b617ae0" [label="scalar_5", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
-    "0x1455b5e8ce0" [label="Mul", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
-    { rank=source; "0x1455b609490"; "0x1455b608950"; "0x1455b617900"; "0x1455b60a680"; }
+    "0x1b7520b4f70" [label="scalar_3", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "Pointer { addr: 0x1b7520bd7b0, metadata: DynMetadata(0x7ff793bfaff8) }" [label="Sub", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "0x1b7520b5c90" [label="scalar_5", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "0x1b7520b5a10" [label="scalar_7", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "0x1b7520b5f10" [label="scalar_6", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "0x1b7520b50b0" [label="scalar_8", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "Pointer { addr: 0x1b7520bd780, metadata: DynMetadata(0x7ff793bfaf88) }" [label="Square", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "0x1b7520a96e0" [label="scalar", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "0x1b7520aa040" [label="scalar_2", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "Pointer { addr: 0x1b7520bd810, metadata: DynMetadata(0x7ff793bfaf88) }" [label="Square", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "Pointer { addr: 0x1b7520bd870, metadata: DynMetadata(0x7ff793bfaf00) }" [label="Mul", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "0x1b7520a9640" [label="x1", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "Pointer { addr: 0x1b7520bd7e0, metadata: DynMetadata(0x7ff793bfaf50) }" [label="Add", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "0x1b7520b56f0" [label="scalar_4", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "0x1b7520b0d60" [label="scalar_9", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "Pointer { addr: 0x1b752096af0, metadata: DynMetadata(0x7ff793bfaf88) }" [label="Square", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "0x1b7520aa360" [label="x0", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "Pointer { addr: 0x1b752096be0, metadata: DynMetadata(0x7ff793bfaff8) }" [label="Sub", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    { rank=source; "0x1b7520b5f10"; "0x1b7520a96e0"; "0x1b7520a9640"; "0x1b7520aa360"; }
 
     // 범례
     subgraph cluster_legend {
@@ -43,22 +43,22 @@ edge [fontname="Arial", fontsize=8];
         legend_input -> legend_func -> legend_var -> legend_output [style=invis];
     }
 
-    "0x1455b60a680" -> "0x1455b5e8830" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b5e8830" -> "0x1455b608c70" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b608950" -> "0x1455b5e87a0" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b608c70" -> "0x1455b5e87a0" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b5e87a0" -> "0x1455b608d10" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b608d10" -> "0x1455b5e8800" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b5e8800" -> "0x1455b617a40" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b609490" -> "0x1455b5e8ce0" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b617a40" -> "0x1455b5e8ce0" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b5e8ce0" -> "0x1455b617ae0" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b617900" -> "0x1455b61d2c0" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b60a680" -> "0x1455b61d2c0" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b61d2c0" -> "0x1455b6175e0" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b6175e0" -> "0x1455b61d5c0" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b61d5c0" -> "0x1455b6179a0" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b617ae0" -> "0x1455b61d020" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b6179a0" -> "0x1455b61d020" [style=solid, color="#2E86AB", penwidth=2];
-    "0x1455b61d020" -> "0x1455b617400" [style=solid, color="#2E86AB", penwidth=2];
+    "0x1b7520aa360" -> "Pointer { addr: 0x1b752096af0, metadata: DynMetadata(0x7ff793bfaf88) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x1b752096af0, metadata: DynMetadata(0x7ff793bfaf88) }" -> "0x1b7520aa040" [style=solid, color="#2E86AB", penwidth=2];
+    "0x1b7520a9640" -> "Pointer { addr: 0x1b752096be0, metadata: DynMetadata(0x7ff793bfaff8) }" [style=solid, color="#2E86AB", penwidth=2];
+    "0x1b7520aa040" -> "Pointer { addr: 0x1b752096be0, metadata: DynMetadata(0x7ff793bfaff8) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x1b752096be0, metadata: DynMetadata(0x7ff793bfaff8) }" -> "0x1b7520b4f70" [style=solid, color="#2E86AB", penwidth=2];
+    "0x1b7520b4f70" -> "Pointer { addr: 0x1b7520bd780, metadata: DynMetadata(0x7ff793bfaf88) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x1b7520bd780, metadata: DynMetadata(0x7ff793bfaf88) }" -> "0x1b7520b56f0" [style=solid, color="#2E86AB", penwidth=2];
+    "0x1b7520a96e0" -> "Pointer { addr: 0x1b7520bd870, metadata: DynMetadata(0x7ff793bfaf00) }" [style=solid, color="#2E86AB", penwidth=2];
+    "0x1b7520b56f0" -> "Pointer { addr: 0x1b7520bd870, metadata: DynMetadata(0x7ff793bfaf00) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x1b7520bd870, metadata: DynMetadata(0x7ff793bfaf00) }" -> "0x1b7520b5c90" [style=solid, color="#2E86AB", penwidth=2];
+    "0x1b7520b5f10" -> "Pointer { addr: 0x1b7520bd7b0, metadata: DynMetadata(0x7ff793bfaff8) }" [style=solid, color="#2E86AB", penwidth=2];
+    "0x1b7520aa360" -> "Pointer { addr: 0x1b7520bd7b0, metadata: DynMetadata(0x7ff793bfaff8) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x1b7520bd7b0, metadata: DynMetadata(0x7ff793bfaff8) }" -> "0x1b7520b5a10" [style=solid, color="#2E86AB", penwidth=2];
+    "0x1b7520b5a10" -> "Pointer { addr: 0x1b7520bd810, metadata: DynMetadata(0x7ff793bfaf88) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x1b7520bd810, metadata: DynMetadata(0x7ff793bfaf88) }" -> "0x1b7520b50b0" [style=solid, color="#2E86AB", penwidth=2];
+    "0x1b7520b5c90" -> "Pointer { addr: 0x1b7520bd7e0, metadata: DynMetadata(0x7ff793bfaf50) }" [style=solid, color="#2E86AB", penwidth=2];
+    "0x1b7520b50b0" -> "Pointer { addr: 0x1b7520bd7e0, metadata: DynMetadata(0x7ff793bfaf50) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x1b7520bd7e0, metadata: DynMetadata(0x7ff793bfaf50) }" -> "0x1b7520b0d60" [style=solid, color="#2E86AB", penwidth=2];
 }
