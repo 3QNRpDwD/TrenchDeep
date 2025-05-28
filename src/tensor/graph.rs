@@ -50,7 +50,6 @@ impl Variable<f32> {
             let mut graph = graph.lock().unwrap();
             
             let input_ids: Vec<NodeId> = inputs.iter().map(|&input_var| {
-                println!("{:?}, {:?}", !graph.node_map.contains_key(&input_var.node_id()), input_var.label());
                 if !graph.node_map.contains_key(&input_var.node_id()) {
                     graph.add_input(input_var.clone());
                 }
