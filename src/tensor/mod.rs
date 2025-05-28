@@ -7,7 +7,10 @@ use std::{
     },
     sync::{Arc}
 };
+use std::cell::RefCell;
 use std::collections::HashSet;
+use std::sync::atomic::Ordering;
+use std::sync::Mutex;
 
 pub mod creation;
 pub mod operators;
@@ -183,6 +186,13 @@ macro_rules! variable {
     };
 }
 
+#[macro_export]
+macro_rules! scalar  {
+    ($scalar:expr) => {
+        Tensor::new(vec![vec![$scalar]])
+    };
+}
+
 
 /// 다차원 배열을 나타내는 텐서 구조체입니다.
 ///
@@ -207,15 +217,19 @@ pub struct Tensor<Type> {
 /// - `requires_grad`: 그래디언트 계산이 필요한지 여부
 /// - `grad`: 역전파를 위한 그래디언트 (옵션으로 저장되며, `RefCell`로 래핑되어 가변성 제공)
 ///   - `enableBackpropagation` 기능이 활성화된 경우에만 포함됨
-pub struct Variable<Type> {
+pub struct Variable<Type: 'static> {
     #[cfg(all(feature = "enableVisualization"))]
     label: String,
-    tensor: Tensor<Type>,
+    #[cfg(feature = "enableBackpropagation")]
+    var_id: NodeId,
+    tensor: RefCell<Tensor<Type>>,
     requires_grad: bool,
 
     #[cfg(all(feature = "enableBackpropagation"))]
     grad: std::cell::RefCell<Option<Tensor<Type>>>,
 }
+
+type TensorRef<Type> = &'static Tensor<Type>;
 
 /// 계산 그래프에서 노드의 고유 식별자를 나타내는 타입 별칭입니다.
 ///
@@ -224,9 +238,31 @@ pub struct Variable<Type> {
 /// # 사용처
 /// - `ComputationNode`와 `ComputationGraph`에서 노드를 식별하는 데 사용
 #[cfg(feature = "enableBackpropagation")]
-type NodeId<T> = *const Variable<T>;
-#[cfg(feature = "enableBackpropagation")]
-type FuncId<T> = *const dyn Function<T>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NodeId(u64);
+
+pub struct NodeIdGenerator {
+    counter: std::sync::atomic::AtomicU64,
+}
+
+static NODE_ID_GEN: NodeIdGenerator = NodeIdGenerator::new();
+
+impl NodeIdGenerator {
+    pub const fn new() -> Self {
+        Self {
+            counter: std::sync::atomic::AtomicU64::new(0),
+        }
+    }
+
+    pub fn next(&self) -> NodeId {
+        NodeId(self.counter.fetch_add(1, Ordering::Relaxed))
+    }
+
+    pub fn reset(&self) {
+        self.counter.store(0, Ordering::Relaxed);
+    }
+}
+
 
 /// 계산 그래프의 개별 노드를 나타내는 구조체입니다.
 ///
@@ -240,12 +276,12 @@ type FuncId<T> = *const dyn Function<T>;
 /// - `inputs`: 이 노드의 입력으로 사용되는 다른 노드들의 ID 목록
 ///
 #[cfg(feature = "enableBackpropagation")]
-pub(crate) struct ComputationNode<T: Debug + Clone> {
-    id: NodeId<T>,
+pub(crate) struct ComputationNode<T: Debug + Clone + 'static> {
+    id: NodeId,
     variable: Arc<Variable<T>>,
     function: Option<Arc<dyn Function<T>>>,
-    inputs: Vec<NodeId<T>>,
-    is_life: bool,
+    inputs: Vec<NodeId>,
+    is_leaf: bool,
 }
 
 
@@ -260,10 +296,13 @@ pub(crate) struct ComputationNode<T: Debug + Clone> {
 /// - `topo_sorted`: 위상 정렬된 노드 ID 목록
 /// - `sorted`: 위상 정렬이 완료되었는지 여부
 #[cfg(feature = "enableBackpropagation")]
-pub(crate) struct ComputationGraph<T: Debug + Clone> {
-    nodes: std::collections::HashMap<NodeId<T>, ComputationNode<T>>,
-    topo_sorted: Vec<NodeId<T>>,
-    sorted: bool,
+pub(crate) struct ComputationGraph<T: Debug + Clone + 'static> {
+    nodes: Vec<ComputationNode<T>>,
+    node_map: std::collections::HashMap<NodeId, usize>,
+    adjacency_list: Vec<Vec<usize>>,
+    reverse_adjacency: Vec<Vec<usize>>,
+    topo_order: Vec<usize>,
+    is_sorted: bool,
 }
 
 

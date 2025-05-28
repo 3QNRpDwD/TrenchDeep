@@ -36,27 +36,28 @@ impl Function<f32> for Div {
 ///
 /// # Returns
 /// A new tensor containing the element-wise quotient
-impl std::ops::Div<Tensor<f32>> for Tensor<f32> {
-    type Output = Tensor<f32>;
-
-    fn div(self, other: Tensor<f32>) -> Self::Output {
-        Div::new().unwrap().forward(&[&self, &other]).unwrap().remove(0)
-    }
-}
-
 impl std::ops::Div<&Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn div(self, other: &Tensor<f32>) -> Self::Output {
-        Div::new().unwrap().forward(&[&self, other]).unwrap().remove(0)
+        DIV_OP.with(|op| op.forward(&[&self, other]).unwrap().remove(0))
     }
 }
+
+impl std::ops::Div<Tensor<f32>> for Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn div(self, other: Tensor<f32>) -> Self::Output {
+        DIV_OP.with(|op| op.forward(&[&self, &other]).unwrap().remove(0))
+    }
+}
+
 
 impl std::ops::Div<&Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn div(self, other: &Tensor<f32>) -> Self::Output {
-        Div::new().unwrap().forward(&[self, other]).unwrap().remove(0)
+        DIV_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -64,6 +65,19 @@ impl std::ops::Div<Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn div(self, other: Tensor<f32>) -> Self::Output {
-        Div::new().unwrap().forward(&[self, &other]).unwrap().remove(0)
+        DIV_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0))
+    }
+}
+
+/// DivAssign trait implementation for Tensor
+impl std::ops::DivAssign<Tensor<f32>> for Tensor<f32> {
+    fn div_assign(&mut self, other: Tensor<f32>) {
+        *self = DIV_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0));
+    }
+}
+
+impl std::ops::DivAssign<&Tensor<f32>> for Tensor<f32> {
+    fn div_assign(&mut self, other: &Tensor<f32>) {
+        *self = DIV_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0));
     }
 }

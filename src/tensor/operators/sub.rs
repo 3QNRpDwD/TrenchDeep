@@ -51,7 +51,7 @@ impl std::ops::Sub<Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn sub(self, other: Tensor<f32>) -> Self::Output {
-        Sub::new().unwrap().forward(&[&self, &other]).unwrap().remove(0)
+        SUB_OP.with(|op| op.forward(&[&self, &other]).unwrap().remove(0))
     }
 }
 
@@ -59,15 +59,7 @@ impl std::ops::Sub<&Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn sub(self, other: &Tensor<f32>) -> Self::Output {
-        Sub::new().unwrap().forward(&[&self, other]).unwrap().remove(0)
-    }
-}
-
-impl std::ops::Sub<Tensor<f32>> for &Tensor<f32> {
-    type Output = Tensor<f32>;
-
-    fn sub(self, other: Tensor<f32>) -> Self::Output {
-        Sub::new().unwrap().forward(&[self, &other]).unwrap().remove(0)
+        SUB_OP.with(|op| op.forward(&[&self, other]).unwrap().remove(0))
     }
 }
 
@@ -75,6 +67,27 @@ impl std::ops::Sub<&Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn sub(self, other: &Tensor<f32>) -> Self::Output {
-        Sub::new().unwrap().forward(&[self, other]).unwrap().remove(0)
+        SUB_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0))
+    }
+}
+
+impl std::ops::Sub<Tensor<f32>> for &Tensor<f32> {
+    type Output = Tensor<f32>;
+
+    fn sub(self, other: Tensor<f32>) -> Self::Output {
+        SUB_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0))
+    }
+}
+
+/// SubAssign trait implementation for Tensor
+impl std::ops::SubAssign<Tensor<f32>> for Tensor<f32> {
+    fn sub_assign(&mut self, other: Tensor<f32>) {
+        *self = SUB_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0));
+    }
+}
+
+impl std::ops::SubAssign<&Tensor<f32>> for Tensor<f32> {
+    fn sub_assign(&mut self, other: &Tensor<f32>) {
+        *self = SUB_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0));
     }
 }

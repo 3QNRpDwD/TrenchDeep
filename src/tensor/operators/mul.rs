@@ -43,7 +43,7 @@ impl std::ops::Mul<Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn mul(self, other: Tensor<f32>) -> Self::Output {
-        Mul::new().unwrap().forward(&[&self, &other]).unwrap().remove(0)
+        MUL_OP.with(|op| op.forward(&[&self, &other]).unwrap().remove(0))
     }
 }
 
@@ -51,7 +51,7 @@ impl std::ops::Mul<&Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn mul(self, other: &Tensor<f32>) -> Self::Output {
-        Mul::new().unwrap().forward(&[&self, other]).unwrap().remove(0)
+        MUL_OP.with(|op| op.forward(&[&self, other]).unwrap().remove(0))
     }
 }
 
@@ -59,7 +59,7 @@ impl std::ops::Mul<&Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn mul(self, other: &Tensor<f32>) -> Self::Output {
-        Mul::new().unwrap().forward(&[self, other]).unwrap().remove(0)
+        MUL_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -67,6 +67,19 @@ impl std::ops::Mul<Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn mul(self, other: Tensor<f32>) -> Self::Output {
-        Mul::new().unwrap().forward(&[self, &other]).unwrap().remove(0)
+        MUL_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0))
+    }
+}
+
+/// MulAssign trait implementation for Tensor
+impl std::ops::MulAssign<Tensor<f32>> for Tensor<f32> {
+    fn mul_assign(&mut self, other: Tensor<f32>) {
+        *self = MUL_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0));
+    }
+}
+
+impl std::ops::MulAssign<&Tensor<f32>> for Tensor<f32> {
+    fn mul_assign(&mut self, other: &Tensor<f32>) {
+        *self = MUL_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0));
     }
 }

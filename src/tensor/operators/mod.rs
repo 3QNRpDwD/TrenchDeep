@@ -60,22 +60,14 @@ define_op!(Matmax, matmax: Option<(Option<i32>, bool)>);
 define_op!(ApproxSin, threshold: f32);  // 테일러급수를 사용한 사인 함수 입니다.
 define_op!(ApproxCos, threshold: f32);  // 테일러급수를 사용한 코사인 함수 입니다
 
+thread_local! {
+    static MUL_OP: Mul = Mul::new().unwrap();
+    static DIV_OP: Div = Div::new().unwrap();
+    static ADD_OP: Add = Add::new().unwrap();
+    static SUB_OP: Sub = Sub::new().unwrap();
+    static NEG_OP: Neg = Neg::new().unwrap();
+}
 
-
-/// 계산 그래프에서 연산을 정의하는 트레잇입니다.
-///
-/// 이 트레잇은 순전파와 역전파를 포함한 연산의 동작을 정의하며, 백엔드와의 연계를 지원합니다.
-///
-/// # 특징
-/// 이 트레이트는 연산자의 재활용성과 확장성을 최선으로, 역전파 계산 자체를 연산자와 텐서에 종속적이지 않게 설계하는것을 목표로 합니다.
-/// 따라서 연산자와 텐서 어디에도 자체적인 역전파를 지원하지 않으며, 미분값또한 직접적으로 저장하지 않습니다.
-/// 대신, 연산자는 역전파를 위한 그래프를 생성하고, 그래프는 텐서의 미분값을 저장하고, 그래프를 통해 역전파를 수행합니다.
-/// 이는 연산자와 텐서의 역전파 계산을 분리하여, 연산자의 재사용성과 확장성을 높이고, 역전파 계산을 효율적으로 수행할 수 있도록 합니다.
-/// 단, 이러한 구조 때문에 현재 연산자 오버로딩에서의 역전파 호출 지원이 어렵습니다.
-/// 따라서, 연산자 오버로딩을 통한 역전파 호출은 추후 개선을 통해 지원할 예정입니다.
-///
-/// # 제약
-/// - `T`: `Debug + Clone` 트레잇을 구현해야 함
 pub trait Function<T: Debug + Clone> {
     /// 새로운 연산 객체를 생성합니다.
     ///
@@ -160,7 +152,7 @@ mod tests {
 
     use crate::tensor::operators::{Exp, Sin};
     use crate::tensor::{AutogradFunction, operators::{Add, Function, Mul, Pow, Square}, Tensor, TensorBase, Variable};
-    use crate::{variable, MlResult};
+    use crate::{scalar, variable, MlResult};
 
     pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
         if tensor != expected_tensor {
@@ -170,8 +162,8 @@ mod tests {
     }
 
     pub fn assert_variable_eq(variable: &Variable<f32>, expected_variable: &Variable<f32>) -> MlResult<()> {
-        assert_eq!(variable.tensor.data(), expected_variable.tensor.data());
-        assert_eq!(variable.tensor.shape(), expected_variable.tensor.shape());
+        assert_eq!(variable.tensor.borrow().data(), expected_variable.tensor.borrow().data());
+        assert_eq!(variable.tensor.borrow().shape(), expected_variable.tensor.borrow().shape());
         Ok(())
     }
 
@@ -286,23 +278,23 @@ mod tests {
         let square = Square::new()?;
         let exp = Exp::new()?;
 
-        let x = variable!(vec![vec![0.5]]);
-        let a = Variable::new(square.forward(&[ x.tensor() ])?.remove(0)); // a = A(x)
-        let b = Variable::new(exp   .forward(&[ a.tensor() ])?.remove(0)); // b = B(a)
-        let y = Variable::new(square.forward(&[ b.tensor() ])?.remove(0)); // y = C(b)
+        let x = scalar!(0.5);
+        let a = square.forward(&[ &x ])?.remove(0); // a = A(x)
+        let b = exp   .forward(&[ &a ])?.remove(0); // b = B(a)
+        let y = square.forward(&[ &b ])?.remove(0); // y = C(b)
 
-        print_forward(x.tensor(), a.tensor(), b.tensor(), y.tensor());
-        assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
+        print_forward(&x, &a, &b, &y);
+        assert_tensor_eq(&y, &Tensor::new(vec![vec![1.6487213]]))?;
 
         #[cfg(feature = "enableBackpropagation")]
         {
-            y.set_grad(Tensor::new(vec![vec![1.0]]));                                  // dy = 1
-            b.set_grad(square.backward(&[b.tensor()], &y.grad().unwrap())?.remove(0));   // dy/db = dy/dy * 2b
-            a.set_grad(exp   .backward(&[a.tensor()], &b.grad().unwrap())?.remove(0));   // dy/da = (dy/db) * db/da
-            x.set_grad(square.backward(&[x.tensor()], &a.grad().unwrap())?.remove(0));   // dy/dx = (dy/da) * da/dx
+            let dy = scalar!(1.0);                              // dy = 1
+            let db = square.backward(&[&b], &dy)?.remove(0);   // dy/db = dy/dy * 2b
+            let da = exp   .backward(&[&a], &db)?.remove(0);   // dy/da = (dy/db) * db/da
+            let dx = square.backward(&[&x], &da)?.remove(0);   // dy/dx = (dy/da) * da/dx
 
-            print_backward(&y.grad(), &b.grad(), &a.grad(), &x.grad());
-            assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
+            print_backward(&Some(dy), &Some(db), &Some(da), &Some(dx.clone()));
+            assert_tensor_eq(&dx, &Tensor::new(vec![vec![3.2974427]]))?;
         }
         Ok(())
     }
@@ -317,8 +309,10 @@ mod tests {
         let b = exp   .apply(&[&a])?;
         let y = square.apply(&[&b])?;
 
-        crate::tensor::tests::assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
-        print_forward(x.tensor(), a.tensor(), b.tensor(), y.tensor());
+        unsafe {
+            crate::tensor::tests::assert_tensor_eq(&y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
+            print_forward(&x.tensor(), &a.tensor(), &b.tensor(), &y.tensor());
+        }
 
         #[cfg(feature = "enableBackpropagation")]
         {
@@ -380,7 +374,7 @@ mod tests {
         let x = Arc::new(variable!(vec![vec![2.0]]));
         let a = square.apply(&[&x])?;
         let y = add.apply(&[&square.apply(&[&a])?, &square.apply(&[&a])?])?;
-        assert_eq!(y.tensor().data(), Tensor::new(vec![vec![32.0]]).data());
+        assert_eq!(unsafe { y.tensor() }.data(), Tensor::new(vec![vec![32.0]]).data());
 
         #[cfg(feature = "enableBackpropagation")]
         {
@@ -418,7 +412,7 @@ mod tests {
         let x = Arc::new(variable!(vec![vec![2.0]]));
         let y = Arc::new(variable!(vec![vec![3.0]]));
         let z = add.apply(&[&square.apply(&[&x])?, &square.apply(&[&y])?])?; // z = add(square(x), square(y))
-        assert_eq!(z.tensor().data(), Tensor::new(vec![vec![13.0]]).data());
+        assert_eq!(unsafe { z.tensor() }.data(), Tensor::new(vec![vec![13.0]]).data());
 
         #[cfg(feature = "enableBackpropagation")]
         {
@@ -445,7 +439,7 @@ mod tests {
         {
             y.backward()?;
 
-            assert_eq!(y.tensor(), &Tensor::new(vec![vec![7.0]]));
+            assert_eq!(unsafe { y.tensor() }, &Tensor::new(vec![vec![7.0]]));
             assert_eq!(a.grad(), Some(Tensor::new(vec![vec![2.0]])));
             assert_eq!(b.grad(), Some(Tensor::new(vec![vec![3.0]])));
         }
@@ -464,7 +458,7 @@ mod tests {
         {
             y.backward()?; // dy/dx = 3x^2
 
-            assert_eq!(y.tensor(), &Tensor::new(vec![vec![8.0]]));
+            assert_eq!( unsafe { y.tensor() }, &Tensor::new(vec![vec![8.0]]));
             assert_eq!(x.grad(), Some(Tensor::new(vec![vec![12.0]])));
         }
         Ok(())
@@ -481,7 +475,7 @@ mod tests {
         {
             y.backward()?;
 
-            assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
+            assert_tensor_eq(unsafe { y.tensor() }, &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
             assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
         }
         Ok(())

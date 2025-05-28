@@ -1,5 +1,5 @@
 use super::*;
-use std::collections::HashSet;
+use crate::var_input;
 
 // 전역 계산 그래프 (스레드 로컬)
 #[cfg(feature = "enableBackpropagation")]
@@ -48,26 +48,21 @@ impl Variable<f32> {
     pub fn with_grad_fn(self: Arc<Self>, function: Arc<dyn Function<f32>>, inputs: &[&Arc<Variable<f32>>]) {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
-
-            // 입력 노드 ID 찾기 또는 추가
-            let input_ids: Vec<NodeId<f32>> = inputs.iter().map(|&input_var| {
-                let input_id = &Arc::as_ptr(input_var);
-                // println!("graph: {:?}", graph);
-                // println!("{:?} - eq: {:?}", input_id, graph.nodes.contains_key(input_id));
-                // 이미 그래프에 있는지 확인
-                if graph.nodes.contains_key(input_id) {
-                    return *input_id;
+            
+            let input_ids: Vec<NodeId> = inputs.iter().map(|&input_var| {
+                println!("{:?}, {:?}", !graph.node_map.contains_key(&input_var.node_id()), input_var.label());
+                if !graph.node_map.contains_key(&input_var.node_id()) {
+                    graph.add_input(input_var.clone());
                 }
-
-                // 없으면 추가
-                // 현재 경사하강법등의 기존 텐서의 수정이 불가피한 메서드를 사용할때 계속해서 새로운 텐서를 만들기 때문에,
-                // 기존의 생성된 텐서는 더이상 사용되지 않음에도, 계산그래프상에 남아있으며, 이로 인해 계산 그래프 자체가 거대해지고 검색자체도 굉장히 느려지는 현상이 발생함.
-                // 이를 해결하려면 단순히 텐서를 비교하는것이 아니라, 메모리값을 비교후. 메모리값이 같은데 내부값이 다를 경우, 업데이트하는 방식을 사용하거나,
-                // 텐서 자체를 복사하는것이 아닌 메모리값을 계산그래프에 추가하는등의 방식으로, 텐서와 계산그래프의 수정과 연동이 가능하도록 개선해야될듯함.
-                // 이에 대한 자세한 해결책을 시급히 만들어야함.
-
-                graph.add_input(input_var.clone(), *input_id)
+                input_var.node_id()
             }).collect();
+            // 입력 노드 ID 찾기 또는 추가
+            // 없으면 추가
+            // 현재 경사하강법등의 기존 텐서의 수정이 불가피한 메서드를 사용할때 계속해서 새로운 텐서를 만들기 때문에,
+            // 기존의 생성된 텐서는 더이상 사용되지 않음에도, 계산그래프상에 남아있으며, 이로 인해 계산 그래프 자체가 거대해지고 검색자체도 굉장히 느려지는 현상이 발생함.
+            // 이를 해결하려면 단순히 텐서를 비교하는것이 아니라, 메모리값을 비교후. 메모리값이 같은데 내부값이 다를 경우, 업데이트하는 방식을 사용하거나,
+            // 텐서 자체를 복사하는것이 아닌 메모리값을 계산그래프에 추가하는등의 방식으로, 텐서와 계산그래프의 수정과 연동이 가능하도록 개선해야될듯함.
+            // 이에 대한 자세한 해결책을 시급히 만들어야함.
 
 
             // 원래 고유한 아이디를 만들어서 계산그래프를 구성했으나, 현재 연산구조의 특성상 텐서의 포인터를 노드의 키값으로 설정하는것이
@@ -114,14 +109,12 @@ impl Variable<f32> {
     pub fn backward(self: &Arc<Self>) -> MlResult<()> {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
-            let node_id= Arc::as_ptr(&self);
 
-            match graph.nodes.contains_key(&node_id) {
-                true => {
-                    if !graph.sorted { graph.topological_sort(); }
-                    graph.backward(node_id)
-                },
-                false => Err(MlError::StringError("계산 그래프가 생성되지 않았습니다.".to_string())),
+            if graph.node_map.contains_key(&self.node_id()) {
+                graph.ensure_topological_sort();
+                graph.backward(self.node_id())
+            } else {
+                Err(MlError::StringError("계산 그래프가 생성되지 않았습니다.".to_string()))
             }
         })
     }
@@ -135,11 +128,15 @@ impl ComputationGraph<f32> {
     ///
     /// # 반환값
     /// - `Self`: 초기화된 `ComputationGraph` 인스턴스
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
-            nodes: std::collections::HashMap::new(),
-            topo_sorted: Vec::new(),
-            sorted: false,
+            nodes: Vec::new(),
+            node_map: std::collections::HashMap::new(),
+            adjacency_list: Vec::new(),
+            reverse_adjacency: Vec::new(),
+            topo_order: Vec::new(),
+            is_sorted: false,
+            // memory_pool: TensorPool::new(),
         }
     }
 
@@ -152,26 +149,34 @@ impl ComputationGraph<f32> {
     ///
     /// # 반환값
     /// - `NodeId`: 추가된 노드의 고유 식별자
-    pub(crate) fn add_input(&mut self, variable: Arc<Variable<f32>>, id: NodeId<f32>) -> NodeId<f32> {
+    pub(crate) fn add_input(&mut self, variable: Arc<Variable<f32>>) -> NodeId {
+        let node_id = variable.node_id();
+        let node_idx = self.nodes.len();
+        
         #[cfg(feature = "enableVisualization")]
         {
             VISUALIZATION_GRAPH.with(|viz_graph| {
                 let mut viz = viz_graph.borrow_mut();
-                let id_str = format!("{:?}", id);
+                let id_str = format!("{:?}",node_id);
                 viz.add_variable_node(&id_str, variable.label(), true, false);
             });
         }
+        
         let node = ComputationNode {
-            id,
+            id: node_id,
             variable,
             function: None,
             inputs: Vec::new(),
-            is_life: true
+            is_leaf: true,
         };
 
-        self.nodes.insert(id, node);
-        self.sorted = false;
-        id
+        self.nodes.push(node);
+        self.node_map.insert(node_id, node_idx);
+        self.adjacency_list.push(Vec::new());
+        self.reverse_adjacency.push(Vec::new());
+        self.is_sorted = false;
+
+        node_id
     }
 
     /// 연산 노드를 계산 그래프에 추가합니다.
@@ -185,8 +190,8 @@ impl ComputationGraph<f32> {
     ///
     /// # 반환값
     /// - `NodeId`: 추가된 연산 노드의 고유 식별자
-    pub(crate) fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId<f32>>) -> NodeId<f32> {
-        let output_id = Arc::as_ptr(&variable);
+    pub(crate) fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId>) -> NodeId {
+        let output_id = variable.var_id;
 
         #[cfg(feature = "enableVisualization")]
         {
@@ -195,7 +200,7 @@ impl ComputationGraph<f32> {
             let output_id_str = format!("{:?}", output_id);
 
             // 출력 노드가 최종 출력인지 확인 (간단한 휴리스틱)
-            let is_output = variable.label().contains("output") || if !self.topo_sorted.is_empty() { self.topo_sorted[0] == output_id } else { false };
+            let is_output = variable.label().contains("output");
 
             VISUALIZATION_GRAPH.with(|viz_graph| {
                 let mut viz = viz_graph.borrow_mut();
@@ -217,17 +222,34 @@ impl ComputationGraph<f32> {
             });
         }
 
+        let output_id = variable.node_id();
+        let output_idx = self.nodes.len();
+
+        // 입력 노드들의 인덱스 찾기
+        let input_indices: Vec<usize> = inputs.iter()
+            .map(|&id| *self.node_map.get(&id).unwrap())
+            .collect();
 
         let node = ComputationNode {
             id: output_id,
             variable,
             function: Some(function),
             inputs,
-            is_life: true
+            is_leaf: false,
         };
 
-        self.nodes.insert(output_id, node);
-        self.sorted = false;
+        self.nodes.push(node);
+        self.node_map.insert(output_id, output_idx);
+        self.adjacency_list.push(Vec::new());
+        self.reverse_adjacency.push(Vec::new());
+
+        // 인접 리스트 업데이트
+        for &input_idx in &input_indices {
+            self.adjacency_list[input_idx].push(output_idx);
+            self.reverse_adjacency[output_idx].push(input_idx);
+        }
+
+        self.is_sorted = false;
         output_id
     }
 
@@ -243,53 +265,48 @@ impl ComputationGraph<f32> {
         }
     }
 
+    fn ensure_topological_sort(&mut self) {
+        if !self.is_sorted {
+            self.topological_sort();
+        }
+    }
+
     /// 계산 그래프의 노드들을 위상 정렬(Topological Sort)합니다.
     ///
     /// 이 메서드는 그래프의 노드들을 의존성 순서대로 정렬하여 역전파를 위한 준비를 합니다.
     /// 이미 정렬된 경우에는 아무 작업도 수행하지 않습니다.
     pub(crate) fn topological_sort(&mut self) {
-        if self.sorted {
-            return;
-        }
-
-        let mut result = Vec::new();
-        let mut in_degree = std::collections::HashMap::new();
+        let mut in_degree = vec![0; self.nodes.len()];
         let mut queue = std::collections::VecDeque::new();
 
-        // 진입차수 초기화
-        for (&node_id, node) in &self.nodes {
-            let degree = node.inputs.len();
-            in_degree.insert(node_id, degree);
-
-            if degree == 0 {
-                queue.push_back(node_id);
+        // 진입 차수 계산
+        for adj_list in &self.adjacency_list {
+            for &neighbor in adj_list {
+                in_degree[neighbor] += 1;
             }
         }
 
-        while let Some(node_id) = queue.pop_front() {
-            // 원래 위상정렬 알고리즘에서 중복 노드를 고려하지 않은 설계 때문에 같은 노드를 여러번 사용하는 계산에서 오류가 발생했음.
-            // 현재는 구조를 개선한 상태임.
-            result.push(node_id);
+        // 진입 차수가 0인 노드들을 큐에 추가
+        for (idx, &degree) in in_degree.iter().enumerate() {
+            if degree == 0 {
+                queue.push_back(idx);
+            }
+        }
 
-            // 이 노드를 입력으로 사용하는 노드들 찾기
-            for (&next_id, next_node) in &self.nodes {
-                let count = next_node.inputs.iter().filter(|&&input_id| input_id == node_id).count();
+        self.topo_order.clear();
+        while let Some(node_idx) = queue.pop_front() {
+            self.topo_order.push(node_idx);
 
-                // 해당 노드가 입력으로 사용된 횟수만큼 진입 차수 감소
-                if count > 0 {
-                    let degree = in_degree.get_mut(&next_id).unwrap();
-                    *degree -= count; //
-
-                    if *degree == 0 {
-                        queue.push_back(next_id);
-                    }
+            for &neighbor in &self.adjacency_list[node_idx] {
+                in_degree[neighbor] -= 1;
+                if in_degree[neighbor] == 0 {
+                    queue.push_back(neighbor);
                 }
             }
         }
 
-        result.reverse();
-        self.topo_sorted = result;
-        self.sorted = true;
+        self.topo_order.reverse(); // backward 순서로 변경
+        self.is_sorted = true;
     }
 
     /// 역전파(Backpropagation)를 수행합니다.
@@ -308,38 +325,55 @@ impl ComputationGraph<f32> {
     /// - 그래디언트 초기화 실패 시
     /// - 역전파 계산 실패 시
     #[cfg(feature = "enableBackpropagation")]
-    pub(crate) fn backward(&self, output_id: NodeId<f32>) -> MlResult<()> {
+    pub(crate) fn backward(&self, output_id: NodeId) -> MlResult<()> {
         // Clear gradients for all nodes
-        for (_, node) in &self.nodes {
+        for node in &self.nodes {
             node.variable.clear_grad();
         }
 
         // Set output node's gradient to 1.0
-        let output_var = &self.nodes.get(&output_id).ok_or("Output node not found.")?.variable;
+        let output_idx = *self.node_map.get(&output_id)
+            .ok_or_else(|| MlError::StringError("Output node not found".to_string()))?;
+
+        let output_var = &self.nodes[output_idx].variable;
+        let output_shape = output_var.tensor.borrow().shape();
+        
         if output_var.grad().is_none() {
             let grad = Tensor::from_vec(
-                vec![1.0; output_var.tensor.shape().iter().product()],
-                output_var.tensor.shape()
+                vec![1.0; output_var.tensor.borrow().shape().iter().product()],
+                output_var.tensor.borrow().shape()
             )?;
             output_var.set_grad(grad);
         }
 
         // 위상 정렬된 순서의 역순으로 순회
-        for &node_id in self.topo_sorted.iter() {
-            let node = self.nodes.get(&node_id).unwrap();
-            if node.variable.grad().is_none() || node.function.is_none() { continue; }
+        for &node_idx in &self.topo_order {
+            let node = &self.nodes[node_idx];
+
+            let var = &node.variable;
+            let grad = var.grad();
+            if node.function.is_none() || grad.is_none() {
+                continue;
+            }
 
             if let Some(function) = &node.function {
-                let inputs_tensor: Vec<&Tensor<f32>> = node.inputs
+                let input_tensors: Vec<&Tensor<f32>> = node.inputs
                     .iter()
-                    .map(|&input_id| self.nodes.get(&input_id).unwrap().variable.tensor())
-                    .collect();
+                    .map(|&input_id| {
+                        let input_idx = self.node_map[&input_id];
+                        unsafe { self.nodes[input_idx].variable.tensor() }
+                    })
+                    .collect::<Vec<&Tensor<f32>>>();
 
-                let gradients = function.backward(&inputs_tensor, &node.variable.grad().unwrap())
-                    .map_err(|e| format!("Backward failure: {:?}", e))?;
+                if let Some(output_grad) = grad {
+                    let input_grads = function.backward(&input_tensors, &output_grad)?;
 
-                for (input_id, grad) in node.inputs.iter().zip(gradients) {
-                    self.nodes.get(input_id).unwrap().variable.accumulate_grad(grad)?;
+                    for (input_id, grad) in node.inputs.iter().zip(input_grads) {
+                        let input_idx = self.node_map[input_id];
+                        self.nodes[input_idx].variable.accumulate_grad(grad)?;
+                    }
+
+
                     if !node.variable.requires_grad { node.variable.clear_grad(); }
                 }
             }
@@ -349,16 +383,42 @@ impl ComputationGraph<f32> {
 
     pub fn clear(&mut self) {
         self.nodes.clear();
-        self.topo_sorted.clear();
-        self.sorted = false;
+        self.node_map.clear();
+        self.adjacency_list.clear();
+        self.reverse_adjacency.clear();
+        self.topo_order.clear();
+        self.is_sorted = false;
+        // self.memory_pool.clear();
     }
 
     #[cfg(feature = "enableVisualization")]
     pub fn get_graph_stats() -> (usize, bool) {
         COMPUTATION_GRAPH.with(|compute_graph| {
             let graph = compute_graph.lock().unwrap();
-            (graph.nodes.len(), graph.sorted)
+            (graph.nodes.len(), graph.is_sorted)
         })
+    }
+
+    pub fn print_graph_details(&self) {
+        println!("=== Computation Graph Details ===");
+        for (order, &node_idx) in self.topo_order.iter().enumerate() {
+            let node = &self.nodes[node_idx];
+            let var = &node.variable;
+            let tensor = unsafe{ var.tensor() };
+            let first_data = tensor.data();
+            let shape = tensor.shape();
+
+            let func_name = node.function
+                .as_ref()
+                .map(|f| f.type_name())
+                .unwrap_or_else(|| "Input");
+
+            println!(
+                "[{}] Func: {:<12} | First data: {:?} | Shape: {:?}",
+                order, func_name, first_data, shape
+            );
+        }
+        println!("=================================");
     }
 }
 
@@ -511,7 +571,7 @@ impl VisualizationGraph {
 
     // 시각화 그래프에 노드 추가하는 헬퍼 메서드
     #[cfg(feature = "enableVisualization")]
-    fn add_to_visualization(&self, id: NodeId<f32>, label: &str, is_input: bool, is_output: bool) {
+    fn add_to_visualization(&self, id: NodeId, label: &str, is_input: bool, is_output: bool) {
         VISUALIZATION_GRAPH.with(|viz_graph| {
             let mut viz = viz_graph.borrow_mut();
             let id_str = format!("{:?}", id);
@@ -568,22 +628,25 @@ impl VisualizationGraph {
     }
 }
 
+
+
 impl<F: Function<f32> + Clone +  'static> AutogradFunction<f32> for F {
     fn apply(&self, inputs: &[&Arc<Variable<f32>>]) -> MlResult<Arc<Variable<f32>>> {
-        let tensors: Vec<&Tensor<f32>> = inputs.iter().map(|&var| var.tensor()).collect();
-        let results = Variable::new(self.forward(&tensors)?.remove(0));
+        let tensors: Vec<&Tensor<f32>> = inputs
+            .iter()
+            .map(|&var| unsafe{ var.tensor() }).collect();
+        let input = Arc::new(Variable::new(self.forward(&tensors)?.remove(0)));
 
         #[cfg(feature = "enableBackpropagation")]
         {
-            let result = Arc::new(results);
-            result.clone().with_grad_fn(Arc::new(self.clone()), inputs);
-            return Ok(result)
+            input.clone().with_grad_fn(Arc::new(self.clone()), inputs);
+            return Ok(input)
         }
         // 정적계산 그래프를 통해서 메모리 효율성을 증대하려 했으나, 사전에 텐서의 정보가 주입되지 않으면 메모리 관리가 어려워,
         // 무산될것으로 예상되며, 정적, 동적계산그래프를 전환 가능하도록 향후 추가될것으로 생각하고있음.
         // 따라서 매 계산마다 계산그래프를 갱신하는 현재 구조를 유지하게될것 같은데, 이는 계산그래프 갱신으로 인한 오버헤드가 예상됨.
         // 솔직히 어느 방식을 선택해야할지잘 모르겠음.
 
-        Ok(Arc::new(results))
+        Ok(input)
     }
 }

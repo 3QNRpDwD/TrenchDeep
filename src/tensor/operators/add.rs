@@ -24,6 +24,7 @@ impl Function<f32> for Add {
                     data[i * features + j] = first_target.data()[i * features + j] + second_target.data()[j];
                 }
             }
+            
             return Ok(vec![Tensor::<f32>::from_vec(data, first_shape)?])
         }
 
@@ -55,7 +56,7 @@ impl std::ops::Add<Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn add(self, other: Tensor<f32>) -> Self::Output {
-        Add::new().unwrap().forward(&[&self, &other]).unwrap().remove(0)
+        ADD_OP.with(|op| op.forward(&[&self, &other]).unwrap().remove(0))
     }
 }
 
@@ -63,7 +64,7 @@ impl std::ops::Add<&Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn add(self, other: &Tensor<f32>) -> Self::Output {
-        Add::new().unwrap().forward(&[&self, other]).unwrap().remove(0)
+        ADD_OP.with(|op| op.forward(&[&self, other]).unwrap().remove(0))
     }
 }
 
@@ -71,7 +72,7 @@ impl std::ops::Add<&Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn add(self, other: &Tensor<f32>) -> Self::Output {
-        Add::new().unwrap().forward(&[self, other]).unwrap().remove(0)
+        ADD_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -79,6 +80,19 @@ impl std::ops::Add<Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn add(self, other: Tensor<f32>) -> Self::Output {
-        Add::new().unwrap().forward(&[self, &other]).unwrap().remove(0)
+        ADD_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0))
+    }
+}
+
+/// AddAssign trait implementation for Tensor
+impl std::ops::AddAssign<Tensor<f32>> for Tensor<f32> {
+    fn add_assign(&mut self, other: Tensor<f32>) {
+        *self = ADD_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0));
+    }
+}
+
+impl std::ops::AddAssign<&Tensor<f32>> for Tensor<f32> {
+    fn add_assign(&mut self, other: &Tensor<f32>) {
+        *self = ADD_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0));
     }
 }

@@ -22,7 +22,7 @@ impl std::ops::Neg for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn neg(self) -> Self::Output {
-        Neg::new().unwrap().forward(&[&self]).unwrap().remove(0)
+        NEG_OP.with(|op| op.forward(&[&self]).unwrap().remove(0))
     }
 }
 
@@ -30,6 +30,6 @@ impl std::ops::Neg for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn neg(self) -> Self::Output {
-        Neg::new().unwrap().forward(&[self]).unwrap().remove(0)
+        NEG_OP.with(|op| op.forward(&[self]).unwrap().remove(0))
     }
 }
