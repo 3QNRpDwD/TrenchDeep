@@ -1,7 +1,6 @@
 use super::*;
 use std::collections::HashMap;
-use std::ops::{Add, AddAssign, Deref, DivAssign, MulAssign, SubAssign};
-use std::sync::Mutex;
+use std::ops::{AddAssign, Deref, DivAssign, MulAssign, SubAssign};
 
 impl Tensor<f32> {
     pub fn zeros(shape: &[usize]) -> Tensor<f32> {
@@ -94,13 +93,6 @@ impl TensorBase<f32> for Tensor<f32> {
     }
 }
 
-// 라벨링을 위한 전역 카운터들
-#[cfg(feature = "enableVisualization")]
-thread_local! {
-    static LABEL_COUNTERS: std::cell::RefCell<HashMap<String, usize>> = std::cell::RefCell::new(HashMap::new());
-    static SHAPE_REGISTRY: std::cell::RefCell<HashMap<String, usize>> = std::cell::RefCell::new(HashMap::new());
-}
-
 #[cfg(feature = "enableVisualization")]
 pub struct LabelGenerator;
 
@@ -158,7 +150,7 @@ impl LabelGenerator {
                     (_, _, 3) => "rgb_image".to_string(),
                     (_, _, 4) => "rgba_image".to_string(),
                     (1, _, _) => "batch_1".to_string(),
-                    (b, h, w) if h == w => "square_tensor".to_string(),
+                    (_, h, w) if h == w => "square_tensor".to_string(),
                     _ => "tensor_3d".to_string(),
                 }
             },

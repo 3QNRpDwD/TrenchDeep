@@ -70,7 +70,6 @@ pub type MlResult<T> = Result<T, MlError>;
 
 #[cfg(test)]
 mod benchmark {
-    use std::ops::Deref;
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
     use crate::tensor::{Tensor, TensorBase, Variable, AutogradFunction};
     use crate::{scalar, var_input, variable, MlResult};
