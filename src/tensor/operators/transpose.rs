@@ -2,6 +2,9 @@ use super::*;
 
 
 impl Function<f32> for Transpose {
+    fn new() -> MlResult<Self> {
+        Ok(Self { backend: Arc::new(CpuBackend::new()?), dims: (0, 1) }) // Default to swapping the first two dimensions
+    }
     fn forward(&self, input: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         let input = input[0];
         let rank = input.shape().len();

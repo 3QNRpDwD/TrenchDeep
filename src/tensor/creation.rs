@@ -17,10 +17,32 @@ impl Tensor<f32> {
         Self::zeros(&self.shape)
     }
 
+    pub fn ones(shape: &[usize]) -> Tensor<f32> {
+        let size: usize = shape.iter().product();
+        let data = vec![1.0; size];
+        Tensor {
+            data,
+            shape: shape.to_vec(),
+        }
+    }
+
+    pub fn ones_like(&self) -> Self {
+        Self::ones(&self.shape)
+    }
+
+    pub fn rand(shape: &[usize]) -> Tensor<f32> {
+        let size: usize = shape.iter().product();
+        let data: Vec<f32> = (0..size).map(|_| rand::random::<f32>()).collect();
+        Tensor {
+            data,
+            shape: shape.to_vec(),
+        }
+    }
+
     pub fn scalar(scalar: f32) -> Tensor<f32> {
         Self {
             data: vec![scalar],
-            shape: vec![],
+            shape: vec![1,1],
         }
     }
 }
