@@ -23,4 +23,17 @@ impl Function<f32> for Sum {
 
         Ok(vec![result])
     }
+
+    #[cfg(feature = "enableBackpropagation")]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+        if targets.is_empty() {
+            return Err(MlError::TensorError(TensorError::EmptyTensor));
+        }
+
+        // The gradient of the sum operation is simply the gradient passed back
+        // since each input contributes equally to the output.
+        let mut gradients = vec![grad.clone(); targets.len()];
+        
+        Ok(gradients)
+    }
 }

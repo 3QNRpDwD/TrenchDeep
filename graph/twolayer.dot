@@ -1,0 +1,130 @@
+digraph ComputationGraph {
+bgcolor="#F8F9FA";
+rankdir=LR;  // 좌우 배치로 데이터 흐름을 더 직관적으로
+splines=ortho;
+nodesep=0.8;
+ranksep=1.5;
+node [fontname="Arial", fontsize=10];
+edge [fontname="Arial", fontsize=8];
+
+    "NodeId(18)" [label="col_vec_7", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "NodeId(30)" [label="col_vec_15", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "NodeId(34)" [label="col_vec_17", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "NodeId(12)" [label="col_vec_3", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "Pointer { addr: 0x23c76c7a410, metadata: DynMetadata(0x7ff68a452c38) }" [label="Sigmoid", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "NodeId(35)" [label="col_vec_18", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "Pointer { addr: 0x23c76c7a470, metadata: DynMetadata(0x7ff68a45e4a0) }" [label="Matmul", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "NodeId(27)" [label="scalar_6", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "NodeId(36)" [label="col_vec_19", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "Pointer { addr: 0x23c76c7a4a0, metadata: DynMetadata(0x7ff68a45e4a0) }" [label="Matmul", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "NodeId(23)" [label="col_vec_10", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "NodeId(39)" [label="scalar_10", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "Pointer { addr: 0x23c76c87170, metadata: DynMetadata(0x7ff68a45e4a0) }" [label="Matmul", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "NodeId(26)" [label="scalar_5", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "NodeId(1)" [label="row_vec", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "NodeId(29)" [label="col_vec_14", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "Pointer { addr: 0x23c76c7a380, metadata: DynMetadata(0x7ff68a45e4a0) }" [label="Matmul", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "NodeId(24)" [label="col_vec_11", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "NodeId(38)" [label="scalar_9", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "Pointer { addr: 0x23c76c7a5c0, metadata: DynMetadata(0x7ff68a452c38) }" [label="Sigmoid", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "Pointer { addr: 0x23c76c7a500, metadata: DynMetadata(0x7ff68a45e4a0) }" [label="Matmul", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "Pointer { addr: 0x23c76c7a0b0, metadata: DynMetadata(0x7ff68a452c38) }" [label="Sigmoid", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "NodeId(22)" [label="col_vec_9", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "Pointer { addr: 0x23c76c7a200, metadata: DynMetadata(0x7ff68a45e4a0) }" [label="Matmul", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "NodeId(33)" [label="scalar_8", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "NodeId(19)" [label="col_vec_8", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "Pointer { addr: 0x23c76c6fe70, metadata: DynMetadata(0x7ff68a452c38) }" [label="Sigmoid", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "NodeId(14)" [label="scalar", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "NodeId(21)" [label="scalar_4", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "NodeId(13)" [label="col_vec_4", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "NodeId(17)" [label="col_vec_6", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "Pointer { addr: 0x23c76c7a260, metadata: DynMetadata(0x7ff68a452c38) }" [label="Sigmoid", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "Pointer { addr: 0x23c76c7a2f0, metadata: DynMetadata(0x7ff68a452c38) }" [label="Sigmoid", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "Pointer { addr: 0x23c76c6fb40, metadata: DynMetadata(0x7ff68a45e4a0) }" [label="Matmul", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "NodeId(11)" [label="col_vec_2", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "NodeId(25)" [label="col_vec_12", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "NodeId(20)" [label="scalar_3", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "NodeId(0)" [label="small_matrix", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "NodeId(16)" [label="col_vec_5", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "NodeId(28)" [label="col_vec_13", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "NodeId(31)" [label="col_vec_16", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "Pointer { addr: 0x23c76c7a320, metadata: DynMetadata(0x7ff68a45e4a0) }" [label="Matmul", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "NodeId(32)" [label="scalar_7", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "Pointer { addr: 0x23c76c7a7d0, metadata: DynMetadata(0x7ff68a452c38) }" [label="Sigmoid", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "Pointer { addr: 0x23c76c876b0, metadata: DynMetadata(0x7ff68a452c38) }" [label="Sigmoid", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "NodeId(10)" [label="col_vec", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "Pointer { addr: 0x23c76c7a710, metadata: DynMetadata(0x7ff68a452c38) }" [label="Sigmoid", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "Pointer { addr: 0x23c76c7a2c0, metadata: DynMetadata(0x7ff68a45e4a0) }" [label="Matmul", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "NodeId(15)" [label="scalar_2", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+    "NodeId(37)" [label="col_vec_20", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+    "Pointer { addr: 0x23c76c87230, metadata: DynMetadata(0x7ff68a45e4a0) }" [label="Matmul", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    "Pointer { addr: 0x23c76c87140, metadata: DynMetadata(0x7ff68a452c38) }" [label="Sigmoid", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+    { rank=source; "NodeId(34)"; "NodeId(1)"; "NodeId(22)"; "NodeId(19)"; "NodeId(13)"; "NodeId(25)"; "NodeId(0)"; "NodeId(16)"; "NodeId(28)"; "NodeId(31)"; "NodeId(10)"; "NodeId(37)"; }
+
+    // 범례
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        fillcolor="#FFFFFF";
+        fontsize=12;
+        fontname="Arial Bold";
+        
+        legend_input [label="Input", shape=ellipse, style="filled,bold", fillcolor="#81C784", fontcolor="white"];
+        legend_func [label="Function", shape=box, style="filled,rounded", fillcolor="#64B5F6", fontcolor="white"];
+        legend_var [label="Variable", shape=ellipse, style="filled", fillcolor="#FFB74D", fontcolor="white"];
+        legend_output [label="Output", shape=ellipse, style="filled,bold", fillcolor="#E57373", fontcolor="white"];
+        
+        legend_input -> legend_func -> legend_var -> legend_output [style=invis];
+    }
+
+    "NodeId(0)" -> "Pointer { addr: 0x23c76c6fb40, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(10)" -> "Pointer { addr: 0x23c76c6fb40, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c6fb40, metadata: DynMetadata(0x7ff68a45e4a0) }" -> "NodeId(11)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(11)" -> "Pointer { addr: 0x23c76c6fe70, metadata: DynMetadata(0x7ff68a452c38) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c6fe70, metadata: DynMetadata(0x7ff68a452c38) }" -> "NodeId(12)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(1)" -> "Pointer { addr: 0x23c76c7a320, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(13)" -> "Pointer { addr: 0x23c76c7a320, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c7a320, metadata: DynMetadata(0x7ff68a45e4a0) }" -> "NodeId(14)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(14)" -> "Pointer { addr: 0x23c76c7a5c0, metadata: DynMetadata(0x7ff68a452c38) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c7a5c0, metadata: DynMetadata(0x7ff68a452c38) }" -> "NodeId(15)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(0)" -> "Pointer { addr: 0x23c76c7a380, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(16)" -> "Pointer { addr: 0x23c76c7a380, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c7a380, metadata: DynMetadata(0x7ff68a45e4a0) }" -> "NodeId(17)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(17)" -> "Pointer { addr: 0x23c76c7a710, metadata: DynMetadata(0x7ff68a452c38) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c7a710, metadata: DynMetadata(0x7ff68a452c38) }" -> "NodeId(18)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(1)" -> "Pointer { addr: 0x23c76c7a500, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(19)" -> "Pointer { addr: 0x23c76c7a500, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c7a500, metadata: DynMetadata(0x7ff68a45e4a0) }" -> "NodeId(20)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(20)" -> "Pointer { addr: 0x23c76c7a0b0, metadata: DynMetadata(0x7ff68a452c38) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c7a0b0, metadata: DynMetadata(0x7ff68a452c38) }" -> "NodeId(21)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(0)" -> "Pointer { addr: 0x23c76c7a200, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(22)" -> "Pointer { addr: 0x23c76c7a200, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c7a200, metadata: DynMetadata(0x7ff68a45e4a0) }" -> "NodeId(23)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(23)" -> "Pointer { addr: 0x23c76c7a410, metadata: DynMetadata(0x7ff68a452c38) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c7a410, metadata: DynMetadata(0x7ff68a452c38) }" -> "NodeId(24)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(1)" -> "Pointer { addr: 0x23c76c7a2c0, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(25)" -> "Pointer { addr: 0x23c76c7a2c0, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c7a2c0, metadata: DynMetadata(0x7ff68a45e4a0) }" -> "NodeId(26)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(26)" -> "Pointer { addr: 0x23c76c7a260, metadata: DynMetadata(0x7ff68a452c38) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c7a260, metadata: DynMetadata(0x7ff68a452c38) }" -> "NodeId(27)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(0)" -> "Pointer { addr: 0x23c76c7a470, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(28)" -> "Pointer { addr: 0x23c76c7a470, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c7a470, metadata: DynMetadata(0x7ff68a45e4a0) }" -> "NodeId(29)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(29)" -> "Pointer { addr: 0x23c76c7a2f0, metadata: DynMetadata(0x7ff68a452c38) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c7a2f0, metadata: DynMetadata(0x7ff68a452c38) }" -> "NodeId(30)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(1)" -> "Pointer { addr: 0x23c76c7a4a0, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(31)" -> "Pointer { addr: 0x23c76c7a4a0, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c7a4a0, metadata: DynMetadata(0x7ff68a45e4a0) }" -> "NodeId(32)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(32)" -> "Pointer { addr: 0x23c76c7a7d0, metadata: DynMetadata(0x7ff68a452c38) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c7a7d0, metadata: DynMetadata(0x7ff68a452c38) }" -> "NodeId(33)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(0)" -> "Pointer { addr: 0x23c76c87170, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(34)" -> "Pointer { addr: 0x23c76c87170, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c87170, metadata: DynMetadata(0x7ff68a45e4a0) }" -> "NodeId(35)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(35)" -> "Pointer { addr: 0x23c76c87140, metadata: DynMetadata(0x7ff68a452c38) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c87140, metadata: DynMetadata(0x7ff68a452c38) }" -> "NodeId(36)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(1)" -> "Pointer { addr: 0x23c76c87230, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(37)" -> "Pointer { addr: 0x23c76c87230, metadata: DynMetadata(0x7ff68a45e4a0) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c87230, metadata: DynMetadata(0x7ff68a45e4a0) }" -> "NodeId(38)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(38)" -> "Pointer { addr: 0x23c76c876b0, metadata: DynMetadata(0x7ff68a452c38) }" [style=solid, color="#2E86AB", penwidth=2];
+    "Pointer { addr: 0x23c76c876b0, metadata: DynMetadata(0x7ff68a452c38) }" -> "NodeId(39)" [style=solid, color="#2E86AB", penwidth=2];
+}

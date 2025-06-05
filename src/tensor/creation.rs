@@ -249,12 +249,11 @@ impl Variable<f32> {
             var_id: NODE_ID_GEN.next(),
             tensor: RefCell::new(tensor),
             requires_grad: cfg!(feature = "requiresGrad"),
-
-            #[cfg(feature = "enableBackpropagation")]
             grad: std::cell::RefCell::new(None),
         }
     }
     
+    #[cfg(feature = "enableBackpropagation")]
     pub fn node_id(&self) -> NodeId {
         self.var_id
     }
@@ -271,8 +270,6 @@ impl Variable<f32> {
             var_id: NODE_ID_GEN.next(),
             tensor: RefCell::new(tensor),
             requires_grad: cfg!(feature = "requiresGrad"),
-
-            #[cfg(feature = "enableBackpropagation")]
             grad: std::cell::RefCell::new(None),
         }
     }
@@ -393,7 +390,6 @@ impl Variable<f32> {
     ///
     /// # 반환 값
     /// - Option<Tensor<f32>>: 현재 저장된 그래디언트 또는 None
-    #[cfg(feature = "enableBackpropagation")]
     pub fn grad(&self) -> Option<Tensor<f32>> {
         self.grad.borrow().clone()
     }
@@ -520,12 +516,21 @@ macro_rules! var_bias {
     };
 }
 
-#[cfg(feature = "enableVisualization")]
 #[macro_export]
 macro_rules! var_with_label {
     ($tensor:expr, $label:expr) => {
-        use std::sync::Arc;
-        Arc::new(Variable::with_label($tensor, $label))
+        {
+            use std::sync::Arc;
+            #[cfg(feature = "enableVisualization")]
+            {
+                Arc::new(Variable::with_label($tensor, $label))
+            }
+            
+            #[cfg(not(feature = "enableVisualization"))]
+            {
+                Arc::new(Variable::new($tensor))
+            }
+        }
     };
 }
 

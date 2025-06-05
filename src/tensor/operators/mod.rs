@@ -66,6 +66,7 @@ thread_local! {
     static ADD_OP: Add = Add::new().unwrap();
     static SUB_OP: Sub = Sub::new().unwrap();
     static NEG_OP: Neg = Neg::new().unwrap();
+    static TRANSPOSE: Transpose = Transpose::new().unwrap();
 }
 
 pub trait Function<T: Debug + Clone> {
@@ -74,7 +75,7 @@ pub trait Function<T: Debug + Clone> {
     /// # 반환값
     /// - `MlResult<Self>`: 성공 시 생성된 연산 객체, 실패 시 오류
     fn new() -> MlResult<Self> where Self: Sized {
-        unimplemented!("Function::new() is not implemented")
+        unimplemented!("{} Function::new() is not implemented", std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown"))
     }
 
     fn type_name(&self) -> &str {
@@ -94,7 +95,7 @@ pub trait Function<T: Debug + Clone> {
     /// # 오류
     /// - 입력 텐서의 형태나 데이터가 연산에 적합하지 않을 경우
     fn forward(&self, _targets: &[&Tensor<T>]) -> MlResult<Vec<Tensor<T>>>{
-        unimplemented!("Forward pass is not implemented")
+        unimplemented!("{} Forward pass is not implemented", self.type_name())
     }
 
     /// 역전파(Backward Pass)를 수행합니다.
@@ -114,7 +115,7 @@ pub trait Function<T: Debug + Clone> {
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&Tensor<T>], grad: &Tensor<T>) -> MlResult<Vec<Tensor<T>>> {
         // enableBackpropagation만 활성화된 경우의 기본 구현
-        unimplemented!("Backward pass is not implemented")
+        unimplemented!("{} Backward pass is not implemented", self.type_name())
     }
 
     /// 연산에 사용되는 백엔드를 반환합니다.
@@ -122,7 +123,7 @@ pub trait Function<T: Debug + Clone> {
     /// # 반환값
     /// - `&Arc<dyn Backend>`: 백엔드에 대한 스마트 포인터 참조
     fn backend(&self) -> &Arc<dyn Backend> {
-        unimplemented!("Function::backend() is not implemented")
+        unimplemented!("{} Function::backend() is not implemented", self.type_name())
     }
 }
 

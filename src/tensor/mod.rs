@@ -223,8 +223,6 @@ pub struct Variable<Type: 'static> {
     var_id: NodeId,
     tensor: RefCell<Tensor<Type>>,
     requires_grad: bool,
-
-    #[cfg(all(feature = "enableBackpropagation"))]
     grad: std::cell::RefCell<Option<Tensor<Type>>>,
 }
 
@@ -238,12 +236,15 @@ pub struct Variable<Type: 'static> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeId(u64);
 
+#[cfg(feature = "enableBackpropagation")]
 pub struct NodeIdGenerator {
     counter: std::sync::atomic::AtomicU64,
 }
 
+#[cfg(feature = "enableBackpropagation")]
 static NODE_ID_GEN: NodeIdGenerator = NodeIdGenerator::new();
 
+#[cfg(feature = "enableBackpropagation")]
 impl NodeIdGenerator {
     pub const fn new() -> Self {
         Self {

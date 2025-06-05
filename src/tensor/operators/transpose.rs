@@ -65,7 +65,8 @@ impl Function<f32> for Transpose {
         Ok(vec![Tensor::from_vec(result, &new_shape)?])
     }
 
-    fn backward(&self, input: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    #[cfg(feature = "enableBackpropagation")]
+    fn backward(&self, _: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         let input = grad;
         let rank = input.shape().len();
         if rank < 2 {

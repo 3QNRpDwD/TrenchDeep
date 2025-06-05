@@ -163,12 +163,6 @@ impl Function<f32> for Matmul {
         Ok(vec![buffer])
     }
 
-
-    #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
-        todo!()
-    }
-
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 }
 
