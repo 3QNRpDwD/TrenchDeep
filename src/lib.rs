@@ -73,7 +73,7 @@ pub mod mlp {
     use crate::nn::activation::Sigmoid;
     use std::fmt;
     use crate::scalar_ops;
-    use crate::tensor::operators::{Function, Matmul, Sum, Transpose};
+    use crate::tensor::operators::{Function, Matmul, Transpose};
     pub struct MLP {
         pub w1: Tensor<f32>, // shape = [hidden_node, input_node + 1]
         pub w2: Tensor<f32>, // shape = [output_node, hidden_node + 1]
@@ -118,9 +118,7 @@ pub mod mlp {
             // 1) x 의 shape = [n_input, 1] 이라고 가정
             let n_input = x.shape()[0];
             let n_hidden = self.w1.shape()[0];
-
-            // 2) 입력벡터에 bias 항 추가 → xl shape = [n_input+1, 1],
-            let mut xl = Tensor::ones(&[n_input + 1, 1]);
+            
             // 2) 입력벡터에 bias 항 추가 → xl shape = [n_input+1, 1],
             let mut xl_data = vec![1.0];
             xl_data.extend(x.data().iter());
@@ -133,7 +131,6 @@ pub mod mlp {
             let a_h = sigmoid.forward(&[&uh]).unwrap().remove(0);
 
             // bias 포함 z 벡터 생성 → shape = [hidden+1, 1], z[(0,0)] = 1, z[(1+i,0)] = a_h[(i,0)]
-            let mut z = Tensor::ones(&[n_hidden + 1, 1]);
             let mut z_data = vec![1.0];
             z_data.extend(a_h.data().iter());
             let z = Tensor::from_vec(z_data, &[n_hidden + 1, 1]).unwrap();
