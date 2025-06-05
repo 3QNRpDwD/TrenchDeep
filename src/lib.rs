@@ -270,7 +270,6 @@ pub mod mlp {
 
 #[cfg(test)]
 mod benchmark {
-    use std::ops::Deref;
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
     use crate::tensor::{Tensor, TensorBase, Variable, AutogradFunction};
     use crate::{scalar, var_input, variable, MlResult};
@@ -495,63 +494,124 @@ mod benchmark {
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
         let x0 = var_input!(Tensor::new(vec![vec![0.0]]));
         let x1 = var_input!(Tensor::new(vec![vec![2.0]]));
+        let y = rosenbrock_function(&x0, &x1)?;
         let iter: usize = 1000;
         let learning_rate = scalar!(0.001);
 
         for i in 0..iter { // 0부터
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
-            
+
             //파라미터 갱신
             x0.swap_tensor( unsafe { x0.tensor() } - &x0.grad().unwrap() * &learning_rate );
             x1.swap_tensor( unsafe { x1.tensor() } - &x1.grad().unwrap() * &learning_rate );
+
+            #[cfg(feature = "debugging")]
+            {
+                if i % 1000 == 0 {
+                    println!(
+                        "iter - {}\n\
+                [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
+                [ x1.tensor: {:?}, x1.grad: {:?} ]"
+                        , i, unsafe { x0.tensor() }, x0.grad(), unsafe { x1.tensor() }, x1.grad()
+                    );
+                }
+            }
+
+            //파라미터 갱신
+            x0.sub_tensor(&x0.grad().unwrap() * &learning_rate);
+            x1.sub_tensor(&x1.grad().unwrap() * &learning_rate);
         }
         Ok(())
     }
 
     #[test]
-    pub(crate) fn mlp_banchmark() -> MlResult<()> {
+    pub(crate) fn mlp_mnist_like_test() -> MlResult<()> {
         use crate::mlp::MLP;
         use crate::tensor::TensorBase;
 
-        let n_input = 2;
-        let n_hidden = 3;
-        let n_output = 1;
+        // Python과 동일한 설정
+        let n_input = 784;  // 28x28
+        let n_hidden = 30;
+        let n_output = 10;
 
-        // MLP 생성
+        // MLP 생성 (동일한 시드 사용하도록 수정 필요)
         let mut mlp = MLP::new(n_input, n_hidden, n_output);
 
-        // 입력 데이터 생성
-        let x1 = Tensor::new(vec![vec![0.0], vec![0.0]]);
-        let x2 = Tensor::new(vec![vec![1.0], vec![0.0]]);
-        let x3 = Tensor::new(vec![vec![0.0], vec![1.0]]);
-        let x4 = Tensor::new(vec![vec![1.0], vec![1.0]]);
-        let X = vec![x1, x2, x3, x4];
+        // 간단한 더미 MNIST 데이터 생성 (실제로는 MNIST 로드 필요)
+        let mut X = Vec::new();
+        let mut T = Vec::new();
 
-        // 타겟 데이터 생성
-        let t1 = Tensor::new(vec![vec![0.0]]);
-        let t2 = Tensor::new(vec![vec![1.0]]);
-        let t3 = Tensor::new(vec![vec![1.0]]);
-        let t4 = Tensor::new(vec![vec![0.0]]);
-        let T = vec![t1, t2, t3, t4];
+        // 각 클래스별로 몇 개씩 더미 데이터 생성
+        for class in 0..10 {
+            for _ in 0..10 {  // 클래스당 10개 샘플
+                // 784차원 랜덤 입력 (0-1 정규화)
+                let mut input_data = vec![vec![0.0]; 784];
+                for i in 0..784 {
+                    input_data[i][0] = rand::random::<f32>();
+                }
+                let x = Tensor::new(input_data);
+                X.push(x);
 
-        // 학습
-        mlp.train(&X, &T, 0.01, 10000, 1e-6);
-
-        let image = Tensor::new(vec![vec![0.0], vec![0.0]]); // 입력 이미지
-        let (_z, y) = mlp.forward(&image);
-        // y.argmax()와 동일하게 max 인덱스를 찾아 리턴
-        let data = y.data();
-        let mut best_idx = 0;
-        let mut best_val = data[0];
-        for (idx, &val) in data.iter().enumerate().skip(1) {
-            if val > best_val {
-                best_val = val;
-                best_idx = idx;
+                // 원-핫 인코딩된 타겟
+                let mut target_data = vec![vec![0.0]; 10];
+                target_data[class][0] = 1.0;
+                let t = Tensor::new(target_data);
+                T.push(t);
             }
         }
 
-        // println!("{:?}", best_idx);
+        // Python과 동일한 하이퍼파라미터로 학습
+        mlp.train(&X, &T, 0.05, 500, 1e-10);
+
+        // 예측 테스트
+        let test_input = &X[0];  // 첫 번째 샘플로 테스트
+        let (_z, y) = mlp.forward(test_input);
+
+        // argmax로 예측 클래스 찾기
+        let data = y.data();
+        let mut predicted_class = 0;
+        let mut max_prob = data[0];
+        for (idx, &prob) in data.iter().enumerate().skip(1) {
+            if prob > max_prob {
+                max_prob = prob;
+                predicted_class = idx;
+            }
+        }
+
+        println!("Predicted class: {}, Max probability: {}", predicted_class, max_prob);
+        Ok(())
+    }
+
+    // 이 코드는 Python으로 구현된 2층 딥러닝 모델과 정확히 비교하기 위한 테스트입니다.
+    #[test]
+    pub(crate) fn mlp_exact_python_comparison() -> MlResult<()> {
+        use crate::mlp::MLP;
+        use crate::tensor::TensorBase;
+
+        // 작은 규모로 Python 코드와 정확히 비교
+        let n_input = 4;
+        let n_hidden = 3;
+        let n_output = 2;
+
+        let mut mlp = MLP::new(n_input, n_hidden, n_output);
+
+        // 고정된 값으로 테스트 (시드 고정 효과)
+        let x1 = Tensor::new(vec![vec![0.1], vec![0.2], vec![0.3], vec![0.4]]);
+        let x2 = Tensor::new(vec![vec![0.5], vec![0.6], vec![0.7], vec![0.8]]);
+        let X = vec![x1, x2];
+
+        let t1 = Tensor::new(vec![vec![1.0], vec![0.0]]);
+        let t2 = Tensor::new(vec![vec![0.0], vec![1.0]]);
+        let T = vec![t1, t2];
+
+        // Python과 동일한 학습률
+        mlp.train(&X, &T, 0.05, 100, 1e-10);
+
+        // 순전파 과정 상세 출력으로 Python과 비교
+        let (_z, y) = mlp.forward(&X[0]);
+        println!("Forward pass result: {:?}", y.data());
+
         Ok(())
     }
 }
