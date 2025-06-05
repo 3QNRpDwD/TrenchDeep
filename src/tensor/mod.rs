@@ -8,9 +8,8 @@ use std::{
     sync::{Arc}
 };
 use std::cell::RefCell;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::Ordering;
-use std::sync::Mutex;
 
 pub mod creation;
 pub mod operators;
@@ -229,8 +228,6 @@ pub struct Variable<Type: 'static> {
     grad: std::cell::RefCell<Option<Tensor<Type>>>,
 }
 
-type TensorRef<Type> = &'static Tensor<Type>;
-
 /// 계산 그래프에서 노드의 고유 식별자를 나타내는 타입 별칭입니다.
 ///
 /// 이 타입은 `usize`를 기반으로 하며, 역전파 기능이 활성화된 경우에만 정의됩니다.
@@ -263,18 +260,6 @@ impl NodeIdGenerator {
     }
 }
 
-
-/// 계산 그래프의 개별 노드를 나타내는 구조체입니다.
-///
-/// 이 구조체는 변수, 연산 함수, 입력 노드 정보를 포함하며, 역전파를 위한 계산 단위를 정의합니다.
-/// 제네릭 타입 `T`는 디버깅과 복제를 지원해야 합니다.
-///
-/// # 필드
-/// - `id`: 노드의 고유 식별자
-/// - `variable`: 노드가 나타내는 변수 (스마트 포인터로 감싸짐)
-/// - `function`: 노드에서 수행되는 연산 함수 (옵션, 동적 디스패치 지원)
-/// - `inputs`: 이 노드의 입력으로 사용되는 다른 노드들의 ID 목록
-///
 #[cfg(feature = "enableBackpropagation")]
 pub(crate) struct ComputationNode<T: Debug + Clone + 'static> {
     id: NodeId,
@@ -284,35 +269,23 @@ pub(crate) struct ComputationNode<T: Debug + Clone + 'static> {
     is_leaf: bool,
 }
 
-
-/// 계산 그래프 전체를 관리하는 구조체입니다.
-///
-/// 이 구조체는 노드 집합과 위상 정렬 정보를 저장하며, 역전파를 수행하는 데 필요한 데이터를 유지합니다.
-/// 제네릭 타입 `T`는 디버깅과 복제를 지원해야 합니다.
-///
-/// # 필드
-/// - `nodes`: 노드 ID와 `ComputationNode`를 매핑하는 해시맵
-/// - `next_id`: 다음에 생성될 노드에 부여할 ID
-/// - `topo_sorted`: 위상 정렬된 노드 ID 목록
-/// - `sorted`: 위상 정렬이 완료되었는지 여부
 #[cfg(feature = "enableBackpropagation")]
 pub(crate) struct ComputationGraph<T: Debug + Clone + 'static> {
     nodes: Vec<ComputationNode<T>>,
-    node_map: std::collections::HashMap<NodeId, usize>,
+    node_map: HashMap<NodeId, usize>,
     adjacency_list: Vec<Vec<usize>>,
     reverse_adjacency: Vec<Vec<usize>>,
     topo_order: Vec<usize>,
     is_sorted: bool,
 }
 
-
 #[cfg(feature = "enableVisualization")]
 #[derive(Debug, Clone)]
 pub struct VisualizationGraph {
     pub nodes: HashSet<String>,
     pub edges: Vec<String>,
-    pub node_types: std::collections::HashMap<String, NodeType>,
-    pub node_labels: std::collections::HashMap<String, String>,
+    pub node_types: HashMap<String, NodeType>,
+    pub node_labels: HashMap<String, String>,
 }
 
 #[cfg(feature = "enableVisualization")]
@@ -323,6 +296,16 @@ pub enum NodeType {
     Input,
     Output,
 }
+
+#[cfg(feature = "enableBackpropagation")]
+thread_local! {
+    pub(crate) static COMPUTATION_GRAPH: std::sync::Mutex<ComputationGraph<f32>> = std::sync::Mutex::new(ComputationGraph::new());
+    #[cfg(feature = "enableVisualization")]
+    pub(crate) static VISUALIZATION_GRAPH: RefCell<VisualizationGraph> = RefCell::new(VisualizationGraph::new());
+    static LABEL_COUNTERS: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+    static SHAPE_REGISTRY: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+}
+
 
 impl PartialEq for Tensor<f32> {
     fn eq(&self, other: &Self) -> bool {

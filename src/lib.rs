@@ -270,7 +270,6 @@ pub mod mlp {
 
 #[cfg(test)]
 mod benchmark {
-    use std::ops::Deref;
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
     use crate::tensor::{Tensor, TensorBase, Variable, AutogradFunction};
     use crate::{scalar, var_input, variable, MlResult};
@@ -495,16 +494,33 @@ mod benchmark {
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
         let x0 = var_input!(Tensor::new(vec![vec![0.0]]));
         let x1 = var_input!(Tensor::new(vec![vec![2.0]]));
+        let y = rosenbrock_function(&x0, &x1)?;
         let iter: usize = 1000;
         let learning_rate = scalar!(0.001);
 
         for i in 0..iter { // 0부터
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
-            
+
             //파라미터 갱신
             x0.swap_tensor( unsafe { x0.tensor() } - &x0.grad().unwrap() * &learning_rate );
             x1.swap_tensor( unsafe { x1.tensor() } - &x1.grad().unwrap() * &learning_rate );
+
+            #[cfg(feature = "debugging")]
+            {
+                if i % 1000 == 0 {
+                    println!(
+                        "iter - {}\n\
+                [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
+                [ x1.tensor: {:?}, x1.grad: {:?} ]"
+                        , i, unsafe { x0.tensor() }, x0.grad(), unsafe { x1.tensor() }, x1.grad()
+                    );
+                }
+            }
+
+            //파라미터 갱신
+            x0.sub_tensor(&x0.grad().unwrap() * &learning_rate);
+            x1.sub_tensor(&x1.grad().unwrap() * &learning_rate);
         }
         Ok(())
     }

@@ -1,13 +1,4 @@
 use super::*;
-use crate::var_input;
-
-// 전역 계산 그래프 (스레드 로컬)
-#[cfg(feature = "enableBackpropagation")]
-thread_local! {
-    pub(crate) static COMPUTATION_GRAPH: std::sync::Mutex<ComputationGraph<f32>> = std::sync::Mutex::new(ComputationGraph::new());
-    #[cfg(feature = "enableVisualization")]
-    pub(crate) static VISUALIZATION_GRAPH: std::cell::RefCell<VisualizationGraph> = std::cell::RefCell::new(VisualizationGraph::new());
-}
 
 #[cfg(feature = "enableBackpropagation")]
 impl Variable<f32> {
@@ -190,13 +181,10 @@ impl ComputationGraph<f32> {
     /// # 반환값
     /// - `NodeId`: 추가된 연산 노드의 고유 식별자
     pub(crate) fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId>) -> NodeId {
-        let output_id = variable.var_id;
-
         #[cfg(feature = "enableVisualization")]
         {
-            let func_id = Arc::as_ptr(&function);
-            let func_id_str = format!("{:?}", func_id);
-            let output_id_str = format!("{:?}", output_id);
+            let func_id = format!("{:?}", Arc::as_ptr(&function));
+            let output_id = format!("{:?}", variable.var_id);
 
             // 출력 노드가 최종 출력인지 확인 (간단한 휴리스틱)
             let is_output = variable.label().contains("output");
@@ -205,19 +193,18 @@ impl ComputationGraph<f32> {
                 let mut viz = viz_graph.borrow_mut();
 
                 // 함수 노드 추가
-                viz.add_function_node(&func_id_str, &function.type_name());
+                viz.add_function_node(&func_id, &function.type_name());
 
                 // 출력 변수 노드 추가
-                viz.add_variable_node(&output_id_str, &variable.label(), false, is_output);
+                viz.add_variable_node(&output_id, &variable.label(), false, is_output);
 
                 // 입력에서 함수로의 엣지
                 for input_id in &inputs {
-                    let input_id_str = format!("{:?}", input_id);
-                    viz.add_edge(&input_id_str, &func_id_str, "data_flow");
+                    viz.add_edge(&format!("{:?}", input_id), &func_id, "data_flow");
                 }
 
                 // 함수에서 출력으로의 엣지
-                viz.add_edge(&func_id_str, &output_id_str, "data_flow");
+                viz.add_edge(&func_id, &output_id, "data_flow");
             });
         }
 
@@ -333,10 +320,7 @@ impl ComputationGraph<f32> {
         // Set output node's gradient to 1.0
         let output_idx = *self.node_map.get(&output_id)
             .ok_or_else(|| MlError::StringError("Output node not found".to_string()))?;
-
         let output_var = &self.nodes[output_idx].variable;
-        let output_shape = output_var.tensor.borrow().shape();
-        
         if output_var.grad().is_none() {
             let grad = Tensor::from_vec(
                 vec![1.0; output_var.tensor.borrow().shape().iter().product()],
@@ -566,16 +550,6 @@ impl VisualizationGraph {
             let viz = viz_graph.borrow();
             (viz.nodes.len(), viz.edges.len())
         })
-    }
-
-    // 시각화 그래프에 노드 추가하는 헬퍼 메서드
-    #[cfg(feature = "enableVisualization")]
-    fn add_to_visualization(&self, id: NodeId, label: &str, is_input: bool, is_output: bool) {
-        VISUALIZATION_GRAPH.with(|viz_graph| {
-            let mut viz = viz_graph.borrow_mut();
-            let id_str = format!("{:?}", id);
-            viz.add_variable_node(&id_str, label, is_input, is_output);
-        });
     }
 
     // 개선된 DOT 그래프 생성
