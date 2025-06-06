@@ -5,7 +5,7 @@ use crate::tensor::{Variable, AutogradFunction};
 use std::fmt;
 use std::sync::Arc;
 use crate::tensor::operators::{Add, Function, Matmul, Square, Sub, Sum};
-use crate::{MlResult, var_bias, var_with_label};
+use crate::{MlResult, var_with_label};
 
 pub struct MLP {
     pub w1: Arc<Variable<f32>>, // shape = [hidden_node, input_node + 1]
