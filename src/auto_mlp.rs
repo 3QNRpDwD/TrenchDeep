@@ -4,12 +4,14 @@ use crate::nn::activation::Sigmoid;
 use crate::tensor::{Variable, AutogradFunction};
 use std::fmt;
 use std::sync::Arc;
-use crate::tensor::operators::{Function, Matmul, Square, Sub, Sum};
-use crate::MlResult;
+use crate::tensor::operators::{Add, Function, Matmul, Square, Sub, Sum};
+use crate::{MlResult, var_bias, var_with_label};
 
 pub struct MLP {
     pub w1: Arc<Variable<f32>>, // shape = [hidden_node, input_node + 1]
     pub w2: Arc<Variable<f32>>, // shape = [output_node, hidden_node + 1]
+    pub b1: Arc<Variable<f32>>, // shape = [hidden_node, 1]
+    pub b2: Arc<Variable<f32>>, // shape = [output_node, 1]
 }
 
 impl fmt::Debug for MLP {
@@ -27,19 +29,52 @@ impl MLP {
     /// n_hidden: 은닉 뉴런 개수
     /// n_output: 출력 뉴런 개수
     pub fn new(n_input: usize, n_hidden: usize, n_output: usize) -> Self {
-        // w1: (hidden × (input+1)) 크기, rand 범위 [0,1) → [-0.1, +0.1) 로 변환
-        let w1_rand = Tensor::rand(&[n_hidden, n_input + 1]);
-        let w1_data: Vec<f32> = w1_rand.data().iter().map(|x| x * 0.2 - 0.1).collect();
-        let w1_tensor = Tensor::from_vec(w1_data, &[n_hidden, n_input + 1]).unwrap();
-        let w1 = Arc::new(Variable::new(w1_tensor));
+        // // w1: (hidden × (input+1)) 크기, rand 범위 [0,1) → [-0.1, +0.1) 로 변환
+        // let w1_rand = Tensor::rand(&[n_hidden, n_input + 1]);
+        // let w1_data: Vec<f32> = w1_rand.data().iter().map(|x| x * 0.2 - 0.1).collect();
+        // let w1_tensor = Tensor::from_vec(w1_data, &[n_hidden, n_input + 1]).unwrap();
+        // let w1 = Arc::new(Variable::new(w1_tensor));
+        //
+        // // w2: (output × (hidden+1)) 크기, 동일하게 초기화
+        // let w2_rand = Tensor::rand(&[n_output, n_hidden + 1]);
+        // let w2_data: Vec<f32> = w2_rand.data().iter().map(|x| x * 0.2 - 0.1).collect();
+        // let w2_tensor = Tensor::from_vec(w2_data, &[n_output, n_hidden + 1]).unwrap();
+        // let w2 = Arc::new(Variable::new(w2_tensor));
+        //
+        // MLP { w1, w2 }
+        let w1_data: Vec<f32> = (0..n_hidden * n_input)
+            .map(|_| rand::random::<f32>() * 0.5 - 0.25)
+            .collect();
+        let w1 = var_with_label!(
+            Tensor::from_vec(w1_data, &[n_hidden, n_input]).unwrap(),
+            "w1"
+        );
 
-        // w2: (output × (hidden+1)) 크기, 동일하게 초기화
-        let w2_rand = Tensor::rand(&[n_output, n_hidden + 1]);
-        let w2_data: Vec<f32> = w2_rand.data().iter().map(|x| x * 0.2 - 0.1).collect();
-        let w2_tensor = Tensor::from_vec(w2_data, &[n_output, n_hidden + 1]).unwrap();
-        let w2 = Arc::new(Variable::new(w2_tensor));
+        let w2_data: Vec<f32> = (0..n_output * n_hidden)
+            .map(|_| rand::random::<f32>() * 0.5 - 0.25)
+            .collect();
+        let w2 = var_with_label!(
+            Tensor::from_vec(w2_data, &[n_output, n_hidden]).unwrap(),
+            "w2"
+        );
 
-        MLP { w1, w2 }
+        // bias 항들 초기화
+        let b1_data: Vec<f32> = (0..n_hidden)
+            .map(|_| rand::random::<f32>() * 0.5 - 0.25)
+            .collect();
+        let b1 = var_with_label!(
+            Tensor::from_vec(b1_data, &[n_hidden, 1]).unwrap(),
+            "b1"
+        );
+
+        let b2_data: Vec<f32> = (0..n_output)
+            .map(|_| rand::random::<f32>() * 0.5 - 0.25)
+            .collect();
+        let b2 = var_with_label!(
+            Tensor::from_vec(b2_data, &[n_output, 1]).unwrap(),
+            "b2"
+        );
+        Self { w1, w2, b1, b2 }
     }
 
     /// 단일 샘플 x에 대해 순전파 수행 (자동미분 사용)
@@ -51,34 +86,23 @@ impl MLP {
     pub fn forward(&self, x: &Arc<Variable<f32>>) -> MlResult<(Arc<Variable<f32>>, Arc<Variable<f32>>)> {
         let sigmoid = Sigmoid::new().unwrap();
         let matmul = Matmul::new().unwrap();
+        let add = Add::new().unwrap(); // Add 연산 추가
 
-        // 1) 입력벡터에 bias 항 추가 → xl shape = [n_input+1, 1]
-        let n_input = unsafe { x.tensor().shape()[0] };
-        let mut xl_data = vec![1.0];
-        xl_data.extend(unsafe { x.tensor().data().iter() });
-        let xl_tensor = Tensor::from_vec(xl_data, &[n_input + 1, 1]).unwrap();
-        let xl = Arc::new(Variable::new(xl_tensor));
+        // 1) 은닉층: u_h = W1 * x + b1
+        let uh_pre = matmul.apply(&[&self.w1, x])?;
+        let uh = add.apply(&[&uh_pre, &self.b1])?;
 
-        // 2) 은닉층 입력 u_h = w1.matmul(xl) → shape = [hidden, 1]
-        let uh = matmul.apply(&[&self.w1, &xl])?;
+        // 2) 은닉층 활성화: a_h = sigmoid(u_h)
+        let ah = sigmoid.apply(&[&uh])?;
 
-        // 3) 은닉층 활성화 a_h = sigmoid(u_h) → shape = [hidden, 1]
-        let a_h = sigmoid.apply(&[&uh])?;
+        // 3) 출력층: u_o = W2 * a_h + b2
+        let uo_pre = matmul.apply(&[&self.w2, &ah])?;
+        let uo = add.apply(&[&uo_pre, &self.b2])?;
 
-        // 4) bias 포함 z 벡터 생성 → shape = [hidden+1, 1]
-        let n_hidden = unsafe { a_h.tensor().shape()[0] };
-        let mut z_data = vec![1.0];
-        z_data.extend(unsafe { a_h.tensor().data().iter() });
-        let z_tensor = Tensor::from_vec(z_data, &[n_hidden + 1, 1]).unwrap();
-        let z = Arc::new(Variable::new(z_tensor));
-
-        // 5) 출력층 입력 u_o = w2.matmul(z) → shape = [output, 1]
-        let uo = matmul.apply(&[&self.w2, &z])?;
-
-        // 6) 출력층 활성화 y = sigmoid(u_o) → shape = [output, 1]
+        // 4) 출력층 활성화: y = sigmoid(u_o)
         let y = sigmoid.apply(&[&uo])?;
 
-        Ok((z, y))
+        Ok((ah, y)) // 은닉층 출력과 최종 출력 반환
     }
 
     pub fn train(
@@ -103,6 +127,7 @@ impl MLP {
         while resid >= tol && iter <= max_iter {
             // 1 epoch 동안 샘플별로 순전파→역전파→업데이트
             for m in 0..n_samples {
+                crate::tensor::ComputationGraph::reset_graph();
                 let x_m = &X[m];
                 let t_m = &T[m];
 
@@ -232,11 +257,11 @@ mod tests {
         let mut mlp = MLP::new(n_input, n_hidden, n_output);
 
         // 입력 데이터를 Variable로 래핑
-        let x1 = var_with_label!(Tensor::new(vec![vec![0.0], vec![0.0]]), "input_1:0.0");
-        let x2 = var_with_label!(Tensor::new(vec![vec![1.0], vec![0.0]]), "input_2:1.0");
-        let x3 = var_with_label!(Tensor::new(vec![vec![0.0], vec![1.0]]), "input_3:0.0");
-        let x4 = var_with_label!(Tensor::new(vec![vec![1.0], vec![1.0]]), "input_4:1.0");
-        let X = vec![x1.clone(), x2, x3, x4];
+        let x1 = var_with_label!(Tensor::new(vec![vec![0.0], vec![0.0]]), "입력1: 0.0");
+        let x2 = var_with_label!(Tensor::new(vec![vec![1.0], vec![0.0]]), "입력2: 1.0");
+        let x3 = var_with_label!(Tensor::new(vec![vec![0.0], vec![1.0]]), "입력3: 0.0");
+        let x4 = var_with_label!(Tensor::new(vec![vec![1.0], vec![1.0]]), "입력4: 1.0");
+        let X = vec![x1, x2, x3, x4];
 
         // 타겟 데이터를 Variable로 래핑
         let t1 = var_with_label!(Tensor::new(vec![vec![0.0]]), "target_1");
@@ -246,11 +271,12 @@ mod tests {
         let T = vec![t1, t2, t3, t4];
 
         // 학습 (자동미분 사용)
-        mlp.train(&X, &T, 0.05, 1000, 1e-6)?;
+        mlp.train(&X, &T, 0.05, 100, 1e-6)?;
 
         // 예측
         let test_input = &X[0];
         let (_z, y) = mlp.forward(test_input)?;
+        crate::tensor::VisualizationGraph::render_to_svg("graph/twolayer.svg").unwrap();
 
         let prediction = unsafe { y.tensor().data()[0] };
         println!("Prediction for [0,0]: {}", prediction);

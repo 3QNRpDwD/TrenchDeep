@@ -163,6 +163,165 @@ impl Function<f32> for Matmul {
         Ok(vec![buffer])
     }
 
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+        let target_0 = targets[0];
+        let target_1 = targets[1];
+        let target_0_shape = target_0.shape();
+        let target_1_shape = target_1.shape();
+        let grad_data = grad.data();
+
+        let a = target_0_shape.len();
+        let b = target_1_shape.len();
+
+        let (grad_0, grad_1) = match (a, b) {
+            // Case 1: 1D * 1D (dot product)
+            // C = sum(A * B), so dA = B * dC, dB = A * dC
+            (1, 1) => {
+                let grad_scalar = grad_data[0];
+                let grad_0_data: Vec<f32> = target_1.data().iter().map(|&x| x * grad_scalar).collect();
+                let grad_1_data: Vec<f32> = target_0.data().iter().map(|&x| x * grad_scalar).collect();
+
+                (
+                    Tensor::<f32>::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    Tensor::<f32>::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                )
+            }
+
+            // Case 2: 2D * 1D
+            // C[i] = sum_j(A[i,j] * B[j])
+            // dA[i,j] = B[j] * dC[i], dB[j] = sum_i(A[i,j] * dC[i])
+            (2, 1) => {
+                let m = target_0_shape[0];
+                let k = target_0_shape[1];
+
+                // Gradient for target_0 (2D matrix)
+                let mut grad_0_data = vec![0.0; m * k];
+                for i in 0..m {
+                    for j in 0..k {
+                        grad_0_data[i * k + j] = target_1.data()[j] * grad_data[i];
+                    }
+                }
+
+                // Gradient for target_1 (1D vector)
+                let mut grad_1_data = vec![0.0; k];
+                for j in 0..k {
+                    let mut sum = 0.0;
+                    for i in 0..m {
+                        sum += target_0.data()[i * k + j] * grad_data[i];
+                    }
+                    grad_1_data[j] = sum;
+                }
+
+                (
+                    Tensor::<f32>::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    Tensor::<f32>::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                )
+            }
+
+            // Case 3: 1D * 2D
+            // C[j] = sum_i(A[i] * B[i,j])
+            // dA[i] = sum_j(B[i,j] * dC[j]), dB[i,j] = A[i] * dC[j]
+            (1, 2) => {
+                let k = target_0_shape[0];
+                let n = target_1_shape[1];
+
+                // Gradient for target_0 (1D vector)
+                let mut grad_0_data = vec![0.0; k];
+                for i in 0..k {
+                    let mut sum = 0.0;
+                    for j in 0..n {
+                        sum += target_1.data()[i * n + j] * grad_data[j];
+                    }
+                    grad_0_data[i] = sum;
+                }
+
+                // Gradient for target_1 (2D matrix)
+                let mut grad_1_data = vec![0.0; k * n];
+                for i in 0..k {
+                    for j in 0..n {
+                        grad_1_data[i * n + j] = target_0.data()[i] * grad_data[j];
+                    }
+                }
+
+                (
+                    Tensor::<f32>::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    Tensor::<f32>::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                )
+            }
+
+            // Case 4: Higher dimensional tensor multiplication
+            // For batched matrix multiplication: C[b,i,j] = sum_k(A[b,i,k] * B[b,k,j])
+            // dA[b,i,k] = sum_j(B[b,k,j] * dC[b,i,j])
+            // dB[b,k,j] = sum_i(A[b,i,k] * dC[b,i,j])
+            (a, b) => {
+                let batch_size = if a > 2 {
+                    target_0_shape[..a - 2].iter().product()
+                } else {
+                    1
+                };
+                let other_batch_size = if b > 2 {
+                    target_1_shape[..b - 2].iter().product()
+                } else {
+                    1
+                };
+
+                let output_batch_size = if batch_size == 1 {
+                    other_batch_size
+                } else if other_batch_size == 1 {
+                    batch_size
+                } else {
+                    batch_size
+                };
+
+                let m = target_0_shape[a - 2];
+                let k = target_0_shape[a - 1];
+                let n = target_1_shape[b - 1];
+
+                // Initialize gradients
+                let mut grad_0_data = vec![0.0; batch_size * m * k];
+                let mut grad_1_data = vec![0.0; other_batch_size * k * n];
+
+                for batch in 0..output_batch_size {
+                    let batch1 = if batch_size == 1 { 0 } else { batch };
+                    let batch2 = if other_batch_size == 1 { 0 } else { batch };
+
+                    let start1 = batch1 * m * k;
+                    let start2 = batch2 * k * n;
+                    let grad_start = batch * m * n;
+
+                    // Compute gradient for target_0: dA[b,i,k] = sum_j(B[b,k,j] * dC[b,i,j])
+                    for i in 0..m {
+                        for k_idx in 0..k {
+                            let mut sum = 0.0;
+                            for j in 0..n {
+                                sum += target_1.data()[start2 + k_idx * n + j] * grad_data[grad_start + i * n + j];
+                            }
+                            grad_0_data[start1 + i * k + k_idx] += sum;
+                        }
+                    }
+
+                    // Compute gradient for target_1: dB[b,k,j] = sum_i(A[b,i,k] * dC[b,i,j])
+                    for k_idx in 0..k {
+                        for j in 0..n {
+                            let mut sum = 0.0;
+                            for i in 0..m {
+                                sum += target_0.data()[start1 + i * k + k_idx] * grad_data[grad_start + i * n + j];
+                            }
+                            grad_1_data[start2 + k_idx * n + j] += sum;
+                        }
+                    }
+                }
+
+                (
+                    Tensor::<f32>::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    Tensor::<f32>::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                )
+            }
+        };
+
+        Ok(vec![grad_0, grad_1])
+    }
+
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 }
 

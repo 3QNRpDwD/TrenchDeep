@@ -32,8 +32,7 @@ impl Function<f32> for Sum {
 
         // The gradient of the sum operation is simply the gradient passed back
         // since each input contributes equally to the output.
-        let mut gradients = vec![grad.clone(); targets.len()];
         
-        Ok(gradients)
+        Ok(vec![grad.clone(); targets.len()])
     }
 }
