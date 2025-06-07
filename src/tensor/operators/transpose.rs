@@ -2,6 +2,9 @@ use super::*;
 
 
 impl Function<f32> for Transpose {
+    fn new() -> MlResult<Self> {
+        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), dims: (0, 1) }) // Default to swapping the first two dimensions
+    }
     fn forward(&self, input: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         let input = input[0];
         let rank = input.shape().len();
@@ -62,7 +65,8 @@ impl Function<f32> for Transpose {
         Ok(vec![Tensor::from_vec(result, &new_shape)?])
     }
 
-    fn backward(&self, input: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    #[cfg(feature = "enableBackpropagation")]
+    fn backward(&self, _: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         let input = grad;
         let rank = input.shape().len();
         if rank < 2 {

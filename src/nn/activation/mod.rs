@@ -23,7 +23,14 @@ impl<T: Function<f32> + Clone + 'static> Activation<f32> for T {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Sigmoid { backend: Arc<dyn Backend> }
+
+#[derive(Debug, Clone)]
 pub struct Tanh    { backend: Arc<dyn Backend> }
+
+#[derive(Debug, Clone)]
 pub struct Relu    { backend: Arc<dyn Backend> }
+
+#[derive(Debug, Clone)]
 pub struct Softmax { backend: Arc<dyn Backend> }
