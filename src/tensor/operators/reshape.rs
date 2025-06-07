@@ -2,7 +2,7 @@ use super::*;
 
 impl Function<f32> for Reshape {
     fn new() -> MlResult<Self> {
-        Ok(Self { backend: Arc::new(CpuBackend::new()?) })
+        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
     }
 
     /// Reshapes the tensor to the specified shape.

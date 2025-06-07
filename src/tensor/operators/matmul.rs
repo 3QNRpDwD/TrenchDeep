@@ -2,7 +2,9 @@ use super::*;
 
 
 impl Function<f32> for Matmul {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
+    fn new() -> MlResult<Self> {
+        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+    }
     /// Performs matrix multiplication on two tensors
     ///
     /// # Arguments

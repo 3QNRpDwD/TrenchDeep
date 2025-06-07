@@ -159,7 +159,6 @@ macro_rules! scalar_ops {
     };
 }
 
-
 #[macro_export]
 macro_rules! variable {
     ($vec:expr) => {
@@ -242,7 +241,7 @@ pub struct NodeIdGenerator {
     counter: std::sync::atomic::AtomicU64,
 }
 
-static NODE_ID_GEN: NodeIdGenerator = NodeIdGenerator::new();
+pub(crate) static NODE_ID_GEN: NodeIdGenerator = NodeIdGenerator::new();
 
 impl NodeIdGenerator {
     pub const fn new() -> Self {

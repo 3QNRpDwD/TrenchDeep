@@ -1,7 +1,9 @@
 use super::*;
 
 impl Function<f32> for Mul {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
+    fn new() -> MlResult<Self> {
+        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+    }
     /// Multiplies two tensors element-wise
     ///
     /// # Arguments
@@ -43,7 +45,7 @@ impl std::ops::Mul<Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn mul(self, other: Tensor<f32>) -> Self::Output {
-        MUL_OP.with(|op| op.forward(&[&self, &other]).unwrap().remove(0))
+        MUL.with(|op| op.forward(&[&self, &other]).unwrap().remove(0))
     }
 }
 
@@ -51,7 +53,7 @@ impl std::ops::Mul<&Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn mul(self, other: &Tensor<f32>) -> Self::Output {
-        MUL_OP.with(|op| op.forward(&[&self, other]).unwrap().remove(0))
+        MUL.with(|op| op.forward(&[&self, other]).unwrap().remove(0))
     }
 }
 
@@ -59,7 +61,7 @@ impl std::ops::Mul<&Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn mul(self, other: &Tensor<f32>) -> Self::Output {
-        MUL_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0))
+        MUL.with(|op| op.forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -67,19 +69,19 @@ impl std::ops::Mul<Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn mul(self, other: Tensor<f32>) -> Self::Output {
-        MUL_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0))
+        MUL.with(|op| op.forward(&[self, &other]).unwrap().remove(0))
     }
 }
 
 /// MulAssign trait implementation for Tensor
 impl std::ops::MulAssign<Tensor<f32>> for Tensor<f32> {
     fn mul_assign(&mut self, other: Tensor<f32>) {
-        *self = MUL_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0));
+        *self = MUL.with(|op| op.forward(&[self, &other]).unwrap().remove(0));
     }
 }
 
 impl std::ops::MulAssign<&Tensor<f32>> for Tensor<f32> {
     fn mul_assign(&mut self, other: &Tensor<f32>) {
-        *self = MUL_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0));
+        *self = MUL.with(|op| op.forward(&[self, other]).unwrap().remove(0));
     }
 }

@@ -312,11 +312,6 @@ impl ComputationGraph<f32> {
     /// - 역전파 계산 실패 시
     #[cfg(feature = "enableBackpropagation")]
     pub(crate) fn backward(&self, output_id: NodeId) -> MlResult<()> {
-        // Clear gradients for all nodes
-        for node in &self.nodes {
-            node.variable.clear_grad();
-        }
-
         // Set output node's gradient to 1.0
         let output_idx = *self.node_map.get(&output_id)
             .ok_or_else(|| MlError::StringError("Output node not found".to_string()))?;
@@ -352,6 +347,50 @@ impl ComputationGraph<f32> {
                     let input_grads = function.backward(&input_tensors, &output_grad)?;
 
                     for (input_id, grad) in node.inputs.iter().zip(input_grads) {
+                        println!("input_id: {:?}, grad: {:?}", input_id, grad);
+                        let input_idx = self.node_map[input_id];
+                        self.nodes[input_idx].variable.accumulate_grad(grad)?;
+                    }
+
+
+                    if !node.variable.requires_grad { node.variable.clear_grad(); }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    // 역전파 메서드와 반대로 기록된 노드의 순서대로 실행하고 해당 값을 노드에 저장하는 메서드
+    pub fn forward(&mut self, input_id: NodeId) -> MlResult<()> {
+        // Set output node's gradient to 1.0
+        let input_idx = *self.node_map.get(&input_id)
+            .ok_or_else(|| MlError::StringError("Output node not found".to_string()))?;
+        let input_var = &self.nodes[input_idx].variable;
+
+        // 위상 정렬된 순서의 역순으로 순회
+        for &node_idx in self.topo_order.iter().rev() {
+            let node = &self.nodes[node_idx];
+
+            let var = &node.variable;
+            let grad = var.grad();
+            if node.function.is_none() || grad.is_none() {
+                continue;
+            }
+
+            if let Some(function) = &node.function {
+                let input_tensors: Vec<&Tensor<f32>> = node.inputs
+                    .iter()
+                    .map(|&input_id| {
+                        let input_idx = self.node_map[&input_id];
+                        unsafe { self.nodes[input_idx].variable.tensor() }
+                    })
+                    .collect::<Vec<&Tensor<f32>>>();
+
+                if let Some(output_grad) = grad {
+                    let input_grads = function.backward(&input_tensors, &output_grad)?;
+                    
+                    for (input_id, grad) in node.inputs.iter().zip(input_grads) {
+                        println!("input_id: {:?}, grad: {:?}", input_id, grad);
                         let input_idx = self.node_map[input_id];
                         self.nodes[input_idx].variable.accumulate_grad(grad)?;
                     }

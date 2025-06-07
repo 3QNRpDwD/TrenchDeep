@@ -229,7 +229,7 @@ impl Variable<f32> {
             requires_grad: cfg!(feature = "requiresGrad"),
 
             #[cfg(feature = "enableBackpropagation")]
-            grad: std::cell::RefCell::new(None),
+            grad: RefCell::new(None),
         }
     }
     
@@ -351,7 +351,7 @@ impl Variable<f32> {
     pub unsafe fn tensor(&self) -> &Tensor<f32> {
         self.tensor_ptr().as_ref().expect("Tensor is qudtls")
     }
-    
+
     pub fn tensor_ptr(&self) -> *const Tensor<f32> {
         self.tensor.borrow().deref()
     }
@@ -502,70 +502,71 @@ macro_rules! var_bias {
 #[macro_export]
 macro_rules! var_with_label {
     ($tensor:expr, $label:expr) => {
-        use std::sync::Arc;
-        Arc::new(Variable::with_label($tensor, $label))
+        {
+            std::sync::Arc::new(Variable::with_label($tensor, $label))
+        }
     };
 }
 
 // 사용 예시를 위한 테스트 함수들
-// #[cfg(feature = "enableVisualization")]
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     #[test]
-//     fn test_intuitive_labeling() -> MlResult<()> {
-//         let tensor = &Tensor::from_vec(vec![1.0], &[])?;
-//         let scalar = Variable::new(&tensor);
-//         assert_eq!(scalar.label(), "scalar");
-//
-//         // 벡터들
-//         let small_vec = Variable::new(Tensor::from_vec(vec![1.0, 2.0], &[2])?);
-//         assert_eq!(small_vec.label(), "small_vec");
-//
-//         let bias = Variable::new(Tensor::from_vec(vec![1.0], &[1])?);
-//         assert_eq!(bias.label(), "bias");
-//
-//         // 행렬들
-//         let square = Variable::new(Tensor::from_vec(vec![1.0; 9], &[3, 3])?);
-//         assert_eq!(square.label(), "small_matrix");
-//
-//         let wide = Variable::new(Tensor::from_vec(vec![1.0; 20], &[2, 10])?);
-//         assert_eq!(wide.label(), "wide_matrix");
-//
-//         // RGB 이미지
-//         let rgb = Variable::new(Tensor::from_vec(vec![1.0; 192], &[8, 8, 3])?);
-//         assert_eq!(rgb.label(), "rgb_image");
-//
-//         // 배치 RGB
-//         let rgb_batch = Variable::new(Tensor::from_vec(vec![1.0; 768], &[4, 3, 8, 8])?);
-//         assert_eq!(rgb_batch.label(), "rgb_batch");
-//
-//         Ok(())
-//     }
-//
-//     #[test]
-//     fn test_custom_labels() -> MlResult<()> {
-//         let input = Variable::new_input(Tensor::from_vec(vec![1.0; 10], &[10])?);
-//         assert_eq!(input.label(), "input");
-//
-//         let weight = Variable::new_weight(Tensor::from_vec(vec![1.0; 20], &[4, 5])?);
-//         assert_eq!(weight.label(), "weight");
-//
-//         let conv_weight = Variable::new_conv_weight(Tensor::from_vec(vec![1.0; 36], &[3, 3, 2, 2])?, 1);
-//         assert_eq!(conv_weight.label(), "conv1_weight");
-//
-//         Ok(())
-//     }
-//
-//     #[test]
-//     fn test_unique_labeling() -> MlResult<()> {
-//         let input1 = Variable::new_input(Tensor::from_vec(vec![1.0; 10], &[10])?);
-//         let input2 = Variable::new_input(Tensor::from_vec(vec![2.0; 10], &[10])?);
-//
-//         assert_eq!(input1.label(), "input");
-//         assert_eq!(input2.label(), "input_2");
-//
-//         Ok(())
-//     }
-// }
+#[cfg(feature = "enableVisualization")]
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_intuitive_labeling() -> MlResult<()> {
+        let tensor = Tensor::from_vec(vec![1.0], &[])?;
+        let scalar = Variable::new(tensor);
+        assert_eq!(scalar.label(), "scalar");
+
+        // 벡터들
+        let small_vec = Variable::new(Tensor::from_vec(vec![1.0, 2.0], &[2])?);
+        assert_eq!(small_vec.label(), "small_vec");
+
+        let bias = Variable::new(Tensor::from_vec(vec![1.0], &[1])?);
+        assert_eq!(bias.label(), "bias");
+
+        // 행렬들
+        let square = Variable::new(Tensor::from_vec(vec![1.0; 9], &[3, 3])?);
+        assert_eq!(square.label(), "small_matrix");
+
+        let wide = Variable::new(Tensor::from_vec(vec![1.0; 20], &[2, 10])?);
+        assert_eq!(wide.label(), "wide_matrix");
+
+        // RGB 이미지
+        let rgb = Variable::new(Tensor::from_vec(vec![1.0; 192], &[8, 8, 3])?);
+        assert_eq!(rgb.label(), "rgb_image");
+
+        // 배치 RGB
+        let rgb_batch = Variable::new(Tensor::from_vec(vec![1.0; 768], &[4, 3, 8, 8])?);
+        assert_eq!(rgb_batch.label(), "rgb_batch");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_custom_labels() -> MlResult<()> {
+        let input = Variable::new_input(Tensor::from_vec(vec![1.0; 10], &[10])?);
+        assert_eq!(input.label(), "input");
+
+        let weight = Variable::new_weight(Tensor::from_vec(vec![1.0; 20], &[4, 5])?);
+        assert_eq!(weight.label(), "weight");
+
+        let conv_weight = Variable::new_conv_weight(Tensor::from_vec(vec![1.0; 36], &[3, 3, 2, 2])?, 1);
+        assert_eq!(conv_weight.label(), "conv1_weight");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_unique_labeling() -> MlResult<()> {
+        let input1 = Variable::new_input(Tensor::from_vec(vec![1.0; 10], &[10])?);
+        let input2 = Variable::new_input(Tensor::from_vec(vec![2.0; 10], &[10])?);
+
+        assert_eq!(input1.label(), "input");
+        assert_eq!(input2.label(), "input_2");
+
+        Ok(())
+    }
+}

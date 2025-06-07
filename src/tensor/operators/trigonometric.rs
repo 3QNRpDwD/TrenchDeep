@@ -6,7 +6,7 @@ impl Function<f32> for Sin {
     /// 새로운 `Sin` 인스턴스를 생성합니다.
     /// CPU 백엔드를 사용합니다.
     fn new() -> MlResult<Self> {
-        Ok(Self { backend: Arc::new(CpuBackend::new()? )} )
+        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
     }
 
     /// 입력 텐서에 사인 함수를 요소별로 적용하여, 동일한 모양을 가진 새로운 텐서를 반환합니다.
@@ -37,7 +37,7 @@ impl Function<f32> for Cos {
     /// 새로운 `Cos` 인스턴스를 생성합니다.
     /// CPU 백엔드를 사용합니다.
     fn new() -> MlResult<Self> {
-        Ok(Self { backend: Arc::new(CpuBackend::new()? )} )
+        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
     }
 
     /// 입력 텐서에 코사인 함수를 요소별로 적용하여, 동일한 모양을 가진 새로운 텐서를 반환합니다.
@@ -64,10 +64,7 @@ impl Function<f32> for Cos {
 
 impl Function<f32> for ApproxSin {
     fn new() -> MlResult<Self> {
-        Ok(Self {
-            backend: Arc::new(CpuBackend::new()?),
-            threshold: 0.0001
-        })
+        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), threshold: 0.0001 })
     }
 
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
@@ -114,6 +111,7 @@ impl Function<f32> for ApproxSin {
         let cos = ApproxCos {
             backend: Arc::clone(&self.backend),
             threshold: self.threshold,
+            node_id: NODE_ID_GEN.next()
         };
 
         let cos_output = cos.forward(targets)?;
@@ -135,6 +133,7 @@ impl Function<f32> for ApproxCos {
     fn new() -> MlResult<Self> {
         Ok(Self {
             backend: Arc::new(CpuBackend::new()?),
+            node_id: NODE_ID_GEN.next(),
             threshold: 0.0001
         })
     }
@@ -180,6 +179,7 @@ impl Function<f32> for ApproxCos {
         // We can use the ApproxSin implementation for this
         let sin = ApproxSin {
             backend: Arc::clone(&self.backend),
+            node_id: NODE_ID_GEN.next(),
             threshold: self.threshold,
         };
 

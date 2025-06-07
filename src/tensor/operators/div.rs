@@ -1,7 +1,9 @@
 use super::*;
 
 impl Function<f32> for Div {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
+    fn new() -> MlResult<Self> {
+        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+    }
     /// Divides two tensors element-wise
     ///
     /// # Arguments
@@ -40,7 +42,7 @@ impl std::ops::Div<&Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn div(self, other: &Tensor<f32>) -> Self::Output {
-        DIV_OP.with(|op| op.forward(&[&self, other]).unwrap().remove(0))
+        DIV.with(|op| op.forward(&[&self, other]).unwrap().remove(0))
     }
 }
 
@@ -48,7 +50,7 @@ impl std::ops::Div<Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn div(self, other: Tensor<f32>) -> Self::Output {
-        DIV_OP.with(|op| op.forward(&[&self, &other]).unwrap().remove(0))
+        DIV.with(|op| op.forward(&[&self, &other]).unwrap().remove(0))
     }
 }
 
@@ -57,7 +59,7 @@ impl std::ops::Div<&Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn div(self, other: &Tensor<f32>) -> Self::Output {
-        DIV_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0))
+        DIV.with(|op| op.forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -65,19 +67,19 @@ impl std::ops::Div<Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn div(self, other: Tensor<f32>) -> Self::Output {
-        DIV_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0))
+        DIV.with(|op| op.forward(&[self, &other]).unwrap().remove(0))
     }
 }
 
 /// DivAssign trait implementation for Tensor
 impl std::ops::DivAssign<Tensor<f32>> for Tensor<f32> {
     fn div_assign(&mut self, other: Tensor<f32>) {
-        *self = DIV_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0));
+        *self = DIV.with(|op| op.forward(&[self, &other]).unwrap().remove(0));
     }
 }
 
 impl std::ops::DivAssign<&Tensor<f32>> for Tensor<f32> {
     fn div_assign(&mut self, other: &Tensor<f32>) {
-        *self = DIV_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0));
+        *self = DIV.with(|op| op.forward(&[self, other]).unwrap().remove(0));
     }
 }
