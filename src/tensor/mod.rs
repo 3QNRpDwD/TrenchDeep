@@ -218,6 +218,8 @@ pub struct Tensor<Type> {
 pub struct Variable<Type: 'static> {
     #[cfg(all(feature = "enableVisualization"))]
     label: String,
+    #[cfg(all(feature = "enableVisualization"))]
+    node_type: NodeType,
     #[cfg(feature = "enableBackpropagation")]
     var_id: NodeId,
     tensor: RefCell<Tensor<Type>>,
@@ -294,6 +296,10 @@ pub enum NodeType {
     Variable,
     Function,
     Input,
+    Weight,
+    Bias,
+    Loss,
+    Activation,
     Output,
 }
 

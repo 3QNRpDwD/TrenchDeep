@@ -1,3 +1,4 @@
+use petgraph::algo::is_bipartite_undirected;
 use super::*;
 
 #[cfg(feature = "enableBackpropagation")]
@@ -148,7 +149,7 @@ impl ComputationGraph<f32> {
             VISUALIZATION_GRAPH.with(|viz_graph| {
                 let mut viz = viz_graph.borrow_mut();
                 let id_str = format!("{:?}",node_id);
-                viz.add_variable_node(&id_str, variable.label(), true, false);
+                viz.add_variable_node(&id_str, variable.label(), variable.node_type());
             });
         }
         
@@ -186,9 +187,6 @@ impl ComputationGraph<f32> {
             let func_id = format!("{:?}", Arc::as_ptr(&function));
             let output_id = format!("{:?}", variable.var_id);
 
-            // 출력 노드가 최종 출력인지 확인 (간단한 휴리스틱)
-            let is_output = variable.label().contains("output");
-
             VISUALIZATION_GRAPH.with(|viz_graph| {
                 let mut viz = viz_graph.borrow_mut();
 
@@ -196,7 +194,7 @@ impl ComputationGraph<f32> {
                 viz.add_function_node(&func_id, &function.type_name());
 
                 // 출력 변수 노드 추가
-                viz.add_variable_node(&output_id, &variable.label(), false, is_output);
+                viz.add_variable_node(&output_id, &variable.label(), &variable.node_type());
 
                 // 입력에서 함수로의 엣지
                 for input_id in &inputs {
@@ -455,23 +453,56 @@ impl VisualizationGraph {
         }
     }
 
-    pub fn add_variable_node(&mut self, id: &str, label: &str, is_input: bool, is_output: bool) {
+    pub fn add_variable_node(&mut self, id: &str, label: &str, node_type: &NodeType) {
         self.nodes.insert(id.to_string());
         self.node_labels.insert(id.to_string(), label.to_string());
 
-        let node_type = match (is_output, is_input) {
-            (true, _) => NodeType::Output,
-            (false, true) => NodeType::Input,
-            _ => NodeType::Variable,
-        };
+        // let node_type = match (is_output, is_input, is_bias, is_weight, is_activation, is_loss) {
+        //     (true, _, _, _, _, _) => NodeType::Output,
+        //     (false, true, _, _, _, _) => NodeType::Input,
+        //     (false, false, true, _, _, _) => NodeType::Bias,
+        //     (false, false, false, true, _, _) => NodeType::Weight,
+        //     (false, false, false, false, true, _) => NodeType::Activation,
+        //     (false, false, false, false, false, true) => NodeType::Loss,
+        //     _ => NodeType::Variable,
+        // };
 
-        self.node_types.insert(id.to_string(), node_type);
+        self.node_types.insert(id.to_string(), node_type.clone());
+    }
+
+    pub fn add_weight_node(&mut self, id: &str, label: &str) {
+        self.nodes.insert(id.to_string());
+        self.node_labels.insert(id.to_string(), label.to_string());
+        self.node_types.insert(id.to_string(), NodeType::Weight);
+    }
+
+    pub fn add_bias_node(&mut self, id: &str, label: &str) {
+        self.nodes.insert(id.to_string());
+        self.node_labels.insert(id.to_string(), label.to_string());
+        self.node_types.insert(id.to_string(), NodeType::Bias);
+    }
+
+    pub fn add_loss_node(&mut self, id: &str, label: &str) {
+        self.nodes.insert(id.to_string());
+        self.node_labels.insert(id.to_string(), label.to_string());
+        self.node_types.insert(id.to_string(), NodeType::Loss);
+    }
+
+    pub fn add_activation_node(&mut self, id: &str, label: &str) {
+        self.nodes.insert(id.to_string());
+        self.node_labels.insert(id.to_string(), label.to_string());
+        self.node_types.insert(id.to_string(), NodeType::Activation);
     }
 
     pub fn add_function_node(&mut self, id: &str, label: &str) {
         self.nodes.insert(id.to_string());
         self.node_labels.insert(id.to_string(), label.to_string());
-        self.node_types.insert(id.to_string(), NodeType::Function);
+
+        match label {
+            "Sigmoid" | "ReLU" | "Tanh" | "Softmax" | "Linear"
+            => self.node_types.insert(id.to_string(), NodeType::Activation),
+            _ => self.node_types.insert(id.to_string(), NodeType::Function)
+        };
     }
 
     pub fn add_edge(&mut self, from: &str, to: &str, edge_type: &str) {
@@ -496,13 +527,17 @@ impl VisualizationGraph {
     pub fn generate_dot(&self) -> String {
         let mut dot = String::from(
             "digraph ComputationGraph {\n\
-                bgcolor=\"#F8F9FA\";\n\
-                rankdir=LR;  // 좌우 배치로 데이터 흐름을 더 직관적으로\n\
-                splines=ortho;\n\
-                nodesep=0.8;\n\
-                ranksep=1.5;\n\
-                node [fontname=\"Arial\", fontsize=10];\n\
-                edge [fontname=\"Arial\", fontsize=8];\n\n"
+            // 모던한 전체 스타일링\n\
+            bgcolor=\"#FAFBFC\";\n\
+            rankdir=LR;\n\
+            splines=curved;\n\
+            nodesep=1.0;\n\
+            ranksep=2.0;\n\
+            pad=0.5;\n\
+            \n\
+            // 기본 노드/엣지 스타일\n\
+            node [fontname=\"SF Pro Display, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial\", fontsize=11, margin=0.1];\n\
+            edge [fontname=\"SF Pro Display, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial\", fontsize=9, color=\"#6B7280\", penwidth=1.5];\n\n"
         );
 
         // 노드 타입별 그룹화 및 스타일링
@@ -518,20 +553,32 @@ impl VisualizationGraph {
             let (shape, style, color, font_color) = match node_type {
                 NodeType::Input => {
                     input_nodes.push(node_id.clone());
-                    ("ellipse", "filled,bold", "#81C784", "white")  // 연한 초록
+                    ("house", "filled", "#10B981", "white")           // 에메랄드 그린
                 },
                 NodeType::Output => {
                     output_nodes.push(node_id.clone());
-                    ("ellipse", "filled,bold", "#E57373", "white")  // 연한 빨강
+                    ("invhouse", "filled", "#EF4444", "white")        // 모던 레드
                 },
                 NodeType::Function => {
                     function_nodes.push(node_id.clone());
-                    ("box", "filled,rounded", "#64B5F6", "white")   // 연한 파랑
+                    ("hexagon", "filled", "#3B82F6", "white")         // 모던 블루
                 },
                 NodeType::Variable => {
                     variable_nodes.push(node_id.clone());
-                    ("ellipse", "filled", "#FFB74D", "white")       // 연한 주황
+                    ("ellipse", "filled", "#F59E0B", "white")         // 앰버 옐로우
                 },
+                NodeType::Weight => {
+                    ("diamond", "filled", "#8B5CF6", "white")         // 바이올렛 퍼플
+                },
+                NodeType::Bias => {
+                    ("circle", "filled", "#F97316", "white")          // 오렌지
+                },
+                NodeType::Loss => {
+                    ("octagon", "filled", "#EC4899", "white")         // 핑크
+                },
+                NodeType::Activation => {
+                    ("doublecircle", "filled", "#06B6D4", "white")    // 사이안
+                }
             };
 
             dot.push_str(&format!(
@@ -556,20 +603,44 @@ impl VisualizationGraph {
         }
 
         // 범례 추가
-        dot.push_str("\n    // 범례\n");
+        dot.push_str("\n    // 범례 - 모던 스타일\n");
         dot.push_str("    subgraph cluster_legend {\n");
-        dot.push_str("        label=\"Legend\";\n");
-        dot.push_str("        style=filled;\n");
+        dot.push_str("        label=<<B>Node Types</B>>;\n");
+        dot.push_str("        style=\"filled,rounded\";\n");
         dot.push_str("        fillcolor=\"#FFFFFF\";\n");
-        dot.push_str("        fontsize=12;\n");
-        dot.push_str("        fontname=\"Arial Bold\";\n");
+        dot.push_str("        color=\"#E5E7EB\";\n");
+        dot.push_str("        penwidth=1;\n");
+        dot.push_str("        fontsize=14;\n");
+        dot.push_str("        fontname=\"SF Pro Display, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial\";\n");
+        dot.push_str("        fontcolor=\"#374151\";\n");
+        dot.push_str("        margin=12;\n");
         dot.push_str("        \n");
-        dot.push_str("        legend_input [label=\"Input\", shape=ellipse, style=\"filled,bold\", fillcolor=\"#81C784\", fontcolor=\"white\"];\n");
-        dot.push_str("        legend_func [label=\"Function\", shape=box, style=\"filled,rounded\", fillcolor=\"#64B5F6\", fontcolor=\"white\"];\n");
-        dot.push_str("        legend_var [label=\"Variable\", shape=ellipse, style=\"filled\", fillcolor=\"#FFB74D\", fontcolor=\"white\"];\n");
-        dot.push_str("        legend_output [label=\"Output\", shape=ellipse, style=\"filled,bold\", fillcolor=\"#E57373\", fontcolor=\"white\"];\n");
+
+        // 범례 노드들을 두 열로 배치
+        dot.push_str("        // 첫 번째 열\n");
+        dot.push_str("        legend_input [label=<<B>Input</B>>, shape=house, style=\"filled\", fillcolor=\"#10B981\", fontcolor=\"white\", width=1.2, height=0.6];\n");
+        dot.push_str("        legend_func [label=<<B>Function</B>>, shape=hexagon, style=\"filled\", fillcolor=\"#3B82F6\", fontcolor=\"white\", width=1.2, height=0.6];\n");
+        dot.push_str("        legend_var [label=<<B>Variable</B>>, shape=ellipse, style=\"filled\", fillcolor=\"#F59E0B\", fontcolor=\"white\", width=1.2, height=0.6];\n");
+        dot.push_str("        legend_output [label=<<B>Output</B>>, shape=invhouse, style=\"filled\", fillcolor=\"#EF4444\", fontcolor=\"white\", width=1.2, height=0.6];\n");
         dot.push_str("        \n");
+
+        dot.push_str("        // 두 번째 열\n");
+        dot.push_str("        legend_weight [label=<<B>Weight</B>>, shape=diamond, style=\"filled\", fillcolor=\"#8B5CF6\", fontcolor=\"white\", width=1.2, height=0.6];\n");
+        dot.push_str("        legend_bias [label=<<B>Bias</B>>, shape=circle, style=\"filled\", fillcolor=\"#F97316\", fontcolor=\"white\", width=1.2, height=0.6];\n");
+        dot.push_str("        legend_loss [label=<<B>Loss</B>>, shape=octagon, style=\"filled\", fillcolor=\"#EC4899\", fontcolor=\"white\", width=1.2, height=0.6];\n");
+        dot.push_str("        legend_activation [label=<<B>Activation</B>>, shape=doublecircle, style=\"filled\", fillcolor=\"#06B6D4\", fontcolor=\"white\", width=1.2, height=0.6];\n");
+        dot.push_str("        \n");
+
+        // 범례 레이아웃 - 그리드 형태로 배치
+        dot.push_str("        // 범례 레이아웃\n");
+        dot.push_str("        { rank=same; legend_input; legend_weight; }\n");
+        dot.push_str("        { rank=same; legend_func; legend_bias; }\n");
+        dot.push_str("        { rank=same; legend_var; legend_loss; }\n");
+        dot.push_str("        { rank=same; legend_output; legend_activation; }\n");
+        dot.push_str("        \n");
+
         dot.push_str("        legend_input -> legend_func -> legend_var -> legend_output [style=invis];\n");
+        dot.push_str("        legend_weight -> legend_bias -> legend_loss -> legend_activation [style=invis];\n");
         dot.push_str("    }\n\n");
 
         // 엣지 추가

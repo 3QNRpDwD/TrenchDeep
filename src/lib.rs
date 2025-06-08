@@ -303,20 +303,21 @@ mod benchmark {
         let learning_rate = scalar!(0.001);
 
         for i in 0..iter { // 0부터
+            crate::tensor::ComputationGraph::reset_graph();
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
 
-            #[cfg(feature = "debugging")]
-            {
-                if i % 1000 == 0 {
-                    println!(
-                        "iter - {}\n\
-                [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
-                [ x1.tensor: {:?}, x1.grad: {:?} ]"
-                        , i, unsafe { x0.tensor() }, x0.grad(), unsafe { x1.tensor() }, x1.grad()
-                    );
-                }
-            }
+            // #[cfg(feature = "debugging")]
+            // {
+            //     if i % 1000 == 0 {
+            //         println!(
+            //             "iter - {}\n\
+            //     [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
+            //     [ x1.tensor: {:?}, x1.grad: {:?} ]"
+            //             , i, unsafe { x0.tensor() }, x0.grad(), unsafe { x1.tensor() }, x1.grad()
+            //         );
+            //     }
+            // }
             
             //파라미터 갱신
             x0.sub_tensor(&x0.grad().unwrap() * &learning_rate);
