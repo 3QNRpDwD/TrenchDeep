@@ -277,6 +277,7 @@ mod tests {
         let test_input = &X[0];
         let (_z, y) = mlp.forward(test_input)?;
         crate::tensor::VisualizationGraph::render_to_svg("graph/twolayer.svg").unwrap();
+        crate::tensor::VisualizationGraph::save_graph("graph/twolayer.dot").unwrap();
 
         let prediction = unsafe { y.tensor().data()[0] };
         println!("Prediction for [0,0]: {}", prediction);
