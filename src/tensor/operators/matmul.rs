@@ -2,8 +2,8 @@ use super::*;
 
 
 impl Function<f32> for Matmul {
-    fn new() -> MlResult<Self> {
-        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(Matmul)
     }
     /// Performs matrix multiplication on two tensors
     ///
@@ -326,6 +326,9 @@ impl Function<f32> for Matmul {
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
 

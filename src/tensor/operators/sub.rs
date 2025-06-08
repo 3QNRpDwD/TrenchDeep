@@ -1,8 +1,8 @@
 use super::*;
 
 impl Function<f32> for Sub {
-    fn new() -> MlResult<Self> {
-        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(Sub)
     }
     /// Subtracts two tensors element-wise
     ///
@@ -32,10 +32,13 @@ impl Function<f32> for Sub {
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, _: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
-        Ok(vec![grad.clone(), -grad.clone()])
+        Ok(vec![grad.clone(), Tensor::<f32>::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
 
@@ -53,7 +56,7 @@ impl std::ops::Sub<Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn sub(self, other: Tensor<f32>) -> Self::Output {
-        SUB.with(|op| op.forward(&[&self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[&self, &other]).unwrap().remove(0))
     }
 }
 
@@ -61,7 +64,7 @@ impl std::ops::Sub<&Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn sub(self, other: &Tensor<f32>) -> Self::Output {
-        SUB.with(|op| op.forward(&[&self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[&self, other]).unwrap().remove(0))
     }
 }
 
@@ -69,7 +72,7 @@ impl std::ops::Sub<&Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn sub(self, other: &Tensor<f32>) -> Self::Output {
-        SUB.with(|op| op.forward(&[self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -77,19 +80,19 @@ impl std::ops::Sub<Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn sub(self, other: Tensor<f32>) -> Self::Output {
-        SUB.with(|op| op.forward(&[self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[self, &other]).unwrap().remove(0))
     }
 }
 
 /// SubAssign trait implementation for Tensor
 impl std::ops::SubAssign<Tensor<f32>> for Tensor<f32> {
     fn sub_assign(&mut self, other: Tensor<f32>) {
-        *self = SUB.with(|op| op.forward(&[self, &other]).unwrap().remove(0));
+        *self =  OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[self, &other]).unwrap().remove(0));
     }
 }
 
 impl std::ops::SubAssign<&Tensor<f32>> for Tensor<f32> {
     fn sub_assign(&mut self, other: &Tensor<f32>) {
-        *self = SUB.with(|op| op.forward(&[self, other]).unwrap().remove(0));
+        *self =  OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[self, other]).unwrap().remove(0));
     }
 }

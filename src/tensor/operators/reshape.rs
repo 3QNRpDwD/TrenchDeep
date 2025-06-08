@@ -1,8 +1,8 @@
 use super::*;
 
 impl Function<f32> for Reshape {
-    fn new() -> MlResult<Self> {
-        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(Reshape)
     }
 
     /// Reshapes the tensor to the specified shape.
@@ -48,4 +48,9 @@ impl Function<f32> for Reshape {
 
         Ok(vec![Tensor::<f32>::from_vec(grad.data().to_vec(), target_shape)?])
     }
+    
+    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }

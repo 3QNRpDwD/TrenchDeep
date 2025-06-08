@@ -11,12 +11,21 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::Ordering;
 
+use crate::{
+    backend::{
+        Backend,
+        CpuBackend,
+        Device
+    }
+};
+
 pub mod creation;
 pub mod operators;
 pub mod display;
 pub mod graph;
 
-use crate::{MlError, MlResult, tensor::operators::Function, TensorError};
+use crate::{MlError, MlResult, register_operator, tensor::operators::Function, TensorError};
+use crate::tensor::operators::Pow;
 
 /// 다양한 텐서 연산을 위한 편리한 매크로를 제공합니다.
 ///
@@ -227,6 +236,31 @@ pub struct Variable<Type: 'static> {
     grad: std::cell::RefCell<Option<Tensor<Type>>>,
 }
 
+pub struct GlobalFunction (String, NodeId);
+
+impl Function<f32> for GlobalFunction {
+    fn forward(&self, inputs: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+        OPERATOR_STORAGE.with(|ops| {
+            let ops = ops.borrow();
+            match ops.get(self.name()) {
+                Some(op) => op.forward(inputs),
+                None => Err(MlError::StringError(format!("Function {} is not registered globally.", self.type_name())))
+            }
+        })
+    }
+
+    #[cfg(feature = "enableBackpropagation")]
+    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+        OPERATOR_STORAGE.with(|ops| {
+            let ops = ops.borrow();
+            match ops.get(self.name()) {
+                Some(op) => op.backward(targets, grad),
+                None => Err(MlError::StringError(format!("Function {} is not registered globally.", self.type_name())))
+            }
+        })
+    }
+}
+
 /// 계산 그래프에서 노드의 고유 식별자를 나타내는 타입 별칭입니다.
 ///
 /// 이 타입은 `usize`를 기반으로 하며, 역전파 기능이 활성화된 경우에만 정의됩니다.
@@ -243,7 +277,7 @@ pub struct NodeIdGenerator {
 }
 
 #[cfg(feature = "enableBackpropagation")]
-static NODE_ID_GEN: NodeIdGenerator = NodeIdGenerator::new();
+pub(crate) static NODE_ID_GEN: NodeIdGenerator = NodeIdGenerator::new();
 
 #[cfg(feature = "enableBackpropagation")]
 impl NodeIdGenerator {
@@ -266,7 +300,7 @@ impl NodeIdGenerator {
 pub(crate) struct ComputationNode<T: Debug + Clone + 'static> {
     id: NodeId,
     variable: Arc<Variable<T>>,
-    function: Option<Arc<dyn Function<T>>>,
+    function: Option<String>,
     inputs: Vec<NodeId>,
     is_leaf: bool,
 }
@@ -306,6 +340,8 @@ pub enum NodeType {
 #[cfg(feature = "enableBackpropagation")]
 thread_local! {
     pub(crate) static COMPUTATION_GRAPH: std::sync::Mutex<ComputationGraph<f32>> = std::sync::Mutex::new(ComputationGraph::new());
+    pub(crate) static OPERATOR_STORAGE: RefCell<HashMap<String, Arc<dyn Function<f32>>>> = RefCell::new(HashMap::new());
+    pub(crate) static GLOBAL_VARIABLES: RefCell<HashMap<String, GlobalFunction>> = RefCell::new(HashMap::new());
     #[cfg(feature = "enableVisualization")]
     pub(crate) static VISUALIZATION_GRAPH: RefCell<VisualizationGraph> = RefCell::new(VisualizationGraph::new());
     static LABEL_COUNTERS: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
@@ -587,9 +623,10 @@ mod tests {
 
     #[test]
     fn test_pow_macro() {
-        let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
-        let result = tensor_ops!(tensor, Pow, 2.0);
-        assert_eq!(result.data(), vec![4.0, 9.0]);
+        todo!(" Pow macro test is not implemented yet. It requires a Pow operator implementation."); // 전역으로 선언된 pow 구조체의 내부 power 필드에 접근할수 있는 방법이 필요함
+        // let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
+        // let result = tensor_ops!(tensor, Pow, 2.0);
+        // assert_eq!(result.data(), vec![4.0, 9.0]);
     }
 
     #[test]

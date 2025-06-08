@@ -2,9 +2,23 @@ use super::*;
 
 
 impl Function<f32> for Transpose {
-    fn new() -> MlResult<Self> {
-        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), dims: (0, 1) }) // Default to swapping the first two dimensions
+    fn new() -> MlResult<GlobalFunction> {
+        OPERATOR_STORAGE.with(|ops| {
+            let my = "Transpose";
+            let mut ops = ops.borrow_mut();
+            match ops.contains_key(my) {
+                true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
+                false => {
+                    ops.insert(
+                        String::from(my),
+                        Arc::new(Transpose { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), dims: (0, 0) })
+                    );
+                    Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
+                }
+            }
+        })
     }
+    
     fn forward(&self, input: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         let input = input[0];
         let rank = input.shape().len();
@@ -125,4 +139,9 @@ impl Function<f32> for Transpose {
 
         Ok(vec![Tensor::from_vec(result, &new_shape)?])
     }
+    
+    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }

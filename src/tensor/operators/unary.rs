@@ -1,7 +1,10 @@
 use super::*;
 
 impl Function<f32> for Abs {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() }) }
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(Abs)
+    }
+    
     /// Computes the absolute value of each element in the tensor.
     ///
     /// # Returns
@@ -16,10 +19,16 @@ impl Function<f32> for Abs {
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
 impl Function<f32> for Exp {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() }) }
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(Exp)
+    }
+    
     /// Applies the exponential function to each element in the tensor
     ///
     /// # Returns
@@ -39,10 +48,16 @@ impl Function<f32> for Exp {
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
 impl Function<f32> for Log {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() }) }
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(Log)
+    }
+    
     /// Applies the natural logarithm to each element in the tensor
     ///
     /// # Returns
@@ -57,10 +72,29 @@ impl Function<f32> for Log {
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
 impl Function<f32> for Pow {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), power: None }) }
+    fn new() -> MlResult<GlobalFunction> {
+        OPERATOR_STORAGE.with(|ops| {
+            let my = "Pow";
+            let mut ops = ops.borrow_mut();
+            match ops.contains_key(my) {
+                true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
+                false => {
+                    ops.insert(
+                        String::from(my),
+                        Arc::new(Pow { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), power: None })
+                    );
+                    Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
+                }
+            }
+        })
+    }
+    
     /// Raises each element in the tensor to a power
     ///
     /// # Arguments
@@ -87,10 +121,16 @@ impl Function<f32> for Pow {
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
 impl Function<f32> for Square {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() }) }
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(Square)
+    }
+    
     /// Returns a new tensor with the square of the elements of input
     ///
     /// # Returns
@@ -110,10 +150,16 @@ impl Function<f32> for Square {
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
 impl Function<f32> for Sqrt {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() }) }
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(Sqrt)
+    }
+    
     /// Takes the square root of each element in the tensor
     ///
     /// # Returns
@@ -128,4 +174,7 @@ impl Function<f32> for Sqrt {
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }

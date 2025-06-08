@@ -37,15 +37,16 @@ impl Variable<f32> {
     /// - Uses Arc pointer equality checks for existing graph node detection
     /// - Maintains DAG structure through node ID tracking
     /// - Operation nodes store backward function and input relationships
-    pub fn with_grad_fn(self: Arc<Self>, function: Arc<dyn Function<f32>>, inputs: &[&Arc<Variable<f32>>]) {
+    pub fn with_grad_fn(self: Arc<Self>, operator_name: &str, function: NodeId, inputs: &[&Arc<Variable<f32>>]) {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
             
             let input_ids: Vec<NodeId> = inputs.iter().map(|&input_var| {
-                if !graph.node_map.contains_key(&input_var.node_id()) {
+                let input_id = input_var.node_id();
+                if !graph.node_map.contains_key(&input_id) {
                     graph.add_input(input_var.clone());
                 }
-                input_var.node_id()
+                input_id
             }).collect();
             // 입력 노드 ID 찾기 또는 추가
             // 없으면 추가
@@ -60,7 +61,7 @@ impl Variable<f32> {
             // 같은 효과를 내면서도, 훨신 강력한 성능을 이끌어낼것으로 생각되어, 변경했으며, 기존보다 약 1.8배가량 성능이 향상된것으로 보임.
             // 또한, 이같은 변화로, 향후 개선돠어야할 계산그래프의 쓰레기 텐서(더이상 연산에 사용되지 않는 텐서)의 발생을 줄이는데 도움이 될것으로 보이며,
             // 계산그래프의 수정또한 더욱 쉽게 가능할것으로 보임.
-            graph.add_operation(self, function, input_ids)
+            graph.add_operation(self, operator_name, function, input_ids)
 
         });
     }
@@ -181,17 +182,17 @@ impl ComputationGraph<f32> {
     ///
     /// # 반환값
     /// - `NodeId`: 추가된 연산 노드의 고유 식별자
-    pub(crate) fn add_operation(&mut self, variable: Arc<Variable<f32>>, function: Arc<dyn Function<f32>>,  inputs: Vec<NodeId>) -> NodeId {
+    pub(crate) fn add_operation(&mut self, variable: Arc<Variable<f32>>, operator_name: &str, function: NodeId,  inputs: Vec<NodeId>) -> NodeId {
         #[cfg(feature = "enableVisualization")]
         {
-            let func_id = format!("{:?}", Arc::as_ptr(&function));
+            let func_id = format!("{:?}", function);
             let output_id = format!("{:?}", variable.var_id);
 
             VISUALIZATION_GRAPH.with(|viz_graph| {
                 let mut viz = viz_graph.borrow_mut();
 
                 // 함수 노드 추가
-                viz.add_function_node(&func_id, &function.type_name());
+                viz.add_function_node(&func_id, &operator_name);
 
                 // 출력 변수 노드 추가
                 viz.add_variable_node(&output_id, &variable.label(), &variable.node_type());
@@ -217,7 +218,7 @@ impl ComputationGraph<f32> {
         let node = ComputationNode {
             id: output_id,
             variable,
-            function: Some(function),
+            function: Some(operator_name.to_string()),
             inputs,
             is_leaf: false,
         };
@@ -342,10 +343,10 @@ impl ComputationGraph<f32> {
                     .collect::<Vec<&Tensor<f32>>>();
 
                 if let Some(output_grad) = grad {
-                    let input_grads = function.backward(&input_tensors, &output_grad)?;
+                    let input_grads = OPERATOR_STORAGE.with(|ops| ops.borrow().get(function).unwrap().backward(&input_tensors, &output_grad)
+                        .map_err(|e| MlError::StringError(format!("Failed to compute backward for function {:?}: {}", function, e))))?;
 
                     for (input_id, grad) in node.inputs.iter().zip(input_grads) {
-                        println!("input_id: {:?}, grad: {:?}", input_id, grad);
                         let input_idx = self.node_map[input_id];
                         self.nodes[input_idx].variable.accumulate_grad(grad)?;
                     }
@@ -359,47 +360,7 @@ impl ComputationGraph<f32> {
     }
 
     // 역전파 메서드와 반대로 기록된 노드의 순서대로 실행하고 해당 값을 노드에 저장하는 메서드
-    pub fn forward(&mut self, input_id: NodeId) -> MlResult<()> {
-        // Set output node's gradient to 1.0
-        let input_idx = *self.node_map.get(&input_id)
-            .ok_or_else(|| MlError::StringError("Output node not found".to_string()))?;
-        let input_var = &self.nodes[input_idx].variable;
-
-        // 위상 정렬된 순서의 역순으로 순회
-        for &node_idx in self.topo_order.iter().rev() {
-            let node = &self.nodes[node_idx];
-
-            let var = &node.variable;
-            let grad = var.grad();
-            if node.function.is_none() || grad.is_none() {
-                continue;
-            }
-
-            if let Some(function) = &node.function {
-                let input_tensors: Vec<&Tensor<f32>> = node.inputs
-                    .iter()
-                    .map(|&input_id| {
-                        let input_idx = self.node_map[&input_id];
-                        unsafe { self.nodes[input_idx].variable.tensor() }
-                    })
-                    .collect::<Vec<&Tensor<f32>>>();
-
-                if let Some(output_grad) = grad {
-                    let input_grads = function.backward(&input_tensors, &output_grad)?;
-                    
-                    for (input_id, grad) in node.inputs.iter().zip(input_grads) {
-                        println!("input_id: {:?}, grad: {:?}", input_id, grad);
-                        let input_idx = self.node_map[input_id];
-                        self.nodes[input_idx].variable.accumulate_grad(grad)?;
-                    }
-
-
-                    if !node.variable.requires_grad { node.variable.clear_grad(); }
-                }
-            }
-        }
-        Ok(())
-    }
+    // pub fn forward(&mut self, input_id: NodeId) -> MlResult<()> {}
 
     pub fn clear(&mut self) {
         self.nodes.clear();
@@ -430,8 +391,8 @@ impl ComputationGraph<f32> {
 
             let func_name = node.function
                 .as_ref()
-                .map(|f| f.type_name())
-                .unwrap_or_else(|| "Input");
+                .map(|f| OPERATOR_STORAGE.with(|ops| ops.borrow().get(f).unwrap().type_name().to_string()))
+                .unwrap_or_else(|| String::from("Input"));
 
             println!(
                 "[{}] Func: {:<12} | First data: {:?} | Shape: {:?}",
@@ -456,17 +417,6 @@ impl VisualizationGraph {
     pub fn add_variable_node(&mut self, id: &str, label: &str, node_type: &NodeType) {
         self.nodes.insert(id.to_string());
         self.node_labels.insert(id.to_string(), label.to_string());
-
-        // let node_type = match (is_output, is_input, is_bias, is_weight, is_activation, is_loss) {
-        //     (true, _, _, _, _, _) => NodeType::Output,
-        //     (false, true, _, _, _, _) => NodeType::Input,
-        //     (false, false, true, _, _, _) => NodeType::Bias,
-        //     (false, false, false, true, _, _) => NodeType::Weight,
-        //     (false, false, false, false, true, _) => NodeType::Activation,
-        //     (false, false, false, false, false, true) => NodeType::Loss,
-        //     _ => NodeType::Variable,
-        // };
-
         self.node_types.insert(id.to_string(), node_type.clone());
     }
 
@@ -722,7 +672,17 @@ impl<F: Function<f32> + Clone +  'static> AutogradFunction<f32> for F {
 
         #[cfg(feature = "enableBackpropagation")]
         {
-            input.clone().with_grad_fn(Arc::new(self.clone()), inputs);
+            OPERATOR_STORAGE.with(|g_ops| {
+                let mut ops = g_ops.borrow_mut();
+                let type_name = self.type_name().to_string();
+                match ops.contains_key(&type_name) { 
+                    true => input.clone().with_grad_fn(self.type_name(), self.node_id().clone(), inputs),
+                    false => {
+                        input.clone().with_grad_fn(&type_name, self.node_id().clone(), inputs);
+                        ops.insert(type_name, Arc::new(self.clone()));
+                    }
+                }
+            });
             return Ok(input)
         }
         // 정적계산 그래프를 통해서 메모리 효율성을 증대하려 했으나, 사전에 텐서의 정보가 주입되지 않으면 메모리 관리가 어려워,

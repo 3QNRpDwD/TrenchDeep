@@ -1,7 +1,7 @@
 
-use crate::tensor::{Tensor, TensorBase};
+use crate::tensor::{ComputationGraph, OPERATOR_STORAGE, Tensor, TensorBase};
 use crate::nn::activation::Sigmoid;
-use crate::tensor::{Variable, AutogradFunction};
+use crate::tensor::Variable;
 use std::fmt;
 use std::sync::Arc;
 use crate::tensor::operators::{Add, Function, Matmul, Square, Sub, Sum};
@@ -101,6 +101,12 @@ impl MLP {
 
         // 4) 출력층 활성화: y = sigmoid(u_o)
         let y = sigmoid.apply(&[&uo])?;
+
+        println!("계산그래프 상태: {:?}", ComputationGraph::get_graph_stats());
+
+        OPERATOR_STORAGE.with(|ops| {
+            println!("전역 함수 {} 개", ops.borrow().len());
+        });
 
         Ok((ah, y)) // 은닉층 출력과 최종 출력 반환
     }
@@ -245,44 +251,72 @@ impl MLP {
 mod tests {
     use super::*;
     use crate::tensor::TensorBase;
+    use crate::var_input;
+    use crate::var_with_label;
 
     #[test]
     pub(crate) fn mlp_autograd_test() -> MlResult<()> {
-        use crate::var_with_label;
-        let n_input = 2;
-        let n_hidden = 3;
-        let n_output = 1;
+        // let n_input = 2; // MNIST 이미지 크기
+        // let n_hidden = 4; // 은닉층 뉴런 개수
+        // let n_output = 2; // 출력층 뉴런 개수 (0-9 숫자 분류)
+        //
+        // 
+        // // 입력 데이터를 Variable로 래핑
+        // let x1 = var_input!(Tensor::new(vec![vec![0.0],vec![0.0]]));
+        // let x2 = var_input!(Tensor::new(vec![vec![1.0],vec![1.0]]));
+        // let x3 = var_input!(Tensor::new(vec![vec![2.0],vec![2.0]]));
+        // let x4 = var_input!(Tensor::new(vec![vec![3.0],vec![3.0]]));
+        // let X = vec![x1, x2, x3, x4];
+        // 
+        // // 타겟 데이터를 Variable로 래핑
+        // let t1 = var_with_label!(Tensor::new(vec![vec![0.0],vec![0.0]]), "target_1");
+        // let t2 = var_with_label!(Tensor::new(vec![vec![1.0],vec![1.0]]), "target_2");
+        // let t3 = var_with_label!(Tensor::new(vec![vec![2.0],vec![2.0]]), "target_3");
+        // let t4 = var_with_label!(Tensor::new(vec![vec![3.0],vec![3.0]]), "target_4");
+        // let T = vec![t1, t2, t3, t4];
+
+        let n_input = 784; // MNIST 이미지 크기
+        let n_hidden = 30; // 은닉층 뉴런 개수
+        let n_output = 10; // 출력층 뉴런 개수 (0-9 숫자 분류)
 
         // MLP 생성
         let mut mlp = MLP::new(n_input, n_hidden, n_output);
-
-        // 입력 데이터를 Variable로 래핑
-        let x1 = var_with_label!(Tensor::new(vec![vec![0.0], vec![0.0]]), "input_1");
-        let x2 = var_with_label!(Tensor::new(vec![vec![1.0], vec![0.0]]), "input_2");
-        let x3 = var_with_label!(Tensor::new(vec![vec![0.0], vec![1.0]]), "input_3");
-        let x4 = var_with_label!(Tensor::new(vec![vec![1.0], vec![1.0]]), "input_4");
-        let X = vec![x1, x2, x3, x4];
-
-        // 타겟 데이터를 Variable로 래핑
-        let t1 = var_with_label!(Tensor::new(vec![vec![0.0]]), "target_1");
-        let t2 = var_with_label!(Tensor::new(vec![vec![1.0]]), "target_2");
-        let t3 = var_with_label!(Tensor::new(vec![vec![0.0]]), "target_3");
-        let t4 = var_with_label!(Tensor::new(vec![vec![1.0]]), "target_4");
-        let T = vec![t1, t2, t3, t4];
+        
+        let mut X = Vec::new();
+        let mut T = Vec::new();
+        
+        // 각 클래스별로 몇 개씩 더미 데이터 생성
+        for class in 0..10 {
+            for _ in 0..10 {  // 클래스당 10개 샘플
+                // 784차원 랜덤 입력 (0-1 정규화)
+                let mut input_data = vec![vec![0.0]; 784];
+                for i in 0..784 {
+                    input_data[i][0] = rand::random::<f32>();
+                }
+                let x = var_input!(Tensor::new(input_data));
+                X.push(x);
+        
+                // 원-핫 인코딩된 타겟
+                let mut target_data = vec![vec![0.0]; 10];
+                target_data[class][0] = 1.0;
+                let t = var_with_label!(Tensor::new(target_data), "target");
+                T.push(t);
+            }
+        }
 
         // 학습 (자동미분 사용)
-        mlp.train(&X, &T, 0.05, 100, 1e-6)?;
+        mlp.train(&X, &T, 0.05, 0, 1e-6)?;
 
-        crate::tensor::VisualizationGraph::render_to_svg("graph/twolayer.svg").unwrap();
-        crate::tensor::VisualizationGraph::save_graph("graph/twolayer.dot").unwrap();
+        // crate::tensor::VisualizationGraph::render_to_svg("graph/twolayer.svg").unwrap();
+        // crate::tensor::VisualizationGraph::save_graph("graph/twolayer.dot").unwrap();
 
         // 예측
-        let test_input = &X[0];
+        let test_input = &X[0];  // 첫 번째 샘플로 테스트
         let (_z, y) = mlp.forward(test_input)?;
 
 
         let prediction = unsafe { y.tensor().data()[0] };
-        println!("Prediction for [0,0]: {}", prediction);
+        println!("Prediction for &X[0]: {}", prediction);
 
         Ok(())
     }

@@ -1,8 +1,8 @@
 use super::*;
 
 impl Function<f32> for Sum {
-    fn new() -> MlResult<Self> {
-        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(Sum)
     }
     
     fn forward(&self, input: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
@@ -35,4 +35,9 @@ impl Function<f32> for Sum {
         
         Ok(vec![grad.clone(); targets.len()])
     }
+    
+    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }

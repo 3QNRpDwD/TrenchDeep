@@ -1,7 +1,9 @@
 use super::*;
 
 impl Function<f32> for Tanh {
-    fn new() -> MlResult<Self> { Ok(Tanh { backend: Arc::new(CpuBackend::new()?) }) }
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(Tanh)
+    }
 
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         let x = targets[0];
@@ -48,4 +50,7 @@ impl Function<f32> for Tanh {
             )?
         ])
     }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }

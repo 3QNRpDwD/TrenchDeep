@@ -1,7 +1,9 @@
 use super::*;
 
 impl Function<f32> for ReLu {
-    fn new() -> MlResult<Self> { Ok(ReLu { backend: Arc::new(CpuBackend::new()?) }) }
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(ReLu)
+    }
 
     fn forward(&self, x: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         // ReLU(x) = max(0, x)
@@ -29,4 +31,7 @@ impl Function<f32> for ReLu {
             )?
         ])
     }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }

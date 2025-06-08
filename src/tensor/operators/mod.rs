@@ -1,11 +1,5 @@
 use super::*;
-use crate::{
-    backend::{
-        Backend,
-        CpuBackend,
-        Device
-    }
-};
+
 pub mod add;
 pub mod sub;
 pub mod mul;
@@ -26,6 +20,7 @@ macro_rules! define_op {
         #[derive(Clone)]
         pub struct $name {
             backend: Arc<dyn Backend>,
+            #[cfg(all(feature = "enableBackpropagation"))]
             node_id: NodeId
         }
     };
@@ -35,9 +30,30 @@ macro_rules! define_op {
         #[derive(Clone)]
         pub struct $name {
             backend: Arc<dyn Backend>,
+            #[cfg(all(feature = "enableBackpropagation"))]
             node_id: NodeId,
             pub $field: $type
         }
+    };
+}
+
+#[macro_export]
+macro_rules! register_operator {
+    ($name:ident) => {
+        OPERATOR_STORAGE.with(|ops| {
+            let my = stringify!($name);
+            let mut ops = ops.borrow_mut();
+            match ops.contains_key(my) {
+                true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
+                false => {
+                    ops.insert(
+                        String::from(my),
+                        Arc::new($name { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+                    );
+                    Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
+                }
+            }
+        })
     };
 }
 
@@ -64,21 +80,12 @@ define_op!(Matmax, matmax: Option<(Option<i32>, bool)>);
 define_op!(ApproxSin, threshold: f32);  // 테일러급수를 사용한 사인 함수 입니다.
 define_op!(ApproxCos, threshold: f32);  // 테일러급수를 사용한 코사인 함수 입니다
 
-thread_local! {
-    static MUL: Mul = Mul::new().unwrap();
-    static DIV: Div = Div::new().unwrap();
-    static ADD: Add = Add::new().unwrap();
-    static SUB: Sub = Sub::new().unwrap();
-    static NEG: Neg = Neg::new().unwrap();
-    static TRANSPOSE: Transpose = Transpose::new().unwrap();
-}
-
 pub trait Function<T: Debug + Clone> {
     /// 새로운 연산 객체를 생성합니다.
     ///
     /// # 반환값
     /// - `MlResult<Self>`: 성공 시 생성된 연산 객체, 실패 시 오류
-    fn new() -> MlResult<Self> where Self: Sized {
+    fn new() -> MlResult<GlobalFunction> where Self: Sized {
         unimplemented!("{} Function::new() is not implemented", std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown"))
     }
 
@@ -129,7 +136,14 @@ pub trait Function<T: Debug + Clone> {
     fn backend(&self) -> &Arc<dyn Backend> {
         unimplemented!("{} Function::backend() is not implemented", self.type_name())
     }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId {
+        unimplemented!("{} Function::node_id() is not implemented", self.type_name())
+    }
 }
+
+
 
 impl<Type: Debug + Clone> Debug for &dyn Function<Type> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -456,20 +470,22 @@ mod tests {
 
     #[test]
     fn wtf6() -> MlResult<()> {
-        let mut pow = Pow::new()?;
-        pow.power = Some(3.0);
-
-        let x = Arc::new(variable!(vec![vec![2.0]]));
-        let y = pow.apply(&[&x])?; // y = x^3
-
-        #[cfg(feature = "enableBackpropagation")]
-        {
-            y.backward()?; // dy/dx = 3x^2
-
-            assert_eq!( unsafe { y.tensor() }, &Tensor::new(vec![vec![8.0]]));
-            assert_eq!(x.grad(), Some(Tensor::new(vec![vec![12.0]])));
-        }
-        Ok(())
+        // let mut pow = Pow::new()?;
+        // pow.power = Some(3.0);
+        
+        todo!("Pow operator test is not implemented yet"); // Placeholder for actual test implementation
+        
+        // let x = Arc::new(variable!(vec![vec![2.0]]));
+        // let y = pow.apply(&[&x])?; // y = x^3
+        // 
+        // #[cfg(feature = "enableBackpropagation")]
+        // {
+        //     y.backward()?; // dy/dx = 3x^2
+        // 
+        //     assert_eq!( unsafe { y.tensor() }, &Tensor::new(vec![vec![8.0]]));
+        //     assert_eq!(x.grad(), Some(Tensor::new(vec![vec![12.0]])));
+        // }
+        // Ok(())
     }
 
     #[test]

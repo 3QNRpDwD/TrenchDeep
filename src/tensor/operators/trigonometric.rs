@@ -5,8 +5,8 @@ use super::*;
 impl Function<f32> for Sin {
     /// 새로운 `Sin` 인스턴스를 생성합니다.
     /// CPU 백엔드를 사용합니다.
-    fn new() -> MlResult<Self> {
-        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(Sin)
     }
 
     /// 입력 텐서에 사인 함수를 요소별로 적용하여, 동일한 모양을 가진 새로운 텐서를 반환합니다.
@@ -29,6 +29,9 @@ impl Function<f32> for Sin {
 
     /// 연산에 사용되는 백엔드 객체의 참조를 반환
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
 /// `Cos` 함수는 입력 텐서의 각 요소에 코사인 함수를 적용합니다.
@@ -36,8 +39,8 @@ impl Function<f32> for Sin {
 impl Function<f32> for Cos {
     /// 새로운 `Cos` 인스턴스를 생성합니다.
     /// CPU 백엔드를 사용합니다.
-    fn new() -> MlResult<Self> {
-        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(Cos)
     }
 
     /// 입력 텐서에 코사인 함수를 요소별로 적용하여, 동일한 모양을 가진 새로운 텐서를 반환합니다.
@@ -60,11 +63,27 @@ impl Function<f32> for Cos {
 
     /// 연산에 사용되는 백엔드 객체의 참조를 반환
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
 impl Function<f32> for ApproxSin {
-    fn new() -> MlResult<Self> {
-        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), threshold: 0.0001 })
+    fn new() -> MlResult<GlobalFunction> {
+        OPERATOR_STORAGE.with(|ops| {
+            let my = "ApproxSin";
+            let mut ops = ops.borrow_mut();
+            match ops.contains_key(my) {
+                true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
+                false => {
+                    ops.insert(
+                        String::from(my),
+                        Arc::new(ApproxSin { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), threshold: 0.0001 })
+                    );
+                    Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
+                }
+            }
+        })
     }
 
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
@@ -127,14 +146,26 @@ impl Function<f32> for ApproxSin {
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
 impl Function<f32> for ApproxCos {
-    fn new() -> MlResult<Self> {
-        Ok(Self {
-            backend: Arc::new(CpuBackend::new()?),
-            node_id: NODE_ID_GEN.next(),
-            threshold: 0.0001
+    fn new() -> MlResult<GlobalFunction> {
+        OPERATOR_STORAGE.with(|ops| {
+            let my = "ApproxCos";
+            let mut ops = ops.borrow_mut();
+            match ops.contains_key(my) {
+                true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
+                false => {
+                    ops.insert(
+                        String::from(my),
+                        Arc::new(ApproxCos { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), threshold: 0.0001 })
+                    );
+                    Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
+                }
+            }
         })
     }
 
@@ -200,4 +231,7 @@ impl Function<f32> for ApproxCos {
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }

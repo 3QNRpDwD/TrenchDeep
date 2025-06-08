@@ -14,9 +14,14 @@ use crate::{
         AutogradFunction,
         Tensor,
         TensorBase,
-        Variable
+        Variable,
+        OPERATOR_STORAGE,
+        GlobalFunction,
+        NodeId,
+        NODE_ID_GEN
     },
-    MlResult
+    MlResult,
+    register_operator
 };
 use std::{
     fmt::Debug,

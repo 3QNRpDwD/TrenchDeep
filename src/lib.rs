@@ -73,7 +73,7 @@ pub type MlResult<T> = Result<T, MlError>;
 #[cfg(test)]
 mod benchmark {
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
-    use crate::tensor::{Tensor, TensorBase, Variable, AutogradFunction};
+    use crate::tensor::{Tensor, TensorBase, Variable, AutogradFunction, ComputationGraph};
     use crate::{scalar, var_input, var_with_label, variable, MlResult};
     use std::sync::Arc;
 
@@ -95,13 +95,12 @@ mod benchmark {
     }
 
     fn sphere_function(x: &Arc<Variable<f32>>, y: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
-        let mut pow = Pow::new()?;
+        let square = Square::new()?;
         let add = Add::new()?;
-        pow.power = Some(2.0);
 
         add.apply(&[
-            &pow.apply(&[x])?,
-            &pow.apply(&[y])?]
+            &square.apply(&[x])?,
+            &square.apply(&[y])?]
         )
     }
 
@@ -297,27 +296,26 @@ mod benchmark {
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
         let x0 = var_input!(Tensor::new(vec![vec![0.0]]));
         let x1 = var_input!(Tensor::new(vec![vec![2.0]]));
-        let y = rosenbrock_function(&x0, &x1)?;
 
-        let iter: usize = 100;
+        let iter: usize = 10;
         let learning_rate = scalar!(0.001);
 
         for i in 0..iter { // 0부터
-            crate::tensor::ComputationGraph::reset_graph();
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
+            
+            println!("{:?}", ComputationGraph::get_graph_stats());
 
-            // #[cfg(feature = "debugging")]
-            // {
-            //     if i % 1000 == 0 {
-            //         println!(
-            //             "iter - {}\n\
-            //     [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
-            //     [ x1.tensor: {:?}, x1.grad: {:?} ]"
-            //             , i, unsafe { x0.tensor() }, x0.grad(), unsafe { x1.tensor() }, x1.grad()
-            //         );
-            //     }
-            // }
+            #[cfg(feature = "debugging")]
+            {
+                    println!(
+                        "iter - {}\n\
+                [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
+                [ x1.tensor: {:?}, x1.grad: {:?} ]"
+                        , i, unsafe { x0.tensor() }, x0.grad(), unsafe { x1.tensor() }, x1.grad()
+                    );
+                
+            }
             
             //파라미터 갱신
             x0.sub_tensor(&x0.grad().unwrap() * &learning_rate);

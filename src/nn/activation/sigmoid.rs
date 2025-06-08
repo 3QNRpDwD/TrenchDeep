@@ -1,8 +1,10 @@
 use super::*;
 
 impl Function<f32> for Sigmoid {
-    fn new() -> MlResult<Self> { Ok(Sigmoid { backend: Arc::new(CpuBackend::new()?) }) }
-
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(Sigmoid)
+    }
+    
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         let x = targets[0];
         let ones = vec![1.0f32; x.data().len()];
@@ -40,4 +42,7 @@ impl Function<f32> for Sigmoid {
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.backend
     }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }

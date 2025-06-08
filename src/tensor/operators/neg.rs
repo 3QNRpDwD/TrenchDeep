@@ -1,8 +1,8 @@
 use super::*;
 
 impl Function<f32> for Neg {
-    fn new() -> MlResult<Self> {
-        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(Neg)
     }
     /// Negates each element in the tensor
     ///
@@ -18,13 +18,16 @@ impl Function<f32> for Neg {
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
 impl std::ops::Neg for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn neg(self) -> Self::Output {
-        NEG.with(|op| op.forward(&[&self]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Neg").unwrap().forward(&[&self]).unwrap().remove(0))
     }
 }
 
@@ -32,6 +35,6 @@ impl std::ops::Neg for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn neg(self) -> Self::Output {
-        NEG.with(|op| op.forward(&[self]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Neg").unwrap().forward(&[self]).unwrap().remove(0))
     }
 }

@@ -6,7 +6,7 @@ pub mod softmax;
 use super::*;
 
 pub trait Activation<Type: Debug + Clone>: Function<Type> + AutogradFunction<Type> {
-    fn new() -> MlResult<Self> where Self: Sized {
+    fn new() -> MlResult<GlobalFunction> where Self: Sized {
         <Self as Function<Type>>::new()
     }
     fn apply(&mut self, input: &Arc<Variable<Type>>) -> MlResult<Arc<Variable<Type>>> where Self: AutogradFunction<Type> {
@@ -15,7 +15,7 @@ pub trait Activation<Type: Debug + Clone>: Function<Type> + AutogradFunction<Typ
 }
 
 impl<T: Function<f32> + Clone + 'static> Activation<f32> for T {
-    fn new() -> MlResult<Self> where Self: Sized {
+    fn new() -> MlResult<GlobalFunction> where Self: Sized {
         <Self as Function<f32>>::new()
     }
     fn apply(&mut self, input: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
@@ -24,13 +24,13 @@ impl<T: Function<f32> + Clone + 'static> Activation<f32> for T {
 }
 
 #[derive(Debug, Clone)]
-pub struct Sigmoid { backend: Arc<dyn Backend> }
+pub struct Sigmoid { backend: Arc<dyn Backend>, node_id: NodeId }
 
 #[derive(Debug, Clone)]
-pub struct Tanh    { backend: Arc<dyn Backend> }
+pub struct Tanh    { backend: Arc<dyn Backend>, node_id: NodeId }
 
 #[derive(Debug, Clone)]
-pub struct ReLu    { backend: Arc<dyn Backend> }
+pub struct ReLu    { backend: Arc<dyn Backend>, node_id: NodeId }
 
 #[derive(Debug, Clone)]
-pub struct Softmax { backend: Arc<dyn Backend> }
+pub struct Softmax { backend: Arc<dyn Backend>, node_id: NodeId }
