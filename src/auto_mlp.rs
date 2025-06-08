@@ -47,7 +47,7 @@ impl MLP {
             .collect();
         let w1 = var_with_label!(
             Tensor::from_vec(w1_data, &[n_hidden, n_input]).unwrap(),
-            "w1"
+            "weight_1"
         );
 
         let w2_data: Vec<f32> = (0..n_output * n_hidden)
@@ -55,7 +55,7 @@ impl MLP {
             .collect();
         let w2 = var_with_label!(
             Tensor::from_vec(w2_data, &[n_output, n_hidden]).unwrap(),
-            "w2"
+            "weight_2"
         );
 
         // bias 항들 초기화
@@ -64,7 +64,7 @@ impl MLP {
             .collect();
         let b1 = var_with_label!(
             Tensor::from_vec(b1_data, &[n_hidden, 1]).unwrap(),
-            "b1"
+            "bias_1"
         );
 
         let b2_data: Vec<f32> = (0..n_output)
@@ -72,7 +72,7 @@ impl MLP {
             .collect();
         let b2 = var_with_label!(
             Tensor::from_vec(b2_data, &[n_output, 1]).unwrap(),
-            "b2"
+            "bias_2"
         );
         Self { w1, w2, b1, b2 }
     }
@@ -257,10 +257,10 @@ mod tests {
         let mut mlp = MLP::new(n_input, n_hidden, n_output);
 
         // 입력 데이터를 Variable로 래핑
-        let x1 = var_with_label!(Tensor::new(vec![vec![0.0], vec![0.0]]), "입력1: 0.0");
-        let x2 = var_with_label!(Tensor::new(vec![vec![1.0], vec![0.0]]), "입력2: 1.0");
-        let x3 = var_with_label!(Tensor::new(vec![vec![0.0], vec![1.0]]), "입력3: 0.0");
-        let x4 = var_with_label!(Tensor::new(vec![vec![1.0], vec![1.0]]), "입력4: 1.0");
+        let x1 = var_with_label!(Tensor::new(vec![vec![0.0], vec![0.0]]), "input_1");
+        let x2 = var_with_label!(Tensor::new(vec![vec![1.0], vec![0.0]]), "input_2");
+        let x3 = var_with_label!(Tensor::new(vec![vec![0.0], vec![1.0]]), "input_3");
+        let x4 = var_with_label!(Tensor::new(vec![vec![1.0], vec![1.0]]), "input_4");
         let X = vec![x1, x2, x3, x4];
 
         // 타겟 데이터를 Variable로 래핑
@@ -273,10 +273,13 @@ mod tests {
         // 학습 (자동미분 사용)
         mlp.train(&X, &T, 0.05, 100, 1e-6)?;
 
+        crate::tensor::VisualizationGraph::render_to_svg("graph/twolayer.svg").unwrap();
+        crate::tensor::VisualizationGraph::save_graph("graph/twolayer.dot").unwrap();
+
         // 예측
         let test_input = &X[0];
         let (_z, y) = mlp.forward(test_input)?;
-        crate::tensor::VisualizationGraph::render_to_svg("graph/twolayer.svg").unwrap();
+
 
         let prediction = unsafe { y.tensor().data()[0] };
         println!("Prediction for [0,0]: {}", prediction);

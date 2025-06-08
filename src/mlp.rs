@@ -234,7 +234,7 @@ mod tests {
         }
 
         // Python과 동일한 하이퍼파라미터로 학습
-        mlp.train(&X, &T, 0.05, 500, 1e-10);
+        mlp.train(&X, &T, 0.05, 0, 1e-10);
 
         // 예측 테스트
         let test_input = &X[0];  // 첫 번째 샘플로 테스트

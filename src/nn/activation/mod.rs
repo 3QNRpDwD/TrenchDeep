@@ -30,7 +30,7 @@ pub struct Sigmoid { backend: Arc<dyn Backend> }
 pub struct Tanh    { backend: Arc<dyn Backend> }
 
 #[derive(Debug, Clone)]
-pub struct Relu    { backend: Arc<dyn Backend> }
+pub struct ReLu    { backend: Arc<dyn Backend> }
 
 #[derive(Debug, Clone)]
 pub struct Softmax { backend: Arc<dyn Backend> }

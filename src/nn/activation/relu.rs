@@ -1,7 +1,7 @@
 use super::*;
 
-impl Function<f32> for Relu {
-    fn new() -> MlResult<Self> { Ok(Relu { backend: Arc::new(CpuBackend::new()?) }) }
+impl Function<f32> for ReLu {
+    fn new() -> MlResult<Self> { Ok(ReLu { backend: Arc::new(CpuBackend::new()?) }) }
 
     fn forward(&self, x: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
         // ReLU(x) = max(0, x)

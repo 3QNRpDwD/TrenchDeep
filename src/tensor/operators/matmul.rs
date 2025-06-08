@@ -165,6 +165,7 @@ impl Function<f32> for Matmul {
         Ok(vec![buffer])
     }
 
+    #[cfg(feature = "enableBackpropagation")]
     fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
         let target_0 = targets[0];
         let target_1 = targets[1];

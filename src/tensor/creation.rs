@@ -245,6 +245,8 @@ impl Variable<f32> {
         Variable::<f32> {
             #[cfg(feature = "enableVisualization")]
             label,
+            #[cfg(feature = "enableVisualization")]
+            node_type: NodeType::Variable,
             #[cfg(feature = "enableBackpropagation")]
             var_id: NODE_ID_GEN.next(),
             tensor: RefCell::new(tensor),
@@ -262,10 +264,28 @@ impl Variable<f32> {
     pub fn with_label(tensor: Tensor<f32>, label_hint: &str) -> Self {
         #[cfg(feature = "enableVisualization")]
         let label = LabelGenerator::generate_label(&tensor, Some(label_hint));
+        #[cfg(feature = "enableVisualization")]
+        let node_type = if label.contains("input") {
+            NodeType::Input
+        } else if label.contains("weight") {
+            NodeType::Weight
+        } else if label.contains("bias") {
+            NodeType::Bias
+        } else if label.contains("output") {
+            NodeType::Output
+        } else if label.contains("act") {
+            NodeType::Activation
+        } else if label.contains("loss") {
+            NodeType::Loss
+        } else {
+            NodeType::Variable
+        };
 
         Variable::<f32> {
             #[cfg(feature = "enableVisualization")]
             label,
+            #[cfg(feature = "enableVisualization")]
+            node_type,
             #[cfg(feature = "enableBackpropagation")]
             var_id: NODE_ID_GEN.next(),
             tensor: RefCell::new(tensor),
@@ -325,6 +345,16 @@ impl Variable<f32> {
     #[cfg(feature = "enableVisualization")]
     pub fn label(&self) -> &str {
         &self.label
+    }
+
+    #[cfg(feature = "enableVisualization")]
+    pub fn node_type(&self) -> &NodeType {
+        &self.node_type
+    }
+    
+    #[cfg(not(feature = "enableVisualization"))]
+    pub fn node_type(&self) -> NodeType {
+        NodeType::Variable
     }
 
     #[cfg(not(feature = "enableVisualization"))]
