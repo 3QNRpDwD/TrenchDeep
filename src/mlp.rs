@@ -3,7 +3,7 @@ use crate::tensor::{Tensor, TensorBase};
 use crate::nn::activation::Sigmoid;
 use std::fmt;
 use crate::scalar_ops;
-use crate::tensor::operators::{Function, Matmul, Transpose};
+use crate::tensor::operators::{Function, Matmul, Mul, Sub, Transpose};
 
 pub struct MLP {
     pub w1: Tensor<f32>, // shape = [hidden_node, input_node + 1]
@@ -176,6 +176,8 @@ impl MLP {
     ///
     /// Python: E = Σ (y - t)²  → E / N
     fn compute_error(&self, X: &Vec<Tensor<f32>>, T: &Vec<Tensor<f32>>) -> f32 {
+        Sub::new().unwrap();
+        Mul::new().unwrap();
         let mut sum_e = 0.0_f32;
         let n = X.len() as f32;
 
@@ -258,7 +260,6 @@ mod tests {
     // 이 코드는 Python으로 구현된 2층 딥러닝 모델과 정확히 비교하기 위한 테스트입니다.
     #[test]
     pub(crate) fn mlp_exact_python_comparison() -> MlResult<()> {
-
         // 작은 규모로 Python 코드와 정확히 비교
         let n_input = 4;
         let n_hidden = 3;

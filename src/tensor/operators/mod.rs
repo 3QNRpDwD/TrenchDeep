@@ -169,7 +169,7 @@ impl ApproxCos {
 mod tests {
     use std::sync::Arc;
 
-    use crate::tensor::operators::{Exp, Sin};
+    use crate::tensor::operators::{Div, Exp, Neg, Sin, Sub};
     use crate::tensor::{AutogradFunction, operators::{Add, Function, Mul, Pow, Square}, Tensor, TensorBase, Variable};
     use crate::{scalar, variable, MlResult};
 
@@ -188,6 +188,7 @@ mod tests {
 
     #[test]
     fn tensor_add_operator() -> MlResult<()> {
+        Add::new()?;
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![3.0, 4.0]]);
         let expected = Tensor::new(vec![vec![4.0, 6.0]]);
@@ -198,6 +199,7 @@ mod tests {
 
     #[test]
     fn tensor_sub_operator() -> MlResult<()> {
+        Sub::new()?;
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![3.0, 4.0]]);
         let result = first - second;
@@ -207,6 +209,7 @@ mod tests {
 
     #[test]
     fn tensor_mul_operator() -> MlResult<()> {
+        Mul::new()?;
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![3.0, 4.0]]);
         let result = first * second;
@@ -216,6 +219,7 @@ mod tests {
 
     #[test]
     fn tensor_div_operator() -> MlResult<()> {
+        Div::new()?;
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![2.0, 4.0]]);
         let result = first / second;
@@ -225,6 +229,7 @@ mod tests {
 
     #[test]
     fn tensor_neg_operator() -> MlResult<()> {
+        Neg::new()?;
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
 
         assert_tensor_eq(&-first, &Tensor::new(vec![vec![-1.0, -2.0]]))
