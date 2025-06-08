@@ -1,7 +1,9 @@
 use super::*;
 
 impl Function<f32> for Sub {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
+    fn new() -> MlResult<Self> {
+        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+    }
     /// Subtracts two tensors element-wise
     ///
     /// # Arguments
@@ -51,7 +53,7 @@ impl std::ops::Sub<Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn sub(self, other: Tensor<f32>) -> Self::Output {
-        SUB_OP.with(|op| op.forward(&[&self, &other]).unwrap().remove(0))
+        SUB.with(|op| op.forward(&[&self, &other]).unwrap().remove(0))
     }
 }
 
@@ -59,7 +61,7 @@ impl std::ops::Sub<&Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn sub(self, other: &Tensor<f32>) -> Self::Output {
-        SUB_OP.with(|op| op.forward(&[&self, other]).unwrap().remove(0))
+        SUB.with(|op| op.forward(&[&self, other]).unwrap().remove(0))
     }
 }
 
@@ -67,7 +69,7 @@ impl std::ops::Sub<&Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn sub(self, other: &Tensor<f32>) -> Self::Output {
-        SUB_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0))
+        SUB.with(|op| op.forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -75,19 +77,19 @@ impl std::ops::Sub<Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn sub(self, other: Tensor<f32>) -> Self::Output {
-        SUB_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0))
+        SUB.with(|op| op.forward(&[self, &other]).unwrap().remove(0))
     }
 }
 
 /// SubAssign trait implementation for Tensor
 impl std::ops::SubAssign<Tensor<f32>> for Tensor<f32> {
     fn sub_assign(&mut self, other: Tensor<f32>) {
-        *self = SUB_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0));
+        *self = SUB.with(|op| op.forward(&[self, &other]).unwrap().remove(0));
     }
 }
 
 impl std::ops::SubAssign<&Tensor<f32>> for Tensor<f32> {
     fn sub_assign(&mut self, other: &Tensor<f32>) {
-        *self = SUB_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0));
+        *self = SUB.with(|op| op.forward(&[self, other]).unwrap().remove(0));
     }
 }

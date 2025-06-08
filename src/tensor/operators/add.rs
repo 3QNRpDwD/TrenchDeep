@@ -1,6 +1,8 @@
 use super::*;
 impl Function<f32> for Add {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
+    fn new() -> MlResult<Self> { 
+        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+    }
     /// Adds two tensors element-wise
     ///
     /// # Arguments
@@ -56,7 +58,7 @@ impl std::ops::Add<Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn add(self, other: Tensor<f32>) -> Self::Output {
-        ADD_OP.with(|op| op.forward(&[&self, &other]).unwrap().remove(0))
+        ADD.with(|op| op.forward(&[&self, &other]).unwrap().remove(0))
     }
 }
 
@@ -64,7 +66,7 @@ impl std::ops::Add<&Tensor<f32>> for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn add(self, other: &Tensor<f32>) -> Self::Output {
-        ADD_OP.with(|op| op.forward(&[&self, other]).unwrap().remove(0))
+        ADD.with(|op| op.forward(&[&self, other]).unwrap().remove(0))
     }
 }
 
@@ -72,7 +74,7 @@ impl std::ops::Add<&Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn add(self, other: &Tensor<f32>) -> Self::Output {
-        ADD_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0))
+        ADD.with(|op| op.forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -80,19 +82,19 @@ impl std::ops::Add<Tensor<f32>> for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn add(self, other: Tensor<f32>) -> Self::Output {
-        ADD_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0))
+        ADD.with(|op| op.forward(&[self, &other]).unwrap().remove(0))
     }
 }
 
 /// AddAssign trait implementation for Tensor
 impl std::ops::AddAssign<Tensor<f32>> for Tensor<f32> {
     fn add_assign(&mut self, other: Tensor<f32>) {
-        *self = ADD_OP.with(|op| op.forward(&[self, &other]).unwrap().remove(0));
+        *self = ADD.with(|op| op.forward(&[self, &other]).unwrap().remove(0));
     }
 }
 
 impl std::ops::AddAssign<&Tensor<f32>> for Tensor<f32> {
     fn add_assign(&mut self, other: &Tensor<f32>) {
-        *self = ADD_OP.with(|op| op.forward(&[self, other]).unwrap().remove(0));
+        *self = ADD.with(|op| op.forward(&[self, other]).unwrap().remove(0));
     }
 }

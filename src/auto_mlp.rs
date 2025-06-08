@@ -84,9 +84,9 @@ impl MLP {
     ///   - z: 은닉층 활성화값( bias row 포함 ) → shape = [(hidden_node+1), 1]
     ///   - y: 출력층 활성화값 → shape = [output_node, 1]
     pub fn forward(&self, x: &Arc<Variable<f32>>) -> MlResult<(Arc<Variable<f32>>, Arc<Variable<f32>>)> {
-        let sigmoid = Sigmoid::new().unwrap();
-        let matmul = Matmul::new().unwrap();
-        let add = Add::new().unwrap(); // Add 연산 추가
+        let sigmoid = Sigmoid::new()?;
+        let matmul = Matmul::new()?;
+        let add = Add::new()?; // Add 연산 추가
 
         // 1) 은닉층: u_h = W1 * x + b1
         let uh_pre = matmul.apply(&[&self.w1, x])?;
@@ -257,10 +257,10 @@ mod tests {
         let mut mlp = MLP::new(n_input, n_hidden, n_output);
 
         // 입력 데이터를 Variable로 래핑
-        let x1 = var_with_label!(Tensor::new(vec![vec![0.0], vec![0.0]]), "입력1: 0.0");
-        let x2 = var_with_label!(Tensor::new(vec![vec![1.0], vec![0.0]]), "입력2: 1.0");
-        let x3 = var_with_label!(Tensor::new(vec![vec![0.0], vec![1.0]]), "입력3: 0.0");
-        let x4 = var_with_label!(Tensor::new(vec![vec![1.0], vec![1.0]]), "입력4: 1.0");
+        let x1 = var_with_label!(Tensor::new(vec![vec![0.0], vec![0.0]]), "input_1");
+        let x2 = var_with_label!(Tensor::new(vec![vec![1.0], vec![0.0]]), "input_2");
+        let x3 = var_with_label!(Tensor::new(vec![vec![0.0], vec![1.0]]), "input_3");
+        let x4 = var_with_label!(Tensor::new(vec![vec![1.0], vec![1.0]]), "input_4");
         let X = vec![x1, x2, x3, x4];
 
         // 타겟 데이터를 Variable로 래핑

@@ -74,7 +74,7 @@ pub type MlResult<T> = Result<T, MlError>;
 mod benchmark {
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
     use crate::tensor::{Tensor, TensorBase, Variable, AutogradFunction};
-    use crate::{scalar, var_input, variable, MlResult};
+    use crate::{scalar, var_input, var_with_label, variable, MlResult};
     use std::sync::Arc;
 
     fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
@@ -121,7 +121,8 @@ mod benchmark {
     fn goldstein_price_function(x: &Arc<Variable<f32>>, y: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
         // Helper function to create constant variables
         fn constant(value: f32) -> Arc<Variable<f32>> {
-            Arc::new(variable!(vec![vec![value]]))
+            let scalar = scalar!(value);
+            var_with_label!(scalar, &value.to_string())
         }
 
         let add = Add::new()?;
@@ -297,16 +298,13 @@ mod benchmark {
         let x0 = var_input!(Tensor::new(vec![vec![0.0]]));
         let x1 = var_input!(Tensor::new(vec![vec![2.0]]));
         let y = rosenbrock_function(&x0, &x1)?;
-        let iter: usize = 1000;
+
+        let iter: usize = 100;
         let learning_rate = scalar!(0.001);
 
         for i in 0..iter { // 0부터
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
-
-            //파라미터 갱신
-            x0.swap_tensor( unsafe { x0.tensor() } - &x0.grad().unwrap() * &learning_rate );
-            x1.swap_tensor( unsafe { x1.tensor() } - &x1.grad().unwrap() * &learning_rate );
 
             #[cfg(feature = "debugging")]
             {
@@ -319,10 +317,13 @@ mod benchmark {
                     );
                 }
             }
-
+            
             //파라미터 갱신
             x0.sub_tensor(&x0.grad().unwrap() * &learning_rate);
             x1.sub_tensor(&x1.grad().unwrap() * &learning_rate);
+
+            x0.clear_grad();
+            x1.clear_grad();
         }
         Ok(())
     }

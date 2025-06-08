@@ -1,7 +1,7 @@
 use super::*;
 
 impl Function<f32> for Abs {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
+    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() }) }
     /// Computes the absolute value of each element in the tensor.
     ///
     /// # Returns
@@ -19,7 +19,7 @@ impl Function<f32> for Abs {
 }
 
 impl Function<f32> for Exp {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
+    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() }) }
     /// Applies the exponential function to each element in the tensor
     ///
     /// # Returns
@@ -42,7 +42,7 @@ impl Function<f32> for Exp {
 }
 
 impl Function<f32> for Log {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
+    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() }) }
     /// Applies the natural logarithm to each element in the tensor
     ///
     /// # Returns
@@ -60,7 +60,7 @@ impl Function<f32> for Log {
 }
 
 impl Function<f32> for Pow {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), power: None }) }
+    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), power: None }) }
     /// Raises each element in the tensor to a power
     ///
     /// # Arguments
@@ -90,7 +90,7 @@ impl Function<f32> for Pow {
 }
 
 impl Function<f32> for Square {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
+    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() }) }
     /// Returns a new tensor with the square of the elements of input
     ///
     /// # Returns
@@ -113,7 +113,7 @@ impl Function<f32> for Square {
 }
 
 impl Function<f32> for Sqrt {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
+    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() }) }
     /// Takes the square root of each element in the tensor
     ///
     /// # Returns

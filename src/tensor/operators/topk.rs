@@ -1,7 +1,9 @@
 use super::*;
 
 impl Function<f32> for Topk {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?), topk: None }) }
+    fn new() -> MlResult<Self> {
+        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), topk: None })
+    }
     /// Returns the k largest elements of the tensor along the last dimension.
     ///
     /// # Arguments

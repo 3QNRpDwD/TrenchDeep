@@ -2,7 +2,7 @@ use super::*;
 
 impl Function<f32> for Sum {
     fn new() -> MlResult<Self> {
-        Ok(Self { backend: Arc::new(CpuBackend::new()?) })
+        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
     }
     
     fn forward(&self, input: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {

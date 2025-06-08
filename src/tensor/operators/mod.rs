@@ -24,7 +24,10 @@ macro_rules! define_op {
     // 기본 구조체 (매개변수 없음)
     ($name:ident) => {
         #[derive(Clone)]
-        pub struct $name { backend: Arc<dyn Backend> }
+        pub struct $name {
+            backend: Arc<dyn Backend>,
+            node_id: NodeId
+        }
     };
 
     // 추가 필드가 있는 구조체
@@ -32,6 +35,7 @@ macro_rules! define_op {
         #[derive(Clone)]
         pub struct $name {
             backend: Arc<dyn Backend>,
+            node_id: NodeId,
             pub $field: $type
         }
     };
@@ -61,11 +65,11 @@ define_op!(ApproxSin, threshold: f32);  // 테일러급수를 사용한 사인 �
 define_op!(ApproxCos, threshold: f32);  // 테일러급수를 사용한 코사인 함수 입니다
 
 thread_local! {
-    static MUL_OP: Mul = Mul::new().unwrap();
-    static DIV_OP: Div = Div::new().unwrap();
-    static ADD_OP: Add = Add::new().unwrap();
-    static SUB_OP: Sub = Sub::new().unwrap();
-    static NEG_OP: Neg = Neg::new().unwrap();
+    static MUL: Mul = Mul::new().unwrap();
+    static DIV: Div = Div::new().unwrap();
+    static ADD: Add = Add::new().unwrap();
+    static SUB: Sub = Sub::new().unwrap();
+    static NEG: Neg = Neg::new().unwrap();
     static TRANSPOSE: Transpose = Transpose::new().unwrap();
 }
 
@@ -136,13 +140,13 @@ impl<Type: Debug + Clone> Debug for &dyn Function<Type> {
 // Add helper method to create instances with backend
 impl ApproxSin {
     pub fn with_backend(backend: Arc<dyn Backend>, threshold: f32) -> MlResult<Self> {
-        Ok(Self { backend, threshold })
+        Ok(Self { backend, threshold, node_id: NODE_ID_GEN.next() })
     }
 }
 
 impl ApproxCos {
     pub fn with_backend(backend: Arc<dyn Backend>, threshold: f32) -> MlResult<Self> {
-        Ok(Self { backend, threshold })
+        Ok(Self { backend, threshold, node_id: NODE_ID_GEN.next() })
     }
 }
 
@@ -396,6 +400,9 @@ mod tests {
         {
             y.backward()?;
             assert_eq!(x.grad(), Some(Tensor::new(vec![vec![2.0]])));
+
+            x.clear_grad();
+            y.clear_grad();
 
             let y = add.apply(&[&add.apply(&[&x, &x])?, &x])?; // y = add(add(x, x), x)
             #[cfg(feature = "enableBackpropagation")]

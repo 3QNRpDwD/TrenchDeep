@@ -1,7 +1,9 @@
 use super::*;
 
 impl Function<f32> for Neg {
-    fn new() -> MlResult<Self> { Ok(Self { backend: Arc::new(CpuBackend::new()?) }) }
+    fn new() -> MlResult<Self> {
+        Ok(Self { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+    }
     /// Negates each element in the tensor
     ///
     /// # Returns
@@ -22,7 +24,7 @@ impl std::ops::Neg for Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn neg(self) -> Self::Output {
-        NEG_OP.with(|op| op.forward(&[&self]).unwrap().remove(0))
+        NEG.with(|op| op.forward(&[&self]).unwrap().remove(0))
     }
 }
 
@@ -30,6 +32,6 @@ impl std::ops::Neg for &Tensor<f32> {
     type Output = Tensor<f32>;
 
     fn neg(self) -> Self::Output {
-        NEG_OP.with(|op| op.forward(&[self]).unwrap().remove(0))
+        NEG.with(|op| op.forward(&[self]).unwrap().remove(0))
     }
 }

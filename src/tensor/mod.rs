@@ -159,7 +159,6 @@ macro_rules! scalar_ops {
     };
 }
 
-
 #[macro_export]
 macro_rules! variable {
     ($vec:expr) => {

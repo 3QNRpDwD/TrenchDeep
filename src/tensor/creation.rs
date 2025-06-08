@@ -252,7 +252,7 @@ impl Variable<f32> {
             grad: std::cell::RefCell::new(None),
         }
     }
-    
+
     #[cfg(feature = "enableBackpropagation")]
     pub fn node_id(&self) -> NodeId {
         self.var_id
@@ -370,7 +370,7 @@ impl Variable<f32> {
     pub unsafe fn tensor(&self) -> &Tensor<f32> {
         self.tensor_ptr().as_ref().expect("Tensor is qudtls")
     }
-    
+
     pub fn tensor_ptr(&self) -> *const Tensor<f32> {
         self.tensor.borrow().deref()
     }
@@ -525,7 +525,7 @@ macro_rules! var_with_label {
             {
                 Arc::new(Variable::with_label($tensor, $label))
             }
-            
+
             #[cfg(not(feature = "enableVisualization"))]
             {
                 Arc::new(Variable::new($tensor))
