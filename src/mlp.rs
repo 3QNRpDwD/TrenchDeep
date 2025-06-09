@@ -256,33 +256,4 @@ mod tests {
         println!("Predicted class: {}, Max probability: {}", predicted_class, max_prob);
         Ok(())
     }
-
-    // 이 코드는 Python으로 구현된 2층 딥러닝 모델과 정확히 비교하기 위한 테스트입니다.
-    #[test]
-    pub(crate) fn mlp_exact_python_comparison() -> MlResult<()> {
-        // 작은 규모로 Python 코드와 정확히 비교
-        let n_input = 4;
-        let n_hidden = 3;
-        let n_output = 2;
-
-        let mut mlp = MLP::new(n_input, n_hidden, n_output);
-
-        // 고정된 값으로 테스트 (시드 고정 효과)
-        let x1 = Tensor::new(vec![vec![0.1], vec![0.2], vec![0.3], vec![0.4]]);
-        let x2 = Tensor::new(vec![vec![0.5], vec![0.6], vec![0.7], vec![0.8]]);
-        let X = vec![x1, x2];
-
-        let t1 = Tensor::new(vec![vec![1.0], vec![0.0]]);
-        let t2 = Tensor::new(vec![vec![0.0], vec![1.0]]);
-        let T = vec![t1, t2];
-
-        // Python과 동일한 학습률
-        mlp.train(&X, &T, 0.05, 100, 1e-10);
-
-        // 순전파 과정 상세 출력으로 Python과 비교
-        let (_z, y) = mlp.forward(&X[0]);
-        println!("Forward pass result: {:?}", y.data());
-
-        Ok(())
-    }
 }

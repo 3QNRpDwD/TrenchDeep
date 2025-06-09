@@ -37,7 +37,6 @@ impl Function<f32> for Sub {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
     fn node_id(&self) -> &NodeId { &self.node_id }
 }
 

@@ -310,7 +310,7 @@ impl ComputationGraph<f32> {
     /// - 그래디언트 초기화 실패 시
     /// - 역전파 계산 실패 시
     #[cfg(feature = "enableBackpropagation")]
-    pub(crate) fn backward(&self, output_id: NodeId) -> MlResult<()> {
+    pub(crate) fn backward(&mut self, output_id: NodeId) -> MlResult<()> {
         // Set output node's gradient to 1.0
         let output_idx = *self.node_map.get(&output_id)
             .ok_or_else(|| MlError::StringError("Output node not found".to_string()))?;
@@ -371,8 +371,7 @@ impl ComputationGraph<f32> {
         self.is_sorted = false;
         // self.memory_pool.clear();
     }
-
-    #[cfg(feature = "enableVisualization")]
+    
     pub fn get_graph_stats() -> (usize, bool) {
         COMPUTATION_GRAPH.with(|compute_graph| {
             let graph = compute_graph.lock().unwrap();

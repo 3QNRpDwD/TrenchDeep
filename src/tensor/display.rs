@@ -59,7 +59,6 @@ impl<Type: Debug + Clone> Debug for ComputationGraph<Type> {
             .field("nodes", &self.nodes)
             .field("node_map", &self.node_map)
             .field("adjacency_list", &self.adjacency_list)
-            .field("reverse_adjacency", &self.reverse_adjacency)
             .field("topo_order", &self.topo_order)
             .field("is_sorted", &self.is_sorted)
             .finish()

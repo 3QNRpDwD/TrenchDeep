@@ -20,7 +20,6 @@ macro_rules! define_op {
         #[derive(Clone)]
         pub struct $name {
             backend: Arc<dyn Backend>,
-            #[cfg(all(feature = "enableBackpropagation"))]
             node_id: NodeId
         }
     };
@@ -30,7 +29,6 @@ macro_rules! define_op {
         #[derive(Clone)]
         pub struct $name {
             backend: Arc<dyn Backend>,
-            #[cfg(all(feature = "enableBackpropagation"))]
             node_id: NodeId,
             pub $field: $type
         }
@@ -136,8 +134,7 @@ pub trait Function<T: Debug + Clone> {
     fn backend(&self) -> &Arc<dyn Backend> {
         unimplemented!("{} Function::backend() is not implemented", self.type_name())
     }
-
-    #[cfg(all(feature = "enableBackpropagation"))]
+    
     fn node_id(&self) -> &NodeId {
         unimplemented!("{} Function::node_id() is not implemented", self.type_name())
     }

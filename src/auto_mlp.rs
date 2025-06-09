@@ -1,5 +1,5 @@
 
-use crate::tensor::{ComputationGraph, OPERATOR_STORAGE, Tensor, TensorBase};
+use crate::tensor::{OPERATOR_STORAGE, Tensor, TensorBase};
 use crate::nn::activation::Sigmoid;
 use crate::tensor::Variable;
 use std::fmt;
@@ -23,6 +23,7 @@ impl fmt::Debug for MLP {
         writeln!(f, "}}")
     }
 }
+
 
 impl MLP {
     /// n_input : 입력 뉴런 개수
@@ -101,16 +102,10 @@ impl MLP {
 
         // 4) 출력층 활성화: y = sigmoid(u_o)
         let y = sigmoid.apply(&[&uo])?;
-
-        println!("계산그래프 상태: {:?}", ComputationGraph::get_graph_stats());
-
-        OPERATOR_STORAGE.with(|ops| {
-            println!("전역 함수 {} 개", ops.borrow().len());
-        });
-
         Ok((ah, y)) // 은닉층 출력과 최종 출력 반환
     }
 
+    #[cfg(feature = "enableBackpropagation")]
     pub fn train(
         &mut self,
         X: &Vec<Arc<Variable<f32>>>,
@@ -255,26 +250,8 @@ mod tests {
     use crate::var_with_label;
 
     #[test]
+    #[cfg(feature = "enableBackpropagation")]
     pub(crate) fn mlp_autograd_test() -> MlResult<()> {
-        // let n_input = 2; // MNIST 이미지 크기
-        // let n_hidden = 4; // 은닉층 뉴런 개수
-        // let n_output = 2; // 출력층 뉴런 개수 (0-9 숫자 분류)
-        //
-        // 
-        // // 입력 데이터를 Variable로 래핑
-        // let x1 = var_input!(Tensor::new(vec![vec![0.0],vec![0.0]]));
-        // let x2 = var_input!(Tensor::new(vec![vec![1.0],vec![1.0]]));
-        // let x3 = var_input!(Tensor::new(vec![vec![2.0],vec![2.0]]));
-        // let x4 = var_input!(Tensor::new(vec![vec![3.0],vec![3.0]]));
-        // let X = vec![x1, x2, x3, x4];
-        // 
-        // // 타겟 데이터를 Variable로 래핑
-        // let t1 = var_with_label!(Tensor::new(vec![vec![0.0],vec![0.0]]), "target_1");
-        // let t2 = var_with_label!(Tensor::new(vec![vec![1.0],vec![1.0]]), "target_2");
-        // let t3 = var_with_label!(Tensor::new(vec![vec![2.0],vec![2.0]]), "target_3");
-        // let t4 = var_with_label!(Tensor::new(vec![vec![3.0],vec![3.0]]), "target_4");
-        // let T = vec![t1, t2, t3, t4];
-
         let n_input = 784; // MNIST 이미지 크기
         let n_hidden = 30; // 은닉층 뉴런 개수
         let n_output = 10; // 출력층 뉴런 개수 (0-9 숫자 분류)

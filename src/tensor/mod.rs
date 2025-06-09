@@ -267,19 +267,19 @@ impl Function<f32> for GlobalFunction {
 ///
 /// # 사용처
 /// - `ComputationNode`와 `ComputationGraph`에서 노드를 식별하는 데 사용
-#[cfg(feature = "enableBackpropagation")]
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeId(u64);
 
-#[cfg(feature = "enableBackpropagation")]
+
 pub struct NodeIdGenerator {
     counter: std::sync::atomic::AtomicU64,
 }
 
-#[cfg(feature = "enableBackpropagation")]
+
 pub(crate) static NODE_ID_GEN: NodeIdGenerator = NodeIdGenerator::new();
 
-#[cfg(feature = "enableBackpropagation")]
+
 impl NodeIdGenerator {
     pub const fn new() -> Self {
         Self {
@@ -337,14 +337,17 @@ pub enum NodeType {
     Output,
 }
 
-#[cfg(feature = "enableBackpropagation")]
+
 thread_local! {
+    #[cfg(feature = "enableBackpropagation")]
     pub(crate) static COMPUTATION_GRAPH: std::sync::Mutex<ComputationGraph<f32>> = std::sync::Mutex::new(ComputationGraph::new());
     pub(crate) static OPERATOR_STORAGE: RefCell<HashMap<String, Arc<dyn Function<f32>>>> = RefCell::new(HashMap::new());
-    pub(crate) static GLOBAL_VARIABLES: RefCell<HashMap<String, GlobalFunction>> = RefCell::new(HashMap::new());
+    pub(crate) static GLOBAL_VARIABLES: RefCell<HashMap<NodeId, Arc<Variable<f32>>>> = RefCell::new(HashMap::new());
     #[cfg(feature = "enableVisualization")]
     pub(crate) static VISUALIZATION_GRAPH: RefCell<VisualizationGraph> = RefCell::new(VisualizationGraph::new());
+    #[cfg(feature = "enableVisualization")]
     static LABEL_COUNTERS: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+    #[cfg(feature = "enableVisualization")]
     static SHAPE_REGISTRY: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
 }
 

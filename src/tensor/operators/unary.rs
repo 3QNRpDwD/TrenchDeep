@@ -20,7 +20,6 @@ impl Function<f32> for Abs {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
     fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
@@ -49,7 +48,6 @@ impl Function<f32> for Exp {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
     fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
@@ -73,7 +71,6 @@ impl Function<f32> for Log {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
     fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
@@ -122,7 +119,6 @@ impl Function<f32> for Pow {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
     fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
@@ -151,7 +147,6 @@ impl Function<f32> for Square {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
     fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
@@ -175,6 +170,5 @@ impl Function<f32> for Sqrt {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
     fn node_id(&self) -> &NodeId { &self.node_id }
 }

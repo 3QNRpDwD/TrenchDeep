@@ -73,7 +73,7 @@ pub type MlResult<T> = Result<T, MlError>;
 #[cfg(test)]
 mod benchmark {
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
-    use crate::tensor::{Tensor, TensorBase, Variable, AutogradFunction, ComputationGraph};
+    use crate::tensor::{Tensor, TensorBase, Variable, AutogradFunction, OPERATOR_STORAGE};
     use crate::{scalar, var_input, var_with_label, variable, MlResult};
     use std::sync::Arc;
 
@@ -231,8 +231,8 @@ mod benchmark {
 
     #[test]
     fn sphere() -> MlResult<()> {
-        let x = Arc::new(variable!(vec![vec![1.0]]));
-        let y = Arc::new(variable!(vec![vec![1.0]]));
+        let x = var_input!(Tensor::new(vec![vec![1.0]]));
+        let y = var_input!(Tensor::new(vec![vec![1.0]]));
         let z = sphere_function(&x, &y)?;
         #[cfg(feature = "enableBackpropagation")]
         {
@@ -246,8 +246,8 @@ mod benchmark {
 
     #[test]
     fn matyas() -> MlResult<()> {
-        let x = Arc::new(variable!(vec![vec![1.0]]));
-        let y = Arc::new(variable!(vec![vec![1.0]]));
+        let x = var_input!(Tensor::new(vec![vec![1.0]]));
+        let y = var_input!(Tensor::new(vec![vec![1.0]]));
         let z = matyas_function(&x, &y)?;
         #[cfg(feature = "enableBackpropagation")]
         z.backward()?;
@@ -256,8 +256,8 @@ mod benchmark {
 
     #[test]
     fn goldstein() -> MlResult<()> {
-        let x = Arc::new(variable!(vec![1.0], &[1,1], "x"));
-        let y = Arc::new(variable!(vec![1.0], &[1,1], "y"));
+        let x = var_input!(Tensor::from_vec(vec![1.0], &[1,1])?);
+        let y = var_input!(Tensor::from_vec(vec![1.0], &[1,1])?);
         let z = goldstein_price_function(&x, &y)?;
         #[cfg(feature = "enableBackpropagation")]
         {
@@ -274,8 +274,8 @@ mod benchmark {
 
     #[test]
     fn rosenbrock() -> MlResult<()> {
-        let x0 = Arc::new(variable!(vec![0.0], &[1,1], "x0"));
-        let x1 = Arc::new(variable!(vec![2.0], &[1,1], "x1"));
+        let x0 = var_input!(Tensor::from_vec(vec![0.0], &[1,1])?);
+        let x1 = var_input!(Tensor::from_vec(vec![2.0], &[1,1])?);
 
         let y = rosenbrock_function(&x0, &x1)?;
         #[cfg(feature = "enableBackpropagation")]
@@ -296,33 +296,30 @@ mod benchmark {
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
         let x0 = var_input!(Tensor::new(vec![vec![0.0]]));
         let x1 = var_input!(Tensor::new(vec![vec![2.0]]));
-
+        let y = rosenbrock_function(&x0, &x1)?;
         let iter: usize = 10;
         let learning_rate = scalar!(0.001);
 
         for i in 0..iter { // 0부터
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
-            
-            println!("{:?}", ComputationGraph::get_graph_stats());
 
             #[cfg(feature = "debugging")]
             {
+                if i % 10 == 0 {
                     println!(
                         "iter - {}\n\
                 [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
                 [ x1.tensor: {:?}, x1.grad: {:?} ]"
                         , i, unsafe { x0.tensor() }, x0.grad(), unsafe { x1.tensor() }, x1.grad()
                     );
+                }
                 
             }
             
             //파라미터 갱신
             x0.sub_tensor(&x0.grad().unwrap() * &learning_rate);
             x1.sub_tensor(&x1.grad().unwrap() * &learning_rate);
-
-            x0.clear_grad();
-            x1.clear_grad();
         }
         Ok(())
     }
