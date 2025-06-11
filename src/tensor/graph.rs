@@ -517,12 +517,12 @@ impl VisualizationGraph {
             }
 
             // 기타 노드들을 하단에 배치
-            if !layer_others.is_empty() {
-                dot.push_str(&format!(
-                    "    {{ rank=same; {}; }}\n",
-                    layer_others.iter().map(|n| format!("\"{}\"", n)).collect::<Vec<_>>().join("; ")
-                ));
-            }
+            // if !layer_others.is_empty() {
+            //     dot.push_str(&format!(
+            //         "    {{ rank=same; {}; }}\n",
+            //         layer_others.iter().map(|n| format!("\"{}\"", n)).collect::<Vec<_>>().join("; ")
+            //     ));
+            // }
 
             // 같은 계층 내에서 함수 -> 변수 -> 기타 순서로 배치하는 보이지 않는 엣지 추가
             if layer_functions.len() > 0 && layer_variables.len() > 0 {
