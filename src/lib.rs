@@ -73,7 +73,7 @@ pub type MlResult<T> = Result<T, MlError>;
 #[cfg(test)]
 mod benchmark {
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
-    use crate::tensor::{Tensor, TensorBase, Variable, AutogradFunction, OPERATOR_STORAGE};
+    use crate::tensor::{Tensor, TensorBase, Variable};
     use crate::{scalar, var_input, var_with_label, variable, MlResult};
     use std::sync::Arc;
 
@@ -202,7 +202,7 @@ mod benchmark {
         let second_part = add.apply(&[&constant(30.0), &c_squared_d])?;
 
         // Compute final function value
-        mul.apply(&[&first_part, &second_part])
+        mul.apply_with_label(&[&first_part, &second_part], "output")
     }
 
     fn rosenbrock_function(x0: &Arc<Variable<f32>>, x1: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
@@ -211,7 +211,7 @@ mod benchmark {
         let square = Square::new()?;
         let mul = Mul::new()?;
 
-        add.apply(&[
+        add.apply_with_label(&[
             &mul.apply(&[
                 &Arc::new(variable!(vec![vec![100.0]])),
                 &square.apply(&[
@@ -226,7 +226,7 @@ mod benchmark {
                     &x0
                 ])?
             ])?
-        ])
+        ], "output")
     }
 
     #[test]

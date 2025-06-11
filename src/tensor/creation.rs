@@ -332,7 +332,7 @@ impl Variable<f32> {
 
     #[cfg(feature = "enableVisualization")]
     pub fn new_activation(tensor: Tensor<f32>, activation_type: &str) -> Self {
-        Self::with_label(tensor, &format!("{}_out", activation_type))
+        Self::with_label(tensor, &format!("{}_act", activation_type))
     }
 
     /// 라벨 변경
@@ -506,7 +506,26 @@ impl GlobalFunction {
 
         #[cfg(feature = "enableBackpropagation")]
         {
-            output.clone().with_grad_fn(self.name(), *self.node_id(), inputs);
+            output.clone().with_grad_fn(self.name(), inputs);
+            return Ok(output)
+        }
+        // 정적계산 그래프를 통해서 메모리 효율성을 증대하려 했으나, 사전에 텐서의 정보가 주입되지 않으면 메모리 관리가 어려워,
+        // 무산될것으로 예상되며, 정적, 동적계산그래프를 전환 가능하도록 향후 추가될것으로 생각하고있음.
+        // 따라서 매 계산마다 계산그래프를 갱신하는 현재 구조를 유지하게될것 같은데, 이는 계산그래프 갱신으로 인한 오버헤드가 예상됨.
+        // 솔직히 어느 방식을 선택해야할지잘 모르겠음.
+
+        Ok(output)
+    }
+
+    pub fn apply_with_label(&self, inputs: &[&Arc<Variable<f32>>], label: &str) -> MlResult<Arc<Variable<f32>>> {
+        let tensors: Vec<&Tensor<f32>> = inputs
+            .iter()
+            .map(|&var| unsafe{ var.tensor() }).collect();
+        let output = crate::var_with_label!(self.forward(&tensors)?.remove(0), label);
+
+        #[cfg(feature = "enableBackpropagation")]
+        {
+            output.clone().with_grad_fn(self.name(), inputs);
             return Ok(output)
         }
         // 정적계산 그래프를 통해서 메모리 효율성을 증대하려 했으나, 사전에 텐서의 정보가 주입되지 않으면 메모리 관리가 어려워,

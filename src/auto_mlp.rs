@@ -101,7 +101,7 @@ impl MLP {
         let uo = add.apply(&[&uo_pre, &self.b2])?;
 
         // 4) 출력층 활성화: y = sigmoid(u_o)
-        let y = sigmoid.apply(&[&uo])?;
+        let y = sigmoid.apply_with_label(&[&uo], "output")?;
         Ok((ah, y)) // 은닉층 출력과 최종 출력 반환
     }
 
@@ -284,8 +284,11 @@ mod tests {
         // 학습 (자동미분 사용)
         mlp.train(&X, &T, 0.05, 0, 1e-6)?;
 
-        // crate::tensor::VisualizationGraph::render_to_svg("graph/twolayer.svg").unwrap();
-        // crate::tensor::VisualizationGraph::save_graph("graph/twolayer.dot").unwrap();
+        #[cfg(feature = "enableVisualization")]
+        {
+            crate::tensor::VisualizationGraph::render_to_svg("graph/twolayer.svg").unwrap();
+            crate::tensor::VisualizationGraph::save_graph("graph/twolayer.dot").unwrap();
+        }
 
         // 예측
         let test_input = &X[0];  // 첫 번째 샘플로 테스트

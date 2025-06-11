@@ -1,4 +1,4 @@
-use petgraph::algo::is_bipartite_undirected;
+use std::fmt::format;
 use super::*;
 
 #[cfg(feature = "enableBackpropagation")]
@@ -37,33 +37,33 @@ impl Variable<f32> {
     /// - Uses Arc pointer equality checks for existing graph node detection
     /// - Maintains DAG structure through node ID tracking
     /// - Operation nodes store backward function and input relationships
-    pub fn with_grad_fn(self: Arc<Self>, operator_name: &str, function: NodeId, inputs: &[&Arc<Variable<f32>>]) {
+    pub fn with_grad_fn(self: Arc<Self>, operator_name: &str, inputs: &[&Arc<Variable<f32>>]) {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
-            
+
             let input_ids: Vec<NodeId> = inputs.iter().map(|&input_var| {
                 let input_id = input_var.node_id();
                 if !graph.node_map.contains_key(&input_id) {
                     graph.add_input(input_var.clone());
                 }
-                input_id
+                (input_id)
             }).collect();
-            // 입력 노드 ID 찾기 또는 추가
-            // 없으면 추가
-            // 현재 경사하강법등의 기존 텐서의 수정이 불가피한 메서드를 사용할때 계속해서 새로운 텐서를 만들기 때문에,
-            // 기존의 생성된 텐서는 더이상 사용되지 않음에도, 계산그래프상에 남아있으며, 이로 인해 계산 그래프 자체가 거대해지고 검색자체도 굉장히 느려지는 현상이 발생함.
-            // 이를 해결하려면 단순히 텐서를 비교하는것이 아니라, 메모리값을 비교후. 메모리값이 같은데 내부값이 다를 경우, 업데이트하는 방식을 사용하거나,
-            // 텐서 자체를 복사하는것이 아닌 메모리값을 계산그래프에 추가하는등의 방식으로, 텐서와 계산그래프의 수정과 연동이 가능하도록 개선해야될듯함.
-            // 이에 대한 자세한 해결책을 시급히 만들어야함.
-
-
-            // 원래 고유한 아이디를 만들어서 계산그래프를 구성했으나, 현재 연산구조의 특성상 텐서의 포인터를 노드의 키값으로 설정하는것이
-            // 같은 효과를 내면서도, 훨신 강력한 성능을 이끌어낼것으로 생각되어, 변경했으며, 기존보다 약 1.8배가량 성능이 향상된것으로 보임.
-            // 또한, 이같은 변화로, 향후 개선돠어야할 계산그래프의 쓰레기 텐서(더이상 연산에 사용되지 않는 텐서)의 발생을 줄이는데 도움이 될것으로 보이며,
-            // 계산그래프의 수정또한 더욱 쉽게 가능할것으로 보임.
-            graph.add_operation(self, operator_name, function, input_ids)
-
+            graph.add_operation(self, operator_name, input_ids)
         });
+
+        // 입력 노드 ID 찾기 또는 추가
+        // 없으면 추가
+        // 현재 경사하강법등의 기존 텐서의 수정이 불가피한 메서드를 사용할때 계속해서 새로운 텐서를 만들기 때문에,
+        // 기존의 생성된 텐서는 더이상 사용되지 않음에도, 계산그래프상에 남아있으며, 이로 인해 계산 그래프 자체가 거대해지고 검색자체도 굉장히 느려지는 현상이 발생함.
+        // 이를 해결하려면 단순히 텐서를 비교하는것이 아니라, 메모리값을 비교후. 메모리값이 같은데 내부값이 다를 경우, 업데이트하는 방식을 사용하거나,
+        // 텐서 자체를 복사하는것이 아닌 메모리값을 계산그래프에 추가하는등의 방식으로, 텐서와 계산그래프의 수정과 연동이 가능하도록 개선해야될듯함.
+        // 이에 대한 자세한 해결책을 시급히 만들어야함.
+
+
+        // 원래 고유한 아이디를 만들어서 계산그래프를 구성했으나, 현재 연산구조의 특성상 텐서의 포인터를 노드의 키값으로 설정하는것이
+        // 같은 효과를 내면서도, 훨신 강력한 성능을 이끌어낼것으로 생각되어, 변경했으며, 기존보다 약 1.8배가량 성능이 향상된것으로 보임.
+        // 또한, 이같은 변화로, 향후 개선돠어야할 계산그래프의 쓰레기 텐서(더이상 연산에 사용되지 않는 텐서)의 발생을 줄이는데 도움이 될것으로 보이며,
+        // 계산그래프의 수정또한 더욱 쉽게 가능할것으로 보임.
     }
 
     /// Performs backward propagation of gradients through the computation graph starting from this variable.
@@ -182,44 +182,30 @@ impl ComputationGraph<f32> {
     ///
     /// # 반환값
     /// - `NodeId`: 추가된 연산 노드의 고유 식별자
-    pub(crate) fn add_operation(&mut self, variable: Arc<Variable<f32>>, operator_name: &str, function: NodeId,  inputs: Vec<NodeId>) -> NodeId {
+    pub(crate) fn add_operation(&mut self, variable: Arc<Variable<f32>>, operator_name: &str, inputs: Vec<NodeId>) -> NodeId {
         #[cfg(feature = "enableVisualization")]
-        {
-            let func_id = format!("{:?}", function);
-            let output_id = format!("{:?}", variable.var_id);
+        VISUALIZATION_GRAPH.with(|viz_graph| {
+            let mut viz = viz_graph.borrow_mut();
+            viz.register_operation(operator_name, &inputs, variable.var_id);
+            viz.add_variable_node(&format!("{:?}", variable.var_id), &variable.label, &variable.node_type);
+        });
 
-            VISUALIZATION_GRAPH.with(|viz_graph| {
-                let mut viz = viz_graph.borrow_mut();
 
-                // 함수 노드 추가
-                viz.add_function_node(&func_id, &operator_name);
-
-                // 출력 변수 노드 추가
-                viz.add_variable_node(&output_id, &variable.label(), &variable.node_type());
-
-                // 입력에서 함수로의 엣지
-                for input_id in &inputs {
-                    viz.add_edge(&format!("{:?}", input_id), &func_id, "data_flow");
-                }
-
-                // 함수에서 출력으로의 엣지
-                viz.add_edge(&func_id, &output_id, "data_flow");
-            });
-        }
-
-        let output_id = variable.node_id();
+        let output_id = variable.var_id;
         let output_idx = self.nodes.len();
 
         // 입력 노드들의 인덱스 찾기
         let input_indices: Vec<usize> = inputs.iter()
-            .map(|&id| *self.node_map.get(&id).unwrap())
+            .map(|id| *self.node_map.get(&id).unwrap())
             .collect();
 
         let node = ComputationNode {
             id: output_id,
             variable,
             function: Some(operator_name.to_string()),
-            inputs,
+            inputs: inputs
+                .iter()
+                .map(|&var| var).collect(),
             is_leaf: false,
         };
 
@@ -443,15 +429,72 @@ impl VisualizationGraph {
         self.node_types.insert(id.to_string(), NodeType::Activation);
     }
 
+    // 핵심 개선: 고유한 함수 노드 ID 생성
     pub fn add_function_node(&mut self, id: &str, label: &str) {
+        // 기존 방식대로 노드 추가
         self.nodes.insert(id.to_string());
         self.node_labels.insert(id.to_string(), label.to_string());
 
         match label {
             "Sigmoid" | "ReLU" | "Tanh" | "Softmax" | "Linear"
             => self.node_types.insert(id.to_string(), NodeType::Activation),
-            _ => self.node_types.insert(id.to_string(), NodeType::Function)
+            "MSE"
+            => self.node_types.insert(id.to_string(), NodeType::Loss),
+            _
+            => self.node_types.insert(id.to_string(), NodeType::Function)
         };
+    }
+
+    // 고유한 함수 노드 ID를 생성하는 새로운 메서드
+    pub fn add_unique_function_node(&mut self, operator_name: &str, inputs: &[NodeId]) -> String {
+        // 입력 노드들의 해시를 기반으로 고유 ID 생성
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        operator_name.hash(&mut hasher);
+        for input in inputs {
+            input.hash(&mut hasher);
+        }
+        let hash = hasher.finish();
+
+        let unique_id = format!("{}_{:x}", operator_name, hash);
+
+        // 중복 방지를 위한 추가 체크
+        let final_id = if self.nodes.contains(&unique_id) {
+            // 만약 해시 충돌이 발생하면 카운터 추가
+            LABEL_COUNTERS.with(|counters| {
+                let mut counters = counters.borrow_mut();
+                let counter = counters.entry(operator_name.to_string()).or_insert(0);
+                *counter += 1;
+                format!("{}_{}_{}", operator_name, hash, counter)
+            })
+        } else {
+            unique_id
+        };
+
+        self.add_function_node(&final_id, operator_name);
+        final_id
+    }
+
+    // 연산자와 변수들 간의 관계를 등록하는 편의 메서드
+    pub fn register_operation(&mut self, operator_name: &str, inputs: &[NodeId], output: NodeId) -> String {
+        let function_id = self.add_unique_function_node(operator_name, inputs);
+
+        // 입력들에서 함수로의 엣지 추가
+        for input in inputs {
+            self.add_edge(&format!("{:?}", input), &function_id, "data_flow");
+        }
+
+        // 함수에서 출력으로의 엣지 추가
+        self.add_edge(&function_id, &format!("{:?}", output), "data_flow");
+
+        function_id
+    }
+
+    // 백프로파게이션 그래디언트 플로우를 위한 메서드
+    pub fn add_gradient_edge(&mut self, from: &str, to: &str) {
+        self.add_edge(from, to, "gradient_flow");
     }
 
     pub fn add_edge(&mut self, from: &str, to: &str, edge_type: &str) {
@@ -470,7 +513,13 @@ impl VisualizationGraph {
         self.edges.clear();
         self.node_types.clear();
         self.node_labels.clear();
+
+        // 카운터도 초기화
+        LABEL_COUNTERS.with(|counters| {
+            counters.borrow_mut().clear();
+        });
     }
+
 
     // DOT 그래프 생성 (개선된 스타일)
     pub fn generate_dot(&self) -> String {
@@ -530,9 +579,21 @@ impl VisualizationGraph {
                 }
             };
 
+            // 함수 노드의 경우 원래 연산자 이름만 표시
+            let display_label = if matches!(node_type, NodeType::Function | NodeType::Activation) {
+                // ID에서 연산자 이름만 추출 (예: "Add_abc123_1" -> "Add")
+                if let Some(underscore_pos) = node_id.find('_') {
+                    &node_id[..underscore_pos]
+                } else {
+                    label
+                }
+            } else {
+                label
+            };
+
             dot.push_str(&format!(
                 "    \"{}\" [label=\"{}\", shape={}, style=\"{}\", fillcolor=\"{}\", fontcolor=\"{}\"];\n",
-                node_id, label, shape, style, color, font_color
+                node_id, display_label, shape, style, color, font_color
             ));
         }
 
@@ -675,9 +736,9 @@ impl<F: Function<f32> + Clone +  'static> AutogradFunction<f32> for F {
                 let mut ops = g_ops.borrow_mut();
                 let type_name = self.type_name().to_string();
                 match ops.contains_key(&type_name) { 
-                    true => input.clone().with_grad_fn(self.type_name(), self.node_id().clone(), inputs),
+                    true => input.clone().with_grad_fn(self.type_name(), inputs),
                     false => {
-                        input.clone().with_grad_fn(&type_name, self.node_id().clone(), inputs);
+                        input.clone().with_grad_fn(&type_name, inputs);
                         ops.insert(type_name, Arc::new(self.clone()));
                     }
                 }
