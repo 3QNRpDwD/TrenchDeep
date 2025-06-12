@@ -13,9 +13,29 @@ impl Function<f32> for Mul {
     /// # Returns
     /// A new tensor with the result of the element-wise multiplication
     fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
-        match targets[0].chk_shape(targets[1]) {
-            Err(e) => Err(e),
-            _ => Ok(vec![Tensor::<f32>::from_vec(self.backend().multiply(targets[0].data(), targets[1].data()), targets[0].shape())?])
+        let shape1 = targets[0].shape();
+        let shape2 = targets[1].shape();
+
+        // [1,1] 텐서인 경우에만 브로드캐스팅
+        if shape2 == &[1, 1] {
+            let target2_data = targets[1].data();
+            let scalar_value = target2_data[0];
+            // 첫 번째 텐서의 모든 원소에 스칼라 값을 곱함
+            let result = targets[0].data()
+                .iter()
+                .map(|&x| x * scalar_value)
+                .collect::<Vec<f32>>();
+
+            Ok(vec![Tensor::<f32>::from_vec(result, shape1)?])
+        } else {
+            // 기존 코드 유지
+            match targets[0].chk_shape(targets[1]) {
+                Err(e) => Err(e),
+                _ => Ok(vec![Tensor::<f32>::from_vec(
+                    self.backend().multiply(targets[0].data(), targets[1].data()),
+                    shape1
+                )?])
+            }
         }
     }
 
