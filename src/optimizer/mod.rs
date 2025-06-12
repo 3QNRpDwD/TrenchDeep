@@ -2,23 +2,25 @@ use std::sync::Arc;
 use crate::backend::Backend;
 use crate::tensor::NodeId;
 
-pub struct GradientDescent { backend: Arc<dyn Backend>, node_id: NodeId }
+pub struct BGD { backend: Arc<dyn Backend>, node_id: NodeId }
+
+pub struct SGD { backend: Arc<dyn Backend>, node_id: NodeId }
+
+pub struct  MiniBGD { backend: Arc<dyn Backend>, node_id: NodeId }
 
 pub struct Momentum { backend: Arc<dyn Backend>, node_id: NodeId }
 
-pub struct NesterovAcceleratedGradient { backend: Arc<dyn Backend>, node_id: NodeId }
+pub struct NAG { backend: Arc<dyn Backend>, node_id: NodeId }
 
-pub struct Adagrad { backend: Arc<dyn Backend>, node_id: NodeId }
+pub struct AdaGrad { backend: Arc<dyn Backend>, node_id: NodeId }
 
-pub struct Adadelta { backend: Arc<dyn Backend>, node_id: NodeId }
+pub struct AdaDelta { backend: Arc<dyn Backend>, node_id: NodeId }
 
-pub struct RMSprop { backend: Arc<dyn Backend>, node_id: NodeId }
+pub struct RMSProp { backend: Arc<dyn Backend>, node_id: NodeId }
 
 pub struct Adam { backend: Arc<dyn Backend>, node_id: NodeId }
 
 pub struct AdamW { backend: Arc<dyn Backend>, node_id: NodeId }
-
-pub struct L_BFGS { backend: Arc<dyn Backend>, node_id: NodeId }
 
 pub trait Optimizer {
     fn step(&self);
@@ -30,5 +32,3 @@ pub trait Optimizer {
     fn get_lr(&self);
     fn set_lr(&self);
 }
-
-pub struct SGD {}

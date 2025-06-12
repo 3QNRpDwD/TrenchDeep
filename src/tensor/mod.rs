@@ -232,7 +232,7 @@ pub struct Variable<Type: 'static> {
     #[cfg(feature = "enableBackpropagation")]
     var_id: NodeId,
     tensor: RefCell<Tensor<Type>>,
-    requires_grad: bool,
+    requires_grad: RefCell<bool>,
     grad: std::cell::RefCell<Option<Tensor<Type>>>,
 }
 
