@@ -251,7 +251,7 @@ impl Variable<f32> {
             #[cfg(feature = "enableBackpropagation")]
             var_id: NODE_ID_GEN.next(),
             tensor: RefCell::new(tensor),
-            requires_grad: cfg!(feature = "requiresGrad"),
+            requires_grad: RefCell::new(cfg!(feature = "requiresGrad")),
             grad: std::cell::RefCell::new(None),
         }
     }
@@ -290,7 +290,7 @@ impl Variable<f32> {
             #[cfg(feature = "enableBackpropagation")]
             var_id: NODE_ID_GEN.next(),
             tensor: RefCell::new(tensor),
-            requires_grad: cfg!(feature = "requiresGrad"),
+            requires_grad: RefCell::new(cfg!(feature = "requiresGrad")),
             grad: std::cell::RefCell::new(None),
         }
     }
@@ -361,16 +361,16 @@ impl Variable<f32> {
     /// 텐서 정보와 함께 디버그 정보 출력
     pub fn debug_info(&self) -> String {
         format!(
-            "Variable '{}': shape={:?}, requires_grad={}, has_grad={}",
+            "Variable '{}': tensor={:?}, requires_grad={:?}, has_grad={}",
             self.label(),
-            self.tensor.borrow().shape(),
-            self.requires_grad,
+            self.tensor(),
+            self.is_retain_grad(),
             self.grad().is_some(),
         )
     }
 
-    pub fn swap_tensor(&self, other_tensor: Tensor<f32>) {
-        self.tensor.swap(&RefCell::new(other_tensor));
+    pub fn tensor_replace(&self, other_tensor: Tensor<f32>) {
+        self.tensor.replace(other_tensor);
     }
 
     pub fn add_tensor(&self, other_tensor: Tensor<f32>) {
@@ -405,8 +405,12 @@ impl Variable<f32> {
     ///
     /// # 반환 값
     /// - 현재 변수의 requires_grad 플래그 상태
-    pub fn retain_grad(&self) -> bool {
-        self.requires_grad
+    pub fn is_retain_grad(&self) -> bool {
+        *self.requires_grad.borrow().deref()
+    }
+
+    pub fn retain_grad(&self) {
+        self.requires_grad.replace(true);
     }
 
     /// 저장된 그래디언트 값 조회
@@ -436,7 +440,7 @@ impl Variable<f32> {
     /// - grad: 설정할 새로운 그래디언트 텐서
     #[cfg(feature = "enableBackpropagation")]
     pub fn set_grad(&self, grad: Tensor<f32>) {
-        *self.grad.borrow_mut() = Some(grad);
+        self.grad.replace(Some(grad));
     }
 
     /// 그래디언트 값 초기화
@@ -447,7 +451,7 @@ impl Variable<f32> {
     ///
     #[cfg(feature = "enableBackpropagation")]
     pub fn clear_grad(&self) {
-        *self.grad.borrow_mut() = None;
+        self.grad.replace(None);
     }
 
     /// 그래디언트 값 누적 추가
@@ -463,9 +467,7 @@ impl Variable<f32> {
     /// - new_grad: 추가할 그래디언트 텐서
     #[cfg(feature = "enableBackpropagation")]
     pub fn accumulate_grad(&self, new_grad: Tensor<f32>) -> MlResult<()> {
-        let mut grad_ref = self.grad.borrow_mut();
-
-        if let Some(ref existing_grad) = *grad_ref {
+        if let Some(existing_grad) = self.grad() {
             // 차원 검증 추가
             if existing_grad.shape() != new_grad.shape() {
                 return Err(TensorError::InvalidShape {
@@ -480,13 +482,12 @@ impl Variable<f32> {
                 accumulated_data[i] += val;
             }
 
-            let accumulated_grad = Tensor::from_vec(accumulated_data, existing_grad.shape())
-                .map_err(|e| format!("Failed gradient accumulation: {:?}", e))?;
-
-            *grad_ref = Some(accumulated_grad);
+            self.grad.replace(Some(Tensor::from_vec(accumulated_data, existing_grad.shape())
+                .map_err(|e| format!("Failed gradient accumulation: {:?}", e))?));
         } else {
-            *grad_ref = Some(new_grad);
+            self.grad.replace(Some(new_grad));
         }
+
 
         Ok(())
     }
@@ -529,7 +530,6 @@ impl GlobalFunction {
             .iter()
             .map(|&var| var.tensor()).collect();
         let output = crate::var_with_label!(self.forward(&tensors)?.remove(0), label);
-
         #[cfg(feature = "enableBackpropagation")]
         {
             output.clone().with_grad_fn(self.name(), inputs);

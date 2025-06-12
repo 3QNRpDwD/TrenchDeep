@@ -296,6 +296,9 @@ impl ComputationGraph<f32> {
     /// - 역전파 계산 실패 시
     #[cfg(feature = "enableBackpropagation")]
     pub(crate) fn backward(&mut self, output_id: NodeId) -> MlResult<()> {
+        for node in &self.nodes {
+            node.variable.clear_grad();
+        }
         // Set output node's gradient to 1.0
         let output_idx = *self.node_map.get(&output_id)
             .ok_or_else(|| MlError::StringError("Output node not found".to_string()))?;
@@ -311,34 +314,27 @@ impl ComputationGraph<f32> {
         // 위상 정렬된 순서의 역순으로 순회
         for &node_idx in &self.topo_order {
             let node = &self.nodes[node_idx];
-
             let var = &node.variable;
             let grad = var.grad();
-            if node.function.is_none() || grad.is_none() {
-                continue;
-            }
+            if node.function.is_none() || grad.is_none() { continue; }
+            let function = node.function.as_ref().unwrap();
+            let input_tensors: Vec<&Tensor<f32>> = node.inputs
+                .iter()
+                .map(|&input_id| {
+                    let input_idx = self.node_map[&input_id];
+                    self.nodes[input_idx].variable.tensor()
+                })
+                .collect::<Vec<&Tensor<f32>>>();
 
-            if let Some(function) = &node.function {
-                let input_tensors: Vec<&Tensor<f32>> = node.inputs
-                    .iter()
-                    .map(|&input_id| {
-                        let input_idx = self.node_map[&input_id];
-                        self.nodes[input_idx].variable.tensor()
-                    })
-                    .collect::<Vec<&Tensor<f32>>>();
+            let output_grad = grad.unwrap();
+            let input_grads = OPERATOR_STORAGE.with(|ops| ops.borrow().get(function).unwrap().backward(&input_tensors, &output_grad)
+                .map_err(|e| MlError::StringError(format!("Failed to compute backward for function {:?}: {}", function, e))))?;
 
-                if let Some(output_grad) = grad {
-                    let input_grads = OPERATOR_STORAGE.with(|ops| ops.borrow().get(function).unwrap().backward(&input_tensors, &output_grad)
-                        .map_err(|e| MlError::StringError(format!("Failed to compute backward for function {:?}: {}", function, e))))?;
-
-                    for (input_id, grad) in node.inputs.iter().zip(input_grads) {
-                        let input_idx = self.node_map[input_id];
-                        self.nodes[input_idx].variable.accumulate_grad(grad)?;
-                    }
-
-
-                    if !node.variable.requires_grad { node.variable.clear_grad(); }
-                }
+            for (input_id, grad) in node.inputs.iter().zip(input_grads) {
+                let input_idx = self.node_map[input_id];
+                let input_node = &self.nodes[input_idx];
+                input_node.variable.accumulate_grad(grad)?;
+                if !var.is_retain_grad() { var.clear_grad(); continue; }
             }
         }
         Ok(())
@@ -393,8 +389,8 @@ impl VisualizationGraph {
         Self {
             nodes: HashSet::new(),
             edges: Vec::new(),
-            node_types: std::collections::HashMap::new(),
-            node_labels: std::collections::HashMap::new(),
+            node_types: HashMap::new(),
+            node_labels: HashMap::new(),
         }
     }
 

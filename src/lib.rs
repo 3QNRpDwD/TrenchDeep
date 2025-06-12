@@ -300,22 +300,15 @@ mod benchmark {
         let learning_rate = scalar!(0.001);
 
         for i in 0..iter { // 0부터
-            let y = rosenbrock_function(&x0, &x1)?;
-            y.backward()?;
-
-            
-            {
-                if i % 1 == 0 {
-                    println!(
-                    "iter - {}\n\
+            println!("시작");
+            println!(
+                "iter - {}\n\
             [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
             [ x1.tensor: {:?}, x1.grad: {:?} ]"
-                    , i, x0.tensor(), x0.grad(), x1.tensor(), x1.grad()
-                    );
-                }
-                
-            }
-            
+                , i, x0.tensor(), x0.grad(), x1.tensor(), x1.grad()
+            );
+            let y = rosenbrock_function(&x0, &x1)?;
+            y.backward()?;
             //파라미터 갱신
             x0.sub_tensor(x0.grad().unwrap() * &learning_rate);
             x1.sub_tensor(x1.grad().unwrap() * &learning_rate);
