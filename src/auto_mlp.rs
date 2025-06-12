@@ -18,8 +18,8 @@ impl fmt::Debug for MLP {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "MLP {{")?;
         writeln!(f, "  w1.shape = {:?}, w2.shape = {:?} ",
-                 unsafe { self.w1.tensor().shape() },
-                 unsafe { self.w2.tensor().shape() })?;
+                 self.w1.tensor().shape(),
+                 self.w2.tensor().shape())?;
         writeln!(f, "}}")
     }
 }
@@ -178,8 +178,8 @@ impl MLP {
             let (_z, y) = self.forward(&X[m])?;
 
             // diff = y - T[m]
-            let y_data = unsafe { y.tensor().data() };
-            let t_data = unsafe { T[m].tensor().data() };
+            let y_data = y.tensor().data();
+            let t_data = T[m].tensor().data();
 
             for i in 0..y_data.len() {
                 let diff = y_data[i] - t_data[i];
@@ -192,7 +192,7 @@ impl MLP {
 
     fn sum_variable(&self, a: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
         // Sum all elements to scalar
-        let a_data = unsafe { a.tensor().data() };
+        let a_data = a.tensor().data();
         let sum: f32 = a_data.iter().sum();
 
         let result_tensor = Tensor::from_vec(vec![sum], &[1, 1]).unwrap();
@@ -203,22 +203,22 @@ impl MLP {
     fn update_weights(&mut self, eta: f32) -> MlResult<()> {
         // w1 업데이트
         if let Some(grad_w1) = self.w1.grad() {
-            let w1_data = unsafe { self.w1.tensor().data() };
+            let w1_data = self.w1.tensor().data();
             let grad_data = grad_w1.data();
-            let shape = unsafe { self.w1.tensor().shape() };
+            let shape = self.w1.tensor().shape();
 
             let updated_data: Vec<f32> = w1_data.iter().zip(grad_data.iter())
                 .map(|(w, g)| w - eta * g)
                 .collect();
 
-            let updated_tensor = Tensor::from_vec(updated_data, shape).unwrap();
+            let updated_tensor = Tensor::from_vec(updated_data, shape)?;
             self.w1 = Arc::new(Variable::new(updated_tensor));
         }
 
         // w2 업데이트
         if let Some(grad_w2) = self.w2.grad() {
-            let w2_data = unsafe { self.w2.tensor().data() };
-            let shape = unsafe { self.w2.tensor().shape() };
+            let w2_data = self.w2.tensor().data();
+            let shape = self.w2.tensor().shape();
             let grad_data = grad_w2.data();
             
 
@@ -291,11 +291,11 @@ mod tests {
         }
 
         // 예측
-        let test_input = &X[0];  // 첫 번째 샘플로 테스트
+        let test_input   = &X[0];  // 첫 번째 샘플로 테스트
         let (_z, y) = mlp.forward(test_input)?;
 
 
-        let prediction = unsafe { y.tensor().data()[0] };
+        let prediction = y.tensor().data()[0];
         println!("Prediction for &X[0]: {}", prediction);
 
         Ok(())

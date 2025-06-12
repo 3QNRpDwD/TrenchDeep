@@ -258,14 +258,14 @@ mod tests {
     }
 
     fn print_backward(
-        x: &Option<Tensor<f32>>,
-        a: &Option<Tensor<f32>>,
-        b: &Option<Tensor<f32>>,
-        y: &Option<Tensor<f32>>,
+        x: Option<&Tensor<f32>>,
+        a: Option<&Tensor<f32>>,
+        b: Option<&Tensor<f32>>,
+        y: Option<&Tensor<f32>>,
     ) {
         #[cfg(feature = "debugging")]
         {
-            let fmt_tensor = |t: &Option<Tensor<f32>>| {
+            let fmt_tensor = |t: Option<&Tensor<f32>>| {
                 if let Some(tensor) = t {
                     format!(
                         "Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}",
@@ -314,7 +314,7 @@ mod tests {
             let da = exp   .backward(&[&a], &db)?.remove(0);   // dy/da = (dy/db) * db/da
             let dx = square.backward(&[&x], &da)?.remove(0);   // dy/dx = (dy/da) * da/dx
 
-            print_backward(&Some(dy), &Some(db), &Some(da), &Some(dx.clone()));
+            print_backward(Some(&dy), Some(&db), Some(&da), Some(&dx));
             assert_tensor_eq(&dx, &Tensor::new(vec![vec![3.2974427]]))?;
         }
         Ok(())
@@ -330,17 +330,16 @@ mod tests {
         let b = exp   .apply(&[&a])?;
         let y = square.apply(&[&b])?;
 
-        unsafe {
-            crate::tensor::tests::assert_tensor_eq(&y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
-            print_forward(&x.tensor(), &a.tensor(), &b.tensor(), &y.tensor());
-        }
+        crate::tensor::tests::assert_tensor_eq(&y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
+        print_forward(&x.tensor(), &a.tensor(), &b.tensor(), &y.tensor());
+
 
         #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?;
 
-            print_backward(&y.grad(), &b.grad(), &a.grad(), &x.grad());
-            assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
+            print_backward(y.grad(), b.grad(), a.grad(), x.grad());
+            assert_tensor_eq(x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
         }
         Ok(())
     }
@@ -359,8 +358,8 @@ mod tests {
             y.backward()?;
 
             #[cfg(feature = "requiresGrad")] {
-                assert_eq!(y.grad(), Some(Tensor::new(vec![vec![1.0]])));
-                assert_eq!(t.grad(), Some(Tensor::new(vec![vec![1.0]])));
+                assert_eq!(y.grad(), Some(&Tensor::new(vec![vec![1.0]])));
+                assert_eq!(t.grad(), Some(&Tensor::new(vec![vec![1.0]])));
             }
             #[cfg(not(feature = "requiresGrad"))] {
                 assert_eq!(y.grad(), None);
@@ -395,13 +394,13 @@ mod tests {
         let x = Arc::new(variable!(vec![vec![2.0]]));
         let a = square.apply(&[&x])?;
         let y = add.apply(&[&square.apply(&[&a])?, &square.apply(&[&a])?])?;
-        assert_eq!(unsafe { y.tensor() }.data(), Tensor::new(vec![vec![32.0]]).data());
+        assert_eq!(y.tensor().data(), Tensor::new(vec![vec![32.0]]).data());
 
         #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?;
 
-            assert_eq!(x.grad(), Some(Tensor::new(vec![vec![64.0]])));
+            assert_eq!(x.grad(), Some(&Tensor::new(vec![vec![64.0]])));
         }
         Ok(())
     }
@@ -415,7 +414,7 @@ mod tests {
         #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?;
-            assert_eq!(x.grad(), Some(Tensor::new(vec![vec![2.0]])));
+            assert_eq!(x.grad(), Some(&Tensor::new(vec![vec![2.0]])));
 
             x.clear_grad();
             y.clear_grad();
@@ -423,7 +422,7 @@ mod tests {
             let y = add.apply(&[&add.apply(&[&x, &x])?, &x])?; // y = add(add(x, x), x)
             #[cfg(feature = "enableBackpropagation")]
             y.backward()?;
-            assert_eq!(x.grad(), Some(Tensor::new(vec![vec![3.0]])));
+            assert_eq!(x.grad(), Some(&Tensor::new(vec![vec![3.0]])));
         }
         Ok(())
     }
@@ -436,14 +435,14 @@ mod tests {
         let x = Arc::new(variable!(vec![vec![2.0]]));
         let y = Arc::new(variable!(vec![vec![3.0]]));
         let z = add.apply(&[&square.apply(&[&x])?, &square.apply(&[&y])?])?; // z = add(square(x), square(y))
-        assert_eq!(unsafe { z.tensor() }.data(), Tensor::new(vec![vec![13.0]]).data());
+        assert_eq!(z.tensor().data(), Tensor::new(vec![vec![13.0]]).data());
 
         #[cfg(feature = "enableBackpropagation")]
         {
             z.backward()?;
 
-            assert_eq!(x.grad(), Some(Tensor::new(vec![vec![4.0]])));
-            assert_eq!(y.grad(), Some(Tensor::new(vec![vec![6.0]])));
+            assert_eq!(x.grad(), Some(&Tensor::new(vec![vec![4.0]])));
+            assert_eq!(y.grad(), Some(&Tensor::new(vec![vec![6.0]])));
         }
         Ok(())
     }
@@ -463,9 +462,9 @@ mod tests {
         {
             y.backward()?;
 
-            assert_eq!(unsafe { y.tensor() }, &Tensor::new(vec![vec![7.0]]));
-            assert_eq!(a.grad(), Some(Tensor::new(vec![vec![2.0]])));
-            assert_eq!(b.grad(), Some(Tensor::new(vec![vec![3.0]])));
+            assert_eq!(y.tensor(), &Tensor::new(vec![vec![7.0]]));
+            assert_eq!(a.grad(), Some(&Tensor::new(vec![vec![2.0]])));
+            assert_eq!(b.grad(), Some(&Tensor::new(vec![vec![3.0]])));
         }
         Ok(())
     }
@@ -484,7 +483,7 @@ mod tests {
         // {
         //     y.backward()?; // dy/dx = 3x^2
         // 
-        //     assert_eq!( unsafe { y.tensor() }, &Tensor::new(vec![vec![8.0]]));
+        //     assert_eq!(y.tensor(), &Tensor::new(vec![vec![8.0]]));
         //     assert_eq!(x.grad(), Some(Tensor::new(vec![vec![12.0]])));
         // }
         // Ok(())
@@ -501,7 +500,7 @@ mod tests {
         {
             y.backward()?;
 
-            assert_tensor_eq(unsafe { y.tensor() }, &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
+            assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
             assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
         }
         Ok(())

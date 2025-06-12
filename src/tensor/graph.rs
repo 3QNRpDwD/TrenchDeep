@@ -1,4 +1,3 @@
-use std::fmt::format;
 use super::*;
 
 #[cfg(feature = "enableBackpropagation")]
@@ -46,7 +45,7 @@ impl Variable<f32> {
                 if !graph.node_map.contains_key(&input_id) {
                     graph.add_input(input_var.clone());
                 }
-                (input_id)
+                input_id
             }).collect();
             graph.add_operation(self, operator_name, input_ids)
         });
@@ -324,7 +323,7 @@ impl ComputationGraph<f32> {
                     .iter()
                     .map(|&input_id| {
                         let input_idx = self.node_map[&input_id];
-                        unsafe { self.nodes[input_idx].variable.tensor() }
+                        self.nodes[input_idx].variable.tensor()
                     })
                     .collect::<Vec<&Tensor<f32>>>();
 
@@ -370,7 +369,7 @@ impl ComputationGraph<f32> {
         for (order, &node_idx) in self.topo_order.iter().enumerate() {
             let node = &self.nodes[node_idx];
             let var = &node.variable;
-            let tensor = unsafe{ var.tensor() };
+            let tensor = var.tensor();
             let first_data = tensor.data();
             let shape = tensor.shape();
 
@@ -400,7 +399,7 @@ impl VisualizationGraph {
     }
 
     fn compute_node_layers(&self) -> HashMap<String, usize> {
-        use std::collections::{HashMap, HashSet, VecDeque};
+        use std::collections::{HashMap, VecDeque};
 
         let mut layers = HashMap::new();
         let mut in_degree = HashMap::new();
@@ -680,7 +679,7 @@ impl VisualizationGraph {
         );
 
         // 위상 정렬을 위한 준비
-        let mut layers = self.compute_node_layers();
+        let layers = self.compute_node_layers();
 
         // 노드 타입별 그룹화
         let mut input_nodes = Vec::new();
@@ -883,7 +882,7 @@ impl<F: Function<f32> + Clone +  'static> AutogradFunction<f32> for F {
     fn apply(&self, inputs: &[&Arc<Variable<f32>>]) -> MlResult<Arc<Variable<f32>>> {
         let tensors: Vec<&Tensor<f32>> = inputs
             .iter()
-            .map(|&var| unsafe{ var.tensor() }).collect();
+            .map(|&var| var.tensor()).collect();
         let input = Arc::new(Variable::new(self.forward(&tensors)?.remove(0)));
 
         #[cfg(feature = "enableBackpropagation")]

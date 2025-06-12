@@ -1,6 +1,7 @@
 use super::*;
 use std::collections::HashMap;
 use std::ops::{AddAssign, Deref, DivAssign, MulAssign, SubAssign};
+use petgraph::matrix_graph::Nullable;
 
 impl Tensor<f32> {
     pub fn zeros(shape: &[usize]) -> Tensor<f32> {
@@ -392,8 +393,8 @@ impl Variable<f32> {
     ///
     /// # 반환 값
     /// - 내부 텐서 데이터의 불변 참조
-    pub unsafe fn tensor(&self) -> &Tensor<f32> {
-        self.tensor_ptr().as_ref().expect("Tensor is qudtls")
+    pub fn tensor(&self) -> &Tensor<f32> {
+        unsafe { self.tensor_ptr().as_ref() }.expect("Tensor is qudtls")
     }
 
     pub fn tensor_ptr(&self) -> *const Tensor<f32> {
@@ -415,9 +416,15 @@ impl Variable<f32> {
     ///
     /// # 반환 값
     /// - Option<Tensor<f32>>: 현재 저장된 그래디언트 또는 None
-    pub fn grad(&self) -> Option<Tensor<f32>> {
-        self.grad.borrow().clone()
+    pub fn grad(&self) -> Option<&Tensor<f32>> {
+        let a = unsafe { self.grad_ptr().as_ref() }.expect("Tensor is qudtls");
+        a.as_ref()
     }
+
+    pub fn grad_ptr(&self) -> *mut Option<Tensor<f32>> {
+        self.grad.as_ptr()
+    }
+
 
     /// 그래디언트 값 직접 설정
     ///
@@ -501,7 +508,7 @@ impl GlobalFunction {
     pub fn apply(&self, inputs: &[&Arc<Variable<f32>>]) -> MlResult<Arc<Variable<f32>>> {
         let tensors: Vec<&Tensor<f32>> = inputs
             .iter()
-            .map(|&var| unsafe{ var.tensor() }).collect();
+            .map(|&var| var.tensor()).collect();
         let output = Arc::new(Variable::new(self.forward(&tensors)?.remove(0)));
 
         #[cfg(feature = "enableBackpropagation")]
@@ -520,7 +527,7 @@ impl GlobalFunction {
     pub fn apply_with_label(&self, inputs: &[&Arc<Variable<f32>>], label: &str) -> MlResult<Arc<Variable<f32>>> {
         let tensors: Vec<&Tensor<f32>> = inputs
             .iter()
-            .map(|&var| unsafe{ var.tensor() }).collect();
+            .map(|&var| var.tensor()).collect();
         let output = crate::var_with_label!(self.forward(&tensors)?.remove(0), label);
 
         #[cfg(feature = "enableBackpropagation")]

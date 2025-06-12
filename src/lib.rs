@@ -263,8 +263,8 @@ mod benchmark {
         {
             z.backward()?;
 
-            assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![-5376.0]]))?;
-            assert_tensor_eq(&y.grad().unwrap(), &Tensor::new(vec![vec![8064.0]]))?;
+            assert_tensor_eq(x.grad().unwrap(), &Tensor::new(vec![vec![-5376.0]]))?;
+            assert_tensor_eq(y.grad().unwrap(), &Tensor::new(vec![vec![8064.0]]))?;
         }
 
         #[cfg(feature = "enableVisualization")]
@@ -282,8 +282,8 @@ mod benchmark {
         {
             y.backward()?;
 
-            assert_tensor_eq(&x0.grad().unwrap(), &Tensor::new(vec![vec![-2.0]]))?;
-            assert_tensor_eq(&x1.grad().unwrap(), &Tensor::new(vec![vec![400.0]]))?;
+            assert_tensor_eq(x0.grad().unwrap(), &Tensor::new(vec![vec![-2.0]]))?;
+            assert_tensor_eq(x1.grad().unwrap(), &Tensor::new(vec![vec![400.0]]))?;
         }
 
         #[cfg(feature = "enableVisualization")]
@@ -296,7 +296,6 @@ mod benchmark {
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
         let x0 = var_input!(Tensor::new(vec![vec![0.0]]));
         let x1 = var_input!(Tensor::new(vec![vec![2.0]]));
-        let y = rosenbrock_function(&x0, &x1)?;
         let iter: usize = 10;
         let learning_rate = scalar!(0.001);
 
@@ -304,22 +303,22 @@ mod benchmark {
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
 
-            #[cfg(feature = "debugging")]
+            
             {
-                if i % 10 == 0 {
+                if i % 1 == 0 {
                     println!(
-                        "iter - {}\n\
-                [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
-                [ x1.tensor: {:?}, x1.grad: {:?} ]"
-                        , i, unsafe { x0.tensor() }, x0.grad(), unsafe { x1.tensor() }, x1.grad()
+                    "iter - {}\n\
+            [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
+            [ x1.tensor: {:?}, x1.grad: {:?} ]"
+                    , i, x0.tensor(), x0.grad(), x1.tensor(), x1.grad()
                     );
                 }
                 
             }
             
             //파라미터 갱신
-            x0.sub_tensor(&x0.grad().unwrap() * &learning_rate);
-            x1.sub_tensor(&x1.grad().unwrap() * &learning_rate);
+            x0.sub_tensor(x0.grad().unwrap() * &learning_rate);
+            x1.sub_tensor(x1.grad().unwrap() * &learning_rate);
         }
         Ok(())
     }

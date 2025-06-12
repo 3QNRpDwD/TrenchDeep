@@ -1,4 +1,3 @@
-
 use crate::tensor::{Tensor, TensorBase};
 use crate::nn::activation::Sigmoid;
 use std::fmt;
