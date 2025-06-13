@@ -1,37 +1,34 @@
 use super::*;
 
-impl Function<f32> for Sum {
+impl Function for Sum {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(Sum)
     }
     
-    fn forward(&self, input: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+    fn forward(&self, input: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         if input.is_empty() {
             return Err(MlError::TensorError(TensorError::EmptyTensor));
         }
 
-        let mut result = input[0].clone();
+        let result = input[0];
         for tensor in &input[1..] {
-            if tensor.shape != result.shape {
+            if tensor.shape() != result.shape() {
                 return Err(MlError::TensorError(TensorError::InvalidShape {
-                    expected: result.shape.clone(),
-                    got: tensor.shape.clone(),
+                    expected: result.shape().to_vec(),
+                    got: tensor.shape().to_vec(),
                 }));
             }
-            result.data.iter_mut().zip(tensor.data.iter()).for_each(|(a, b)| *a += b);
+            result.data().iter_mut().zip(tensor.data().iter()).for_each(|(a, b)| *a += *b);        
         }
 
-        Ok(vec![result])
+        Ok(vec![result.clone()])
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         if targets.is_empty() {
             return Err(MlError::TensorError(TensorError::EmptyTensor));
         }
-
-        // The gradient of the sum operation is simply the gradient passed back
-        // since each input contributes equally to the output.
         
         Ok(vec![grad.clone(); targets.len()])
     }

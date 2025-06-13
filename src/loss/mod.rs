@@ -42,18 +42,16 @@ struct CategoricalCrossEntropy {
     backend: Arc<dyn Backend>, node_id: NodeId
 }
 
-pub trait Loss<T: Debug + Clone>: Function<T> {
+pub trait Loss: Function {
     fn new() -> MlResult<GlobalFunction> where Self: Sized {
-        <Self as Function<T>>::new()
+        <Self as Function>::new()
     }
-    fn loss(predict: Tensor<T>, target: Tensor<T>) -> MlResult<f32>;
+    fn loss(predict: Tensor, target: Tensor) -> MlResult<f32>;
 }
 
 
-impl Loss<f32> for MeanSquaredError {
-    fn new() -> MlResult<GlobalFunction> { <Self as Function<f32>>::new() }
-
-    fn loss(predict: Tensor<f32>, target: Tensor<f32>) -> MlResult<f32> {
+impl Loss for MeanSquaredError {
+    fn loss(predict: Tensor, target: Tensor) -> MlResult<f32> {
         if predict.shape() != target.shape() {
             return Err(LossError::InvalidShape { expected: predict.shape().to_vec(), got: target.shape().to_vec() }.into());
         }
@@ -65,10 +63,8 @@ impl Loss<f32> for MeanSquaredError {
     }
 }
 
-impl Loss<f32> for MeanAbsoluteError {
-    fn new() -> MlResult<GlobalFunction> { <Self as Function<f32>>::new() }
-
-    fn loss(predict: Tensor<f32>, target: Tensor<f32>) -> MlResult<f32> {
+impl Loss for MeanAbsoluteError {
+    fn loss(predict: Tensor, target: Tensor) -> MlResult<f32> {
         if predict.shape() != target.shape() {
             return Err(LossError::InvalidShape { expected: predict.shape().to_vec(), got: target.shape().to_vec() }.into());
         }
@@ -80,10 +76,8 @@ impl Loss<f32> for MeanAbsoluteError {
     }
 }
 
-impl Loss<f32> for HuberLoss {
-    fn new() -> MlResult<GlobalFunction> { <Self as Function<f32>>::new() }
-
-    fn loss(predict: Tensor<f32>, target: Tensor<f32>) -> MlResult<f32> {
+impl Loss for HuberLoss {
+    fn loss(predict: Tensor, target: Tensor) -> MlResult<f32> {
         if predict.shape() != target.shape() {
             return Err(LossError::InvalidShape { expected: predict.shape().to_vec(), got: target.shape().to_vec() }.into());
         }
@@ -97,10 +91,8 @@ impl Loss<f32> for HuberLoss {
     }
 }
 
-impl Loss<f32> for BinaryCrossEntropy {
-    fn new() -> MlResult<GlobalFunction> { <Self as Function<f32>>::new() }
-
-    fn loss(predict: Tensor<f32>, target: Tensor<f32>) -> MlResult<f32> {
+impl Loss for BinaryCrossEntropy {
+    fn loss(predict: Tensor, target: Tensor) -> MlResult<f32> {
         if predict.shape() != target.shape() {
             return Err(LossError::InvalidShape { expected: predict.shape().to_vec(), got: target.shape().to_vec() }.into());
         }
@@ -113,10 +105,8 @@ impl Loss<f32> for BinaryCrossEntropy {
     }
 }
 
-impl Loss<f32> for CategoricalCrossEntropy {
-    fn new() -> MlResult<GlobalFunction> { <Self as Function<f32>>::new() }
-
-    fn loss(predict: Tensor<f32>, target: Tensor<f32>) -> MlResult<f32> {
+impl Loss for CategoricalCrossEntropy {
+    fn loss(predict: Tensor, target: Tensor) -> MlResult<f32> {
         if predict.shape() != target.shape() {
             return Err(LossError::InvalidShape { expected: predict.shape().to_vec(), got: target.shape().to_vec() }.into());
         }

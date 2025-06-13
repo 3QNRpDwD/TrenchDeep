@@ -40,7 +40,7 @@ impl Display for MlError {
     }
 }
 
-impl<Type: Debug> Debug for Variable<Type> {
+impl Debug for Variable {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut ds = f.debug_struct("Variable");
         ds
@@ -55,7 +55,7 @@ impl<Type: Debug> Debug for Variable<Type> {
 }
 
 #[cfg(feature = "enableBackpropagation")]
-impl<Type: Debug + Clone> Debug for ComputationGraph<Type> {
+impl Debug for ComputationGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut ds = f.debug_struct("ComputationGraph");
         ds
@@ -69,7 +69,7 @@ impl<Type: Debug + Clone> Debug for ComputationGraph<Type> {
 }
 
 #[cfg(feature = "enableBackpropagation")]
-impl<Type: Debug + Clone> Debug for ComputationNode<Type> {
+impl Debug for ComputationNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut ds = f.debug_struct("ComputationNode");
         ds
@@ -82,7 +82,16 @@ impl<Type: Debug + Clone> Debug for ComputationNode<Type> {
     }
 }
 
-impl<Type: Debug + Clone> Debug for &dyn TensorBase<Type> {
+impl Debug for Tensor {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(
+            f, "data: {:?}, shape: {:?}",
+            self.data(), self.shape()
+        )
+    }
+}
+
+impl Debug for &dyn TensorBase {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f, "data: {:?}, shape: {:?}",

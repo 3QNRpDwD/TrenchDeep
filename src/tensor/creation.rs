@@ -3,62 +3,51 @@ use std::collections::HashMap;
 use std::ops::{AddAssign, Deref, DivAssign, MulAssign, SubAssign};
 use petgraph::matrix_graph::Nullable;
 
-impl Tensor<f32> {
-    pub fn zeros(shape: &[usize]) -> Tensor<f32> {
+impl Tensor {
+    pub fn zeros(shape: &[usize]) -> Tensor {
         let size: usize = shape.iter().product();
         let data = vec![0.0; size];
-        Tensor {
-            data,
-            shape: shape.to_vec(),
-        }
+        Tensor::from_vec(data, shape).unwrap()
     }
 
     pub fn zeros_like(&self) -> Self {
-        Self::zeros(&self.shape)
+        Self::zeros(&self.shape())
     }
 
-    pub fn ones(shape: &[usize]) -> Tensor<f32> {
+    pub fn ones(shape: &[usize]) -> Tensor {
         let size: usize = shape.iter().product();
         let data = vec![1.0; size];
-        Tensor {
-            data,
-            shape: shape.to_vec(),
-        }
+        Tensor::from_vec(data, shape).unwrap()
     }
 
     pub fn ones_like(&self) -> Self {
-        Self::ones(&self.shape)
+        Self::ones(&self.shape())
     }
 
-    pub fn rand(shape: &[usize]) -> Tensor<f32> {
+    pub fn rand(shape: &[usize]) -> Tensor {
         let size: usize = shape.iter().product();
         let data: Vec<f32> = (0..size).map(|_| rand::random::<f32>()).collect();
-        Tensor {
-            data,
-            shape: shape.to_vec(),
-        }
+        Tensor::from_vec(data, shape).unwrap()
     }
 
-    pub fn scalar(scalar: f32) -> Tensor<f32> {
-        Self {
-            data: vec![scalar],
-            shape: vec![1,1],
-        }
+    pub fn scalar(scalar: f32) -> Tensor {
+        Tensor::new(vec![vec![scalar]])
     }
 }
 
-impl TensorBase<f32> for Tensor<f32> {
-    fn new(data: Vec<Vec<f32>>) -> Tensor<f32> {
+impl TensorBase for Tensor {
+    fn new(data: Vec<Vec<f32>>) -> Tensor {
         let shape = vec![data.len(), data[0].len()];
         let data: Vec<f32> = data.into_iter().flatten().collect();
 
-        Self {
-            data,
-            shape,
-        }
+        let node_id = NODE_ID_GEN.next();
+        TENSOR_STORAGE.with_borrow_mut(|storage| {
+            storage.insert(node_id, GlobalTensor { data, shape })
+        });
+        Tensor(node_id)
     }
 
-    fn from_vec(data: Vec<f32>, shape: &[usize]) -> MlResult<Tensor<f32>> {
+    fn from_vec(data: Vec<f32>, shape: &[usize]) -> MlResult<Tensor> {
         let expected_len: usize = shape.iter().product();
         if data.len() != expected_len {
             return Err(MlError::TensorError(TensorError::InvalidDataLength {
@@ -67,34 +56,45 @@ impl TensorBase<f32> for Tensor<f32> {
             }));
         }
 
-        Ok(Self {
-            data,
-            shape: shape.to_vec(),
-        })
+        let node_id = NODE_ID_GEN.next();
+        TENSOR_STORAGE.with_borrow_mut(|storage| {
+            storage.insert(node_id, GlobalTensor { data, shape: shape.to_vec() })
+        });
+
+        Ok(Tensor(node_id))
     }
 
+    fn as_ptr(&self) -> *const GlobalTensor<f32> {
+        TENSOR_STORAGE.with(|storage| {
+            storage.borrow().get(&self.0).map(|gt| gt as *const GlobalTensor<f32>).unwrap()
+        })
+    }
+    
     fn shape(&self) -> &[usize] {
-        &self.shape
+        unsafe { &self.as_ptr().as_ref().unwrap().shape }
     }
 
     fn data(&self) -> &[f32] {
-        &self.data
+        unsafe { &self.as_ptr().as_ref().unwrap().data }
     }
 
     fn get(&self, indices: &[usize]) -> Option<&f32> {
-        self.data.get(self.index(indices)?)
+        self.data().get(self.index(indices)?)
     }
 
     fn index(&self, indices: &[usize]) -> Option<usize> {
-        if indices.len() != self.shape.len() {
+        if indices.len() != self.shape().len() {
             return None;
         }
-        Some(
-            indices
-                .iter()
-                .zip(&self.shape)
-                .fold(0, |acc, (&i, &dim)| acc * dim + i),
-        )
+        let mut idx = 0;
+        let shape = self.shape();
+        for (i, &ind) in indices.iter().enumerate() {
+            if ind >= shape[i] {
+                return None;
+            }
+            idx = idx * shape[i] + ind;
+        }
+        Some(idx)
     }
 
     /// Verifies if two tensors can perform element-wise operations
@@ -105,10 +105,10 @@ impl TensorBase<f32> for Tensor<f32> {
     /// # Returns
     /// * `Ok(())` if the shapes match
     /// * `Err(MlError::TensorError)` if shapes don't match
-    fn chk_shape(&self, other: &dyn TensorBase<f32>) -> MlResult<()> {
-        if self.shape != other.shape() {
+    fn chk_shape(&self, other: &dyn TensorBase) -> MlResult<()> {
+        if self.shape() != other.shape() {
             return Err(MlError::TensorError(TensorError::InvalidShape {
-                expected: self.shape.to_vec(),
+                expected: self.shape().to_vec(),
                 got: other.shape().to_vec(),
             }));
         }
@@ -122,7 +122,7 @@ pub struct LabelGenerator;
 #[cfg(feature = "enableVisualization")]
 impl LabelGenerator {
     /// 텐서의 특성을 기반으로 직관적인 라벨 생성
-    pub fn generate_label(tensor: &Tensor<f32>, hint: Option<&str>) -> String {
+    pub fn generate_label(tensor: &Tensor, hint: Option<&str>) -> String {
         // 힌트가 제공된 경우 우선 사용
         if let Some(hint) = hint {
             return Self::get_unique_label(hint);
@@ -237,32 +237,30 @@ impl LabelGenerator {
     }
 }
 
-impl Variable<f32> {
+impl Variable {
     /// 기본 생성자 - 텐서 모양 기반 자동 라벨링
-    pub fn new(tensor: Tensor<f32>) -> Self {
+    pub fn new(tensor: Tensor) -> Self {
         #[cfg(feature = "enableVisualization")]
         let label = LabelGenerator::generate_label(&tensor, None);
 
-        Variable::<f32> {
+        Variable {
             #[cfg(feature = "enableVisualization")]
             label,
             #[cfg(feature = "enableVisualization")]
             node_type: NodeType::Variable,
-            #[cfg(feature = "enableBackpropagation")]
-            var_id: NODE_ID_GEN.next(),
-            tensor: RefCell::new(tensor),
+            tensor,
             requires_grad: RefCell::new(cfg!(feature = "requiresGrad")),
-            grad: std::cell::RefCell::new(None),
+            grad: None,
         }
     }
 
     #[cfg(feature = "enableBackpropagation")]
     pub fn node_id(&self) -> NodeId {
-        self.var_id
+        self.tensor.0
     }
 
     /// 사용자 정의 라벨로 변수 생성
-    pub fn with_label(tensor: Tensor<f32>, label_hint: &str) -> Self {
+    pub fn with_label(tensor: Tensor, label_hint: &str) -> Self {
         #[cfg(feature = "enableVisualization")]
         let label = LabelGenerator::generate_label(&tensor, Some(label_hint));
         #[cfg(feature = "enableVisualization")]
@@ -282,57 +280,55 @@ impl Variable<f32> {
             NodeType::Variable
         };
 
-        Variable::<f32> {
+        Variable {
             #[cfg(feature = "enableVisualization")]
             label,
             #[cfg(feature = "enableVisualization")]
             node_type,
-            #[cfg(feature = "enableBackpropagation")]
-            var_id: NODE_ID_GEN.next(),
-            tensor: RefCell::new(tensor),
+            tensor,
             requires_grad: RefCell::new(cfg!(feature = "requiresGrad")),
-            grad: std::cell::RefCell::new(None),
+            grad: None,
         }
     }
 
     /// 특정 용도에 맞는 변수 생성자들
     #[cfg(feature = "enableVisualization")]
-    pub fn new_input(tensor: Tensor<f32>) -> Self {
+    pub fn new_input(tensor: Tensor) -> Self {
         Self::with_label(tensor, "input")
     }
 
     #[cfg(feature = "enableVisualization")]
-    pub fn new_weight(tensor: Tensor<f32>) -> Self {
+    pub fn new_weight(tensor: Tensor) -> Self {
         Self::with_label(tensor, "weight")
     }
 
     #[cfg(feature = "enableVisualization")]
-    pub fn new_bias(tensor: Tensor<f32>) -> Self {
+    pub fn new_bias(tensor: Tensor) -> Self {
         Self::with_label(tensor, "bias")
     }
 
     #[cfg(feature = "enableVisualization")]
-    pub fn new_output(tensor: Tensor<f32>) -> Self {
+    pub fn new_output(tensor: Tensor) -> Self {
         Self::with_label(tensor, "output")
     }
 
     #[cfg(feature = "enableVisualization")]
-    pub fn new_hidden(tensor: Tensor<f32>) -> Self {
+    pub fn new_hidden(tensor: Tensor) -> Self {
         Self::with_label(tensor, "hidden")
     }
 
     #[cfg(feature = "enableVisualization")]
-    pub fn new_conv_weight(tensor: Tensor<f32>, layer_idx: usize) -> Self {
+    pub fn new_conv_weight(tensor: Tensor, layer_idx: usize) -> Self {
         Self::with_label(tensor, &format!("conv{}_weight", layer_idx))
     }
 
     #[cfg(feature = "enableVisualization")]
-    pub fn new_linear_weight(tensor: Tensor<f32>, layer_idx: usize) -> Self {
+    pub fn new_linear_weight(tensor: Tensor, layer_idx: usize) -> Self {
         Self::with_label(tensor, &format!("fc{}_weight", layer_idx))
     }
 
     #[cfg(feature = "enableVisualization")]
-    pub fn new_activation(tensor: Tensor<f32>, activation_type: &str) -> Self {
+    pub fn new_activation(tensor: Tensor, activation_type: &str) -> Self {
         Self::with_label(tensor, &format!("{}_act", activation_type))
     }
 
@@ -369,36 +365,34 @@ impl Variable<f32> {
         )
     }
 
-    pub fn tensor_replace(&self, other_tensor: Tensor<f32>) {
-        self.tensor.replace(other_tensor);
+    pub fn replace(&self, other_tensor: Tensor) {
+        TENSOR_STORAGE.with_borrow_mut(|storage| {
+            storage[self.tensor.0] = 
+        })
     }
 
-    pub fn add_tensor(&self, other_tensor: Tensor<f32>) {
-        self.tensor.borrow_mut().add_assign(other_tensor)
+    pub fn add_tensor(&self, other_tensor: Tensor) {
+        self.tensor.add_assign(other_tensor)
     }
 
-    pub fn sub_tensor(&self, other_tensor: Tensor<f32>) {
-        self.tensor.borrow_mut().sub_assign(other_tensor)
+    pub fn sub_tensor(&self, other_tensor: Tensor) {
+        self.tensor.sub_assign(other_tensor)
     }
 
-    pub fn mul_tensor(&self, other_tensor: Tensor<f32>) {
-        self.tensor.borrow_mut().mul_assign(other_tensor)
+    pub fn mul_tensor(&self, other_tensor: Tensor) {
+        self.tensor.mul_assign(other_tensor)
     }
 
-    pub fn div_tensor(&self, other_tensor: Tensor<f32>) {
-        self.tensor.borrow_mut().div_assign(other_tensor)
+    pub fn div_tensor(&self, other_tensor: Tensor) {
+        self.tensor.div_assign(other_tensor)
     }
 
     /// 변수가 보유한 텐서의 참조 반환
     ///
     /// # 반환 값
     /// - 내부 텐서 데이터의 불변 참조
-    pub fn tensor(&self) -> &Tensor<f32> {
-        unsafe { self.tensor_ptr().as_ref() }.expect("Tensor is qudtls")
-    }
-
-    pub fn tensor_ptr(&self) -> *const Tensor<f32> {
-        self.tensor.borrow().deref()
+    pub fn tensor(&self) -> &Tensor {
+        &self.tensor
     }
 
     /// 그래디언트 보존 여부 확인
@@ -419,16 +413,10 @@ impl Variable<f32> {
     /// - `enableBackpropagation` 기능 전용 메소드
     ///
     /// # 반환 값
-    /// - Option<Tensor<f32>>: 현재 저장된 그래디언트 또는 None
-    pub fn grad(&self) -> Option<&Tensor<f32>> {
-        let a = unsafe { self.grad_ptr().as_ref() }.expect("Tensor is qudtls");
-        a.as_ref()
+    /// - Option<Tensor>: 현재 저장된 그래디언트 또는 None
+    pub fn grad(&self) -> Option<&Tensor> {
+        self.grad.as_ref()
     }
-
-    pub fn grad_ptr(&self) -> *mut Option<Tensor<f32>> {
-        self.grad.as_ptr()
-    }
-
 
     /// 그래디언트 값 직접 설정
     ///
@@ -439,8 +427,8 @@ impl Variable<f32> {
     /// # 파라미터
     /// - grad: 설정할 새로운 그래디언트 텐서
     #[cfg(feature = "enableBackpropagation")]
-    pub fn set_grad(&self, grad: Tensor<f32>) {
-        self.grad.replace(Some(grad));
+    pub fn set_grad(&self, grad: Tensor) {
+        self.grad.unwrap().replace(Some(grad));
     }
 
     /// 그래디언트 값 초기화
@@ -466,7 +454,7 @@ impl Variable<f32> {
     /// # 파라미터
     /// - new_grad: 추가할 그래디언트 텐서
     #[cfg(feature = "enableBackpropagation")]
-    pub fn accumulate_grad(&self, new_grad: Tensor<f32>) -> MlResult<()> {
+    pub fn accumulate_grad(&self, new_grad: Tensor) -> MlResult<()> {
         if let Some(existing_grad) = self.grad() {
             // 차원 검증 추가
             if existing_grad.shape() != new_grad.shape() {

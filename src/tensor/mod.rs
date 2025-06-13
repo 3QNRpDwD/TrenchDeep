@@ -210,7 +210,7 @@ macro_rules! scalar  {
 /// - `data`: 텐서의 데이터를 1차원 벡터 형태로 저장
 /// - `shape`: 텐서의 차원을 나타내는 크기 배열 (예: `[행, 열]` 또는 `[채널, 높이, 너비]`)
 #[derive(Debug, Clone)]
-pub struct Tensor<Type> {
+pub struct GlobalTensor<Type> {
     data: Vec<Type>,
     shape: Vec<usize>,
 }
@@ -224,22 +224,25 @@ pub struct Tensor<Type> {
 /// - `requires_grad`: 그래디언트 계산이 필요한지 여부
 /// - `grad`: 역전파를 위한 그래디언트 (옵션으로 저장되며, `RefCell`로 래핑되어 가변성 제공)
 ///   - `enableBackpropagation` 기능이 활성화된 경우에만 포함됨
-pub struct Variable<Type: 'static> {
+pub struct Variable {
     #[cfg(all(feature = "enableVisualization"))]
     label: String,
     #[cfg(all(feature = "enableVisualization"))]
     node_type: NodeType,
     #[cfg(feature = "enableBackpropagation")]
-    var_id: NodeId,
-    tensor: RefCell<Tensor<Type>>,
+    tensor: Tensor,
     requires_grad: RefCell<bool>,
-    grad: std::cell::RefCell<Option<Tensor<Type>>>,
+    grad: Option<Tensor>,
 }
 
 pub struct GlobalFunction (String, NodeId);
 
-impl Function<f32> for GlobalFunction {
-    fn forward(&self, inputs: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+#[derive(Clone)]
+pub struct Tensor (NodeId);
+// 기존의 텐서는 직접 variable 에 소유되는 구조로, 메모리 관리와 정적계산그래프 구현이 불가능하기 때문에 실제 텐서는 전역으로 관리하며 기존의 텐서는 아이디를 통해서 관리하도록 변경함.
+
+impl Function for GlobalFunction {
+    fn forward(&self, inputs: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         OPERATOR_STORAGE.with(|ops| {
             let ops = ops.borrow();
             match ops.get(self.name()) {
@@ -250,7 +253,7 @@ impl Function<f32> for GlobalFunction {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         OPERATOR_STORAGE.with(|ops| {
             let ops = ops.borrow();
             match ops.get(self.name()) {
@@ -297,17 +300,17 @@ impl NodeIdGenerator {
 }
 
 #[cfg(feature = "enableBackpropagation")]
-pub(crate) struct ComputationNode<T: Debug + Clone + 'static> {
+pub(crate) struct ComputationNode {
     id: NodeId,
-    variable: Arc<Variable<T>>,
+    variable: Arc<Variable>,
     function: Option<String>,
     inputs: Vec<NodeId>,
     is_leaf: bool,
 }
 
 #[cfg(feature = "enableBackpropagation")]
-pub(crate) struct ComputationGraph<T: Debug + Clone + 'static> {
-    nodes: Vec<ComputationNode<T>>,
+pub(crate) struct ComputationGraph {
+    nodes: Vec<ComputationNode>,
     node_map: HashMap<NodeId, usize>,
     adjacency_list: Vec<Vec<usize>>,
     reverse_adjacency: Vec<Vec<usize>>,
@@ -340,44 +343,44 @@ pub enum NodeType {
 
 thread_local! {
     #[cfg(feature = "enableBackpropagation")]
-    pub(crate) static COMPUTATION_GRAPH: std::sync::Mutex<ComputationGraph<f32>> = std::sync::Mutex::new(ComputationGraph::new());
-    pub(crate) static OPERATOR_STORAGE: RefCell<HashMap<String, Arc<dyn Function<f32>>>> = RefCell::new(HashMap::new());
-    pub(crate) static GLOBAL_VARIABLES: RefCell<HashMap<NodeId, Arc<Variable<f32>>>> = RefCell::new(HashMap::new());
+    pub(crate) static   COMPUTATION_GRAPH   : std::sync::Mutex<ComputationGraph> = std::sync::Mutex::new(ComputationGraph::new());
+    pub(crate) static   OPERATOR_STORAGE    : RefCell<HashMap<String, Arc<dyn Function>>> = RefCell::new(HashMap::new());
+    pub(crate) static   TENSOR_STORAGE      : RefCell<HashMap<NodeId, GlobalTensor<f32>>> = RefCell::new(HashMap::new());
     #[cfg(feature = "enableVisualization")]
-    pub(crate) static VISUALIZATION_GRAPH: RefCell<VisualizationGraph> = RefCell::new(VisualizationGraph::new());
+    pub(crate) static   VISUALIZATION_GRAPH : RefCell<VisualizationGraph> = RefCell::new(VisualizationGraph::new());
     #[cfg(feature = "enableVisualization")]
-    static LABEL_COUNTERS: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+    static              LABEL_COUNTERS      : RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
     #[cfg(feature = "enableVisualization")]
-    static SHAPE_REGISTRY: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+    static              SHAPE_REGISTRY      : RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
 }
 
 
-impl PartialEq for Tensor<f32> {
+impl PartialEq for Tensor {
     fn eq(&self, other: &Self) -> bool {
-        self.data == other.data && self.shape == other.shape
+        self.data() == other.data() && self.shape() == other.shape()
     }
 }
 
 #[cfg(feature = "enableBackpropagation")]
-impl PartialEq for &Variable<f32> {
-    fn eq(&self, other: &&Variable<f32>) -> bool {
+impl PartialEq for &Variable {
+    fn eq(&self, other: &&Variable) -> bool {
         self.tensor == other.tensor &&
             self.requires_grad == other.requires_grad &&
             self.grad == other.grad
     }
 }
 
-impl Eq for Tensor<f32> {
+impl Eq for Tensor {
     // Todo: 구현 필요
 }
 
-impl PartialOrd for Tensor<f32> {
+impl PartialOrd for Tensor {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.data.partial_cmp(&other.data)
+        self.data().partial_cmp(&other.data())
     }
 }
 
-impl Ord for Tensor<f32> {
+impl Ord for Tensor {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
     }
@@ -389,7 +392,7 @@ impl Ord for Tensor<f32> {
 ///
 /// # 제약
 /// - `Type`: `Debug + Clone` 트레잇을 구현해야 함
-pub trait TensorBase<Type: Debug + Clone> {
+pub trait TensorBase {
     /// 2차원 벡터 데이터를 기반으로 새로운 텐서를 생성합니다.
     ///
     /// # 매개변수
@@ -397,7 +400,7 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 반환값
     /// - `Tensor<Type>`: 생성된 텐서 객체
-    fn new(_data: Vec<Vec<Type>>) -> Self where Self: Sized {
+    fn new(_data: Vec<Vec<f32>>) -> Tensor where Self: Sized {
         unimplemented!(" TensorBase::new() is not implemented ")
     }
 
@@ -412,8 +415,12 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 오류
     /// - 데이터 길이와 형태가 일치하지 않을 경우
-    fn from_vec(_data: Vec<Type>, _shape: &[usize]) -> MlResult<Self> where Self: Sized {
+    fn from_vec(_data: Vec<f32>, _shape: &[usize]) -> MlResult<Tensor> where Self: Sized {
         unimplemented!(" TensorBase::from_vec() is not implemented ")
+    }
+
+    fn as_ptr(&self) -> *const GlobalTensor<f32> {
+        unimplemented!(" TensorBase::tensor_ptr() is not implemented ")
     }
 
     /// 텐서의 형태를 반환합니다.
@@ -428,7 +435,7 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 반환값
     /// - `&[Type]`: 텐서의 데이터를 나타내는 슬라이스
-    fn data(&self) -> &[Type] {
+    fn data(&self) -> &[f32] {
         unimplemented!(" TensorBase::data() is not implemented ")
     }
 
@@ -439,7 +446,7 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 반환값
     /// - `Option<&Type>`: 해당 위치의 값에 대한 참조, 유효하지 않은 인덱스면 `None`
-    fn get(&self, _indices: &[usize]) -> Option<&Type> {
+    fn get(&self, _indices: &[usize]) -> Option<&f32> {
         unimplemented!(" TensorBase::get() is not implemented ")
     }
 
@@ -464,7 +471,7 @@ pub trait TensorBase<Type: Debug + Clone> {
     ///
     /// # 오류
     /// - 두 텐서의 형태가 일치하지 않을 경우
-    fn chk_shape(&self, other: &dyn TensorBase<Type>) -> MlResult<()> {
+    fn chk_shape(&self, other: &dyn TensorBase) -> MlResult<()> {
         if self.shape() == other.shape() {
             Ok(())
         } else {
@@ -507,12 +514,12 @@ pub trait TensorBase<Type: Debug + Clone> {
 /// # 제약 사항
 /// - 현재 버전에서는 다중 입력/출력에 대한 역전파를 지원하지 않음
 /// - f32 데이터 타입 전용으로 특화됨
-pub trait AutogradFunction<Type: Debug + Clone>: Function<Type> {
-    fn apply(&self, _inputs: &[&Arc<Variable<Type>>]) -> MlResult<Arc<Variable<Type>>> {
+pub trait AutogradFunction: Function {
+    fn apply(&self, _inputs: &[&Arc<Variable>]) -> MlResult<Arc<Variable>> {
         unimplemented!(" AutogradFunction::apply() not implemented for this type")
     }
 
-    fn apply_with_label(&self, inputs: &[&Arc<Variable<f32>>], label: &str) -> MlResult<Arc<Variable<f32>>> {
+    fn apply_with_label(&self, inputs: &[&Arc<Variable>], label: &str) -> MlResult<Arc<Variable>> {
         unimplemented!(" AutogradFunction::apply_with_label() not implemented for this type")
     }
 }
@@ -523,7 +530,7 @@ mod tests {
     use crate::tensor::{Tensor, TensorBase};
     use crate::MlResult;
 
-    pub fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
+    pub fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
         Ok(())

@@ -1,11 +1,11 @@
 use super::*;
 
-impl Function<f32> for Tanh {
+impl Function for Tanh {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(Tanh)
     }
 
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         let x = targets[0];
         let pos_exp = self.backend.exp(&x.data());
         let neg_exp = self.backend.exp(&x.data().iter().map(|&val| -val).collect::<Vec<f32>>());
@@ -29,7 +29,7 @@ impl Function<f32> for Tanh {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let tanh_output = targets[0];
         let ones = vec![1.0f32; tanh_output.data().len()];
 

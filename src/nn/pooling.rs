@@ -1,6 +1,6 @@
 use super::*;
 
-impl Layer<f32> for Pooling<f32> {
+impl Layer for Pooling {
     fn new() -> MlResult<Self> {
         todo!()
     }
@@ -21,7 +21,7 @@ impl Layer<f32> for Pooling<f32> {
         todo!()
     }
 
-    fn forward(&self, _input: &Tensor<f32>) -> MlResult<Tensor<f32>> {
+    fn forward(&self, _input: &Tensor) -> MlResult<Tensor> {
         todo!()
     }
 }

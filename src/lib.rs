@@ -115,7 +115,7 @@ mod benchmark {
     use crate::{scalar, var_input, var_with_label, variable, MlResult};
     use std::sync::Arc;
 
-    fn assert_tensor_eq(tensor: &Tensor<f32>, expected_tensor: &Tensor<f32>) -> MlResult<()> {
+    fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
         if tensor.shape() != expected_tensor.shape() {
             return Err("Shape mismatch".into());
         }
@@ -132,7 +132,7 @@ mod benchmark {
         Ok(())
     }
 
-    fn sphere_function(x: &Arc<Variable<f32>>, y: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
+    fn sphere_function(x: &Arc<Variable>, y: &Arc<Variable>) -> MlResult<Arc<Variable>> {
         let square = Square::new()?;
         let add = Add::new()?;
 
@@ -142,7 +142,7 @@ mod benchmark {
         )
     }
 
-    fn matyas_function(x: &Arc<Variable<f32>>, y: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
+    fn matyas_function(x: &Arc<Variable>, y: &Arc<Variable>) -> MlResult<Arc<Variable>> {
         let sub = Sub::new()?;
         let mul = Mul::new()?;
         let O_26 = Arc::new(variable!(vec![vec![0.26]]));
@@ -155,9 +155,9 @@ mod benchmark {
         ])
     }
 
-    fn goldstein_price_function(x: &Arc<Variable<f32>>, y: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
+    fn goldstein_price_function(x: &Arc<Variable>, y: &Arc<Variable>) -> MlResult<Arc<Variable>> {
         // Helper function to create constant variables
-        fn constant(value: f32) -> Arc<Variable<f32>> {
+        fn constant(value: f32) -> Arc<Variable> {
             let scalar = scalar!(value);
             var_with_label!(scalar, &value.to_string())
         }
@@ -243,7 +243,7 @@ mod benchmark {
         mul.apply_with_label(&[&first_part, &second_part], "output")
     }
 
-    fn rosenbrock_function(x0: &Arc<Variable<f32>>, x1: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
+    fn rosenbrock_function(x0: &Arc<Variable>, x1: &Arc<Variable>) -> MlResult<Arc<Variable>> {
         let sub = Sub::new()?;
         let add = Add::new()?;
         let square = Square::new()?;

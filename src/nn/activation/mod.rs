@@ -5,15 +5,15 @@ pub mod softmax;
 
 use super::*;
 
-pub trait Activation<Type: Debug + Clone>: Function<Type> {
+pub trait Activation: Function {
     fn new() -> MlResult<GlobalFunction> where Self: Sized {
-        <Self as Function<Type>>::new()
+        <Self as Function>::new()
     }
 }
 
-impl<T: Function<f32> + Clone> Activation<f32> for T {
+impl<T: Function> Activation for T {
     fn new() -> MlResult<GlobalFunction> where Self: Sized {
-        <Self as Function<f32>>::new()
+        <Self as Function>::new()
     }
 }
 

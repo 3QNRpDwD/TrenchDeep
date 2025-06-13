@@ -1,7 +1,7 @@
 use super::*;
 
 #[cfg(feature = "enableBackpropagation")]
-impl Variable<f32> {
+impl Variable {
     pub fn tpye_name(&self) -> String {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown").replace("<f32>", "")
     }
@@ -14,7 +14,7 @@ impl Variable<f32> {
     /// 3. Links the operation to its input variables in the graph
     ///
     /// # Arguments
-    /// * `function` - The mathematical operation to record for backward pass (must implement `Function<f32>`)
+    /// * `function` - The mathematical operation to record for backward pass (must implement `Function`)
     /// * `inputs` - Reference to input variables used in this operation (must already exist in computation graph)
     ///
     /// # Returns
@@ -36,7 +36,7 @@ impl Variable<f32> {
     /// - Uses Arc pointer equality checks for existing graph node detection
     /// - Maintains DAG structure through node ID tracking
     /// - Operation nodes store backward function and input relationships
-    pub fn with_grad_fn(self: Arc<Self>, operator_name: &str, inputs: &[&Arc<Variable<f32>>]) {
+    pub fn with_grad_fn(self: Arc<Self>, operator_name: &str, inputs: &[&Arc<Variable>]) {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
 
@@ -112,7 +112,7 @@ impl Variable<f32> {
 }
 
 #[cfg(feature = "enableBackpropagation")]
-impl ComputationGraph<f32> {
+impl ComputationGraph {
     /// 새로운 계산 그래프를 생성합니다.
     ///
     /// 이 메서드는 노드와 관련 데이터를 저장할 빈 `ComputationGraph` 인스턴스를 초기화합니다.
@@ -140,7 +140,7 @@ impl ComputationGraph<f32> {
     ///
     /// # 반환값
     /// - `NodeId`: 추가된 노드의 고유 식별자
-    pub(crate) fn add_input(&mut self, variable: Arc<Variable<f32>>) -> NodeId {
+    pub(crate) fn add_input(&mut self, variable: Arc<Variable>) -> NodeId {
         let node_id = variable.node_id();
         let node_idx = self.nodes.len();
         
@@ -181,16 +181,16 @@ impl ComputationGraph<f32> {
     ///
     /// # 반환값
     /// - `NodeId`: 추가된 연산 노드의 고유 식별자
-    pub(crate) fn add_operation(&mut self, variable: Arc<Variable<f32>>, operator_name: &str, inputs: Vec<NodeId>) -> NodeId {
+    pub(crate) fn add_operation(&mut self, variable: Arc<Variable>, operator_name: &str, inputs: Vec<NodeId>) -> NodeId {
         #[cfg(feature = "enableVisualization")]
         VISUALIZATION_GRAPH.with(|viz_graph| {
             let mut viz = viz_graph.borrow_mut();
-            viz.register_operation(operator_name, &inputs, variable.var_id);
-            viz.add_variable_node(&format!("{:?}", variable.var_id), &variable.label, &variable.node_type);
+            viz.register_operation(operator_name, &inputs, variable.node_id());
+            viz.add_variable_node(&format!("{:?}", variable.node_id()), &variable.label, &variable.node_type);
         });
 
 
-        let output_id = variable.var_id;
+        let output_id = variable.node_id();
         let output_idx = self.nodes.len();
 
         // 입력 노드들의 인덱스 찾기
@@ -305,8 +305,8 @@ impl ComputationGraph<f32> {
         let output_var = &self.nodes[output_idx].variable;
         if output_var.grad().is_none() {
             let grad = Tensor::from_vec(
-                vec![1.0; output_var.tensor.borrow().shape().iter().product()],
-                output_var.tensor.borrow().shape()
+                vec![1.0; output_var.tensor.shape().iter().product()],
+                output_var.tensor.shape()
             )?;
             output_var.set_grad(grad);
         }
@@ -318,13 +318,13 @@ impl ComputationGraph<f32> {
             let grad = var.grad();
             if node.function.is_none() || grad.is_none() { continue; }
             let function = node.function.as_ref().unwrap();
-            let input_tensors: Vec<&Tensor<f32>> = node.inputs
+            let input_tensors: Vec<&Tensor> = node.inputs
                 .iter()
                 .map(|&input_id| {
                     let input_idx = self.node_map[&input_id];
                     self.nodes[input_idx].variable.tensor()
                 })
-                .collect::<Vec<&Tensor<f32>>>();
+                .collect::<Vec<&Tensor>>();
 
             let output_grad = grad.unwrap();
             let input_grads = OPERATOR_STORAGE.with(|ops| ops.borrow().get(function).unwrap().backward(&input_tensors, &output_grad)
@@ -874,9 +874,9 @@ impl VisualizationGraph {
 
 
 
-impl AutogradFunction<f32> for GlobalFunction {
-    fn apply(&self, inputs: &[&Arc<Variable<f32>>]) -> MlResult<Arc<Variable<f32>>> {
-        let tensors: Vec<&Tensor<f32>> = inputs
+impl AutogradFunction for GlobalFunction {
+    fn apply(&self, inputs: &[&Arc<Variable>]) -> MlResult<Arc<Variable>> {
+        let tensors: Vec<&Tensor> = inputs
             .iter()
             .map(|&var| var.tensor()).collect();
         let output = Arc::new(Variable::new(self.forward(&tensors)?.remove(0)));
@@ -894,8 +894,8 @@ impl AutogradFunction<f32> for GlobalFunction {
         Ok(output)
     }
 
-    fn apply_with_label(&self, inputs: &[&Arc<Variable<f32>>], label: &str) -> MlResult<Arc<Variable<f32>>> {
-        let tensors: Vec<&Tensor<f32>> = inputs
+    fn apply_with_label(&self, inputs: &[&Arc<Variable>], label: &str) -> MlResult<Arc<Variable>> {
+        let tensors: Vec<&Tensor> = inputs
             .iter()
             .map(|&var| var.tensor()).collect();
         let output = crate::var_with_label!(self.forward(&tensors)?.remove(0), label);

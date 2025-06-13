@@ -1,12 +1,12 @@
 use super::*;
 
-impl Function<f32> for Softmax {
+impl Function for Softmax {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(Softmax)
     }
     
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let softmax_output = targets[0];
         let ones = vec![1.0f32; softmax_output.data().len()];
         

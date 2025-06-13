@@ -1,10 +1,10 @@
 use super::*;
 
-impl Function<f32> for MeanSquaredError {
+impl Function for MeanSquaredError {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(MeanSquaredError)
     }
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         let pred = targets[0];
         let target = targets[1];
 
@@ -22,7 +22,7 @@ impl Function<f32> for MeanSquaredError {
         Ok(vec![scalar!(squared_error / n)])
     }
 
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let pred = targets[0];
         let target = targets[1];
         let n = pred.data().len() as f32;
@@ -52,11 +52,11 @@ impl Function<f32> for MeanSquaredError {
 }
 
 
-impl Function<f32> for MeanAbsoluteError {
+impl Function for MeanAbsoluteError {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(MeanAbsoluteError)
     }
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         let pred = targets[0];
         let target = targets[1];
 
@@ -73,7 +73,7 @@ impl Function<f32> for MeanAbsoluteError {
         Ok(vec![scalar!(abs_error / n)])
     }
 
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let pred = targets[0];
         let target = targets[1];
         let n = pred.data().len() as f32;
@@ -103,7 +103,7 @@ impl Function<f32> for MeanAbsoluteError {
 }
 
 
-impl Function<f32> for HuberLoss {
+impl Function for HuberLoss {
     fn new() -> MlResult<GlobalFunction> {
         OPERATOR_STORAGE.with(|ops| {
             let my = "HuberLoss";
@@ -121,7 +121,7 @@ impl Function<f32> for HuberLoss {
         })
     }
 
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         let pred = targets[0];
         let target = targets[1];
 
@@ -147,7 +147,7 @@ impl Function<f32> for HuberLoss {
         Ok(vec![scalar!(huber_error / n)])
     }
 
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let pred = targets[0];
         let target = targets[1];
         let n = pred.data().len() as f32;
@@ -181,12 +181,12 @@ impl Function<f32> for HuberLoss {
     }
 }
 
-impl Function<f32> for BinaryCrossEntropy {
+impl Function for BinaryCrossEntropy {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(BinaryCrossEntropy)
     }
 
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         let pred = targets[0];
         let target = targets[1];
 
@@ -206,7 +206,7 @@ impl Function<f32> for BinaryCrossEntropy {
         Ok(vec![scalar!(bce_loss / n)])
     }
 
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let pred = targets[0];
         let target = targets[1];
         let n = pred.data().len() as f32;
@@ -239,12 +239,12 @@ impl Function<f32> for BinaryCrossEntropy {
 
 // ===== CategoricalCrossEntropy =====
 
-impl Function<f32> for CategoricalCrossEntropy {
+impl Function for CategoricalCrossEntropy {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(CategoricalCrossEntropy)
     }
 
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         let pred = targets[0];
         let target = targets[1]; // Assumes target is one-hot encoded
 
@@ -267,7 +267,7 @@ impl Function<f32> for CategoricalCrossEntropy {
     }
 
 
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let pred = targets[0];
         let target = targets[1];
         let grad_val = grad.data()[0];

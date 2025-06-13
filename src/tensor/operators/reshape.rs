@@ -1,6 +1,6 @@
 use super::*;
 
-impl Function<f32> for Reshape {
+impl Function for Reshape {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(Reshape)
     }
@@ -13,7 +13,7 @@ impl Function<f32> for Reshape {
     ///
     /// # Returns
     /// A new tensor with the specified shape.
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         let target = targets[0];
         let target_shape = target.shape();
         let target_size: usize = target_shape.iter().product();
@@ -28,11 +28,11 @@ impl Function<f32> for Reshape {
             }));
         }
 
-        Ok(vec![Tensor::<f32>::from_vec(target.data().to_vec(), new_shape)?])
+        Ok(vec![Tensor::from_vec(target.data().to_vec(), new_shape)?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let target = targets[0];
         let target_shape = target.shape();
         let target_size: usize = target_shape.iter().product();
@@ -46,7 +46,7 @@ impl Function<f32> for Reshape {
             }));
         }
 
-        Ok(vec![Tensor::<f32>::from_vec(grad.data().to_vec(), target_shape)?])
+        Ok(vec![Tensor::from_vec(grad.data().to_vec(), target_shape)?])
     }
     
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

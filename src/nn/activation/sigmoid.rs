@@ -1,11 +1,11 @@
 use super::*;
 
-impl Function<f32> for Sigmoid {
+impl Function for Sigmoid {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(Sigmoid)
     }
     
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         let x = targets[0];
         let ones = vec![1.0f32; x.data().len()];
         Ok(vec![
@@ -17,7 +17,7 @@ impl Function<f32> for Sigmoid {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let sigmoid_output = targets[0];
         // σ'(x) = σ(x) * (1 - σ(x))
         // ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * σ'(x)

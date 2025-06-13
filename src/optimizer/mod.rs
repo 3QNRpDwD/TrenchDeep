@@ -37,21 +37,21 @@ pub trait Optimizer<T: Debug + Clone> {
     fn step(&self);
     fn zero_grad(&self);
     fn get_params(&self);
-    fn add_params(&self, parm: &dyn Parameter, grad: Option<Tensor<T>>);
+    fn add_params(&self, parm: &dyn Parameter, grad: Option<Tensor>);
     fn get_lr(&self);
     fn set_lr(&self, ln: f32);
 }
 
-impl Function<f32> for BGD {}
-impl Function<f32> for SGD {}
-impl Function<f32> for MiniBGD {}
-impl Function<f32> for Momentum {}
-impl Function<f32> for NAG {}
-impl Function<f32> for AdaGrad {}
-impl Function<f32> for AdaDelta {}
-impl Function<f32> for RMSProp {}
-impl Function<f32> for Adam {}
-impl Function<f32> for AdamW {}
+impl Function for BGD {}
+impl Function for SGD {}
+impl Function for MiniBGD {}
+impl Function for Momentum {}
+impl Function for NAG {}
+impl Function for AdaGrad {}
+impl Function for AdaDelta {}
+impl Function for RMSProp {}
+impl Function for Adam {}
+impl Function for AdamW {}
 
 impl Optimizer<f32> for BGD {
     fn step(&self) {
@@ -66,7 +66,7 @@ impl Optimizer<f32> for BGD {
         todo!()
     }
 
-    fn add_params(&self, parm: &dyn Parameter, grad: Option<Tensor<f32>>) {
+    fn add_params(&self, parm: &dyn Parameter, grad: Option<Tensor>) {
         todo!()
     }
 

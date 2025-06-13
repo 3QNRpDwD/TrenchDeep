@@ -5,8 +5,8 @@ use crate::scalar_ops;
 use crate::tensor::operators::{Function, Matmul, Mul, Sub, Transpose};
 
 pub struct MLP {
-    pub w1: Tensor<f32>, // shape = [hidden_node, input_node + 1]
-    pub w2: Tensor<f32>, // shape = [output_node, hidden_node + 1]
+    pub w1: Tensor, // shape = [hidden_node, input_node + 1]
+    pub w2: Tensor, // shape = [output_node, hidden_node + 1]
 }
 
 impl fmt::Debug for MLP {
@@ -42,7 +42,7 @@ impl MLP {
     ///   - z: 은닉층 활성화값( bias row 포함 ) → shape = [(hidden_node+1), 1]
     ///        z[(0,0)] = 1.0 (bias), z[(1..,0)] = sigmoid(u_h)
     ///   - y: 출력층 활성화값 → shape = [output_node, 1]
-    pub fn forward(&self, x: &Tensor<f32>) -> (Tensor<f32>, Tensor<f32>) {
+    pub fn forward(&self, x: &Tensor) -> (Tensor, Tensor) {
         let sigmoid = Sigmoid::new().unwrap();
         let matmul = Matmul::new().unwrap();
         // 1) x 의 shape = [n_input, 1] 이라고 가정
@@ -55,7 +55,7 @@ impl MLP {
         let xl = Tensor::from_vec(xl_data, &[n_input + 1, 1]).unwrap();
 
         // 3) 은닉층 입력 u_h = w1.matmul(xl) → shape = [hidden, 1]
-        let uh: Tensor<f32> = matmul.forward(&[&self.w1, &xl]).unwrap().remove(0);
+        let uh: Tensor = matmul.forward(&[&self.w1, &xl]).unwrap().remove(0);
 
         // 4) 은닉층 활성화 a_h = sigmoid(u_h) → shape = [hidden, 1]
         let a_h = sigmoid.forward(&[&uh]).unwrap().remove(0);
@@ -66,7 +66,7 @@ impl MLP {
         let z = Tensor::from_vec(z_data, &[n_hidden + 1, 1]).unwrap();
 
         // 5) 출력층 입력 u_o = w2.matmul(z) → shape = [output, 1]
-        let uo: Tensor<f32> = matmul.forward(&[&self.w2, &z]).unwrap().remove(0);
+        let uo: Tensor = matmul.forward(&[&self.w2, &z]).unwrap().remove(0);
 
         // 6) 출력층 활성화 y = sigmoid(uo) → shape = [output, 1]
         let y = sigmoid.forward(&[&uo]).unwrap().remove(0);
@@ -76,8 +76,8 @@ impl MLP {
 
     pub fn train(
         &mut self,
-        X: &Vec<Tensor<f32>>,
-        T: &Vec<Tensor<f32>>,
+        X: &Vec<Tensor>,
+        T: &Vec<Tensor>,
         eta: f32,
         max_iter: usize,
         tol: f32,
@@ -140,13 +140,13 @@ impl MLP {
 
                 let uh = matmul.forward(&[&self.w1, &xl]).unwrap().remove(0); // shape [hidden, 1]
                 let n_hidden = uh.shape()[0];
-                let a_h: Tensor<f32> = sigmoid.forward(&[&uh]).unwrap().remove(0);       // shape [hidden, 1]
+                let a_h: Tensor = sigmoid.forward(&[&uh]).unwrap().remove(0);       // shape [hidden, 1]
 
                 // d_sig_h: sigmoid'(u_h) = a_h * (1 - a_h)
                 // d_sig_h: sigmoid'(u_h) = a_h * (1 - a_h)
                 let d_sig_h = &a_h * &(Tensor::ones(&[n_hidden, 1]) - &a_h);
                 // δ_j = tmp ∘ d_sig_h  (element-wise 곱) → shape [hidden, 1]
-                let delta_j: Tensor<f32> = tmp * d_sig_h;
+                let delta_j: Tensor = tmp * d_sig_h;
 
                 // === 은닉층 가중치 기울기 dw1 계산 ===
                 // dw1 = delta_j ⋅ xlᵀ   → [hidden,1] ⋅ [1, input+1] = [hidden, input+1]
@@ -174,7 +174,7 @@ impl MLP {
     /// 전체 데이터(X, T)에 대해 “평균 제곱 오차”를 계산
     ///
     /// Python: E = Σ (y - t)²  → E / N
-    fn compute_error(&self, X: &Vec<Tensor<f32>>, T: &Vec<Tensor<f32>>) -> f32 {
+    fn compute_error(&self, X: &Vec<Tensor>, T: &Vec<Tensor>) -> f32 {
         Sub::new().unwrap();
         Mul::new().unwrap();
         let mut sum_e = 0.0_f32;

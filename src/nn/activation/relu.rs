@@ -1,11 +1,11 @@
 use super::*;
 
-impl Function<f32> for ReLu {
+impl Function for ReLu {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(ReLu)
     }
 
-    fn forward(&self, x: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+    fn forward(&self, x: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         // ReLU(x) = max(0, x)
         let result = x[0].data().iter()
             .map(|&val| if val > 0.0 { val } else { 0.0 })
@@ -15,7 +15,7 @@ impl Function<f32> for ReLu {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, target: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, target: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let relu_output = target[0];
 
         // ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * mask

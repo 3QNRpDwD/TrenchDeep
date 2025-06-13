@@ -1,6 +1,6 @@
 use super::*;
 
-impl Function<f32> for Topk {
+impl Function for Topk {
     fn new() -> MlResult<GlobalFunction> {
         OPERATOR_STORAGE.with(|ops| {
             let my = "Topk";
@@ -25,7 +25,7 @@ impl Function<f32> for Topk {
     ///
     /// # Returns
     /// A tuple of two tensors (values, indices) containing the top k values and their indices
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         if self.topk.unwrap().0 == 0 {
             return Err(MlError::TensorError(TensorError::InvalidOperation {
                 op: "topk",
@@ -80,11 +80,11 @@ impl Function<f32> for Topk {
         let mut new_shape = targets[0].shape().to_vec();
         new_shape[last_dim] = self.topk.unwrap().0;
 
-        Ok(vec![Tensor::<f32>::from_vec(values, &new_shape)?, Tensor::<f32>::from_vec(indices, &new_shape)?])
+        Ok(vec![Tensor::from_vec(values, &new_shape)?, Tensor::from_vec(indices, &new_shape)?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor<f32>], grad: &Tensor<f32>) -> MlResult<Vec<Tensor<f32>>> {
+    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         todo!()
     }
 
