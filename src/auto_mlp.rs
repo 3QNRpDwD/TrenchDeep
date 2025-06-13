@@ -4,8 +4,8 @@ use crate::nn::activation::Sigmoid;
 use crate::tensor::Variable;
 use std::fmt;
 use std::sync::Arc;
-use crate::tensor::operators::{Add, Function, Matmul, Square, Sub, Sum};
-use crate::{MlResult, var_with_label};
+use crate::tensor::operators::{Add, Function, Matmul, Mul, Square, Sub, Sum};
+use crate::{MlResult, scalar, var_with_label};
 
 pub struct MLP {
     pub w1: Arc<Variable<f32>>, // shape = [hidden_node, input_node + 1]
@@ -30,19 +30,6 @@ impl MLP {
     /// n_hidden: 은닉 뉴런 개수
     /// n_output: 출력 뉴런 개수
     pub fn new(n_input: usize, n_hidden: usize, n_output: usize) -> Self {
-        // // w1: (hidden × (input+1)) 크기, rand 범위 [0,1) → [-0.1, +0.1) 로 변환
-        // let w1_rand = Tensor::rand(&[n_hidden, n_input + 1]);
-        // let w1_data: Vec<f32> = w1_rand.data().iter().map(|x| x * 0.2 - 0.1).collect();
-        // let w1_tensor = Tensor::from_vec(w1_data, &[n_hidden, n_input + 1]).unwrap();
-        // let w1 = Arc::new(Variable::new(w1_tensor));
-        //
-        // // w2: (output × (hidden+1)) 크기, 동일하게 초기화
-        // let w2_rand = Tensor::rand(&[n_output, n_hidden + 1]);
-        // let w2_data: Vec<f32> = w2_rand.data().iter().map(|x| x * 0.2 - 0.1).collect();
-        // let w2_tensor = Tensor::from_vec(w2_data, &[n_output, n_hidden + 1]).unwrap();
-        // let w2 = Arc::new(Variable::new(w2_tensor));
-        //
-        // MLP { w1, w2 }
         let w1_data: Vec<f32> = (0..n_hidden * n_input)
             .map(|_| rand::random::<f32>() * 0.5 - 0.25)
             .collect();
@@ -120,6 +107,7 @@ impl MLP {
         let n_samples = X.len();
         let mut resid = tol * 2.0;
         let mut iter = 1;
+        let lr = scalar!(eta);
 
         // 초기 오차 계산
         let mut e_prev = self.compute_error(X, T)?;
@@ -128,7 +116,6 @@ impl MLP {
         while resid >= tol && iter <= max_iter {
             // 1 epoch 동안 샘플별로 순전파→역전파→업데이트
             for m in 0..n_samples {
-                crate::tensor::ComputationGraph::reset_graph();
                 let x_m = &X[m];
                 let t_m = &T[m];
 
@@ -150,7 +137,9 @@ impl MLP {
                     loss.backward()?;
 
                     // 가중치 업데이트: w = w - η * grad_w
-                    self.update_weights(eta)?;
+                    Mul::new()?;
+                    self.w1.sub_tensor(self.w1.grad().unwrap() * &lr);
+                    self.w2.sub_tensor(self.w2.grad().unwrap() * &lr);
 
                     // 기울기 초기화
                     self.zero_grad()?;
@@ -188,49 +177,6 @@ impl MLP {
         }
 
         Ok(sum_e / n)
-    }
-
-    fn sum_variable(&self, a: &Arc<Variable<f32>>) -> MlResult<Arc<Variable<f32>>> {
-        // Sum all elements to scalar
-        let a_data = a.tensor().data();
-        let sum: f32 = a_data.iter().sum();
-
-        let result_tensor = Tensor::from_vec(vec![sum], &[1, 1]).unwrap();
-        Ok(Arc::new(Variable::new(result_tensor)))
-    }
-
-    #[cfg(feature = "enableBackpropagation")]
-    fn update_weights(&mut self, eta: f32) -> MlResult<()> {
-        // w1 업데이트
-        if let Some(grad_w1) = self.w1.grad() {
-            let w1_data = self.w1.tensor().data();
-            let grad_data = grad_w1.data();
-            let shape = self.w1.tensor().shape();
-
-            let updated_data: Vec<f32> = w1_data.iter().zip(grad_data.iter())
-                .map(|(w, g)| w - eta * g)
-                .collect();
-
-            let updated_tensor = Tensor::from_vec(updated_data, shape)?;
-            self.w1 = Arc::new(Variable::new(updated_tensor));
-        }
-
-        // w2 업데이트
-        if let Some(grad_w2) = self.w2.grad() {
-            let w2_data = self.w2.tensor().data();
-            let shape = self.w2.tensor().shape();
-            let grad_data = grad_w2.data();
-            
-
-            let updated_data: Vec<f32> = w2_data.iter().zip(grad_data.iter())
-                .map(|(w, g)| w - eta * g)
-                .collect();
-
-            let updated_tensor = Tensor::from_vec(updated_data, shape).unwrap();
-            self.w2 = Arc::new(Variable::new(updated_tensor));
-        }
-
-        Ok(())
     }
 
     #[cfg(feature = "enableBackpropagation")]
@@ -282,7 +228,7 @@ mod tests {
         }
 
         // 학습 (자동미분 사용)
-        mlp.train(&X, &T, 0.05, 0, 1e-6)?;
+        mlp.train(&X, &T, 0.05, 1, 1e-6)?;
 
         #[cfg(feature = "enableVisualization")]
         {

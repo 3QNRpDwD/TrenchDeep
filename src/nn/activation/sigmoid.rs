@@ -18,22 +18,30 @@ impl Function for Sigmoid {
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
-        let sigmoid_output = targets[0];
+        let input_x = targets[0];
         // σ'(x) = σ(x) * (1 - σ(x))
         // ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * σ'(x)
 
+        //시그모이드 출력값 σ(x)
+        let neg_x_data = input_x.data().iter().map(|&v| -v).collect::<Vec<f32>>();
+        let ones = vec![1.0f32; input_x.data().len()];
+        let exp_neg_x = self.backend.exp(&neg_x_data);
+        let one_plus_exp = self.backend.add(&ones, &exp_neg_x);
+        let sigmoid_output_data = self.backend.div(&ones, &one_plus_exp); // σ(x)
+
+        // derivative = σ(x) * (1 - σ(x))
+        let derivative = self.backend.multiply(
+            &sigmoid_output_data,
+            &self.backend.sub(
+                &ones,
+                &sigmoid_output_data
+            )
+        );
+
+        // 최종 그래디언트: ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * derivative
         Ok(vec![
             Tensor::from_vec(
-                self.backend.multiply(
-                    &grad.data(),
-                    &self.backend.multiply(
-                        &sigmoid_output.data(),
-                        &self.backend.sub(
-                            &vec![1.0f32; sigmoid_output.data().len()],
-                            &sigmoid_output.data()
-                        )
-                    )
-                ),
+                self.backend.multiply(&grad.data(), &derivative),
                 grad.shape()
             )?
         ])
