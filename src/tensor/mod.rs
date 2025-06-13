@@ -507,9 +507,13 @@ pub trait TensorBase<Type: Debug + Clone> {
 /// # 제약 사항
 /// - 현재 버전에서는 다중 입력/출력에 대한 역전파를 지원하지 않음
 /// - f32 데이터 타입 전용으로 특화됨
-pub trait AutogradFunction<Type: Debug + Clone>: Function<Type> + Clone where Self: 'static {
+pub trait AutogradFunction<Type: Debug + Clone>: Function<Type> {
     fn apply(&self, _inputs: &[&Arc<Variable<Type>>]) -> MlResult<Arc<Variable<Type>>> {
         unimplemented!(" AutogradFunction::apply() not implemented for this type")
+    }
+
+    fn apply_with_label(&self, inputs: &[&Arc<Variable<f32>>], label: &str) -> MlResult<Arc<Variable<f32>>> {
+        unimplemented!(" AutogradFunction::apply_with_label() not implemented for this type")
     }
 }
 

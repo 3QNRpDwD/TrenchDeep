@@ -1,3 +1,7 @@
+use crate::backend::BackendError;
+use crate::loss::LossError;
+use crate::optimizer::OptimError;
+
 pub mod tensor;
 pub mod backend;
 pub mod nn;
@@ -37,22 +41,50 @@ impl std::error::Error for TensorError {}
 #[derive(Debug)]
 pub enum MlError {
     TensorError(TensorError),
+    LossError(LossError),
     StringError(String),
+    BackendError(BackendError),
+    OptimError(OptimError),
 }
 
+
+
 impl std::error::Error for MlError {}
+
 
 impl From<TensorError> for MlError {
     fn from(error: TensorError) -> Self {
         MlError::TensorError(error)
     }
 }
+
+impl From<LossError> for MlError {
+    fn from(error: LossError) -> Self {
+        MlError::LossError(error)
+    }
+}
+
 impl From<MlError> for TensorError {
     fn from(val: MlError) -> Self {
         match val {
             MlError::TensorError(e) => e,
             _ => unreachable!(),
         }
+    }
+}
+
+impl From<MlError> for LossError {
+    fn from(val: MlError) -> Self {
+        match val {
+            MlError::LossError(e) => e,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl From<BackendError> for MlError {
+    fn from(error: BackendError) -> Self {
+        MlError::BackendError(error)
     }
 }
 
@@ -68,12 +100,18 @@ impl From<&str> for MlError {
     }
 }
 
+impl From<OptimError> for MlError {
+    fn from(error: OptimError) -> Self {
+        MlError::OptimError(error)
+    }
+}
+
 pub type MlResult<T> = Result<T, MlError>;
 
 #[cfg(test)]
 mod benchmark {
     use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
-    use crate::tensor::{Tensor, TensorBase, Variable};
+    use crate::tensor::{AutogradFunction, Tensor, TensorBase, Variable};
     use crate::{scalar, var_input, var_with_label, variable, MlResult};
     use std::sync::Arc;
 

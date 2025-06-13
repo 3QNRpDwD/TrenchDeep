@@ -28,13 +28,21 @@ pub trait Backend: Debug + Send + Sync {
 
 #[derive(Debug)]
 pub enum BackendError {
+    CpuError(String),
     Other(String),
 }
 
 impl Display for BackendError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            BackendError::CpuError(e) => write!(f, "{}", e),
             BackendError::Other(s) => write!(f, "{}", s),
         }
+    }
+}
+
+impl From<String> for BackendError {
+    fn from(err: String) -> Self {
+        BackendError::CpuError(err)
     }
 }

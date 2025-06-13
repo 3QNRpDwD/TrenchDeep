@@ -13,6 +13,7 @@ debugging = [] # 디버깅이 필요할 경우 사용
 [dependencies]
 petgraph = "0.8.1"
 rand = "0.9.1"
+log = "0.4.27"
 
 [profile.dev]
 debug = true

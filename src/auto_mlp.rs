@@ -1,5 +1,5 @@
 
-use crate::tensor::{OPERATOR_STORAGE, Tensor, TensorBase};
+use crate::tensor::{OPERATOR_STORAGE, Tensor, TensorBase, AutogradFunction};
 use crate::nn::activation::Sigmoid;
 use crate::tensor::Variable;
 use std::fmt;

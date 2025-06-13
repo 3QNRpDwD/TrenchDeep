@@ -1,7 +1,7 @@
 use super::*;
 
 impl Display for TensorError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             TensorError::InvalidShape { expected, got } => {
                 write!(f, "Invalid shape: expected {:?}, got {:?}", expected, got)
@@ -32,7 +32,10 @@ impl Display for MlError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             MlError::TensorError(e) => write!(f, "Tensor error: {}", e),
+            MlError::LossError(e) => write!(f, "Loss error: {}", e),
             MlError::StringError(s) => write!(f, "{}", s),
+            MlError::BackendError(e) => write!(f, "Backend error: {}", e),
+            MlError::OptimError(e) => write!(f, "Optimizer error: {}", e),
         }
     }
 }

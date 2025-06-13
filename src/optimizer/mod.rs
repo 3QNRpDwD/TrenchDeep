@@ -1,10 +1,17 @@
-use std::fmt::Debug;
+mod display;
+
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 use crate::backend::Backend;
-use crate::loss::Loss;
 use crate::nn::Parameter;
 use crate::tensor::{NodeId, Tensor};
 use crate::tensor::operators::Function;
+
+
+#[derive(Debug)]
+pub enum OptimError {
+    GradientError(String),
+}
 
 pub struct BGD { backend: Arc<dyn Backend>, node_id: NodeId }
 
@@ -26,7 +33,7 @@ pub struct Adam { backend: Arc<dyn Backend>, node_id: NodeId }
 
 pub struct AdamW { backend: Arc<dyn Backend>, node_id: NodeId }
 
-pub trait Optimizer<T: Debug + Clone>: Function<T> {
+pub trait Optimizer<T: Debug + Clone> {
     fn step(&self);
     fn zero_grad(&self);
     fn get_params(&self);

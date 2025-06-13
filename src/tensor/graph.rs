@@ -874,33 +874,41 @@ impl VisualizationGraph {
 
 
 
-impl<F: Function<f32> + Clone +  'static> AutogradFunction<f32> for F {
+impl AutogradFunction<f32> for GlobalFunction {
     fn apply(&self, inputs: &[&Arc<Variable<f32>>]) -> MlResult<Arc<Variable<f32>>> {
         let tensors: Vec<&Tensor<f32>> = inputs
             .iter()
             .map(|&var| var.tensor()).collect();
-        let input = Arc::new(Variable::new(self.forward(&tensors)?.remove(0)));
+        let output = Arc::new(Variable::new(self.forward(&tensors)?.remove(0)));
 
         #[cfg(feature = "enableBackpropagation")]
         {
-            OPERATOR_STORAGE.with(|g_ops| {
-                let mut ops = g_ops.borrow_mut();
-                let type_name = self.type_name().to_string();
-                match ops.contains_key(&type_name) { 
-                    true => input.clone().with_grad_fn(self.type_name(), inputs),
-                    false => {
-                        input.clone().with_grad_fn(&type_name, inputs);
-                        ops.insert(type_name, Arc::new(self.clone()));
-                    }
-                }
-            });
-            return Ok(input)
+            output.clone().with_grad_fn(self.name(), inputs);
+            return Ok(output)
         }
         // 정적계산 그래프를 통해서 메모리 효율성을 증대하려 했으나, 사전에 텐서의 정보가 주입되지 않으면 메모리 관리가 어려워,
         // 무산될것으로 예상되며, 정적, 동적계산그래프를 전환 가능하도록 향후 추가될것으로 생각하고있음.
         // 따라서 매 계산마다 계산그래프를 갱신하는 현재 구조를 유지하게될것 같은데, 이는 계산그래프 갱신으로 인한 오버헤드가 예상됨.
         // 솔직히 어느 방식을 선택해야할지잘 모르겠음.
 
-        Ok(input)
+        Ok(output)
+    }
+
+    fn apply_with_label(&self, inputs: &[&Arc<Variable<f32>>], label: &str) -> MlResult<Arc<Variable<f32>>> {
+        let tensors: Vec<&Tensor<f32>> = inputs
+            .iter()
+            .map(|&var| var.tensor()).collect();
+        let output = crate::var_with_label!(self.forward(&tensors)?.remove(0), label);
+        #[cfg(feature = "enableBackpropagation")]
+        {
+            output.clone().with_grad_fn(self.name(), inputs);
+            return Ok(output)
+        }
+        // 정적계산 그래프를 통해서 메모리 효율성을 증대하려 했으나, 사전에 텐서의 정보가 주입되지 않으면 메모리 관리가 어려워,
+        // 무산될것으로 예상되며, 정적, 동적계산그래프를 전환 가능하도록 향후 추가될것으로 생각하고있음.
+        // 따라서 매 계산마다 계산그래프를 갱신하는 현재 구조를 유지하게될것 같은데, 이는 계산그래프 갱신으로 인한 오버헤드가 예상됨.
+        // 솔직히 어느 방식을 선택해야할지잘 모르겠음.
+
+        Ok(output)
     }
 }

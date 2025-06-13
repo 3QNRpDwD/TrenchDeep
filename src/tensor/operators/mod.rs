@@ -38,20 +38,28 @@ macro_rules! define_op {
 #[macro_export]
 macro_rules! register_operator {
     ($name:ident) => {
-        OPERATOR_STORAGE.with(|ops| {
-            let my = stringify!($name);
-            let mut ops = ops.borrow_mut();
-            match ops.contains_key(my) {
-                true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
-                false => {
-                    ops.insert(
-                        String::from(my),
-                        Arc::new($name { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
-                    );
-                    Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
-                }
+        {
+        use crate::tensor::NODE_ID_GEN;
+        use crate::tensor::OPERATOR_STORAGE;
+        use crate::backend::CpuBackend;
+        use crate::backend::Device;
+            {
+                OPERATOR_STORAGE.with(|ops| {
+                    let my = stringify!($name);
+                    let mut ops = ops.borrow_mut();
+                    match ops.contains_key(my) {
+                        true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
+                        false => {
+                            ops.insert(
+                                String::from(my),
+                                Arc::new($name { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+                            );
+                            Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
+                        }
+                    }
+                })
             }
-        })
+        }
     };
 }
 
