@@ -1,28 +1,27 @@
 use std::{
     fmt::{
-        Display,
         Debug,
+        Display,
         Formatter,
         Result
     },
-    sync::{Arc}
+    sync::Arc
 };
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::Ordering;
 
-use crate::{
-    backend::{
-        Backend,
-        CpuBackend,
-        Device
-    }
+use crate::backend::{
+    Backend,
+    CpuBackend,
+    Device
 };
 
 pub mod creation;
 pub mod operators;
 pub mod display;
 pub mod graph;
+pub mod visualization;
 
 use crate::{MlError, MlResult, register_operator, tensor::operators::Function, TensorError};
 use crate::tensor::operators::Pow;
@@ -211,8 +210,8 @@ macro_rules! scalar  {
 /// - `shape`: 텐서의 차원을 나타내는 크기 배열 (예: `[행, 열]` 또는 `[채널, 높이, 너비]`)
 #[derive(Debug, Clone)]
 pub struct GlobalTensor<Type> {
-    data: Vec<Type>,
-    shape: Vec<usize>,
+    pub data: Vec<Type>,
+    pub shape: Vec<usize>,
 }
 
 /// 계산 그래프에서 사용되는 변수 구조체입니다.
@@ -229,10 +228,9 @@ pub struct Variable {
     label: String,
     #[cfg(all(feature = "enableVisualization"))]
     node_type: NodeType,
-    #[cfg(feature = "enableBackpropagation")]
     tensor: Tensor,
     requires_grad: RefCell<bool>,
-    grad: Option<Tensor>,
+    grad: RefCell<Option<Tensor>>,
 }
 
 pub struct GlobalFunction (String, NodeId);
@@ -241,12 +239,30 @@ pub struct GlobalFunction (String, NodeId);
 pub struct Tensor (NodeId);
 // 기존의 텐서는 직접 variable 에 소유되는 구조로, 메모리 관리와 정적계산그래프 구현이 불가능하기 때문에 실제 텐서는 전역으로 관리하며 기존의 텐서는 아이디를 통해서 관리하도록 변경함.
 
+impl Tensor {
+    pub fn replace(&self, other_tensor: GlobalTensor<f32>) {
+        TENSOR_STORAGE.with_borrow_mut(|storage| {
+            storage.insert(self.0, other_tensor)
+        });
+    }
+}
+
 impl Function for GlobalFunction {
     fn forward(&self, inputs: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         OPERATOR_STORAGE.with(|ops| {
             let ops = ops.borrow();
             match ops.get(self.name()) {
                 Some(op) => op.forward(inputs),
+                None => Err(MlError::StringError(format!("Function {} is not registered globally.", self.type_name())))
+            }
+        })
+    }
+
+    fn assign_forward(&self, inputs: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+        OPERATOR_STORAGE.with(|ops| {
+            let ops = ops.borrow();
+            match ops.get(self.name()) {
+                Some(op) => op.assign_forward(inputs),
                 None => Err(MlError::StringError(format!("Function {} is not registered globally.", self.type_name())))
             }
         })
@@ -419,6 +435,10 @@ pub trait TensorBase {
         unimplemented!(" TensorBase::from_vec() is not implemented ")
     }
 
+    fn with_id(_data: Vec<f32>, _shape: &[usize], _id: NodeId) -> MlResult<Tensor> where Self: Sized {
+        unimplemented!(" TensorBase::with_id() is not implemented ")
+    }
+
     fn as_ptr(&self) -> *const GlobalTensor<f32> {
         unimplemented!(" TensorBase::tensor_ptr() is not implemented ")
     }
@@ -481,6 +501,36 @@ pub trait TensorBase {
             }))
         }
     }
+
+    fn zeros(shape: &[usize]) -> Tensor where Self: Sized {
+        let size: usize = shape.iter().product();
+        let data = vec![0.0; size];
+        Tensor::from_vec(data, shape).unwrap()
+    }
+
+    fn zeros_like(&self) -> Tensor where Self: Sized {
+        Self::zeros(&self.shape())
+    }
+
+    fn ones(shape: &[usize]) -> Tensor where Self: Sized {
+        let size: usize = shape.iter().product();
+        let data = vec![1.0; size];
+        Tensor::from_vec(data, shape).unwrap()
+    }
+
+    fn ones_like(&self) -> Tensor where Self: Sized {
+        Self::ones(&self.shape())
+    }
+
+    fn rand(shape: &[usize]) -> Tensor where Self: Sized {
+        let size: usize = shape.iter().product();
+        let data: Vec<f32> = (0..size).map(|_| rand::random::<f32>()).collect();
+        Tensor::from_vec(data, shape).unwrap()
+    }
+
+    fn scalar(scalar: f32) -> Tensor where Self: Sized {
+        Tensor::new(vec![vec![scalar]])
+    }
 }
 
 /// 자동 미분(autograd)을 지원하는 함수 트레잇
@@ -526,7 +576,7 @@ pub trait AutogradFunction: Function {
 
 #[cfg(test)]
 mod tests {
-    use crate::tensor::operators::{Abs, Add, Div, Exp, Function, Log, Matmul, Mul, Neg, Pow, Sqrt, Square, Sub};
+    use crate::tensor::operators::{Abs, Add, Div, Exp, Function, Log, Matmul, Mul, Neg, Sqrt, Square, Sub};
     use crate::tensor::{Tensor, TensorBase};
     use crate::MlResult;
 

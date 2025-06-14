@@ -137,12 +137,20 @@ impl Function for Square {
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
-        let gradiant = grad.data().iter()
+        // grad가 scalar이거나 다른 shape일 때 브로드캐스팅
+        let grad_broadcasted = if grad.data().len() == 1 {
+            // grad가 scalar인 경우, targets[0]와 같은 길이로 복제
+            vec![grad.data()[0]; targets[0].data().len()]
+        } else {
+            grad.data().to_vec()
+        };
+
+        let gradient: Vec<f32> = grad_broadcasted.iter()
             .zip(targets[0].data().iter())
-            .map(|(grad_data, target_data)| 2.0  * target_data * grad_data )
+            .map(|(grad_data, target_data)| grad_data * 2.0 * target_data)
             .collect();
 
-        Ok(vec![Tensor::from_vec(gradiant, targets[0].shape())?])
+        Ok(vec![Tensor::from_vec(gradient, targets[0].shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

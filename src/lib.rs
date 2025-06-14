@@ -7,8 +7,8 @@ pub mod backend;
 pub mod nn;
 pub mod optimizer;
 pub mod loss;
-mod mlp;
-mod auto_mlp;
+pub mod mlp;
+pub mod auto_mlp;
 
 #[derive(Debug, Clone)]
 pub enum TensorError {
@@ -110,9 +110,9 @@ pub type MlResult<T> = Result<T, MlError>;
 
 #[cfg(test)]
 mod benchmark {
-    use crate::tensor::operators::{Add, Function, Mul, Pow, Square, Sub};
+    use crate::tensor::operators::{Add, Function, Mul, Square, Sub};
     use crate::tensor::{AutogradFunction, Tensor, TensorBase, Variable};
-    use crate::{scalar, var_input, var_with_label, variable, MlResult};
+    use crate::{MlResult, scalar, var_input, var_with_label, variable};
     use std::sync::Arc;
 
     fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
@@ -334,14 +334,14 @@ mod benchmark {
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
         let x0 = var_input!(Tensor::new(vec![vec![0.0]]));
         let x1 = var_input!(Tensor::new(vec![vec![2.0]]));
-        let iter: usize = 1000;
+        let iter: usize = 100;
         let learning_rate = scalar!(0.001);
 
         for i in 0..iter { // 0부터
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
             
-            if i % 1000 == 0 {
+            if i % 1 == 0 {
                 println!(
                     "iter - {}\n\
             [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
@@ -351,8 +351,8 @@ mod benchmark {
             }
             
             //파라미터 갱신
-            x0.sub_tensor(x0.grad().unwrap() * &learning_rate);
-            x1.sub_tensor(x1.grad().unwrap() * &learning_rate);
+            x0.sub_tensor(x0.grad().unwrap() * &learning_rate)?;
+            x1.sub_tensor( x1.grad().unwrap() * &learning_rate)?;
         }
         Ok(())
     }

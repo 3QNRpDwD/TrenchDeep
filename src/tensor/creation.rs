@@ -1,39 +1,7 @@
 use super::*;
 use std::collections::HashMap;
-use std::ops::{AddAssign, Deref, DivAssign, MulAssign, SubAssign};
-use petgraph::matrix_graph::Nullable;
-
-impl Tensor {
-    pub fn zeros(shape: &[usize]) -> Tensor {
-        let size: usize = shape.iter().product();
-        let data = vec![0.0; size];
-        Tensor::from_vec(data, shape).unwrap()
-    }
-
-    pub fn zeros_like(&self) -> Self {
-        Self::zeros(&self.shape())
-    }
-
-    pub fn ones(shape: &[usize]) -> Tensor {
-        let size: usize = shape.iter().product();
-        let data = vec![1.0; size];
-        Tensor::from_vec(data, shape).unwrap()
-    }
-
-    pub fn ones_like(&self) -> Self {
-        Self::ones(&self.shape())
-    }
-
-    pub fn rand(shape: &[usize]) -> Tensor {
-        let size: usize = shape.iter().product();
-        let data: Vec<f32> = (0..size).map(|_| rand::random::<f32>()).collect();
-        Tensor::from_vec(data, shape).unwrap()
-    }
-
-    pub fn scalar(scalar: f32) -> Tensor {
-        Tensor::new(vec![vec![scalar]])
-    }
-}
+use std::ops::{Deref, DivAssign, MulAssign, SubAssign};
+use crate::tensor::operators::{Add, Div, Mul, Sub};
 
 impl TensorBase for Tensor {
     fn new(data: Vec<Vec<f32>>) -> Tensor {
@@ -57,6 +25,22 @@ impl TensorBase for Tensor {
         }
 
         let node_id = NODE_ID_GEN.next();
+        TENSOR_STORAGE.with_borrow_mut(|storage| {
+            storage.insert(node_id, GlobalTensor { data, shape: shape.to_vec() })
+        });
+
+        Ok(Tensor(node_id))
+    }
+
+    fn with_id(data: Vec<f32>, shape: &[usize], node_id: NodeId) -> MlResult<Tensor> {
+        let expected_len: usize = shape.iter().product();
+        if data.len() != expected_len {
+            return Err(MlError::TensorError(TensorError::InvalidDataLength {
+                expected: expected_len,
+                got: data.len(),
+            }));
+        }
+
         TENSOR_STORAGE.with_borrow_mut(|storage| {
             storage.insert(node_id, GlobalTensor { data, shape: shape.to_vec() })
         });
@@ -249,8 +233,8 @@ impl Variable {
             #[cfg(feature = "enableVisualization")]
             node_type: NodeType::Variable,
             tensor,
-            requires_grad: RefCell::new(cfg!(feature = "requiresGrad")),
-            grad: None,
+            requires_grad: cfg!(feature = "requiresGrad").into(),
+            grad: None.into(),
         }
     }
 
@@ -286,8 +270,8 @@ impl Variable {
             #[cfg(feature = "enableVisualization")]
             node_type,
             tensor,
-            requires_grad: RefCell::new(cfg!(feature = "requiresGrad")),
-            grad: None,
+            requires_grad: cfg!(feature = "requiresGrad").into(),
+            grad: None.into(),
         }
     }
 
@@ -365,26 +349,24 @@ impl Variable {
         )
     }
 
-    pub fn replace(&self, other_tensor: Tensor) {
-        TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage[self.tensor.0] = 
-        })
+    pub fn add_tensor(&self, other_tensor: Tensor) -> MlResult<()> {
+        Add::new()?.assign_forward(&[&self.tensor, &other_tensor])?;
+        Ok(())
     }
 
-    pub fn add_tensor(&self, other_tensor: Tensor) {
-        self.tensor.add_assign(other_tensor)
+    pub fn sub_tensor(&self, other_tensor: Tensor) -> MlResult<()> {
+        Sub::new()?.assign_forward(&[&self.tensor, &other_tensor])?;
+        Ok(())
     }
 
-    pub fn sub_tensor(&self, other_tensor: Tensor) {
-        self.tensor.sub_assign(other_tensor)
+    pub fn mul_tensor(&self, other_tensor: Tensor) -> MlResult<()> {
+        Mul::new()?.assign_forward(&[&self.tensor, &other_tensor])?;
+        Ok(())
     }
 
-    pub fn mul_tensor(&self, other_tensor: Tensor) {
-        self.tensor.mul_assign(other_tensor)
-    }
-
-    pub fn div_tensor(&self, other_tensor: Tensor) {
-        self.tensor.div_assign(other_tensor)
+    pub fn div_tensor(&self, other_tensor: Tensor) -> MlResult<()> {
+        Div::new()?.assign_forward(&[&self.tensor, &other_tensor])?;
+        Ok(())
     }
 
     /// 변수가 보유한 텐서의 참조 반환
@@ -415,7 +397,8 @@ impl Variable {
     /// # 반환 값
     /// - Option<Tensor>: 현재 저장된 그래디언트 또는 None
     pub fn grad(&self) -> Option<&Tensor> {
-        self.grad.as_ref()
+        let ptr: *const Option<Tensor> = self.grad.as_ptr();
+        unsafe { ptr.as_ref().unwrap().as_ref() }
     }
 
     /// 그래디언트 값 직접 설정
@@ -428,7 +411,7 @@ impl Variable {
     /// - grad: 설정할 새로운 그래디언트 텐서
     #[cfg(feature = "enableBackpropagation")]
     pub fn set_grad(&self, grad: Tensor) {
-        self.grad.unwrap().replace(Some(grad));
+        self.grad.replace(Some(grad));
     }
 
     /// 그래디언트 값 초기화
@@ -500,6 +483,7 @@ macro_rules! var_input {
     ($tensor:expr) => {
         {
             use std::sync::Arc;
+            use crate::tensor::Variable;
             #[cfg(feature = "enableVisualization")]
             {
                 Arc::new(Variable::new_input($tensor))
@@ -518,6 +502,7 @@ macro_rules! var_output {
     ($tensor:expr) => {
         {
             use std::sync::Arc;
+            use crate::tensor::Variable;
             #[cfg(feature = "enableVisualization")]
             {
                 Arc::new(Variable::new_output($tensor))
@@ -574,6 +559,7 @@ macro_rules! var_with_label {
     ($tensor:expr, $label:expr) => {
         {
             use std::sync::Arc;
+            use crate::tensor::Variable;
             #[cfg(feature = "enableVisualization")]
             {
                 Arc::new(Variable::with_label($tensor, $label))

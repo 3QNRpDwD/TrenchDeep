@@ -1,7 +1,7 @@
-mod diplay;
+mod display;
 mod function;
 
-use crate::tensor::operators::{Div, Function, Matmax, Sub};
+use crate::tensor::operators::{Function, Matmax, Sub};
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 use crate::backend::{Backend, CpuBackend, Device};
@@ -22,23 +22,23 @@ pub enum LossError {
     },
 }
 
-struct MeanSquaredError {
+pub struct MeanSquaredError {
     backend: Arc<dyn Backend>, node_id: NodeId
 }
 
-struct MeanAbsoluteError {
+pub struct MeanAbsoluteError {
     backend: Arc<dyn Backend>, node_id: NodeId
 }
 
-struct HuberLoss {
+pub struct HuberLoss {
     backend: Arc<dyn Backend>, node_id: NodeId, delta: f32
 }
 
-struct BinaryCrossEntropy {
+pub struct BinaryCrossEntropy {
     backend: Arc<dyn Backend>, node_id: NodeId
 }
 
-struct CategoricalCrossEntropy {
+pub struct CategoricalCrossEntropy {
     backend: Arc<dyn Backend>, node_id: NodeId
 }
 

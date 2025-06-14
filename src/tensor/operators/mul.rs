@@ -12,7 +12,7 @@ impl Function for Mul {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise multiplication
-    fn forward(&self, targets: &[&Tensor<f32>]) -> MlResult<Vec<Tensor<f32>>> {
+    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
         let shape1 = targets[0].shape();
         let shape2 = targets[1].shape();
 
@@ -26,14 +26,42 @@ impl Function for Mul {
                 .map(|&x| x * scalar_value)
                 .collect::<Vec<f32>>();
 
-            Ok(vec![Tensor::<f32>::from_vec(result, shape1)?])
+            Ok(vec![Tensor::from_vec(result, shape1)?])
         } else {
             // 기존 코드 유지
             match targets[0].chk_shape(targets[1]) {
                 Err(e) => Err(e),
-                _ => Ok(vec![Tensor::<f32>::from_vec(
+                _ => Ok(vec![Tensor::from_vec(
                     self.backend().multiply(targets[0].data(), targets[1].data()),
                     shape1
+                )?])
+            }
+        }
+    }
+
+    fn assign_forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+        let shape1 = targets[0].shape();
+        let shape2 = targets[1].shape();
+
+        // [1,1] 텐서인 경우에만 브로드캐스팅
+        if shape2 == &[1, 1] {
+            let target2_data = targets[1].data();
+            let scalar_value = target2_data[0];
+            // 첫 번째 텐서의 모든 원소에 스칼라 값을 곱함
+            let result = targets[0].data()
+                .iter()
+                .map(|&x| x * scalar_value)
+                .collect::<Vec<f32>>();
+
+            Ok(vec![Tensor::with_id(result, shape1, targets[0].0)?])
+        } else {
+            // 기존 코드 유지
+            match targets[0].chk_shape(targets[1]) {
+                Err(e) => Err(e),
+                _ => Ok(vec![Tensor::with_id(
+                    self.backend().multiply(targets[0].data(), targets[1].data()),
+                    shape1,
+                    targets[0].0
                 )?])
             }
         }
@@ -68,6 +96,7 @@ impl std::ops::Mul<Tensor> for Tensor {
     type Output = Tensor;
 
     fn mul(self, other: Tensor) -> Self::Output {
+        Mul::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[&self, &other]).unwrap().remove(0))
     }
 }
@@ -76,6 +105,7 @@ impl std::ops::Mul<&Tensor> for Tensor {
     type Output = Tensor;
 
     fn mul(self, other: &Tensor) -> Self::Output {
+        Mul::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[&self, other]).unwrap().remove(0))
     }
 }
@@ -84,6 +114,7 @@ impl std::ops::Mul<&Tensor> for &Tensor {
     type Output = Tensor;
 
     fn mul(self, other: &Tensor) -> Self::Output {
+        Mul::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
@@ -92,6 +123,7 @@ impl std::ops::Mul<Tensor> for &Tensor {
     type Output = Tensor;
 
     fn mul(self, other: Tensor) -> Self::Output {
+        Mul::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[self, &other]).unwrap().remove(0))
     }
 }
@@ -99,12 +131,14 @@ impl std::ops::Mul<Tensor> for &Tensor {
 /// MulAssign trait implementation for Tensor
 impl std::ops::MulAssign<Tensor> for Tensor {
     fn mul_assign(&mut self, other: Tensor) {
-        *self =  OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[self, &other]).unwrap().remove(0));
+        Mul::new().unwrap();
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().assign_forward(&[self, &other]).unwrap().remove(0));
     }
 }
 
 impl std::ops::MulAssign<&Tensor> for Tensor {
     fn mul_assign(&mut self, other: &Tensor) {
-        *self =  OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[self, other]).unwrap().remove(0));
+        Mul::new().unwrap();
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().assign_forward(&[self, other]).unwrap().remove(0));
     }
 }

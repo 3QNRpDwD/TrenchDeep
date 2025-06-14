@@ -22,6 +22,7 @@ impl Function for MeanSquaredError {
         Ok(vec![scalar!(squared_error / n)])
     }
 
+    #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let pred = targets[0];
         let target = targets[1];
@@ -73,6 +74,7 @@ impl Function for MeanAbsoluteError {
         Ok(vec![scalar!(abs_error / n)])
     }
 
+    #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let pred = targets[0];
         let target = targets[1];
@@ -147,6 +149,7 @@ impl Function for HuberLoss {
         Ok(vec![scalar!(huber_error / n)])
     }
 
+    #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let pred = targets[0];
         let target = targets[1];
@@ -206,6 +209,7 @@ impl Function for BinaryCrossEntropy {
         Ok(vec![scalar!(bce_loss / n)])
     }
 
+    #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let pred = targets[0];
         let target = targets[1];
@@ -266,7 +270,7 @@ impl Function for CategoricalCrossEntropy {
         Ok(vec![scalar!(cce_loss / batch_size)])
     }
 
-
+    #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let pred = targets[0];
         let target = targets[1];

@@ -115,6 +115,10 @@ pub trait Function {
         unimplemented!("{} Forward pass is not implemented", self.type_name())
     }
 
+    fn assign_forward(&self, _targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+        unimplemented!("{} Forward pass is not implemented", self.type_name())
+    }
+
     /// 역전파(Backward Pass)를 수행합니다.
     ///
     /// 주어진 입력 텐서와 그래디언트를 기반으로 입력에 대한 그래디언트를 계산합니다.

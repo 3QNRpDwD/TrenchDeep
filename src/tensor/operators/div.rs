@@ -19,6 +19,13 @@ impl Function for Div {
         }
     }
 
+    fn assign_forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+        match targets[0].chk_shape(targets[1]) {
+            Err(e) => Err(e),
+            _ => Ok(vec![Tensor::with_id(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape(), targets[0].0)?])
+        }
+    }
+    
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
         let x1 = targets[1];
@@ -45,6 +52,7 @@ impl std::ops::Div<&Tensor> for Tensor {
     type Output = Tensor;
 
     fn div(self, other: &Tensor) -> Self::Output {
+        Div::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Div").unwrap().forward(&[&self, other]).unwrap().remove(0))
     }
 }
@@ -53,6 +61,7 @@ impl std::ops::Div<Tensor> for Tensor {
     type Output = Tensor;
 
     fn div(self, other: Tensor) -> Self::Output {
+        Div::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Div").unwrap().forward(&[&self, &other]).unwrap().remove(0))
     }
 }
@@ -62,6 +71,7 @@ impl std::ops::Div<&Tensor> for &Tensor {
     type Output = Tensor;
 
     fn div(self, other: &Tensor) -> Self::Output {
+        Div::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Div").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
@@ -70,6 +80,7 @@ impl std::ops::Div<Tensor> for &Tensor {
     type Output = Tensor;
 
     fn div(self, other: Tensor) -> Self::Output {
+        Div::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Div").unwrap().forward(&[self, &other]).unwrap().remove(0))
     }
 }
@@ -77,12 +88,14 @@ impl std::ops::Div<Tensor> for &Tensor {
 /// DivAssign trait implementation for Tensor
 impl std::ops::DivAssign<Tensor> for Tensor {
     fn div_assign(&mut self, other: Tensor) {
-        *self =  OPERATOR_STORAGE.with(|ops| ops.borrow().get("Div").unwrap().forward(&[self, &other]).unwrap().remove(0));
+        Div::new().unwrap();
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Div").unwrap().assign_forward(&[self, &other]).unwrap().remove(0));
     }
 }
 
 impl std::ops::DivAssign<&Tensor> for Tensor {
     fn div_assign(&mut self, other: &Tensor) {
-        *self =  OPERATOR_STORAGE.with(|ops| ops.borrow().get("Div").unwrap().forward(&[self, other]).unwrap().remove(0));
+        Div::new().unwrap();
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Div").unwrap().assign_forward(&[self, other]).unwrap().remove(0));
     }
 }
