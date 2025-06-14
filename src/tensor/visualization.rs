@@ -41,24 +41,52 @@ impl VisualizationGraph {
             }
         }
 
-        // 위상 정렬을 통한 계층 할당
+        // 개선된 계층 할당: 노드 타입에 따른 순서 보장
         let mut queue = VecDeque::new();
 
-        // 입차수가 0인 노드들을 시작점으로 설정
+        // 1단계: Input과 Variable 노드들을 레이어 0에 배치
         for (node, &degree) in &in_degree {
             if degree == 0 {
-                queue.push_back((node.clone(), 0));
-                layers.insert(node.clone(), 0);
+                let node_type = self.node_types.get(node).unwrap_or(&NodeType::Variable);
+                match node_type {
+                    NodeType::Input | NodeType::Variable | NodeType::Weight | NodeType::Bias => {
+                        queue.push_back((node.clone(), 0));
+                        layers.insert(node.clone(), 0);
+                    },
+                    _ => {}
+                }
             }
         }
 
+        // 2단계: 위상 정렬로 나머지 계층 할당
         while let Some((current, layer)) = queue.pop_front() {
             if let Some(neighbors) = adjacency.get(&current) {
                 for neighbor in neighbors {
                     if let Some(degree) = in_degree.get_mut(neighbor) {
                         *degree -= 1;
                         if *degree == 0 {
-                            let new_layer = layer + 1;
+                            let neighbor_type = self.node_types.get(neighbor).unwrap_or(&NodeType::Variable);
+
+                            // 노드 타입에 따른 계층 결정
+                            let new_layer = match neighbor_type {
+                                NodeType::Function => layer + 1,
+                                NodeType::Activation => layer + 1,
+                                NodeType::Variable | NodeType::Output => {
+                                    // Function 노드 다음에 오는 Variable/Output은 한 계층 더
+                                    let current_type = self.node_types.get(&current).unwrap_or(&NodeType::Variable);
+                                    if matches!(current_type, NodeType::Function | NodeType::Activation) {
+                                        layer + 1
+                                    } else {
+                                        layer + 2
+                                    }
+                                },
+                                NodeType::Loss => {
+                                    // Loss는 항상 마지막에 배치
+                                    self.find_max_layer(&layers) + 1
+                                },
+                                _ => layer + 1,
+                            };
+
                             layers.insert(neighbor.clone(), new_layer);
                             queue.push_back((neighbor.clone(), new_layer));
                         }
@@ -67,7 +95,25 @@ impl VisualizationGraph {
             }
         }
 
+        // 3단계: Loss 노드들을 가장 마지막 레이어로 이동
+        let max_non_loss_layer = layers.iter()
+            .filter(|(node, _)| !matches!(self.node_types.get(*node).unwrap_or(&NodeType::Variable), NodeType::Loss))
+            .map(|(_, &layer)| layer)
+            .max()
+            .unwrap_or(0);
+
+        for (node, layer_ref) in layers.iter_mut() {
+            if matches!(self.node_types.get(node).unwrap_or(&NodeType::Variable), NodeType::Loss) {
+                *layer_ref = max_non_loss_layer + 1;
+            }
+        }
+
         layers
+    }
+
+    // 최대 레이어 찾기 헬퍼 메서드
+    fn find_max_layer(&self, layers: &HashMap<String, usize>) -> usize {
+        layers.values().max().copied().unwrap_or(0)
     }
 
     // 엣지 문자열에서 from과 to 노드를 추출하는 헬퍼 메서드
@@ -95,34 +141,41 @@ impl VisualizationGraph {
         // 최대 계층 수 계산
         let max_layer = layers.values().max().copied().unwrap_or(0);
 
-        // 각 계층별로 노드 타입을 분리하여 배치
+        // 각 계층별로 노드들을 순서에 맞게 배치
         for layer in 0..=max_layer {
-            let mut layer_functions = Vec::new();
+            let mut layer_inputs = Vec::new();
             let mut layer_variables = Vec::new();
-            let mut layer_others = Vec::new();
+            let mut layer_weights_biases = Vec::new();
+            let mut layer_functions = Vec::new();
+            let mut layer_activations = Vec::new();
+            let mut layer_outputs = Vec::new();
+            let mut layer_losses = Vec::new();
 
-            // 현재 계층의 노드들을 타입별로 분류
+            // 현재 계층의 노드들을 타입별로 세밀하게 분류
             for (node, &node_layer) in layers {
                 if node_layer == layer {
-                    if function_nodes.contains(node) || activation_nodes.contains(node) {
-                        layer_functions.push(node.clone());
-                    } else if variable_nodes.contains(node) {
-                        layer_variables.push(node.clone());
-                    } else if weight_nodes.contains(node) || bias_nodes.contains(node) || loss_nodes.contains(node) {
-                        layer_others.push(node.clone());
+                    let node_type = self.node_types.get(node).unwrap_or(&NodeType::Variable);
+                    match node_type {
+                        NodeType::Input => layer_inputs.push(node.clone()),
+                        NodeType::Variable => layer_variables.push(node.clone()),
+                        NodeType::Weight => layer_weights_biases.push(node.clone()),
+                        NodeType::Bias => layer_weights_biases.push(node.clone()),
+                        NodeType::Function => layer_functions.push(node.clone()),
+                        NodeType::Activation => layer_activations.push(node.clone()),
+                        NodeType::Output => layer_outputs.push(node.clone()),
+                        NodeType::Loss => layer_losses.push(node.clone()),
                     }
                 }
             }
 
-            // 함수 노드들을 먼저 배치 (상단)
-            if !layer_functions.is_empty() {
+            // 각 타입별로 같은 순위로 배치하되, 원하는 순서를 유지
+            if !layer_inputs.is_empty() {
                 dot.push_str(&format!(
                     "    {{ rank=same; {}; }}\n",
-                    layer_functions.iter().map(|n| format!("\"{}\"", n)).collect::<Vec<_>>().join("; ")
+                    layer_inputs.iter().map(|n| format!("\"{}\"", n)).collect::<Vec<_>>().join("; ")
                 ));
             }
 
-            // 변수 노드들을 중간에 배치
             if !layer_variables.is_empty() {
                 dot.push_str(&format!(
                     "    {{ rank=same; {}; }}\n",
@@ -130,28 +183,65 @@ impl VisualizationGraph {
                 ));
             }
 
-            // 기타 노드들을 하단에 배치
-            // if !layer_others.is_empty() {
+            // if !layer_weights_biases.is_empty() {
             //     dot.push_str(&format!(
             //         "    {{ rank=same; {}; }}\n",
-            //         layer_others.iter().map(|n| format!("\"{}\"", n)).collect::<Vec<_>>().join("; ")
+            //         layer_weights_biases.iter().map(|n| format!("\"{}\"", n)).collect::<Vec<_>>().join("; ")
             //     ));
             // }
 
-            // 같은 계층 내에서 함수 -> 변수 -> 기타 순서로 배치하는 보이지 않는 엣지 추가
-            if layer_functions.len() > 0 && layer_variables.len() > 0 {
+            if !layer_functions.is_empty() {
                 dot.push_str(&format!(
-                    "    \"{}\" -> \"{}\" [style=invis, weight=10];\n",
-                    layer_functions[0], layer_variables[0]
+                    "    {{ rank=same; {}; }}\n",
+                    layer_functions.iter().map(|n| format!("\"{}\"", n)).collect::<Vec<_>>().join("; ")
                 ));
             }
-            if layer_variables.len() > 0 && layer_others.len() > 0 {
+
+            // if !layer_activations.is_empty() {
+            //     dot.push_str(&format!(
+            //         "    {{ rank=same; {}; }}\n",
+            //         layer_activations.iter().map(|n| format!("\"{}\"", n)).collect::<Vec<_>>().join("; ")
+            //     ));
+            // }
+
+            if !layer_outputs.is_empty() {
                 dot.push_str(&format!(
-                    "    \"{}\" -> \"{}\" [style=invis, weight=10];\n",
-                    layer_variables[0], layer_others[0]
+                    "    {{ rank=same; {}; }}\n",
+                    layer_outputs.iter().map(|n| format!("\"{}\"", n)).collect::<Vec<_>>().join("; ")
+                ));
+            }
+
+            if !layer_losses.is_empty() {
+                dot.push_str(&format!(
+                    "    {{ rank=same; {}; }}\n",
+                    layer_losses.iter().map(|n| format!("\"{}\"", n)).collect::<Vec<_>>().join("; ")
                 ));
             }
         }
+
+        // 계층 간 순서 강제를 위한 보이지 않는 엣지 추가
+        let all_layers: Vec<_> = (0..=max_layer).collect();
+        for i in 0..all_layers.len()-1 {
+            let current_layer = all_layers[i];
+            let next_layer = all_layers[i + 1];
+
+            // 현재 레이어의 대표 노드 찾기
+            let current_repr = self.find_layer_representative(layers, current_layer);
+            let next_repr = self.find_layer_representative(layers, next_layer);
+
+            if let (Some(current), Some(next)) = (current_repr, next_repr) {
+                dot.push_str(&format!(
+                    "    \"{}\" -> \"{}\" [style=invis, weight=100];\n",
+                    current, next
+                ));
+            }
+        }
+    }
+
+    fn find_layer_representative(&self, layers: &HashMap<String, usize>, target_layer: usize) -> Option<String> {
+        layers.iter()
+            .find(|(_, &layer)| layer == target_layer)
+            .map(|(node, _)| node.clone())
     }
 
     pub fn add_variable_node(&mut self, id: &str, label: &str, node_type: &NodeType) {
