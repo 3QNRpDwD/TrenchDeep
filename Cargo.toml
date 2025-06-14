@@ -11,15 +11,15 @@ requiresGrad = ["enableBackpropagation"] # 기울기의 중간 저장이 필요�
 debugging = [] # 디버깅이 필요할 경우 사용
 
 [dependencies]
-petgraph = "0.8.1"
-rand = "0.9.1"
-log = "0.4.27"
-env_logger = "0.11.8"
-tracing = "0.1.41"
-tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
-tracing-appender = "0.2.3"
+petgraph = "0.8.1" #시각화 보조 크레이트(실제 시각화는 Graphvizt사용)
+rand = "0.9.1"     #테스트시 초깃값 생성용 랜덤 크레이트
+log = "0.4.27"     #테스트시 로깅용 크레이트
+env_logger = "0.11.8" #위와 동일
+tracing = "0.1.41"    #실시간 로깅을 위한 크레이트
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] } # 위와 동일
+tracing-appender = "0.2.3" # 위와 동일
 tracing-log = "0.2" # log 크레이트와 tracing을 연결하는 브릿지
-mnist = "0.6.0"
+mnist = "0.6.0" # 테스트시 입력할 데이터셋 크레이트
 
 [profile.dev]
 debug = true
