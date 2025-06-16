@@ -95,7 +95,7 @@ impl Variable {
     ///
     /// # Implementation Details
     /// - Uses thread-local computation graph storage
-    /// - Relies on topological ordering stored during forward pass
+    /// - Relies on topological ordering stored during apply pass
     /// - Gradient accumulation uses += operator (users should zero gradients when needed)
     pub fn backward(self: &Arc<Self>) -> MlResult<()> {
         COMPUTATION_GRAPH.with(|graph| {
@@ -341,7 +341,7 @@ impl ComputationGraph {
     }
 
     // 역전파 메서드와 반대로 기록된 노드의 순서대로 실행하고 해당 값을 노드에 저장하는 메서드
-    // pub fn forward(&mut self, input_id: NodeId) -> MlResult<()> {}
+    // pub fn apply(&mut self, input_id: NodeId) -> MlResult<()> {}
 
     pub fn clear(&mut self) {
         self.nodes.clear();

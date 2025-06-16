@@ -1,7 +1,3 @@
-use crate::backend::BackendError;
-use crate::loss::LossError;
-use crate::optimizer::OptimError;
-
 pub mod tensor;
 pub mod backend;
 pub mod nn;
@@ -9,6 +5,10 @@ pub mod optimizer;
 pub mod loss;
 pub mod mlp;
 pub mod auto_mlp;
+
+use crate::backend::BackendError;
+use crate::loss::LossError;
+use crate::optimizer::OptimError;
 
 #[derive(Debug, Clone)]
 pub enum TensorError {
@@ -111,7 +111,7 @@ pub type MlResult<T> = Result<T, MlError>;
 #[cfg(test)]
 mod benchmark {
     use crate::tensor::operators::{Add, Function, Mul, Square, Sub};
-    use crate::tensor::{AutogradFunction, Tensor, TensorBase, Variable};
+    use crate::tensor::{AutogradFunction, ComputationGraph, Tensor, TensorBase, Variable};
     use crate::{MlResult, scalar, var_input, var_with_label, variable};
     use std::sync::Arc;
 
@@ -334,21 +334,22 @@ mod benchmark {
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
         let x0 = var_input!(Tensor::new(vec![vec![0.0]]));
         let x1 = var_input!(Tensor::new(vec![vec![2.0]]));
-        let iter: usize = 100;
+        let iter: usize = 1000;
         let learning_rate = scalar!(0.001);
 
         for i in 0..iter { // 0부터
+            ComputationGraph::reset_graph();
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
             
-            if i % 1 == 0 {
-                println!(
-                    "iter - {}\n\
-            [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
-            [ x1.tensor: {:?}, x1.grad: {:?} ]"
-                    , i, x0.tensor(), x0.grad(), x1.tensor(), x1.grad()
-                );
-            }
+            // if i % 1 == 0 {
+            //     println!(
+            //         "iter - {}\n\
+            // [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
+            // [ x1.tensor: {:?}, x1.grad: {:?} ]"
+            //         , i, x0.tensor(), x0.grad(), x1.tensor(), x1.grad()
+            //     );
+            // }
             
             //파라미터 갱신
             x0.sub_tensor(x0.grad().unwrap() * &learning_rate)?;

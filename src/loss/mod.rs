@@ -34,11 +34,11 @@ pub struct HuberLoss {
     backend: Arc<dyn Backend>, node_id: NodeId, delta: f32
 }
 
-pub struct BinaryCrossEntropy {
+pub struct BinaryCrossEntropyLoss {
     backend: Arc<dyn Backend>, node_id: NodeId
 }
 
-pub struct CategoricalCrossEntropy {
+pub struct CrossEntropyLoss {
     backend: Arc<dyn Backend>, node_id: NodeId
 }
 
@@ -91,7 +91,7 @@ impl Loss for HuberLoss {
     }
 }
 
-impl Loss for BinaryCrossEntropy {
+impl Loss for BinaryCrossEntropyLoss {
     fn loss(predict: Tensor, target: Tensor) -> MlResult<f32> {
         if predict.shape() != target.shape() {
             return Err(LossError::InvalidShape { expected: predict.shape().to_vec(), got: target.shape().to_vec() }.into());
@@ -105,7 +105,7 @@ impl Loss for BinaryCrossEntropy {
     }
 }
 
-impl Loss for CategoricalCrossEntropy {
+impl Loss for CrossEntropyLoss {
     fn loss(predict: Tensor, target: Tensor) -> MlResult<f32> {
         if predict.shape() != target.shape() {
             return Err(LossError::InvalidShape { expected: predict.shape().to_vec(), got: target.shape().to_vec() }.into());

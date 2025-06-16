@@ -1,27 +1,34 @@
 
-use crate::tensor::{OPERATOR_STORAGE, Tensor, TensorBase, AutogradFunction};
+use crate::tensor::{OPERATOR_STORAGE, Tensor, TensorBase, AutogradFunction, ComputationGraph, GlobalFunction};
 use crate::nn::activation::Sigmoid;
 use crate::tensor::Variable;
 use std::fmt;
 use std::sync::Arc;
 use crate::tensor::operators::{Add, Function, Matmul, Mul, Square, Sub, Sum};
-use crate::{MlError, MlResult, scalar, var_with_label};
-use crate::loss::MeanSquaredError;
+use crate::{MlError, MlResult, scalar, var_with_label, var_input};
+use crate::loss::{CrossEntropyLoss, MeanSquaredError};
 use log::{info, debug, warn, error, trace};
 
 pub struct MLP {
-    pub w1: Arc<Variable>, // shape = [hidden_node, input_node + 1]
-    pub w2: Arc<Variable>, // shape = [output_node, hidden_node + 1]
+    pub w1: Arc<Variable>, // shape = [hidden_node, input_node]
+    pub w2: Arc<Variable>, // shape = [output_node, hidden_node]
     pub b1: Arc<Variable>, // shape = [hidden_node, 1]
     pub b2: Arc<Variable>, // shape = [output_node, 1]
+    // 활성화 함수를 MLP 구조체의 일부로 만들어 유연성 확보
+    hidden_activation: GlobalFunction,
+    output_activation: GlobalFunction,
 }
 
 impl fmt::Debug for MLP {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "MLP {{")?;
-        writeln!(f, "  w1.shape = {:?}, w2.shape = {:?} ",
+        writeln!(f, "  w1.shape = {:?}, w2.shape = {:?}",
                  self.w1.tensor().shape(),
+
                  self.w2.tensor().shape())?;
+        // 활성화 함수 정보 추가
+        writeln!(f, "  hidden_activation = {}", self.hidden_activation.type_name())?;
+        writeln!(f, "  output_activation = {}", self.output_activation.type_name())?;
         writeln!(f, "}}")
     }
 }
@@ -31,9 +38,18 @@ impl MLP {
     /// n_input : 입력 뉴런 개수
     /// n_hidden: 은닉 뉴런 개수
     /// n_output: 출력 뉴런 개수
-    pub fn new(n_input: usize, n_hidden: usize, n_output: usize) -> Self {
+    /// hidden_activation: 은닉층에 적용할 활성화 함수
+    /// output_activation: 출력층에 적용할 활성화 함수
+    pub fn new(
+        n_input: usize,
+        n_hidden: usize,
+        n_output: usize,
+        hidden_activation: GlobalFunction,
+        output_activation: GlobalFunction,
+    ) -> Self {
+        // He 초기화 또는 Xavier 초기화와 같은 더 나은 가중치 초기화 방법을 고려할 수 있음
         let w1_data: Vec<f32> = (0..n_hidden * n_input)
-            .map(|_| rand::random::<f32>() * 0.5 - 0.25)
+            .map(|_| (rand::random::<f32>() - 0.5) * 0.5) // 0을 중심으로 분포
             .collect();
         let w1 = var_with_label!(
             Tensor::from_vec(w1_data, &[n_hidden, n_input]).unwrap(),
@@ -41,7 +57,7 @@ impl MLP {
         );
 
         let w2_data: Vec<f32> = (0..n_output * n_hidden)
-            .map(|_| rand::random::<f32>() * 0.5 - 0.25)
+            .map(|_| (rand::random::<f32>() - 0.5) * 0.5)
             .collect();
         let w2 = var_with_label!(
             Tensor::from_vec(w2_data, &[n_output, n_hidden]).unwrap(),
@@ -49,22 +65,19 @@ impl MLP {
         );
 
         // bias 항들 초기화
-        let b1_data: Vec<f32> = (0..n_hidden)
-            .map(|_| rand::random::<f32>() * 0.5 - 0.25)
-            .collect();
+        let b1_data: Vec<f32> = vec![0.0; n_hidden]; // 0으로 초기화하는 것이 일반적
         let b1 = var_with_label!(
             Tensor::from_vec(b1_data, &[n_hidden, 1]).unwrap(),
             "bias_1"
         );
 
-        let b2_data: Vec<f32> = (0..n_output)
-            .map(|_| rand::random::<f32>() * 0.5 - 0.25)
-            .collect();
+        let b2_data: Vec<f32> = vec![0.0; n_output];
         let b2 = var_with_label!(
             Tensor::from_vec(b2_data, &[n_output, 1]).unwrap(),
             "bias_2"
         );
-        Self { w1, w2, b1, b2 }
+
+        Self { w1, w2, b1, b2, hidden_activation, output_activation }
     }
 
     /// 단일 샘플 x에 대해 순전파 수행 (자동미분 사용)
@@ -73,32 +86,55 @@ impl MLP {
     /// 반환: (z, y) - 모두 Variable로 래핑됨
     ///   - z: 은닉층 활성화값( bias row 포함 ) → shape = [(hidden_node+1), 1]
     ///   - y: 출력층 활성화값 → shape = [output_node, 1]
-    pub fn forward(&self, x: &Arc<Variable>) -> MlResult<(Arc<Variable>, Arc<Variable>)> {
-        let sigmoid = Sigmoid::new()?;
+    pub fn apply(&self, x: &Arc<Variable>) -> MlResult<Arc<Variable>> {
         let matmul = Matmul::new()?;
-        let add = Add::new()?; // Add 연산 추가
+        let add = Add::new()?;
 
         // 1) 은닉층: u_h = W1 * x + b1
         let uh_pre = matmul.apply(&[&self.w1, x])?;
         let uh = add.apply(&[&uh_pre, &self.b1])?;
 
-        // 2) 은닉층 활성화: a_h = sigmoid(u_h)
-        let ah = sigmoid.apply(&[&uh])?;
+        // 2) 은닉층 활성화: a_h = activation(u_h)
+        let ah = self.hidden_activation.apply(&[&uh])?;
 
         // 3) 출력층: u_o = W2 * a_h + b2
         let uo_pre = matmul.apply(&[&self.w2, &ah])?;
         let uo = add.apply(&[&uo_pre, &self.b2])?;
 
-        // 4) 출력층 활성화: y = sigmoid(u_o)
-        let y = sigmoid.apply_with_label(&[&uo], "output")?;
-        Ok((ah, y)) // 은닉층 출력과 최종 출력 반환
+        // 4) 출력층 활성화: y = activation(u_o)
+        // 다중 클래스 분류에는 Softmax가 표준입니다.
+        let y = self.output_activation.apply_with_label(&[&uo], "output")?;
+
+        Ok(y)
     }
 
-    #[cfg(feature = "enableBackpropagation")]
+    pub fn forward(&self, x: &Tensor) -> MlResult<Tensor> {
+        let matmul = Matmul::new()?;
+        let add = Add::new()?;
+
+        // 1) 은닉층: u_h = W1 * x + b1
+        let uh_pre = matmul.forward(&[&self.w1.tensor(), x])?.remove(0);
+        let uh = add.forward(&[&uh_pre, &self.b1.tensor()])?.remove(0);
+
+        // 2) 은닉층 활성화: a_h = activation(u_h)
+        let ah = self.hidden_activation.forward(&[&uh])?.remove(0);
+
+        // 3) 출력층: u_o = W2 * a_h + b2
+        let uo_pre = matmul.forward(&[&self.w2.tensor(), &ah])?.remove(0);
+        let uo = add.forward(&[&uo_pre, &self.b2.tensor()])?.remove(0);
+
+        // 4) 출력층 활성화: y = activation(u_o)
+        // 다중 클래스 분류에는 Softmax가 표준입니다.
+        let y = self.output_activation.forward(&[&uo])?.remove(0);
+
+        Ok(y)
+    }
+
     pub fn train(
         &mut self,
         X: &Vec<Arc<Variable>>,
         T: &Vec<Arc<Variable>>,
+        loss_function: GlobalFunction, // 손실 함수를 인자로 받음
         eta: f32,
         max_iter: usize,
         tol: f32,
@@ -137,7 +173,7 @@ impl MLP {
 
         // 초기 오차 계산
         info!("초기 오차 계산 중...");
-        let mut e_prev = self.compute_error(X, T).map_err(|e| {
+        let mut e_prev = self.compute_total_error(X, T, &loss_function).map_err(|e| {
             error!("초기 오차 계산 실패: {:?}", e);
             e
         })?;
@@ -166,7 +202,8 @@ impl MLP {
                 let t_m = &T[m];
 
                 // === 순전파 (자동미분 그래프 구성) ===
-                let (_z, y) = self.forward(x_m).map_err(|e| {
+                ComputationGraph::reset_graph();
+                let y = self.apply(x_m).map_err(|e| {
                     error!("샘플 {} 순전파 실패: {:?}", m, e);
                     e
                 })?;
@@ -244,7 +281,7 @@ impl MLP {
 
             // 1 epoch이 끝난 후 오차 재계산
             debug!("에포크 {} 전체 오차 재계산 중...", iter);
-            let e_curr = self.compute_error(X, T).map_err(|e| {
+            let e_curr = self.compute_total_error(X, T, &loss_function).map_err(|e| {
                 error!("에포크 {} 오차 계산 실패: {:?}", iter, e);
                 e
             })?;
@@ -314,31 +351,23 @@ impl MLP {
         Ok(())
     }
 
-    /// 전체 데이터(X, T)에 대해 "평균 제곱 오차"를 계산
-    fn compute_error(&self, X: &Vec<Arc<Variable>>, T: &Vec<Arc<Variable>>) -> MlResult<f32> {
-        let mut sum_e = 0.0_f32;
-        let n = X.len() as f32;
-
+    pub fn compute_total_error(&self, X: &Vec<Arc<Variable>>, T: &Vec<Arc<Variable>>, loss_function: &GlobalFunction) -> MlResult<f32> {
+        let mut total_loss = 0.0;
         for m in 0..X.len() {
-            let (_z, y) = self.forward(&X[m])?;
-
-            // diff = y - T[m]
-            let y_data = y.tensor().data();
-            let t_data = T[m].tensor().data();
-
-            for i in 0..y_data.len() {
-                let diff = y_data[i] - t_data[i];
-                sum_e += diff * diff;
-            }
+            ComputationGraph::reset_graph(); // 순전파만 하므로 그래프는 매번 리셋
+            let y = var_input!(self.forward(&X[m].tensor())?);
+            let loss = loss_function.forward(&[&y.tensor(), &T[m].tensor()])?.remove(0);
+            total_loss += loss.data()[0];
         }
-
-        Ok(sum_e / n)
+        Ok(total_loss / X.len() as f32)
     }
 
-    #[cfg(feature = "enableBackpropagation")]
-    fn zero_grad(&mut self) -> MlResult<()> {
+    /// 모든 파라미터의 기울기를 0으로 초기화합니다.
+    pub fn zero_grad(&mut self) -> MlResult<()> {
         self.w1.clear_grad();
         self.w2.clear_grad();
+        self.b1.clear_grad();
+        self.b2.clear_grad();
         Ok(())
     }
 }
@@ -354,99 +383,129 @@ mod tests {
     use tracing_subscriber::EnvFilter;
     use tracing_subscriber::fmt::Subscriber;
     use mnist::{MnistBuilder, Mnist};
+    use crate::loss::CrossEntropyLoss;
+    use crate::nn::activation::Softmax;
+
+    fn setup_logger() {
+        use tracing_subscriber::EnvFilter;
+        let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("Debug"));
+        let _ = tracing_subscriber::fmt().with_env_filter(filter).with_test_writer().try_init();
+    }
+
+    fn convert_to_variable_dataset(
+        images: Vec<u8>,
+        labels: Vec<u8>,
+        num_items: usize,
+        num_features: usize,
+        num_classes: usize,
+    ) -> MlResult<(Vec<Arc<Variable>>, Vec<Arc<Variable>>)> {
+        let mut x_set = Vec::with_capacity(num_items);
+        let mut t_set = Vec::with_capacity(num_items);
+
+        // 이미지 데이터 처리 (u8 -> f32 정규화 및 Tensor 변환)
+        let normalized_images: Vec<f32> = images.into_iter().map(|pixel| pixel as f32 / 255.0).collect();
+        // 레이블 데이터 처리 (u8 -> f32 변환)
+        let f32_labels: Vec<f32> = labels.into_iter().map(|label| label as f32).collect();
+
+        for i in 0..num_items {
+            let start_idx = i * num_features;
+            let end_idx = start_idx + num_features;
+            let image_slice = &normalized_images[start_idx..end_idx];
+            let x = var_input!(Tensor::from_vec(image_slice.to_vec(), &[num_features, 1])?);
+            x_set.push(x);
+
+            let label_start_idx = i * num_classes;
+            let label_end_idx = label_start_idx + num_classes;
+            let label_slice = &f32_labels[label_start_idx..label_end_idx];
+            let t = var_with_label!(Tensor::from_vec(label_slice.to_vec(), &[num_classes, 1])?, "target");
+            t_set.push(t);
+        }
+
+        Ok((x_set, t_set))
+    }
 
     #[test]
-    pub(crate) fn mlp_autograd_test() -> MlResult<()> {
-        // 로거 초기화
-        let _ = tracing_log::LogTracer::init();
+    fn mlp_mnist_classification_test() -> MlResult<()> {
+        setup_logger();
+        info!("=== MLP MNIST 분류 테스트 시작 ===");
 
-        // 논블로킹(Non-blocking) writer를 설정합니다. 로그 I/O가 별도 스레드에서 처리됩니다.
-        let (non_blocking_writer, _guard) = tracing_appender::non_blocking(std::io::stderr());
+        // --- 1. MNIST 데이터셋 로딩 ---
+        let (n_train, n_val, n_features, n_classes) = (5000, 100, 784, 10);
+        info!("MNIST 데이터셋 로딩 중... (학습: {}, 검증: {})", n_train, n_val);
+        let Mnist {
+            trn_img,
+            trn_lbl,
+            tst_img,
+            tst_lbl,
+            ..
+         } = MnistBuilder::new()
+            .label_format_one_hot()
+            .training_set_length(n_train as u32)
+            .validation_set_length(0) // 별도 검증셋 사용 안 함
+            .test_set_length(n_val as u32)
+            .finalize();
 
-        // RUST_LOG 환경 변수를 사용하여 로그 레벨을 필터링합니다. (기존 env_logger와 동일한 기능)
-        // 예: RUST_LOG=info cargo test
-        // 설정되지 않은 경우 기본값으로 "trace" 레벨을 사용합니다.
-        let filter = EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| EnvFilter::new("Info"));
+        // --- 2. 데이터 전처리 및 모델 입력 형태로 변환 ---
+        info!("데이터를 모델 입력 형식으로 변환 중...");
+        let (x_train, t_train) = convert_to_variable_dataset(trn_img, trn_lbl, n_train, n_features, n_classes)?;
+        let (x_test, t_test) = convert_to_variable_dataset(tst_img, tst_lbl, n_val, n_features, n_classes)?;
+        info!("데이터 변환 완료.");
 
-        // tracing subscriber를 구성하고 전역으로 설정합니다.
-        let subscriber = Subscriber::builder()
-            .with_writer(non_blocking_writer) // 논블로킹 writer 사용
-            .with_env_filter(filter)          // 환경 변수 필터 사용
-            .with_test_writer()               // `cargo test`에서 출력이 잘 보이도록 설정
-            .finish();
+        // 네트워크 구조 정의
+        let n_input = 784;
+        let n_hidden = 30;
+        let n_output = 10;
 
-        // tracing subscriber를 전역 로거로 설정합니다.
-        let _ = tracing::subscriber::set_global_default(subscriber);
-
-
-        info!("=== MLP 자동미분 테스트 시작 ===");
-
-        let n_input = 784; // MNIST 이미지 크기
-        let n_hidden = 30; // 은닉층 뉴런 개수
-        let n_output = 10; // 출력층 뉴런 개수 (0-9 숫자 분류)
+        // --- 리팩토링된 부분 ---
+        // 1. 활성화 함수와 손실 함수를 명시적으로 생성
+        // 은닉층: Sigmoid, 출력층: Softmax, 손실함수: CrossEntropy
+        let hidden_activation = Sigmoid::new()?;
+        let output_activation = Softmax::new()?;
+        let loss_function = CrossEntropyLoss::new()?;
 
         info!("네트워크 구조: {}(입력) -> {}(은닉) -> {}(출력)", n_input, n_hidden, n_output);
+        info!("활성화 함수: {} (은닉), {} (출력)", hidden_activation.name(), output_activation.name());
 
-        // MLP 생성
-        let mut mlp = MLP::new(n_input, n_hidden, n_output);
-        info!("MLP 모델이 성공적으로 생성되었습니다");
+        // 2. MLP 생성 시 주입
+        let mut mlp = MLP::new(n_input, n_hidden, n_output, hidden_activation, output_activation);
+        info!("MLP 모델 생성 완료: {:?}", mlp);
 
-        let mut X = Vec::new();
-        let mut T = Vec::new();
+        // 3. 학습 파라미터 조정
+        let learning_rate = 0.01; // 더 안정적인 학습을 위해 학습률 감소
+        let epochs = 10;
+        let tolerance = 1e-4;    // 더 엄격한 수렴 조건
 
-        info!("더미 데이터셋 생성 중...");
+        info!("학습 파라미터: 학습률={}, 최대 에포크={}, 허용 오차={}", learning_rate, epochs, tolerance);
 
-        // 각 클래스별로 몇 개씩 더미 데이터 생성
-        for class in 0..10 {
-            debug!("클래스 {} 데이터 생성 중", class);
+        // 4. train 함수 호출 시 손실 함수 전달
+        mlp.train(&x_train, &t_train, loss_function, learning_rate, epochs, tolerance)?;
 
-            for sample_idx in 0..10 {  // 클래스당 10개 샘플
-                // 784차원 랜덤 입력 (0-1 정규화)
-                let mut input_data = vec![vec![0.0]; 784];
-                for i in 0..784 {
-                    input_data[i][0] = rand::random::<f32>();
-                }
-                let x = var_input!(Tensor::new(input_data));
-                X.push(x);
+        // --- 4. 학습된 모델로 예측 및 정확도 평가 ---
+        info!("=== 학습된 모델 평가 시작 (테스트셋 {}개) ===", n_val);
+        let mut correct_predictions = 0;
+        for i in 0..n_val {
+            let test_input = &x_test[i];
+            let true_label_tensor = &t_test[i];
+            let y = mlp.forward(test_input.tensor())?;
+            let output_probs = y.data();
+            let predicted_class = output_probs.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).unwrap().0;
+            let true_class = true_label_tensor.tensor().data().iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).unwrap().0;
 
-                // 원-핫 인코딩된 타겟
-                let mut target_data = vec![vec![0.0]; 10];
-                target_data[class][0] = 1.0;
-                let t = var_with_label!(Tensor::new(target_data), "target");
-                T.push(t);
-
-                trace!("클래스 {} 샘플 {} 생성 완료", class, sample_idx + 1);
+            if predicted_class == true_class {
+                correct_predictions += 1;
             }
         }
 
-        info!("데이터셋 생성 완료: 총 {}개 샘플 (클래스당 10개)", X.len());
+        let accuracy = correct_predictions as f32 / n_val as f32 * 100.0;
+        info!("✅ 평가 완료: 정확도 = {:.2}%", accuracy);
 
-        // 학습 파라미터 로깅
-        let learning_rate = 0.05;
-        let epochs = 1;
-        let tolerance = 1e-6;
-
-        info!("학습 파라미터:");
-        info!("  - 학습률: {}", learning_rate);
-        info!("  - 에포크: {}", epochs);
-        info!("  - 허용 오차: {}", tolerance);
-
-        info!("학습 시작...");
-        let start_time = std::time::Instant::now();
-
-        // 학습 (자동미분 사용)
-        match mlp.train(&X, &T, learning_rate, epochs, tolerance) {
-            Ok(_) => {
-                let duration = start_time.elapsed();
-                info!("학습 완료! 소요시간: {:.2?}", duration);
-            },
-            Err(e) => {
-                error!("학습 중 오류 발생: {:?}", e);
-                return Err(e);
-            }
+        if accuracy > 80.0 {
+            info!("🎉 목표 정확도 달성! 모델이 성공적으로 학습되었습니다.");
+            info!("w1: {:?}/n, w2: {:?}, b1: {:?}/n, b2: {:?}", mlp.w1, mlp.w2, mlp.b1, mlp.b2)
+        } else {
+            warn!("⚠️ 목표 정확도 미달. 하이퍼파라미터 튜닝이나 더 많은 학습이 필요할 수 있습니다.");
         }
-
+        
         #[cfg(feature = "enableVisualization")]
         {
             info!("계산 그래프 시각화 생성 중...");
@@ -454,52 +513,9 @@ mod tests {
                 Ok(_) => info!("SVG 그래프가 graph/twolayer.svg에 저장되었습니다"),
                 Err(e) => warn!("SVG 그래프 저장 실패: {:?}", e),
             }
-
-            match crate::tensor::VisualizationGraph::save_graph("graph/twolayer.dot") {
-                Ok(_) => info!("DOT 그래프가 graph/twolayer.dot에 저장되었습니다"),
-                Err(e) => warn!("DOT 그래프 저장 실패: {:?}", e),
-            }
         }
 
-        info!("모델 예측 테스트 중...");
-
-        // 예측
-        let test_input = &X[0];  // 첫 번째 샘플로 테스트
-        debug!("첫 번째 샘플 (클래스 0)로 예측 테스트");
-
-        match mlp.forward(test_input) {
-            Ok((_z, y)) => {
-                let prediction = y.tensor().data()[0];
-                info!("예측 결과: {:.6}", prediction);
-
-                // 전체 출력 확률 분포 로깅 (debug 레벨)
-                let output_probs: Vec<f32> = y.tensor().data().to_vec();
-                debug!("전체 출력 확률 분포: {:?}", output_probs);
-
-                // 가장 높은 확률의 클래스 찾기
-                let predicted_class = output_probs
-                    .iter()
-                    .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                    .map(|(index, _)| index)
-                    .unwrap_or(0);
-
-                info!("예측된 클래스: {} (확률: {:.4})", predicted_class, output_probs[predicted_class]);
-                info!("실제 클래스: 0"); // 첫 번째 샘플은 클래스 0
-
-                if predicted_class == 0 {
-                    info!("✅ 예측 성공!");
-                } else {
-                    warn!("❌ 예측 실패 (예측: {}, 실제: 0)", predicted_class);
-                }
-            },
-            Err(e) => {
-                error!("예측 중 오류 발생: {:?}", e);
-                return Err(e);
-            }
-        }
-
-        info!("=== MLP 자동미분 테스트 완료 ===");
+        info!("=== MLP MNIST 테스트 완료 ===");
         Ok(())
     }
 }

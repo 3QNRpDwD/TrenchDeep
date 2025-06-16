@@ -184,9 +184,9 @@ impl Function for HuberLoss {
     }
 }
 
-impl Function for BinaryCrossEntropy {
+impl Function for BinaryCrossEntropyLoss {
     fn new() -> MlResult<GlobalFunction> {
-        register_operator!(BinaryCrossEntropy)
+        register_operator!(BinaryCrossEntropyLoss)
     }
 
     fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
@@ -243,9 +243,9 @@ impl Function for BinaryCrossEntropy {
 
 // ===== CategoricalCrossEntropy =====
 
-impl Function for CategoricalCrossEntropy {
+impl Function for CrossEntropyLoss {
     fn new() -> MlResult<GlobalFunction> {
-        register_operator!(CategoricalCrossEntropy)
+        register_operator!(CrossEntropyLoss)
     }
 
     fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
