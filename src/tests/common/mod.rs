@@ -38,8 +38,10 @@ struct ModelParameters {
 pub struct MLP {
     pub w1: Arc<Variable>, // shape = [hidden_node, input_node]
     pub w2: Arc<Variable>, // shape = [output_node, hidden_node]
+    pub w3: Arc<Variable>, // shape = [output_node, hidden_node]
     pub b1: Arc<Variable>, // shape = [hidden_node, 1]
     pub b2: Arc<Variable>, // shape = [output_node, 1]
+    pub b3: Arc<Variable>, // shape = [output_node, 1]
     // 활성화 함수를 MLP 구조체의 일부로 만들어 유연성 확보
     hidden_activation: GlobalFunction,
     output_activation: GlobalFunction,
@@ -69,42 +71,57 @@ impl MLP {
     /// output_activation: 출력층에 적용할 활성화 함수
     pub fn new(
         n_input: usize,
-        n_hidden: usize,
+        n_hidden_1: usize,
+        n_hidden_2: usize,
         n_output: usize,
         hidden_activation: GlobalFunction,
         output_activation: GlobalFunction,
         loss_function: GlobalFunction,
     ) -> Self {
         // He 초기화 또는 Xavier 초기화와 같은 더 나은 가중치 초기화 방법을 고려할 수 있음
-        let w1_data: Vec<f32> = (0..n_hidden * n_input)
+        let w1_data: Vec<f32> = (0..n_hidden_1 * n_input)
             .map(|_| (rand::random::<f32>() - 0.5) * 0.5) // 0을 중심으로 분포
             .collect();
         let w1 = var_with_label!(
-            Tensor::from_vec(w1_data, &[n_hidden, n_input]).unwrap(),
+            Tensor::from_vec(w1_data, &[n_hidden_1, n_input]).unwrap(),
             "weight_1"
         );
 
-        let w2_data: Vec<f32> = (0..n_output * n_hidden)
+        let w2_data: Vec<f32> = (0..n_hidden_2 * n_hidden_1)
             .map(|_| (rand::random::<f32>() - 0.5) * 0.5)
             .collect();
         let w2 = var_with_label!(
-            Tensor::from_vec(w2_data, &[n_output, n_hidden]).unwrap(),
+            Tensor::from_vec(w2_data, &[n_hidden_2, n_hidden_1]).unwrap(),
             "weight_2"
         );
 
+        let w3_data: Vec<f32> = (0..n_output * n_hidden_2)
+            .map(|_| (rand::random::<f32>() - 0.5) * 0.5)
+            .collect();
+        let w3 = var_with_label!(
+            Tensor::from_vec(w3_data, &[n_output, n_hidden_2]).unwrap(),
+            "weight_3"
+        );
+
         // bias 항들 초기화
-        let b1_data: Vec<f32> = vec![0.0; n_hidden]; // 0으로 초기화하는 것이 일반적
+        let b1_data: Vec<f32> = vec![0.0; n_hidden_1]; // 0으로 초기화하는 것이 일반적
         let b1 = var_with_label!(
-            Tensor::from_vec(b1_data, &[n_hidden, 1]).unwrap(),
+            Tensor::from_vec(b1_data, &[n_hidden_1, 1]).unwrap(),
             "bias_1"
         );
 
-        let b2_data: Vec<f32> = vec![0.0; n_output];
+        let b2_data: Vec<f32> = vec![0.0; n_hidden_2];
         let b2 = var_with_label!(
-            Tensor::from_vec(b2_data, &[n_output, 1]).unwrap(),
+            Tensor::from_vec(b2_data, &[n_hidden_2, 1]).unwrap(),
             "bias_2"
         );
 
-        Self { w1, w2, b1, b2, hidden_activation, output_activation, loss_function }
+        let b3_data: Vec<f32> = vec![0.0; n_output];
+        let b3 = var_with_label!(
+            Tensor::from_vec(b3_data, &[n_output, 1]).unwrap(),
+            "bias_3"
+        );
+
+        Self { w1, w2, w3, b1, b2, b3, hidden_activation, output_activation, loss_function }
     }
 }

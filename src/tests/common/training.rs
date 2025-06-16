@@ -4,15 +4,15 @@ use crate::loss::{HuberLoss, MeanSquaredError};
 use crate::nn::activation::ReLu;
 use super::*;
 
-pub fn build_model(n_input: usize, n_hidden: usize, n_output: usize) -> MlResult<MLP> {
+pub fn build_model(n_input: usize, n_hidden_1: usize, n_hidden_2: usize, n_output: usize) -> MlResult<MLP> {
     let hidden_activation = Sigmoid::new()?;
     let output_activation = Softmax::new()?;
-    let loss_function = HuberLoss::new()?;
+    let loss_function = CrossEntropyLoss::new()?;
 
-    info!("Network Structure: {}(Input) -> {}(Hidden) -> {}(Output)", n_input, n_hidden, n_output);
+    info!("Network Structure: {}(Input) -> {}(Hidden) -> {}(Hidden) -> {}(Output)", n_input, n_hidden_1, n_hidden_2, n_output);
     info!("Activation Functions: {} (Hidden), {} (Output)", hidden_activation.name(), output_activation.name());
 
-    let mlp = MLP::new(n_input, n_hidden, n_output, hidden_activation, output_activation, loss_function);
+    let mlp = MLP::new(n_input, n_hidden_1, n_hidden_2, n_output, hidden_activation, output_activation, loss_function);
     info!("MLP model created successfully.");
     Ok(mlp)
 }
@@ -28,19 +28,19 @@ impl MLP {
         let matmul = Matmul::new()?;
         let add = Add::new()?;
 
-        // 1) 은닉층: u_h = W1 * x + b1
-        let uh_pre = matmul.apply(&[&self.w1, x])?;
-        let uh = add.apply(&[&uh_pre, &self.b1])?;
+        // 1) 첫 번째 은닉층
+        let uh1_pre = matmul.apply(&[&self.w1, x])?;
+        let uh1 = add.apply(&[&uh1_pre, &self.b1])?;
+        let ah1 = self.hidden_activation.apply(&[&uh1])?;
 
-        // 2) 은닉층 활성화: a_h = activation(u_h)
-        let ah = self.hidden_activation.apply(&[&uh])?;
+        // 2) 두 번째 은닉층: 첫 번째 은닉층의 출력(ah1)을 입력으로 받음
+        let uh2_pre = matmul.apply(&[&self.w2, &ah1])?;
+        let uh2 = add.apply(&[&uh2_pre, &self.b2])?;
+        let ah2 = self.hidden_activation.apply(&[&uh2])?;
 
-        // 3) 출력층: u_o = W2 * a_h + b2
-        let uo_pre = matmul.apply(&[&self.w2, &ah])?;
-        let uo = add.apply(&[&uo_pre, &self.b2])?;
-
-        // 4) 출력층 활성화: y = activation(u_o)
-        // 다중 클래스 분류에는 Softmax가 표준입니다.
+        // 3) 출력층: 두 번째 은닉층의 출력(ah2)을 입력으로 받음
+        let uo_pre = matmul.apply(&[&self.w3, &ah2])?;
+        let uo = add.apply(&[&uo_pre, &self.b3])?;
         let y = self.output_activation.apply_with_label(&[&uo], "output")?;
 
         Ok(y)
@@ -51,23 +51,26 @@ impl MLP {
         let add = Add::new()?;
 
         // 1) 은닉층: u_h = W1 * x + b1
-        let uh_pre = matmul.forward(&[&self.w1.tensor(), x])?.remove(0);
-        let uh = add.forward(&[&uh_pre, &self.b1.tensor()])?.remove(0);
+        let uh1_pre = matmul.forward(&[&self.w1.tensor(), x])?.remove(0);
+        let uh1 = add.forward(&[&uh1_pre, &self.b1.tensor()])?.remove(0);
+        let ah1 = self.hidden_activation.forward(&[&uh1])?.remove(0);
 
-        // 2) 은닉층 활성화: a_h = activation(u_h)
-        let ah = self.hidden_activation.forward(&[&uh])?.remove(0);
+        // 3) 은닉층: u_h = W1 * x + b1
+        let uh2_pre = matmul.forward(&[&self.w2.tensor(), &ah1])?.remove(0);
+        let uh2 = add.forward(&[&uh2_pre, &self.b2.tensor()])?.remove(0);
+        let ah2 = self.hidden_activation.forward(&[&uh2])?.remove(0);
 
         // 3) 출력층: u_o = W2 * a_h + b2
-        let uo_pre = matmul.forward(&[&self.w2.tensor(), &ah])?.remove(0);
-        let uo = add.forward(&[&uo_pre, &self.b2.tensor()])?.remove(0);
-
-        // 4) 출력층 활성화: y = activation(u_o)
-        // 다중 클래스 분류에는 Softmax가 표준입니다.
+        let uo_pre = matmul.forward(&[&self.w3.tensor(), &ah2])?.remove(0);
+        let uo = add.forward(&[&uo_pre, &self.b3.tensor()])?.remove(0);
         let y = self.output_activation.forward(&[&uo])?.remove(0);
 
         Ok(y)
     }
 
+    //모델의 학습이 더이상 진행되지 않는 상황에서 파라미터를 조정해봤으나, 유의미한 영향이 있지않았음.
+    // 오히려 학습률이 비정상적으로 작아지는등 모습을 보임.
+    // 따라서 레이어를 하나 더 추가했으나,이도 유의미한 결과를 내지 못하고있는것으로 보임. 마지막 방법으로, 옵티마이저를 적응형으로 변경하는 방안을 고려. 그 이후에도 해결되지 않는다면...
     pub fn train(
         &mut self,
         x_set: &[Arc<Variable>],
@@ -95,7 +98,7 @@ impl MLP {
         let epoch_duration = epoch_start_time.elapsed();
         info!(
                 "Epoch {:>3}/{:<3} | initial loss: {:.6} | Duration: {:.2?}",
-                0.000,
+                0,
                 epochs,
                 last_loss,
                 epoch_duration
@@ -111,7 +114,7 @@ impl MLP {
                 ComputationGraph::reset_graph();
                 let y = self.apply(x)?;
                 let loss_var = self.loss_function.apply_with_label(&[&y, &t], "loss")?;
-                
+
                 total_loss += loss_var.tensor().data()[0];
                 loss_var.backward()?;
 
@@ -119,7 +122,7 @@ impl MLP {
                     error!("gradient is NaN or infinity: {}. Suspended training.", total_loss);
                     return Err(MlError::StringError("During training, numerical instability occurs".to_string()));
                 }
-                
+
                 self.update(&lr)?;
                 self.zero_grad()?;
             }
@@ -174,8 +177,10 @@ impl MLP {
     pub fn update(&mut self, lr: &Tensor) -> MlResult<()> {
         self.w1.sub_tensor(self.w1.grad().unwrap() * lr)?;
         self.w2.sub_tensor(self.w2.grad().unwrap() * lr)?;
-        // self.b1.sub_tensor(self.b1.grad().unwrap() * lr)?;
-        // self.b2.sub_tensor(self.b2.grad().unwrap() * lr)?;
+        self.w3.sub_tensor(self.w3.grad().unwrap() * lr)?;
+        self.b1.sub_tensor(self.b1.grad().unwrap() * lr)?;
+        self.b2.sub_tensor(self.b2.grad().unwrap() * lr)?;
+        self.b3.sub_tensor(self.b3.grad().unwrap() * lr)?;
         Ok(())
     }
 
@@ -183,8 +188,10 @@ impl MLP {
     pub fn zero_grad(&mut self) -> MlResult<()> {
         self.w1.clear_grad();
         self.w2.clear_grad();
-        // self.b1.clear_grad();
-        // self.b2.clear_grad();
+        self.w3.clear_grad();
+        self.b1.clear_grad();
+        self.b2.clear_grad();
+        self.b3.clear_grad();
         Ok(())
     }
 }

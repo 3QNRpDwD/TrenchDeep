@@ -25,7 +25,7 @@ fn mlp_mnist_classification_integration_test() -> MlResult<()> {
     let dataset =
         load_and_prepare_data(config.n_train, config.n_val, config.n_features, config.n_classes)?;
     
-    let mut mlp = build_model(config.n_features, config.n_hidden, config.n_classes)?;
+    let mut mlp = build_model(config.n_features, config.n_hidden_1, config.n_hidden_2, config.n_classes)?;
     train_model(
         &mut mlp,
         &dataset.x_train,
