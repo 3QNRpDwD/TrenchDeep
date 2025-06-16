@@ -9,6 +9,20 @@ use crate::{MlError, MlResult, scalar, var_with_label, var_input};
 use crate::loss::{CrossEntropyLoss, MeanSquaredError};
 use log::{info, debug, warn, error, trace};
 
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize)]
+struct ModelParameters {
+    w1_data: Vec<f32>,
+    w1_shape: Vec<usize>,
+    b1_data: Vec<f32>,
+    b1_shape: Vec<usize>,
+    w2_data: Vec<f32>,
+    w2_shape: Vec<usize>,
+    b2_data: Vec<f32>,
+    b2_shape: Vec<usize>,
+}
+
 pub struct MLP {
     pub w1: Arc<Variable>, // shape = [hidden_node, input_node]
     pub w2: Arc<Variable>, // shape = [output_node, hidden_node]
@@ -354,7 +368,6 @@ impl MLP {
     pub fn compute_total_error(&self, X: &Vec<Arc<Variable>>, T: &Vec<Arc<Variable>>, loss_function: &GlobalFunction) -> MlResult<f32> {
         let mut total_loss = 0.0;
         for m in 0..X.len() {
-            ComputationGraph::reset_graph(); // 순전파만 하므로 그래프는 매번 리셋
             let y = var_input!(self.forward(&X[m].tensor())?);
             let loss = loss_function.forward(&[&y.tensor(), &T[m].tensor()])?.remove(0);
             total_loss += loss.data()[0];
@@ -387,9 +400,44 @@ mod tests {
     use crate::nn::activation::Softmax;
 
     fn setup_logger() {
-        use tracing_subscriber::EnvFilter;
-        let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("Debug"));
-        let _ = tracing_subscriber::fmt().with_env_filter(filter).with_test_writer().try_init();
+        use tracing_subscriber::{
+            fmt::{self, format::FmtSpan},
+            prelude::*,
+            EnvFilter,
+        };
+
+        // 1. 파일에 로그를 저장하기 위한 '파일 Appender'를 설정합니다.
+        // 'logs'라는 폴더 안에 'test_run.log'라는 이름으로 파일을 생성합니다.
+        let file_appender = tracing_appender::rolling::minutely("logs", "test_run.log");
+        let (non_blocking_appender, _guard) = tracing_appender::non_blocking(file_appender);
+
+        // 로그 레벨 필터 설정 (환경 변수가 없으면 'info' 레벨 사용)
+        let filter = EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new("Debug"));
+
+        // 2. 파일로 출력하는 레이어(Layer)를 설정합니다.
+        let file_layer = fmt::layer()
+            .with_writer(non_blocking_appender)
+            .with_ansi(true); // 파일에는 ANSI 색상 코드를 저장하지 않음
+
+        // 3. 콘솔(stdout)로 출력하는 레이어를 설정합니다.
+        let stdout_layer = fmt::layer()
+            .with_writer(std::io::stdout);
+
+        // 4. 설정된 레이어들을 조합하여 최종 로거를 초기화합니다.
+        if tracing_subscriber::registry()
+            .with(filter)
+            .with(file_layer)
+            .with(stdout_layer)
+            .try_init()
+            .is_err()
+        {
+            // 이미 로거가 설정된 경우(예: 다른 테스트에서 먼저 실행) 무시
+        };
+
+        // _guard를 반환하여 프로그램이 끝날 때까지 로그 파일이 열려 있도록 합니다.
+        // 하지만 테스트 함수에서는 복잡해지므로, 여기서는 의도적으로 drop 시킵니다.
+        // 대부분의 로그는 프로그램 종료 전에 기록되므로 큰 문제는 없습니다.
     }
 
     fn convert_to_variable_dataset(
@@ -471,7 +519,7 @@ mod tests {
         info!("MLP 모델 생성 완료: {:?}", mlp);
 
         // 3. 학습 파라미터 조정
-        let learning_rate = 0.01; // 더 안정적인 학습을 위해 학습률 감소
+        let learning_rate = 0.05; // 더 안정적인 학습을 위해 학습률 감소
         let epochs = 10;
         let tolerance = 1e-4;    // 더 엄격한 수렴 조건
 
@@ -486,8 +534,8 @@ mod tests {
         for i in 0..n_val {
             let test_input = &x_test[i];
             let true_label_tensor = &t_test[i];
-            let y = mlp.forward(test_input.tensor())?;
-            let output_probs = y.data();
+            let y = mlp.apply(test_input)?;
+            let output_probs = y.tensor().data();
             let predicted_class = output_probs.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).unwrap().0;
             let true_class = true_label_tensor.tensor().data().iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).unwrap().0;
 
@@ -501,11 +549,33 @@ mod tests {
 
         if accuracy > 80.0 {
             info!("🎉 목표 정확도 달성! 모델이 성공적으로 학습되었습니다.");
-            info!("w1: {:?}/n, w2: {:?}, b1: {:?}/n, b2: {:?}", mlp.w1, mlp.w2, mlp.b1, mlp.b2)
+
+            let params_to_save = ModelParameters {
+                w1_data: mlp.w1.tensor().data().to_vec(),
+                w1_shape: mlp.w1.tensor().shape().to_vec(),
+                b1_data: mlp.b1.tensor().data().to_vec(),
+                b1_shape: mlp.b1.tensor().shape().to_vec(),
+                w2_data: mlp.w2.tensor().data().to_vec(),
+                w2_shape: mlp.w2.tensor().shape().to_vec(),
+                b2_data: mlp.b2.tensor().data().to_vec(),
+                b2_shape: mlp.b2.tensor().shape().to_vec(),
+            };
+
+            // --- 옵션 1: JSON 형태로 저장하기 (인간이 읽기 편함) ---
+            match std::fs::File::create("model_parameters.json") {
+                Ok(file) => {
+                    if let Err(e) = serde_json::to_writer_pretty(file, &params_to_save) {
+                        warn!("JSON 파일 저장 실패: {}", e);
+                    } else {
+                        info!("모델 파라미터를 'model_parameters.json' 파일로 저장했습니다.");
+                    }
+                }
+                Err(e) => warn!("파일을 생성할 수 없습니다: {}", e),
+            }
         } else {
             warn!("⚠️ 목표 정확도 미달. 하이퍼파라미터 튜닝이나 더 많은 학습이 필요할 수 있습니다.");
         }
-        
+
         #[cfg(feature = "enableVisualization")]
         {
             info!("계산 그래프 시각화 생성 중...");
