@@ -1,12 +1,23 @@
-
-use crate::tensor::{OPERATOR_STORAGE, Tensor, TensorBase, AutogradFunction, ComputationGraph, GlobalFunction};
-use crate::nn::activation::Sigmoid;
-use crate::tensor::Variable;
+use crate::{
+    tensor::{
+        Tensor,
+        TensorBase,
+        AutogradFunction,
+        ComputationGraph,
+        GlobalFunction,
+        Variable,
+        operators::{Add, Function, Matmul, Mul, Square, Sub, Sum}
+    },
+    nn::activation::Sigmoid,
+    MlError,
+    MlResult,
+    scalar,
+    var_with_label,
+    var_input,
+    loss::{CrossEntropyLoss}
+};
 use std::fmt;
 use std::sync::Arc;
-use crate::tensor::operators::{Add, Function, Matmul, Mul, Square, Sub, Sum};
-use crate::{MlError, MlResult, scalar, var_with_label, var_input};
-use crate::loss::{CrossEntropyLoss, MeanSquaredError};
 use log::{info, debug, warn, error, trace};
 
 use serde::{Serialize, Deserialize};
@@ -31,6 +42,7 @@ pub struct MLP {
     // 활성화 함수를 MLP 구조체의 일부로 만들어 유연성 확보
     hidden_activation: GlobalFunction,
     output_activation: GlobalFunction,
+    loss_function: GlobalFunction,
 }
 
 impl fmt::Debug for MLP {
@@ -41,8 +53,9 @@ impl fmt::Debug for MLP {
 
                  self.w2.tensor().shape())?;
         // 활성화 함수 정보 추가
-        writeln!(f, "  hidden_activation = {}", self.hidden_activation.type_name())?;
-        writeln!(f, "  output_activation = {}", self.output_activation.type_name())?;
+        writeln!(f, "  hidden_activation = {}", self.hidden_activation.name())?;
+        writeln!(f, "  output_activation = {}", self.output_activation.name())?;
+        writeln!(f, "  loss_function = {}", self.loss_function.name())?;
         writeln!(f, "}}")
     }
 }
@@ -60,6 +73,7 @@ impl MLP {
         n_output: usize,
         hidden_activation: GlobalFunction,
         output_activation: GlobalFunction,
+        loss_function: GlobalFunction,
     ) -> Self {
         // He 초기화 또는 Xavier 초기화와 같은 더 나은 가중치 초기화 방법을 고려할 수 있음
         let w1_data: Vec<f32> = (0..n_hidden * n_input)
@@ -91,7 +105,7 @@ impl MLP {
             "bias_2"
         );
 
-        Self { w1, w2, b1, b2, hidden_activation, output_activation }
+        Self { w1, w2, b1, b2, hidden_activation, output_activation, loss_function }
     }
 
     /// 단일 샘플 x에 대해 순전파 수행 (자동미분 사용)
@@ -148,7 +162,6 @@ impl MLP {
         &mut self,
         X: &Vec<Arc<Variable>>,
         T: &Vec<Arc<Variable>>,
-        loss_function: GlobalFunction, // 손실 함수를 인자로 받음
         eta: f32,
         max_iter: usize,
         tol: f32,
@@ -173,10 +186,6 @@ impl MLP {
             error!("Sum 연산자 초기화 실패: {:?}", e);
             e
         })?;
-        let mse = MeanSquaredError::new().map_err(|e| {
-            error!("MeanSquaredError 연산자 초기화 실패: {:?}", e);
-            e
-        })?;
 
         let n_samples = X.len();
         let mut resid = tol * 2.0;
@@ -187,7 +196,7 @@ impl MLP {
 
         // 초기 오차 계산
         info!("초기 오차 계산 중...");
-        let mut e_prev = self.compute_total_error(X, T, &loss_function).map_err(|e| {
+        let mut e_prev = self.compute_total_error(X, T, &self.loss_function).map_err(|e| {
             error!("초기 오차 계산 실패: {:?}", e);
             e
         })?;
@@ -227,7 +236,7 @@ impl MLP {
                 #[cfg(feature = "enableBackpropagation")]
                 {
                     // === 손실 함수 계산 ===
-                    let loss_val = mse.apply_with_label(&[&y, t_m], "loss").map_err(|e| {
+                    let loss_val = self.loss_function.apply_with_label(&[&y, t_m], "loss").map_err(|e| {
                         error!("샘플 {} 차이 계산 실패: {:?}", m, e);
                         e
                     })?;
@@ -295,7 +304,7 @@ impl MLP {
 
             // 1 epoch이 끝난 후 오차 재계산
             debug!("에포크 {} 전체 오차 재계산 중...", iter);
-            let e_curr = self.compute_total_error(X, T, &loss_function).map_err(|e| {
+            let e_curr = self.compute_total_error(X, T, &self.loss_function).map_err(|e| {
                 error!("에포크 {} 오차 계산 실패: {:?}", iter, e);
                 e
             })?;
@@ -413,7 +422,7 @@ mod tests {
 
         // 로그 레벨 필터 설정 (환경 변수가 없으면 'info' 레벨 사용)
         let filter = EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| EnvFilter::new("Debug"));
+            .unwrap_or_else(|_| EnvFilter::new("Info"));
 
         // 2. 파일로 출력하는 레이어(Layer)를 설정합니다.
         let file_layer = fmt::layer()
@@ -515,18 +524,18 @@ mod tests {
         info!("활성화 함수: {} (은닉), {} (출력)", hidden_activation.name(), output_activation.name());
 
         // 2. MLP 생성 시 주입
-        let mut mlp = MLP::new(n_input, n_hidden, n_output, hidden_activation, output_activation);
-        info!("MLP 모델 생성 완료: {:?}", mlp);
+        let mut mlp = MLP::new(n_input, n_hidden, n_output, hidden_activation, output_activation, loss_function);
+        info!("MLP 모델 생성 완료: \n{:?}", mlp);
 
         // 3. 학습 파라미터 조정
-        let learning_rate = 0.05; // 더 안정적인 학습을 위해 학습률 감소
+        let learning_rate = 0.02; // 더 안정적인 학습을 위해 학습률 감소
         let epochs = 10;
         let tolerance = 1e-4;    // 더 엄격한 수렴 조건
 
         info!("학습 파라미터: 학습률={}, 최대 에포크={}, 허용 오차={}", learning_rate, epochs, tolerance);
 
         // 4. train 함수 호출 시 손실 함수 전달
-        mlp.train(&x_train, &t_train, loss_function, learning_rate, epochs, tolerance)?;
+        mlp.train(&x_train, &t_train, learning_rate, epochs, tolerance)?;
 
         // --- 4. 학습된 모델로 예측 및 정확도 평가 ---
         info!("=== 학습된 모델 평가 시작 (테스트셋 {}개) ===", n_val);

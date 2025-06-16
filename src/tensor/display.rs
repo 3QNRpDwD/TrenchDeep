@@ -24,6 +24,13 @@ impl Display for TensorError {
             TensorError::EmptyTensor => {
                 write!(f, "Empty tensor")
             }
+
+            TensorError::InvalidInputCount {
+                expected,
+                got
+            } => {
+                write!(f, "InvalidInputCount: expected {:?}, got {:?}", expected, got)
+            }
         }
     }
 }

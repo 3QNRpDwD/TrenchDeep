@@ -33,6 +33,7 @@ pub enum TensorError {
         left_shape: Vec<usize>,
         right_shape: Vec<usize>,
     },
+    InvalidInputCount { expected: i32, got: usize },
     EmptyTensor,
 }
 
