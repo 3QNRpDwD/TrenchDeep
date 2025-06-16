@@ -45,6 +45,7 @@ impl DeviceManager {
     }
 
     pub fn global() -> &'static DeviceManager {
+        #[warn(static_mut_refs)]
         unsafe {
             INIT.call_once(|| {
                 GLOBAL_DEVICE_MANAGER = Some(DeviceManager::new());

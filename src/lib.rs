@@ -3,8 +3,7 @@ pub mod backend;
 pub mod nn;
 pub mod optimizer;
 pub mod loss;
-pub mod mlp;
-pub mod auto_mlp;
+mod tests;
 
 use crate::backend::BackendError;
 use crate::loss::LossError;
