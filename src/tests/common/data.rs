@@ -21,8 +21,24 @@ pub fn load_and_prepare_data(
         .finalize();
 
     info!("Converting data to model input format...");
-    let (x_train, t_train) = convert_to_variable_dataset(&mnist_data.trn_img, &mnist_data.trn_lbl, n_train as usize, n_features, n_classes)?;
+    // 셔플을 위해 mut로 변경
+    let (mut x_train, mut t_train) = convert_to_variable_dataset(&mnist_data.trn_img, &mnist_data.trn_lbl, n_train as usize, n_features, n_classes)?;
     let (x_test, t_test) = convert_to_variable_dataset(&mnist_data.tst_img, &mnist_data.tst_lbl, n_val as usize, n_features, n_classes)?;
+
+    // --- 셔플 기능 추가 시작 ---
+    info!("Shuffling training data...");
+    let mut rng = rng();
+
+    // 1. x_train과 t_train을 (이미지, 라벨) 쌍으로 묶습니다.
+    let mut combined_train_data: Vec<_> = x_train.into_iter().zip(t_train.into_iter()).collect();
+
+    // 2. 묶인 데이터의 순서를 무작위로 섞습니다.
+    combined_train_data.shuffle(&mut rng);
+
+    // 3. 섞인 데이터를 다시 x_train과 t_train 벡터로 분리합니다.
+    (x_train, t_train) = combined_train_data.into_iter().unzip();
+    // --- 셔플 기능 추가 끝 ---
+
     info!("Data preparation complete.");
 
     Ok(MnistDataset { x_train, t_train, x_test, t_test })
@@ -38,7 +54,6 @@ fn convert_to_variable_dataset(
     let mut x_set = Vec::with_capacity(num_items);
     let mut t_set = Vec::with_capacity(num_items);
 
-    // 이미지 픽셀 값을 [0, 1] 범위로 정규화합니다.
     let normalized_images: Vec<f32> = images.iter().map(|&pixel| pixel as f32 / 255.0).collect();
     let f32_labels: Vec<f32> = labels.iter().map(|&label| label as f32).collect();
 

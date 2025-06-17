@@ -233,6 +233,7 @@ pub struct Variable {
     grad: RefCell<Option<Tensor>>,
 }
 
+#[derive(Clone)]
 pub struct GlobalFunction (String, NodeId);
 
 #[derive(Clone)]
@@ -315,7 +316,6 @@ impl NodeIdGenerator {
     }
 }
 
-#[cfg(feature = "enableBackpropagation")]
 pub(crate) struct ComputationNode {
     id: NodeId,
     variable: Arc<Variable>,
@@ -324,7 +324,6 @@ pub(crate) struct ComputationNode {
     is_leaf: bool,
 }
 
-#[cfg(feature = "enableBackpropagation")]
 pub(crate) struct ComputationGraph {
     nodes: Vec<ComputationNode>,
     node_map: HashMap<NodeId, usize>,

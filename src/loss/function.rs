@@ -258,6 +258,16 @@ impl CrossEntropyLoss {
     }
 }
 
+impl SoftmaxWithCrossEntropyLoss {
+    fn get_batch_size(shape: &[usize]) -> f32 {
+        if shape.len() > 1 {
+            shape[0] as f32
+        } else {
+            1.0
+        }
+    }
+}
+
 impl Function for CrossEntropyLoss {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(CrossEntropyLoss)
@@ -351,6 +361,92 @@ impl Function for CrossEntropyLoss {
 
         Ok(vec![grad_pred, grad_target])
     }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
+    }
+
+    fn node_id(&self) -> &NodeId {
+        &self.node_id
+    }
+}
+
+impl Function for SoftmaxWithCrossEntropyLoss {
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(SoftmaxWithCrossEntropyLoss)
+    }
+
+    /// 순전파를 계산합니다.
+    ///
+    /// # Arguments
+    /// * `inputs`: `[&Tensor(logits), &Tensor(target)]` 형태의 슬라이스.
+    ///   - `logits`: 모델의 마지막 선형 계층에서 나온 원시 점수 (Softmax 적용 전).
+    ///   - `target`: 실제 값 (원-핫 인코딩된 벡터).
+    fn forward(&self, inputs: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+        let (logits, target) = match inputs {
+            [l, t] => (*l, *t),
+            _ => return Err(MlError::TensorError(InvalidInputCount { expected: 2, got: inputs.len() }.into())),
+        };
+
+        let logits_data = logits.data();
+        let target_data = target.data();
+        let batch_size = Self::get_batch_size(logits.shape());
+
+        // Log-Sum-Exp 트릭을 사용한 안정적인 손실 계산
+        // loss = log(sum(exp(z_i))) - z_k (여기서 k는 정답 클래스 인덱스)
+        //      = log(sum(exp(z_i))) - dot(z, t)
+
+        // 1. 오버플로우 방지를 위해 로짓의 최댓값을 뺍니다.
+        let max_logit = logits_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+
+        // 2. log(sum(exp(z_i))) 계산
+        let sum_exp = logits_data.iter().map(|&z| (z - max_logit).exp()).sum::<f32>();
+        let log_sum_exp = sum_exp.ln();
+
+        // 3. 실제 로짓과 타겟의 내적(dot product) 계산
+        let dot_product = logits_data.iter().zip(target_data.iter()).map(|(&z, &t)| z * t).sum::<f32>();
+
+        // 4. 최종 손실 계산 (뺐던 최댓값을 다시 더해줌)
+        let loss = (max_logit + log_sum_exp) - dot_product;
+
+        Ok(vec![scalar!(loss / batch_size)])
+    }
+
+    #[cfg(all(feature = "enableBackpropagation"))]
+    /// 역전파를 계산합니다.
+    /// 로짓에 대한 그래디언트는 (p - t) 형태로 매우 안정적입니다.
+    fn backward(&self, inputs: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+        let (logits, target) = match inputs {
+            [l, t] => (*l, *t),
+            _ => return Err(MlError::TensorError(InvalidInputCount { expected: 2, got: inputs.len() }.into())),
+        };
+
+        let grad_val = grad.data().get(0).copied().unwrap_or(1.0);
+        let batch_size = Self::get_batch_size(logits.shape());
+
+        // --- 그래디언트 계산을 위해 먼저 Softmax 확률(p)을 계산 ---
+        let logits_data = logits.data();
+        let max_logit = logits_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+        let exp_values: Vec<f32> = logits_data.iter().map(|&z| (z - max_logit).exp()).collect();
+        let sum_exp = exp_values.iter().sum::<f32>();
+
+        // p (확률) 계산
+        let probabilities: Vec<f32> = exp_values.iter().map(|&exp_val| exp_val / sum_exp).collect();
+
+        // --- 로짓에 대한 그래디언트 (p - t) 계산 ---
+        let grad_logits_data: Vec<f32> = probabilities.iter()
+            .zip(target.data().iter())
+            .map(|(&p, &t)| grad_val * (p - t) / batch_size)
+            .collect();
+
+        let grad_logits = Tensor::from_vec(grad_logits_data, logits.shape())?;
+
+        // target에 대한 그래디언트는 필요 없는 경우가 많지만, 완전성을 위해 계산 (보통 0으로 처리)
+        let grad_target = Tensor::zeros_like(target);
+
+        Ok(vec![grad_logits, grad_target])
+    }
+
 
     fn backend(&self) -> &Arc<dyn Backend> {
         &self.backend

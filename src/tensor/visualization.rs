@@ -240,7 +240,7 @@ impl VisualizationGraph {
 
     fn find_layer_representative(&self, layers: &HashMap<String, usize>, target_layer: usize) -> Option<String> {
         layers.iter()
-            .find(|(_, &layer)| layer == target_layer)
+            .find(|(_, layer)| layer == &&target_layer)
             .map(|(node, _)| node.clone())
     }
 

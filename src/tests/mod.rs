@@ -1,2 +1,2 @@
-mod mlp_mnist_test;
-mod common;
+mod mnist_test;
+pub mod common;

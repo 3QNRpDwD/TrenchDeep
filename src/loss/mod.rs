@@ -42,6 +42,10 @@ pub struct CrossEntropyLoss {
     backend: Arc<dyn Backend>, node_id: NodeId
 }
 
+pub struct SoftmaxWithCrossEntropyLoss {
+    backend: Arc<dyn Backend>, node_id: NodeId
+}
+
 pub trait Loss: Function {
     fn new() -> MlResult<GlobalFunction> where Self: Sized {
         <Self as Function>::new()
