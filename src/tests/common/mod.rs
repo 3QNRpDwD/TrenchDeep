@@ -13,7 +13,6 @@ use crate::{
         activation::Sigmoid,
         activation::Softmax
     },
-    loss::CrossEntropyLoss,
     var_with_label,
     var_input,
     MlResult,

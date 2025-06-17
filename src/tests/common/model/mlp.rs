@@ -90,7 +90,7 @@ impl Model for MLP {
                 loss_var.backward()?;
 
                 if self.w1.grad().unwrap().data()[0].is_nan() || self.w2.grad().unwrap().data()[0].is_infinite() || self.b1.grad().unwrap().data()[0].is_nan() || self.b2.grad().unwrap().data()[0].is_infinite() {
-                    error!("gradient is NaN or infinity: {}. Suspended training.", total_loss);
+                    error!("gradient is NaN or infinity: {:?} or {:?}. Suspended training.", self.w1.grad().unwrap().data()[0], self.w2.grad().unwrap().data()[0]);
                     return Err(MlError::StringError("During training, numerical instability occurs".to_string()));
                 }
 
