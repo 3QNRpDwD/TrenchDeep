@@ -5,7 +5,7 @@ use super::*;
 /// 콘솔과 파일에 동시에 로그를 남깁니다.
 // 로깅 설정을 별도 함수로 분리하고, _guard를 반환합니다.
 pub fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
-    let file_appender = tracing_appender::rolling::minutely("logs", "test_run.log");
+    let file_appender = tracing_appender::rolling::hourly("logs", "test_run.log");
     let (non_blocking_appender, guard) = tracing_appender::non_blocking(file_appender);
 
     let filter = EnvFilter::try_from_default_env()
@@ -13,7 +13,7 @@ pub fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
 
     let file_layer = fmt::layer()
         .with_writer(non_blocking_appender)
-        .with_ansi(false); // 파일에는 ANSI 색상 코드를 저장하지 않음
+        .with_ansi(true); // 파일에는 ANSI 색상 코드를 저장하지 않음
 
     let stdout_layer = fmt::layer()
         .with_writer(std::io::stdout);

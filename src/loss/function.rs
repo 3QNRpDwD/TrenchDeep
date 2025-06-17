@@ -371,6 +371,7 @@ impl Function for CrossEntropyLoss {
     }
 }
 
+// 기존에 소프트맥스 함수와 크로스엔트로피 로스를 따로따로 사용했을때 기울기가 폭발하는 현상이 매우 빈번하여, 각각 따로 계산되던 함수를 하나로 융합함.
 impl Function for SoftmaxWithCrossEntropyLoss {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(SoftmaxWithCrossEntropyLoss)
