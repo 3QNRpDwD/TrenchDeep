@@ -51,12 +51,13 @@ impl Model for SoftmaxRegression {
         let mut last_loss = self.compute_total_error(x_set, t_set, &self.loss_function)?;
         let epoch_duration = epoch_start_time.elapsed();
         let initial_log = format!("Initial loss: {:.6} | Duration: {:.2?}", last_loss, epoch_duration);
-        info!(
-        "Epoch {:>3}/{:<3} | {}",
-        0,
-        epochs,
-        initial_log
-    );
+        epoch_bar.set_message(initial_log.clone());
+    //     info!(
+    //     "Epoch {:>3}/{:<3} | {}",
+    //     0,
+    //     epochs,
+    //     initial_log
+    // );
 
 
         for epoch in 0..epochs {
@@ -130,7 +131,7 @@ impl Model for SoftmaxRegression {
 
         Ok(())
     }
-    
+
     #[cfg(feature = "enableBackpropagation")]
     fn apply(&self, x: &Arc<Variable>) -> MlResult<Arc<Variable>> {
         let matmul = Matmul::new()?;

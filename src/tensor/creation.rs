@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::ops::{Deref, DivAssign, MulAssign, SubAssign};
 use crate::tensor::operators::{Add, Div, Mul, Sub};
 
+// 매번 생성된 텐서를 전역 그래프에 저장하느라 심각한 성능저하와 메모리 낭비 발생. 아마도 연산자등에서 생성하는 텐서는 저장되지 않도록 조치를 취해야 할듯.
 impl TensorBase for Tensor {
     fn new(data: Vec<Vec<f32>>) -> Tensor {
         let shape = vec![data.len(), data[0].len()];

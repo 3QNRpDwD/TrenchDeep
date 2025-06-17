@@ -51,7 +51,7 @@ impl MLP {
         Ok(total_loss / X.len() as f32)
     }
 
-    
+
     pub fn train_model(
         model: &mut MLP,
         x_train: &[Arc<Variable>],
@@ -65,7 +65,7 @@ impl MLP {
 
         #[cfg(feature = "enableBackpropagation")]
         model.train(x_train, t_train, epochs, learning_rate, tolerance)?;
-        
+
         if !cfg!(feature = "enableBackpropagation") {
             warn!("Feature: disableBackpropagation");
         }
