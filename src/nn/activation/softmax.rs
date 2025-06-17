@@ -57,6 +57,7 @@ impl Function for Softmax {
         Ok(vec![Tensor::from_vec(input_grad_data, softmax_output.shape())?])
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+    
     fn node_id(&self) -> &NodeId { &self.node_id }
 }

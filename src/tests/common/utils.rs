@@ -1,33 +1,27 @@
-use crate::loss::SoftmaxWithCrossEntropyLoss;
 use super::*;
 
-/// 테스트를 위한 로거를 설정합니다.
-/// 콘솔과 파일에 동시에 로그를 남깁니다.
-// 로깅 설정을 별도 함수로 분리하고, _guard를 반환합니다.
 pub fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
     let file_appender = tracing_appender::rolling::hourly("logs", "test_run.log");
     let (non_blocking_appender, guard) = tracing_appender::non_blocking(file_appender);
-
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("debug"));
-
+    let time_format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
     let file_layer = fmt::layer()
         .with_writer(non_blocking_appender)
-        .with_ansi(true); // 파일에는 ANSI 색상 코드를 저장하지 않음
-
+        .with_timer(tracing_subscriber::fmt::time::UtcTime::new(time_format))
+        .with_ansi(false);
     let stdout_layer = fmt::layer()
-        .with_writer(std::io::stdout);
-
-    // 다른 테스트와 충돌하지 않도록 try_init 사용
+        .with_writer(std::io::stdout)
+        .with_timer(tracing_subscriber::fmt::time::UtcTime::new(time_format));
     let _ = tracing_subscriber::registry()
         .with(filter)
         .with(file_layer)
         .with(stdout_layer)
         .try_init();
 
-    // guard를 반환하여 main 함수가 소유하도록 함
     guard
 }
+
 
 impl MLP {
     pub fn build_model(n_input: usize, n_hidden : usize, n_output: usize) -> MlResult<MLP> {
@@ -57,6 +51,7 @@ impl MLP {
         Ok(total_loss / X.len() as f32)
     }
 
+    
     pub fn train_model(
         model: &mut MLP,
         x_train: &[Arc<Variable>],
@@ -68,7 +63,12 @@ impl MLP {
         info!("Starting model training...");
         info!("Training Parameters: LR={}, Max Epochs={}, Tolerance={}", learning_rate, epochs, tolerance);
 
-        model.train(x_train, t_train, epochs,learning_rate, tolerance)?;
+        #[cfg(feature = "enableBackpropagation")]
+        model.train(x_train, t_train, epochs, learning_rate, tolerance)?;
+        
+        if !cfg!(feature = "enableBackpropagation") {
+            warn!("Feature: disableBackpropagation");
+        }
 
         info!("Model training finished.");
         Ok(())
@@ -113,7 +113,11 @@ impl SoftmaxRegression {
         info!("Starting model training...");
         info!("Training Parameters: LR={}, Max Epochs={}, Tolerance={}", learning_rate, epochs, tolerance);
 
+        #[cfg(feature = "enableBackpropagation")]
         model.train(x_train, t_train, epochs,learning_rate, tolerance)?;
+        if !cfg!(feature = "enableBackpropagation") {
+            warn!("Feature: disableBackpropagation");
+        }
 
         info!("Model training finished.");
         Ok(())

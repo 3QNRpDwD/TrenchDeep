@@ -54,34 +54,51 @@ impl Model for MLP {
         let training_start_time = Instant::now();
         let lr = scalar!(learning_rate);
 
-        // 에포크 진행 상태를 보여주는 프로그레스 바 설정
-        let epoch_bar = ProgressBar::new(epochs as u64);
+        // --- 1. MultiProgress 객체 생성 ---
+        let multi_bar = MultiProgress::new();
+
+        // --- 2. 에포크 프로그레스 바 설정 (ETA 및 통합 로그 추가) ---
+        let epoch_bar = multi_bar.add(ProgressBar::new(epochs as u64));
         epoch_bar.set_style(
             ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Epochs ({eta})")
+                .template("{spinner:.green} [{elapsed_precise}] [ {wide_bar:.cyan/blue} ] {pos}/{len} Epochs ({eta}) | {msg}")
                 .unwrap()
-                .progress_chars("█▉ "),
+                .progress_chars("▉ "),
         );
 
         info!("Initial error calculation...");
         let mut epoch_start_time = Instant::now();
-        let mut last_loss = self.compute_total_error(&x_set, &t_set, &self.loss_function)?;
+        let mut last_loss = self.compute_total_error(x_set, t_set, &self.loss_function)?;
         let epoch_duration = epoch_start_time.elapsed();
+        let initial_log = format!("Initial loss: {:.6} | Duration: {:.2?}", last_loss, epoch_duration);
         info!(
-                "Epoch {:>3}/{:<3} | initial loss: {:.6} | Duration: {:.2?}",
-                0,
-                epochs,
-                last_loss,
-                epoch_duration
-            );
+        "Epoch {:>3}/{:<3} | {}",
+        0,
+        epochs,
+        initial_log
+    );
+
 
         for epoch in 0..epochs {
             let mut total_loss = 0.0;
             epoch_start_time = Instant::now();
 
-            // 각 배치에 대한 학습 수행
+            // --- 3. 배치 프로그레스 바 설정 (기존과 동일) ---
+            let batch_bar = multi_bar.add(ProgressBar::new(n_batches as u64));
+            let formatted_template = format!(
+                "  > Epoch {:>3}/{:<3} [ {{wide_bar:.blue/green}} ] {{pos}}/{{len}} Batches ({{eta}})",
+                epoch + 1,
+                epochs
+            );
+            batch_bar.set_style(
+                ProgressStyle::default_bar()
+                    .template(&formatted_template)
+                    .unwrap()
+                    .progress_chars("█ "),
+            );
+
+
             for (x, t) in x_set.iter().zip(t_set.iter()) {
-                // 순전파 및 손실 계산
                 ComputationGraph::reset_graph();
                 let y = self.apply(x)?;
                 let loss_var = self.loss_function.apply_with_label(&[&y, &t], "loss")?;
@@ -89,43 +106,42 @@ impl Model for MLP {
                 total_loss += loss_var.tensor().data()[0];
                 loss_var.backward()?;
 
-                if self.w1.grad().unwrap().data()[0].is_nan() || self.w2.grad().unwrap().data()[0].is_infinite() || self.b1.grad().unwrap().data()[0].is_nan() || self.b2.grad().unwrap().data()[0].is_infinite() {
-                    error!("gradient is NaN or infinity: {:?} or {:?}. Suspended training.", self.w1.grad().unwrap().data()[0], self.w2.grad().unwrap().data()[0]);
+                if self.w1.grad().unwrap().data()[0].is_nan() || self.b1.grad().unwrap().data()[0].is_nan() {
+                    epoch_bar.abandon_with_message("❌ Error: NaN Gradient");
+                    batch_bar.abandon_with_message("NaN Gradient");
+                    error!("gradient is NaN or infinity: {}. Suspended training.", total_loss);
                     return Err(MlError::StringError("During training, numerical instability occurs".to_string()));
                 }
 
                 self.update(&lr)?;
                 self.zero_grad()?;
+                batch_bar.inc(1);
             }
+
+            batch_bar.finish_and_clear();
 
             let avg_loss = total_loss / n_batches as f32;
             let epoch_duration = epoch_start_time.elapsed();
 
-            // 에포크 진행 바 업데이트
-            epoch_bar.inc(1);
-
-            // 콘솔과 파일에 에포크 요약 정보 로깅
-            info!(
-                "Epoch {:>3}/{:<3} | Avg Loss: {:.6} | Loss Chg: {:+.6} | Duration: {:.2?}",
-                epoch + 1,
-                epochs,
+            // --- 4. 에포크 프로그레스 바 메시지 업데이트 및 진행 ---
+            let log_message = format!(
+                "Avg Loss: {:.6} | Loss Chg: {:+.6} | Duration: {:.2?}",
                 avg_loss,
                 avg_loss - last_loss,
                 epoch_duration
             );
+            epoch_bar.set_message(log_message); // 메시지 업데이트
+            epoch_bar.inc(1); // 에포크 진행
 
-            // 수렴 조건 확인 (조기 종료)
             if (last_loss - avg_loss).abs() < tolerance {
-                info!("✅ Loss has converged at epoch {}. Early stopping.", epoch + 1);
-                // 남은 단계를 모두 채워서 프로그레스 바를 100%로 만듭니다.
-                epoch_bar.finish_with_message("Converged");
+                epoch_bar.finish_with_message("✅ Converged");
+                info!("Loss has converged. Early stopping.");
                 break;
             }
             last_loss = avg_loss;
 
-            // 마지막 에포크 완료 시
             if epoch == epochs - 1 {
-                epoch_bar.finish_with_message("Completed");
+                epoch_bar.finish_with_message("✅ Completed");
             }
         }
 

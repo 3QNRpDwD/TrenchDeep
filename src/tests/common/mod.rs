@@ -30,9 +30,17 @@ use crate::{
     }
 };
 use rand::{rng, seq::SliceRandom};
-use tracing_subscriber::{prelude::*, EnvFilter, fmt};
+use tracing_subscriber::{
+    prelude::*,
+    EnvFilter,
+    fmt,
+    layer::SubscriberExt,
+    util::SubscriberInitExt
+};
 use std::time::Instant;
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use crate::loss::SoftmaxWithCrossEntropyLoss;
+use time::macros::format_description;
 
 pub trait Model {
     fn new(layer_parms: &[usize], activations: &[GlobalFunction], loss: GlobalFunction) -> Self
@@ -45,6 +53,7 @@ pub trait Model {
     fn predict(&self, test_data: &Tensor) -> MlResult<Tensor>;
     #[cfg(feature = "enableBackpropagation")]
     fn update(&mut self, lr: &Tensor) -> MlResult<()>;
+    #[cfg(feature = "enableBackpropagation")]
     fn zero_grad(&mut self) -> MlResult<()>;
     fn save(&self, path: &str) -> MlResult<()>;
     fn load(&mut self, path: &str) -> MlResult<()>;
