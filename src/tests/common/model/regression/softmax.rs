@@ -60,7 +60,7 @@ impl Model for SoftmaxRegression {
             let batch_bar = multi_bar.add(ProgressBar::new(n_batches as u64));
             let formatted_template = format!(
                 // {msg} 플레이스홀더를 추가하여 순전파/역전파 시간 정보를 표시할 공간을 만듭니다.
-                "  > Epoch {:>3}/{:<3} [ {{wide_bar:.blue/green}} ] {{pos}}/{{len}} Batches ({{eta}}) | {{msg}}",
+                "  > Epoch {:>3}/{:<3} [ {{wide_bar:.green/blue}} ] {{pos}}/{{len}} Batches ({{eta}}) | {{msg}}",
                 epoch + 1,
                 epochs
             );
@@ -119,7 +119,8 @@ impl Model for SoftmaxRegression {
 
                 // ... batch_log_message 포맷팅 수정
                 let batch_log_message = format!(
-                    "Forward: {:>7.2?} | Backward: {:>7.2?} | Grad Norm: {:.2e}| Update Ratio: {:.2e}", // 과학적 표기법(e) 사용
+                    // "Forward: {:>7.2?} | Backward: {:>7.2?} | Grad Norm: {:.2e}| Update Ratio: {:.2e}", // 과학적 표기법(e) 사용
+                    "FW: {:>7.2?} | BW: {:>7.2?} | GN: {:.2e}| UR: {:.2e}",
                     forward_duration,
                     backward_duration,
                     grad_norm,
@@ -140,7 +141,8 @@ impl Model for SoftmaxRegression {
             };
 
             let log_message = format!(
-                "Avg Loss: {:.6} | Loss Chg: {:+.6} | Avg Acc: {:>6.2}% | Duration: {:.2?}",
+                // "Avg Loss: {:.6} | Loss Chg: {:+.6} | Avg Acc: {:>6.2}% | Duration: {:.2?}",
+                "AL: {:.6} | LC: {:+.6} | AC: {:>6.2}% | Duration: {:.2?}",
                 avg_loss,
                 avg_loss - last_loss,
                 epoch_accuracy,

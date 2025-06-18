@@ -61,21 +61,6 @@ pub trait Model {
     fn get_loss(&self) -> f32;
 }
 
-pub trait Data {
-
-}
-
-#[derive(Serialize, Deserialize)]
-struct ModelParameters {
-    w1_data: Vec<f32>,
-    w1_shape: Vec<usize>,
-    b1_data: Vec<f32>,
-    b1_shape: Vec<usize>,
-    w2_data: Vec<f32>,
-    w2_shape: Vec<usize>,
-    b2_data: Vec<f32>,
-    b2_shape: Vec<usize>,
-}
 
 pub struct MLP {
     pub w1: Arc<Variable>, // shape = [hidden_node, input_node]
@@ -87,6 +72,7 @@ pub struct MLP {
     output_activation: GlobalFunction,
     loss_function: GlobalFunction,
 }
+
 
 pub struct SoftmaxRegression {
     pub w1: Arc<Variable>, // shape = [hidden_node, input_node]
