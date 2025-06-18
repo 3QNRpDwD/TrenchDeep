@@ -53,11 +53,7 @@ impl Model for MLP {
         let n_batches = x_set.len();
         let training_start_time = Instant::now();
         let lr = Tensor::scalar(learning_rate);
-
-        // --- 1. MultiProgress 객체 생성 ---
         let multi_bar = MultiProgress::new();
-
-        // --- 2. 에포크 프로그레스 바 설정 (ETA 및 통합 로그 추가) ---
         let epoch_bar = multi_bar.add(ProgressBar::new(epochs as u64));
         epoch_bar.set_style(
             ProgressStyle::default_bar()
@@ -70,17 +66,20 @@ impl Model for MLP {
         let mut epoch_start_time = Instant::now();
         let mut last_loss = self.compute_total_error(x_set, t_set, &self.loss_function)?;
         let epoch_duration = epoch_start_time.elapsed();
-        let initial_log = format!("Initial loss: {:.6} | Duration: {:.2?}", last_loss, epoch_duration);
+        let initial_log = format!("Initial loss: {:.6} | Avg Acc: {:>6.2}% | Duration: {:.2?}", last_loss, 0, epoch_duration);
         epoch_bar.set_message(initial_log.clone());
 
         for epoch in 0..epochs {
+            let mut total_correct = 0;
+            let mut total_samples = 0;
             let mut total_loss = 0.0;
             epoch_start_time = Instant::now();
 
-            // --- 3. 배치 프로그레스 바 설정 (기존과 동일) ---
+            // --- 1. 배치 프로그레스 바 설정 (템플릿 수정) ---
             let batch_bar = multi_bar.add(ProgressBar::new(n_batches as u64));
             let formatted_template = format!(
-                "  > Epoch {:>3}/{:<3} [ {{wide_bar:.blue/green}} ] {{pos}}/{{len}} Batches ({{eta}})",
+                // {msg} 플레이스홀더를 추가하여 순전파/역전파 시간 정보를 표시할 공간을 만듭니다.
+                "  > Epoch {:>3}/{:<3} [ {{wide_bar:.blue/green}} ] {{pos}}/{{len}} Batches ({{eta}}) | {{msg}}",
                 epoch + 1,
                 epochs
             );
@@ -91,16 +90,35 @@ impl Model for MLP {
                     .progress_chars("█ "),
             );
 
-
             for (x, t) in x_set.iter().zip(t_set.iter()) {
                 ComputationGraph::reset_graph();
+
+                // --- 2. 순전파 시간 측정 ---
+                let forward_start = Instant::now();
                 let y = self.apply(x)?;
                 let loss_var = self.loss_function.apply_with_label(&[&y, &t], "loss")?;
-
+                let forward_duration = forward_start.elapsed();
+                let y_pred_idx = utils::argmax(y.tensor().data()); // 예측값의 argmax
+                let t_true_idx = utils::argmax(t.tensor().data()); // 실제 정답의 argmax
+                if let (Some(pred_idx), Some(true_idx)) = (y_pred_idx, t_true_idx) {
+                    if pred_idx == true_idx {
+                        total_correct += 1;
+                    }
+                    total_samples += 1;
+                }
                 total_loss += loss_var.tensor().data()[0];
-                loss_var.backward()?;
 
-                if self.w1.grad().unwrap().data()[0].is_nan() || self.b1.grad().unwrap().data()[0].is_nan() {
+                // --- 3. 역전파 시간 측정 ---
+                let backward_start = Instant::now();
+                loss_var.backward()?;
+                let backward_duration = backward_start.elapsed();
+                let grad_norm = if let Some(grad) = self.w1.grad() {
+                    grad.data().iter().map(|&x| x * x).sum::<f32>().sqrt()
+                } else {
+                    0.0
+                };
+
+                if self.w1.grad().is_some_and(|d| d.data()[0].is_nan()) || self.b1.grad().is_some_and(|d| d.data()[0].is_nan()) {
                     epoch_bar.abandon_with_message("❌ Error: NaN Gradient");
                     batch_bar.abandon_with_message("NaN Gradient");
                     error!("gradient is NaN or infinity: {}. Suspended training.", total_loss);
@@ -108,7 +126,25 @@ impl Model for MLP {
                 }
 
                 self.update(&lr)?;
+                let update_norm = if let Some(grad) = self.w1.grad() {
+                    grad.data().iter().map(|&g| (learning_rate * g).powi(2)).sum::<f32>().sqrt()
+                } else {
+                    0.0
+                };
+                let weight_norm = self.w1.tensor().data().iter().map(|&w| w * w).sum::<f32>().sqrt();
+                let update_ratio = if weight_norm > 1e-6 { update_norm / weight_norm } else { 0.0 };
+
                 self.zero_grad()?;
+
+                // ... batch_log_message 포맷팅 수정
+                let batch_log_message = format!(
+                    "Forward: {:>7.2?} | Backward: {:>7.2?} | Grad Norm: {:.2e}| Update Ratio: {:.2e}", // 과학적 표기법(e) 사용
+                    forward_duration,
+                    backward_duration,
+                    grad_norm,
+                    update_ratio
+                );
+                batch_bar.set_message(batch_log_message);
                 batch_bar.inc(1);
             }
 
@@ -116,16 +152,21 @@ impl Model for MLP {
 
             let avg_loss = total_loss / n_batches as f32;
             let epoch_duration = epoch_start_time.elapsed();
+            let epoch_accuracy = if total_samples > 0 {
+                (total_correct as f32 / total_samples as f32) * 100.0
+            } else {
+                0.0
+            };
 
-            // --- 4. 에포크 프로그레스 바 메시지 업데이트 및 진행 ---
             let log_message = format!(
-                "Avg Loss: {:.6} | Loss Chg: {:+.6} | Duration: {:.2?}",
+                "Avg Loss: {:.6} | Loss Chg: {:+.6} | Avg Acc: {:>6.2}% | Duration: {:.2?}",
                 avg_loss,
                 avg_loss - last_loss,
+                epoch_accuracy,
                 epoch_duration
             );
-            epoch_bar.set_message(log_message); // 메시지 업데이트
-            epoch_bar.inc(1); // 에포크 진행
+            epoch_bar.set_message(log_message);
+            epoch_bar.inc(1);
 
             if (last_loss - avg_loss).abs() < tolerance {
                 epoch_bar.finish_with_message("✅ Converged");
@@ -157,7 +198,10 @@ impl Model for MLP {
 
         // 2) 두 번째 은닉층: 첫 번째 은닉층의 출력(ah1)을 입력으로 받음
         let uh2_pre = matmul.apply(&[&self.w2, &ah1])?;
-        add.apply(&[&uh2_pre, &self.b2])
+        let uh2 = add.apply(&[&uh2_pre, &self.b2])?;
+        let ah2 = self.output_activation.apply(&[&uh2])?;
+
+        Ok(ah2)
     }
 
     fn predict(&self, x: &Tensor) -> MlResult<GlobalTensor<f32>> {

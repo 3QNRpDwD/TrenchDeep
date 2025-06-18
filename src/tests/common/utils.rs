@@ -1,3 +1,4 @@
+use crate::loss::{CrossEntropyLoss, HuberLoss, MeanSquaredError};
 use crate::tensor::TENSOR_STORAGE;
 use super::*;
 
@@ -23,12 +24,20 @@ pub fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
     guard
 }
 
+pub fn argmax(data: &[f32]) -> Option<usize> {
+    data.iter()
+        .enumerate()
+        .max_by(|(_, a), (_, b)| a.total_cmp(b))
+        .map(|(index, _)| index)
+}
+
+
 
 impl MLP {
     pub fn build_model(n_input: usize, n_hidden : usize, n_output: usize) -> MlResult<MLP> {
         let hidden_activation = Sigmoid::new()?;
         let output_activation = Softmax::new()?;
-        let loss_function = SoftmaxWithCrossEntropyLoss::new()?;
+        let loss_function = CrossEntropyLoss::new()?;
 
         info!("Network Structure: {}(Input) -> {}(Hidden) -> {}(Output)", n_input, n_hidden, n_output);
         info!("Activation Functions: {} (Hidden), {} (Output)", hidden_activation.name(), output_activation.name());
