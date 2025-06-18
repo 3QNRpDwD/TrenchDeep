@@ -53,7 +53,7 @@ pub trait Model {
     fn apply(&self, x: &Arc<Variable>) -> MlResult<Arc<Variable>>;
     fn predict(&self, test_data: &Tensor) -> MlResult<GlobalTensor<f32>>;
     #[cfg(feature = "enableBackpropagation")]
-    fn update(&mut self, lr: &Tensor) -> MlResult<()>;
+    fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()>;
     #[cfg(feature = "enableBackpropagation")]
     fn zero_grad(&mut self) -> MlResult<()>;
     fn save(&self, path: &str) -> MlResult<()>;

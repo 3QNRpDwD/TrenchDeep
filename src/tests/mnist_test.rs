@@ -89,11 +89,6 @@ fn softmax_regression_mnist_classification_integration_test() -> MlResult<()> {
     info!("Model training finished.");
 
     let accuracy = evaluate_model(&model, &dataset.x_test, &dataset.t_test)?;
-
-    TENSOR_STORAGE.with_borrow_mut(|storage| {
-        info!("{:?}", storage.len());
-    });
-    
     if accuracy > config.required_accuracy {
         info!(
             "🎉 Target accuracy achieved! ({:.2}% > {:.2}%)",

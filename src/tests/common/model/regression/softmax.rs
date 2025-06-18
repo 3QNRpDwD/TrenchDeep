@@ -1,5 +1,5 @@
 use tracing::error;
-use crate::tensor::{GlobalTensor};
+use crate::tensor::{GlobalTensor, TENSOR_STORAGE};
 use super::*;
 
 impl Model for SoftmaxRegression {
@@ -42,6 +42,7 @@ impl Model for SoftmaxRegression {
                 .unwrap()
                 .progress_chars("▉ "),
         );
+
         info!("Initial error calculation...");
         let mut epoch_start_time = Instant::now();
         let mut last_loss = self.compute_total_error(x_set, t_set, &self.loss_function)?;
@@ -71,7 +72,6 @@ impl Model for SoftmaxRegression {
                 ComputationGraph::reset_graph();
                 let y = self.apply(x)?;
                 let loss_var = self.loss_function.apply_with_label(&[&y, &t], "loss")?;
-
                 total_loss += loss_var.tensor().data()[0];
                 loss_var.backward()?;
 
@@ -143,9 +143,9 @@ impl Model for SoftmaxRegression {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn update(&mut self, lr: &Tensor) -> MlResult<()> {
-        self.w1.sub_tensor(self.w1.grad().unwrap() * lr)?;
-        self.b1.sub_tensor(self.b1.grad().unwrap() * lr)?;
+    fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()> {
+        self.w1.sub_tensor(self.w1.grad().unwrap() as &dyn TensorBase * lr)?;
+        self.b1.sub_tensor(self.b1.grad().unwrap() as &dyn TensorBase * lr)?;
         Ok(())
     }
 

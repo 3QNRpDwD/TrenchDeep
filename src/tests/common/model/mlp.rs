@@ -178,11 +178,11 @@ impl Model for MLP {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn update(&mut self, lr: &Tensor) -> MlResult<()> {
-        self.w1.sub_tensor(self.w1.grad().unwrap() * lr)?;
-        self.w2.sub_tensor(self.w2.grad().unwrap() * lr)?;
-        self.b1.sub_tensor(self.b1.grad().unwrap() * lr)?;
-        self.b2.sub_tensor(self.b2.grad().unwrap() * lr)?;
+    fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()> {
+        self.w1.sub_tensor(self.w1.grad().unwrap() as &dyn TensorBase * lr)?;
+        self.w2.sub_tensor(self.w2.grad().unwrap() as &dyn TensorBase * lr)?;
+        self.b1.sub_tensor(self.b1.grad().unwrap() as &dyn TensorBase * lr)?;
+        self.b2.sub_tensor(self.b2.grad().unwrap() as &dyn TensorBase * lr)?;
         Ok(())
     }
 
