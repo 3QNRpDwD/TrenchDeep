@@ -19,7 +19,7 @@ impl Function for Transpose {
         })
     }
     
-    fn forward(&self, input: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, input: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let input = input[0];
         let rank = input.shape().len();
         if rank < 2 {
@@ -76,11 +76,11 @@ impl Function for Transpose {
             result[target_idx] = input.data()[i];
         }
 
-        Ok(vec![Tensor::from_vec(result, &new_shape)?])
+        Ok(vec![GlobalTensor::from_vec(result, &new_shape)?])
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward(&self, _: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let input = grad;
         let rank = input.shape().len();
         if rank < 2 {
@@ -137,7 +137,7 @@ impl Function for Transpose {
             result[target_idx] = input.data()[i];
         }
 
-        Ok(vec![Tensor::from_vec(result, &new_shape)?])
+        Ok(vec![GlobalTensor::from_vec(result, &new_shape)?])
     }
     
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

@@ -41,6 +41,7 @@ use std::time::Instant;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use crate::loss::SoftmaxWithCrossEntropyLoss;
 use time::macros::format_description;
+use crate::tensor::GlobalTensor;
 
 pub trait Model {
     fn new(layer_parms: &[usize], activations: &[GlobalFunction], loss: GlobalFunction) -> Self
@@ -50,7 +51,7 @@ pub trait Model {
     fn train(&mut self, x_set: &[Arc<Variable>], t_set: &[Arc<Variable>], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()>;
     #[cfg(feature = "enableBackpropagation")]
     fn apply(&self, x: &Arc<Variable>) -> MlResult<Arc<Variable>>;
-    fn predict(&self, test_data: &Tensor) -> MlResult<Tensor>;
+    fn predict(&self, test_data: &Tensor) -> MlResult<GlobalTensor<f32>>;
     #[cfg(feature = "enableBackpropagation")]
     fn update(&mut self, lr: &Tensor) -> MlResult<()>;
     #[cfg(feature = "enableBackpropagation")]

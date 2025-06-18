@@ -12,7 +12,7 @@ impl Function for Add {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise addition
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let first_target = targets[0];
         let second_target = targets[1];
         let first_shape = first_target.shape();
@@ -29,16 +29,16 @@ impl Function for Add {
                 }
             }
             
-            return Ok(vec![Tensor::from_vec(data, first_shape)?])
+            return Ok(vec![GlobalTensor::from_vec(data, first_shape)?])
         }
 
         match first_target.chk_shape(second_target) {
             Err(e) => Err(e),
-            _ => Ok(vec![Tensor::from_vec(self.backend().add(first_target.data(), second_target.data()), first_target.shape())?])
+            _ => Ok(vec![GlobalTensor::from_vec(self.backend().add(first_target.data(), second_target.data()), first_target.shape())?])
         }
     }
 
-    fn assign_forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
         let first_target = targets[0];
         let second_target = targets[1];
         let first_shape = first_target.shape();
@@ -55,18 +55,19 @@ impl Function for Add {
                 }
             }
 
-            return Ok(vec![Tensor::with_id(data, first_shape, first_target.0)?])
+            return Ok(vec![Tensor::with_id(data, first_shape, node_id)?])
         }
 
         match first_target.chk_shape(second_target) {
             Err(e) => Err(e),
-            _ => Ok(vec![Tensor::with_id(self.backend().add(first_target.data(), second_target.data()), first_target.shape(), first_target.0)?])
+            _ => Ok(vec![Tensor::with_id(self.backend().add(first_target.data(), second_target.data()), first_target.shape(), node_id)?])
         }
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, _: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
-        Ok(vec![grad.clone(), grad.clone()])
+    fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+        let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec() };
+        Ok(vec![gt.clone(), gt])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -85,7 +86,7 @@ impl Function for Add {
 /// # Broadcasting
 /// * Supports broadcasting when adding a 1D tensor to each row of a 2D tensor
 impl std::ops::Add<Tensor> for Tensor {
-    type Output = Tensor;
+    type Output = GlobalTensor<f32>;
 
     fn add(self, other: Tensor) -> Self::Output {
         Add::new().unwrap();
@@ -94,7 +95,7 @@ impl std::ops::Add<Tensor> for Tensor {
 }
 
 impl std::ops::Add<&Tensor> for Tensor {
-    type Output = Tensor;
+    type Output = GlobalTensor<f32>;
 
     fn add(self, other: &Tensor) -> Self::Output {
         Add::new().unwrap();
@@ -103,7 +104,7 @@ impl std::ops::Add<&Tensor> for Tensor {
 }
 
 impl std::ops::Add<&Tensor> for &Tensor {
-    type Output = Tensor;
+    type Output = GlobalTensor<f32>;
 
     fn add(self, other: &Tensor) -> Self::Output {
         Add::new().unwrap();
@@ -112,7 +113,7 @@ impl std::ops::Add<&Tensor> for &Tensor {
 }
 
 impl std::ops::Add<Tensor> for &Tensor {
-    type Output = Tensor;
+    type Output = GlobalTensor<f32>;
 
     fn add(self, other: Tensor) -> Self::Output {
         Add::new().unwrap();
@@ -120,16 +121,25 @@ impl std::ops::Add<Tensor> for &Tensor {
     }
 }
 
+impl std::ops::Add<&dyn TensorBase> for &dyn TensorBase {
+    type Output = GlobalTensor<f32>;
+
+    fn add(self, other: &dyn TensorBase) -> Self::Output {
+        Mul::new().unwrap();
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().forward(&[self, other]).unwrap().remove(0))
+    }
+}
+
 /// AddAssign trait implementation for Tensor
 impl std::ops::AddAssign<Tensor> for Tensor {
     fn add_assign(&mut self, other: Tensor) {
         Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().assign_forward(&[self, &other]).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
     }
 }
 
 impl std::ops::AddAssign<&Tensor> for Tensor {
     fn add_assign(&mut self, other: &Tensor) {
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().assign_forward(&[self, other]).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
     }
 }

@@ -24,7 +24,7 @@ pub mod graph;
 pub mod visualization;
 
 use crate::{MlError, MlResult, register_operator, tensor::operators::Function, TensorError};
-use crate::tensor::operators::Pow;
+use crate::tensor:: {operators::Pow};
 
 /// 다양한 텐서 연산을 위한 편리한 매크로를 제공합니다.
 ///
@@ -194,8 +194,14 @@ macro_rules! variable {
 
 #[macro_export]
 macro_rules! scalar  {
+
     ($scalar:expr) => {
-        Tensor::new(vec![vec![$scalar]])
+        {
+            use crate::tensor::GlobalTensor;
+            {
+                GlobalTensor::new(vec![vec![$scalar]])
+            }
+        }
     };
 }
 
@@ -249,7 +255,7 @@ impl Tensor {
 }
 
 impl Function for GlobalFunction {
-    fn forward(&self, inputs: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         OPERATOR_STORAGE.with(|ops| {
             let ops = ops.borrow();
             match ops.get(self.name()) {
@@ -259,18 +265,18 @@ impl Function for GlobalFunction {
         })
     }
 
-    fn assign_forward(&self, inputs: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&self, inputs: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
         OPERATOR_STORAGE.with(|ops| {
             let ops = ops.borrow();
             match ops.get(self.name()) {
-                Some(op) => op.assign_forward(inputs),
+                Some(op) => op.assign_forward(inputs, node_id),
                 None => Err(MlError::StringError(format!("Function {} is not registered globally.", self.type_name())))
             }
         })
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         OPERATOR_STORAGE.with(|ops| {
             let ops = ops.borrow();
             match ops.get(self.name()) {
@@ -355,12 +361,45 @@ pub enum NodeType {
     Output,
 }
 
+pub struct ExecutionContext {
+    pub graph: ComputationGraph,
+    pub tensor_storage: HashMap<NodeId, GlobalTensor<f32>>,
+    pub node_id_generator: NodeIdGenerator, // NodeId 생성기도 컨텍스트에 포함
+    // 필요하다면 시각화 그래프나 다른 상태도 여기에 추가할 수 있습니다.
+    #[cfg(feature = "enableVisualization")]
+    pub visualization_graph: VisualizationGraph,
+}
+
+impl ExecutionContext {
+    pub fn new() -> Self {
+        Self {
+            graph: ComputationGraph::new(),
+            tensor_storage: HashMap::new(),
+            node_id_generator: NodeIdGenerator::new(),
+            #[cfg(feature = "enableVisualization")]
+            visualization_graph: VisualizationGraph::new(),
+        }
+    }
+
+    pub fn add_tensor(&mut self, tensor: GlobalTensor<f32>) -> Tensor {
+        let node_id = self.node_id_generator.next();
+        self.tensor_storage.insert(node_id, tensor);
+        Tensor(node_id)
+    }
+
+    pub fn get_tensor_data(&self, tensor: &Tensor) -> Option<&GlobalTensor<f32>> {
+        self.tensor_storage.get(&tensor.0)
+    }
+
+    // ... 기타 필요한 헬퍼 메서드들 ...
+}
 
 thread_local! {
     #[cfg(feature = "enableBackpropagation")]
     pub(crate) static   COMPUTATION_GRAPH   : std::sync::Mutex<ComputationGraph> = std::sync::Mutex::new(ComputationGraph::new());
     pub(crate) static   OPERATOR_STORAGE    : RefCell<HashMap<String, Arc<dyn Function>>> = RefCell::new(HashMap::new());
     pub(crate) static   TENSOR_STORAGE      : RefCell<HashMap<NodeId, GlobalTensor<f32>>> = RefCell::new(HashMap::new());
+    // pub(crate) static   EXECUTION_CONTEXT    : RefCell<ExecutionContext> = RefCell::new(ExecutionContext::new());
     #[cfg(feature = "enableVisualization")]
     pub(crate) static   VISUALIZATION_GRAPH : RefCell<VisualizationGraph> = RefCell::new(VisualizationGraph::new());
     #[cfg(feature = "enableVisualization")]
@@ -400,96 +439,37 @@ impl Ord for Tensor {
         self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
     }
 }
-/// 텐서의 기본 동작을 정의하는 트레잇입니다.
-///
-/// 이 트레잇은 텐서 생성, 데이터 접근, 형태 확인 등의 기본 기능을 제공합니다.
-/// 제네릭 타입 `Type`은 디버깅과 복제를 지원해야 합니다.
-///
-/// # 제약
-/// - `Type`: `Debug + Clone` 트레잇을 구현해야 함
+
+
 pub trait TensorBase {
-    /// 2차원 벡터 데이터를 기반으로 새로운 텐서를 생성합니다.
-    ///
-    /// # 매개변수
-    /// - `data`: 텐서의 데이터를 나타내는 2차원 벡터
-    ///
-    /// # 반환값
-    /// - `Tensor<Type>`: 생성된 텐서 객체
-    fn new(_data: Vec<Vec<f32>>) -> Tensor where Self: Sized {
+    fn new(_data: Vec<Vec<f32>>) -> Self where Self: Sized {
         unimplemented!(" TensorBase::new() is not implemented ")
     }
 
-    /// 1차원 벡터와 형태를 기반으로 새로운 텐서를 생성합니다.
-    ///
-    /// # 매개변수
-    /// - `data`: 텐서의 데이터를 나타내는 1차원 벡터
-    /// - `shape`: 텐서의 차원을 나타내는 크기 배열
-    ///
-    /// # 반환값
-    /// - `MlResult<Tensor<Type>>`: 성공 시 생성된 텐서, 실패 시 오류
-    ///
-    /// # 오류
-    /// - 데이터 길이와 형태가 일치하지 않을 경우
-    fn from_vec(_data: Vec<f32>, _shape: &[usize]) -> MlResult<Tensor> where Self: Sized {
+    fn from_vec(_data: Vec<f32>, _shape: &[usize]) -> MlResult<Self> where Self: Sized {
         unimplemented!(" TensorBase::from_vec() is not implemented ")
-    }
-
-    fn with_id(_data: Vec<f32>, _shape: &[usize], _id: NodeId) -> MlResult<Tensor> where Self: Sized {
-        unimplemented!(" TensorBase::with_id() is not implemented ")
     }
 
     fn as_ptr(&self) -> *const GlobalTensor<f32> {
         unimplemented!(" TensorBase::tensor_ptr() is not implemented ")
     }
 
-    /// 텐서의 형태를 반환합니다.
-    ///
-    /// # 반환값
-    /// - `&[usize]`: 텐서의 차원을 나타내는 슬라이스
     fn shape(&self) -> &[usize] {
         unimplemented!(" TensorBase::shape() is not implemented ")
     }
 
-    /// 텐서의 데이터를 반환합니다.
-    ///
-    /// # 반환값
-    /// - `&[Type]`: 텐서의 데이터를 나타내는 슬라이스
     fn data(&self) -> &[f32] {
         unimplemented!(" TensorBase::data() is not implemented ")
     }
 
-    /// 주어진 인덱스에서 텐서의 값을 반환합니다.
-    ///
-    /// # 매개변수
-    /// - `indices`: 텐서 내 특정 위치를 가리키는 인덱스 배열
-    ///
-    /// # 반환값
-    /// - `Option<&Type>`: 해당 위치의 값에 대한 참조, 유효하지 않은 인덱스면 `None`
     fn get(&self, _indices: &[usize]) -> Option<&f32> {
         unimplemented!(" TensorBase::get() is not implemented ")
     }
 
-    /// 주어진 인덱스를 데이터 벡터 내의 오프셋으로 변환합니다.
-    ///
-    /// # 매개변수
-    /// - `indices`: 텐서 내 특정 위치를 가리키는 인덱스 배열
-    ///
-    /// # 반환값
-    /// - `Option<usize>`: 데이터 벡터 내 해당 위치의 오프셋, 유효하지 않은 인덱스면 `None`
     fn index(&self, _indices: &[usize]) -> Option<usize> {
         unimplemented!(" TensorBase::index() is not implemented ")
     }
 
-    /// 두 텐서의 형태가 동일한지 확인합니다.
-    ///
-    /// # 매개변수
-    /// - `other`: 비교 대상 텐서 (동적 디스패치 지원)
-    ///
-    /// # 반환값
-    /// - `MlResult<()>`: 형태가 일치하면 `Ok(())`, 그렇지 않으면 오류
-    ///
-    /// # 오류
-    /// - 두 텐서의 형태가 일치하지 않을 경우
     fn chk_shape(&self, other: &dyn TensorBase) -> MlResult<()> {
         if self.shape() == other.shape() {
             Ok(())
@@ -501,68 +481,37 @@ pub trait TensorBase {
         }
     }
 
-    fn zeros(shape: &[usize]) -> Tensor where Self: Sized {
+    fn zeros(shape: &[usize]) -> Self where Self: Sized {
         let size: usize = shape.iter().product();
         let data = vec![0.0; size];
-        Tensor::from_vec(data, shape).unwrap()
+        Self::from_vec(data, shape).unwrap()
     }
 
-    fn zeros_like(&self) -> Tensor where Self: Sized {
+    fn zeros_like(&self) -> Self where Self: Sized {
         Self::zeros(&self.shape())
     }
 
-    fn ones(shape: &[usize]) -> Tensor where Self: Sized {
+    fn ones(shape: &[usize]) -> Self where Self: Sized {
         let size: usize = shape.iter().product();
         let data = vec![1.0; size];
-        Tensor::from_vec(data, shape).unwrap()
+        Self::from_vec(data, shape).unwrap()
     }
 
-    fn ones_like(&self) -> Tensor where Self: Sized {
+    fn ones_like(&self) -> Self where Self: Sized {
         Self::ones(&self.shape())
     }
 
-    fn rand(shape: &[usize]) -> Tensor where Self: Sized {
+    fn rand(shape: &[usize]) -> Self where Self: Sized {
         let size: usize = shape.iter().product();
         let data: Vec<f32> = (0..size).map(|_| rand::random::<f32>()).collect();
-        Tensor::from_vec(data, shape).unwrap()
+        Self::from_vec(data, shape).unwrap()
     }
 
-    fn scalar(scalar: f32) -> Tensor where Self: Sized {
-        Tensor::new(vec![vec![scalar]])
+    fn scalar(scalar: f32) -> Self where Self: Sized {
+        Self::new(vec![vec![scalar]])
     }
 }
 
-/// 자동 미분(autograd)을 지원하는 함수 트레잇
-///
-/// 이 트레잇은 Function<f32>와 Clone을 구현하는 타입에 자동 미분 기능을 추가합니다.
-/// 신경망의 순전파(apply pass)와 역전파(backward pass)를 연결하는 함수를 생성하는 역할을 수행합니다.
-///
-/// # 주요 기능
-/// - 입력 변수들로부터 계산 결과 생성
-/// - enableBackpropagation 기능 활성화 시 자동으로 역전파 그래프 구성
-/// - 연산 결과에 그라데이션 함수 연결
-///
-/// # 메서드
-///
-/// ## apply(&self, inputs: &[&Arc<Variable<f32>>]) -> MlResult<Arc<Variable<f32>>>
-/// 입력 변수 슬라이스를 받아 다음 단계를 처리합니다:
-/// 1. 모든 입력 변수에서 텐서 추출
-/// 2. apply 메소드를 호출하여 순전파 수행
-/// 3. (조건부) 역전파를 위한 계산 그래프 구성
-///
-/// ### 기능 플래그 동작
-/// - #[cfg(feature = "enableBackpropagation")] 활성화 시:
-/// - 단일 입력/출력 연산만 지원 (입력 슬라이스 길이 == 1)
-/// - 계산 결과에 그라데이션 함수와 입력 변수들을 연결
-/// - 기능 비활성화 시 기본 텐서 연산만 수행
-///
-/// # 구현 참고사항
-/// - Function<f32> + Clone + 'static을 구현하는 모든 타입에 자동 구현 제공
-/// - 사용자 정의 연산 구현 시 apply 메소드의 정확한 구현이 필요
-///
-/// # 제약 사항
-/// - 현재 버전에서는 다중 입력/출력에 대한 역전파를 지원하지 않음
-/// - f32 데이터 타입 전용으로 특화됨
 pub trait AutogradFunction: Function {
     fn apply(&self, _inputs: &[&Arc<Variable>]) -> MlResult<Arc<Variable>> {
         unimplemented!(" AutogradFunction::apply() not implemented for this type")
@@ -579,7 +528,7 @@ mod tests {
     use crate::tensor::{Tensor, TensorBase};
     use crate::MlResult;
 
-    pub fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
+    pub fn assert_tensor_eq(tensor: &dyn TensorBase, expected_tensor: &dyn TensorBase) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
         Ok(())

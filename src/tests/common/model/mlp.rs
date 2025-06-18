@@ -52,7 +52,7 @@ impl Model for MLP {
     fn train(&mut self, x_set: &[Arc<Variable>], t_set: &[Arc<Variable>], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()> {
         let n_batches = x_set.len();
         let training_start_time = Instant::now();
-        let lr = scalar!(learning_rate);
+        let lr = Tensor::scalar(learning_rate);
 
         // --- 1. MultiProgress 객체 생성 ---
         let multi_bar = MultiProgress::new();
@@ -72,13 +72,6 @@ impl Model for MLP {
         let epoch_duration = epoch_start_time.elapsed();
         let initial_log = format!("Initial loss: {:.6} | Duration: {:.2?}", last_loss, epoch_duration);
         epoch_bar.set_message(initial_log.clone());
-        //     info!(
-        //     "Epoch {:>3}/{:<3} | {}",
-        //     0,
-        //     epochs,
-        //     initial_log
-        // );
-
 
         for epoch in 0..epochs {
             let mut total_loss = 0.0;
@@ -167,18 +160,18 @@ impl Model for MLP {
         add.apply(&[&uh2_pre, &self.b2])
     }
 
-    fn predict(&self, x: &Tensor) -> MlResult<Tensor> {
+    fn predict(&self, x: &Tensor) -> MlResult<GlobalTensor<f32>> {
         let matmul = Matmul::new()?;
         let add = Add::new()?;
 
         // 1) 은닉층: u_h = W1 * x + b1
-        let uh1_pre = matmul.forward(&[&self.w1.tensor(), x])?.remove(0);
-        let uh1 = add.forward(&[&uh1_pre, &self.b1.tensor()])?.remove(0);
+        let uh1_pre = matmul.forward(&[self.w1.tensor(), x])?.remove(0);
+        let uh1 = add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0);
         let ah1 = self.hidden_activation.forward(&[&uh1])?.remove(0);
 
         // 3) 은닉층: u_h = W1 * x + b1
-        let uh2_pre = matmul.forward(&[&self.w2.tensor(), &ah1])?.remove(0);
-        let uh2 = add.forward(&[&uh2_pre, &self.b2.tensor()])?.remove(0);
+        let uh2_pre = matmul.forward(&[self.w2.tensor(), &ah1])?.remove(0);
+        let uh2 = add.forward(&[&uh2_pre, self.b2.tensor()])?.remove(0);
         let ah2 = self.output_activation.forward(&[&uh2])?.remove(0);
 
         Ok(ah2)

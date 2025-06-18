@@ -11,7 +11,7 @@ impl Function for Sub {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise subtraction
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         if targets[0].shape().len() == 2 && targets[1].shape().len() == 1 && targets[0].shape()[1] == targets[1].shape()[0] {
             let (batch_size, features) = (targets[0].shape()[0], targets[0].shape()[1]);
             let mut data = vec![0.0; targets[0].data().len()];
@@ -21,16 +21,16 @@ impl Function for Sub {
                     data[i * features + j] = targets[0].data()[i * features + j] - targets[1].data()[j];
                 }
             }
-            return Ok(vec![Tensor::from_vec(data, &targets[0].shape())?])
+            return Ok(vec![GlobalTensor::from_vec(data, &targets[0].shape())?])
         }
 
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
-            _ => Ok(vec![Tensor::from_vec(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape())?])
+            _ => Ok(vec![GlobalTensor::from_vec(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape())?])
         }
     }
 
-    fn assign_forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
         if targets[0].shape().len() == 2 && targets[1].shape().len() == 1 && targets[0].shape()[1] == targets[1].shape()[0] {
             let (batch_size, features) = (targets[0].shape()[0], targets[0].shape()[1]);
             let mut data = vec![0.0; targets[0].data().len()];
@@ -40,18 +40,19 @@ impl Function for Sub {
                     data[i * features + j] = targets[0].data()[i * features + j] - targets[1].data()[j];
                 }
             }
-            return Ok(vec![Tensor::with_id(data, &targets[0].shape(), targets[0].0)?])
+            return Ok(vec![Tensor::with_id(data, &targets[0].shape(), node_id)?])
         }
 
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
-            _ => Ok(vec![Tensor::with_id(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape(), targets[0].0)?])
+            _ => Ok(vec![Tensor::with_id(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape(), node_id)?])
         }
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, _: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
-        Ok(vec![grad.clone(), Tensor::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?])
+    fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+        let gt = GlobalTensor {data: grad.data().to_vec(), shape: grad.shape().to_vec() };
+        Ok(vec![gt, GlobalTensor::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -71,7 +72,7 @@ impl Function for Sub {
 /// # Broadcasting
 /// * Supports broadcasting when subtracting a 1D tensor from each row of a 2D tensor
 impl std::ops::Sub<Tensor> for Tensor {
-    type Output = Tensor;
+    type Output = GlobalTensor<f32>;
 
     fn sub(self, other: Tensor) -> Self::Output {
         Sub::new().unwrap();
@@ -80,7 +81,7 @@ impl std::ops::Sub<Tensor> for Tensor {
 }
 
 impl std::ops::Sub<&Tensor> for Tensor {
-    type Output = Tensor;
+    type Output = GlobalTensor<f32>;
 
     fn sub(self, other: &Tensor) -> Self::Output {
         Sub::new().unwrap();
@@ -89,7 +90,7 @@ impl std::ops::Sub<&Tensor> for Tensor {
 }
 
 impl std::ops::Sub<&Tensor> for &Tensor {
-    type Output = Tensor;
+    type Output = GlobalTensor<f32>;
 
     fn sub(self, other: &Tensor) -> Self::Output {
         Sub::new().unwrap();
@@ -98,7 +99,7 @@ impl std::ops::Sub<&Tensor> for &Tensor {
 }
 
 impl std::ops::Sub<Tensor> for &Tensor {
-    type Output = Tensor;
+    type Output = GlobalTensor<f32>;
 
     fn sub(self, other: Tensor) -> Self::Output {
         Sub::new().unwrap();
@@ -106,17 +107,26 @@ impl std::ops::Sub<Tensor> for &Tensor {
     }
 }
 
+impl std::ops::Sub<&dyn TensorBase> for &dyn TensorBase {
+    type Output = GlobalTensor<f32>;
+
+    fn sub(self, other: &dyn TensorBase) -> Self::Output {
+        Mul::new().unwrap();
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[self, other]).unwrap().remove(0))
+    }
+}
+
 /// SubAssign trait implementation for Tensor
 impl std::ops::SubAssign<Tensor> for Tensor {
     fn sub_assign(&mut self, other: Tensor) {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().assign_forward(&[self, &other]).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
     }
 }
 
 impl std::ops::SubAssign<&Tensor> for Tensor {
     fn sub_assign(&mut self, other: &Tensor) {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().assign_forward(&[self, other]).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
     }
 }

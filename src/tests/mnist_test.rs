@@ -11,6 +11,7 @@ use common::config::TestConfig;
 use common::data::load_and_prepare_data;
 use common::evaluation::evaluate_model;
 use common::utils::{generate_visualization, setup_logging};
+use crate::tensor::TENSOR_STORAGE;
 use crate::tests::common::{Model, SoftmaxRegression, MLP};
 
 #[test]
@@ -75,17 +76,24 @@ fn softmax_regression_mnist_classification_integration_test() -> MlResult<()> {
         load_and_prepare_data(config.n_train, config.n_val, config.n_features, config.n_classes)?;
 
     let mut model = SoftmaxRegression::build_model(config.n_features, config.n_classes)?;
-    SoftmaxRegression::train_model(
-        &mut model,
-        &dataset.x_train,
-        &dataset.t_train,
-        config.learning_rate,
-        config.epochs,
-        config.tolerance,
-    )?;
+
+    info!("Starting model training...");
+    info!("Training Parameters: LR={}, Max Epochs={}, Tolerance={}", config.learning_rate, config.epochs, config.tolerance);
+
+    #[cfg(feature = "enableBackpropagation")]
+    model.train(&dataset.x_train, &dataset.t_train, config.epochs, config.learning_rate, config.tolerance)?;
+    if !cfg!(feature = "enableBackpropagation") {
+        warn!("Feature: disableBackpropagation");
+    }
+
+    info!("Model training finished.");
 
     let accuracy = evaluate_model(&model, &dataset.x_test, &dataset.t_test)?;
 
+    TENSOR_STORAGE.with_borrow_mut(|storage| {
+        info!("{:?}", storage.len());
+    });
+    
     if accuracy > config.required_accuracy {
         info!(
             "🎉 Target accuracy achieved! ({:.2}% > {:.2}%)",

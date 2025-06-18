@@ -13,7 +13,7 @@ impl Function for Matmul {
     /// # Returns
     /// A new tensor with the result of the matrix multiplication
     // Handle empty tensors
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         if targets[0].data().is_empty() || targets[1].data().is_empty() {
             return Err(MlError::TensorError(TensorError::EmptyTensor));
         }
@@ -32,7 +32,7 @@ impl Function for Matmul {
             (1, 1) => {
                 match target_0.chk_shape(target_1) {
                     Err(e) => return Err(e),
-                    _ => Tensor::from_vec(vec![target_0_data.iter().zip(target_1_data.iter()).map(|(&a, &b)| a * b).sum::<f32>()], &vec![])?
+                    _ => GlobalTensor::from_vec(vec![target_0_data.iter().zip(target_1_data.iter()).map(|(&a, &b)| a * b).sum::<f32>()], &vec![])?
                 }
             }
 
@@ -57,7 +57,7 @@ impl Function for Matmul {
                     }
                     data[i] = sum;
                 }
-                Tensor::from_vec(data, &[m].to_vec())?
+                GlobalTensor::from_vec(data, &[m].to_vec())?
             }
 
             (1, 2) => {
@@ -80,7 +80,7 @@ impl Function for Matmul {
                     }
                     data[j] = sum;
                 }
-                Tensor::from_vec(data, &[n].to_vec())?
+                GlobalTensor::from_vec(data, &[n].to_vec())?
             }
 
             // Case 3: Higher dimensional tensor multiplication
@@ -159,14 +159,14 @@ impl Function for Matmul {
                 }
                 shape.push(m);
                 shape.push(n);
-                Tensor::from_vec(data, &shape)?
+                GlobalTensor::from_vec(data, &shape)?
             }
         };
         Ok(vec![buffer])
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let target_0 = targets[0];
         let target_1 = targets[1];
         let target_0_shape = target_0.shape();
@@ -185,8 +185,8 @@ impl Function for Matmul {
                 let grad_1_data: Vec<f32> = target_0.data().iter().map(|&x| x * grad_scalar).collect();
 
                 (
-                    Tensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
-                    Tensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                    GlobalTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    GlobalTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
                 )
             }
 
@@ -216,8 +216,8 @@ impl Function for Matmul {
                 }
 
                 (
-                    Tensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
-                    Tensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                    GlobalTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    GlobalTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
                 )
             }
 
@@ -247,8 +247,8 @@ impl Function for Matmul {
                 }
 
                 (
-                    Tensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
-                    Tensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                    GlobalTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    GlobalTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
                 )
             }
 
@@ -316,8 +316,8 @@ impl Function for Matmul {
                 }
 
                 (
-                    Tensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
-                    Tensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                    GlobalTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    GlobalTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
                 )
             }
         };

@@ -6,36 +6,6 @@ impl Variable {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown").replace("<f32>", "")
     }
 
-    /// Attaches gradient computation information to the variable by creating a computation graph node.
-    ///
-    /// This method performs three main tasks:
-    /// 1. Registers input variables in the global computation graph
-    /// 2. Creates an operation node representing the mathematical function
-    /// 3. Links the operation to its input variables in the graph
-    ///
-    /// # Arguments
-    /// * `function` - The mathematical operation to record for backward pass (must implement `Function`)
-    /// * `inputs` - Reference to input variables used in this operation (must already exist in computation graph)
-    ///
-    /// # Returns
-    /// return a new `Variable` instance with gradient computation capabilities:
-    /// - Maintains same tensor data as original variable
-    /// - Contains backreference to the operation in computation graph
-    ///
-    /// # Safety
-    /// - Uses thread-local storage for computation graph (not thread-safe)
-    /// - Clones Arc references internally - ensure proper ownership management
-    /// - All inputs must belong to the same computation graph context
-    ///
-    /// # Panics
-    /// Will panic if:
-    /// - There's mutable borrow conflict in thread-local graph storage
-    /// - Input variables exist in different computation graph contexts (TOCTOU violation)
-    ///
-    /// # Implementation Notes
-    /// - Uses Arc pointer equality checks for existing graph node detection
-    /// - Maintains DAG structure through node ID tracking
-    /// - Operation nodes store backward function and input relationships
     pub fn with_grad_fn(self: Arc<Self>, operator_name: &str, inputs: &[&Arc<Variable>]) {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
@@ -65,38 +35,6 @@ impl Variable {
         // 계산그래프의 수정또한 더욱 쉽게 가능할것으로 보임.
     }
 
-    /// Performs backward propagation of gradients through the computation graph starting from this variable.
-    ///
-    /// This method initiates the reverse-mode automatic differentiation process by:
-    /// 1. Locating this variable's node in the computation graph
-    /// 2. Executing topological sort-based gradient calculation
-    /// 3. Accumulating gradients through chain rule applications
-    ///
-    /// # Returns
-    /// return `Ok(())` on successful gradient propagation:
-    /// - All upstream variables will have their `.grad` fields updated
-    /// - Gradient calculation follows reverse execution order
-    ///
-    /// # Errors
-    /// Returns `Err` with:
-    /// - "위상정렬된 노드를 찾을수 없습니다" if variable isn't registered in computation graph
-    /// - Any errors occurring during gradient calculation steps
-    ///
-    /// # Panics
-    /// Will panic if:
-    /// - Mutex borrow fails on thread-local computation graph storage
-    /// - Graph contains cycles (violates DAG requirement)
-    /// - Numerical errors occur during gradient computation
-    ///
-    /// # Safety
-    /// - Requires all preceding operations to be properly registered in computation graph
-    /// - Should typically be called only once per backward pass from root variable
-    /// - Not re-entrant due to thread-local storage usage
-    ///
-    /// # Implementation Details
-    /// - Uses thread-local computation graph storage
-    /// - Relies on topological ordering stored during apply pass
-    /// - Gradient accumulation uses += operator (users should zero gradients when needed)
     pub fn backward(self: &Arc<Self>) -> MlResult<()> {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
@@ -113,12 +51,7 @@ impl Variable {
 
 #[cfg(feature = "enableBackpropagation")]
 impl ComputationGraph {
-    /// 새로운 계산 그래프를 생성합니다.
-    ///
-    /// 이 메서드는 노드와 관련 데이터를 저장할 빈 `ComputationGraph` 인스턴스를 초기화합니다.
-    ///
-    /// # 반환값
-    /// - `Self`: 초기화된 `ComputationGraph` 인스턴스
+
     pub fn new() -> Self {
         Self {
             nodes: Vec::new(),
@@ -131,15 +64,7 @@ impl ComputationGraph {
         }
     }
 
-    /// 입력 변수 노드를 계산 그래프에 추가합니다.
-    ///
-    /// 이 메서드는 새로운 입력 노드를 생성하고, 고유한 ID를 부여하여 그래프에 추가합니다.
-    ///
-    /// # 파라미터
-    /// - `variable`: `Arc<Variable>` 타입의 입력 변수 (스마트 포인터로 감싸진 변수)
-    ///
-    /// # 반환값
-    /// - `NodeId`: 추가된 노드의 고유 식별자
+
     pub(crate) fn add_input(&mut self, variable: Arc<Variable>) -> NodeId {
         let node_id = variable.node_id();
         let node_idx = self.nodes.len();
@@ -170,17 +95,6 @@ impl ComputationGraph {
         node_id
     }
 
-    /// 연산 노드를 계산 그래프에 추가합니다.
-    ///
-    /// 이 메서드는 연산을 나타내는 노드를 생성하고, 입력 노드들과 연산 함수를 연결하여 그래프에 추가합니다.
-    ///
-    /// # 파라미터
-    /// - `variable`: `Arc<Variable>` 타입의 연산 결과 변수
-    /// - `function`: `Arc<dyn Function>` 타입의 연산 함수 (동적 디스패치 지원)
-    /// - `inputs`: 이 연산의 입력 노드 ID 목록
-    ///
-    /// # 반환값
-    /// - `NodeId`: 추가된 연산 노드의 고유 식별자
     pub(crate) fn add_operation(&mut self, variable: Arc<Variable>, operator_name: &str, inputs: Vec<NodeId>) -> NodeId {
         #[cfg(feature = "enableVisualization")]
         VISUALIZATION_GRAPH.with(|viz_graph| {
@@ -241,10 +155,6 @@ impl ComputationGraph {
         }
     }
 
-    /// 계산 그래프의 노드들을 위상 정렬(Topological Sort)합니다.
-    ///
-    /// 이 메서드는 그래프의 노드들을 의존성 순서대로 정렬하여 역전파를 위한 준비를 합니다.
-    /// 이미 정렬된 경우에는 아무 작업도 수행하지 않습니다.
     pub(crate) fn topological_sort(&mut self) {
         let mut in_degree = vec![0; self.nodes.len()];
         let mut queue = std::collections::VecDeque::new();
@@ -278,21 +188,6 @@ impl ComputationGraph {
         self.is_sorted = true;
     }
 
-    /// 역전파(Backpropagation)를 수행합니다.
-    ///
-    /// 이 메서드는 주어진 출력 노드에서 시작하여 그래프를 따라 그래디언트를 계산하고 전파합니다.
-    /// 위상 정렬이 아직 수행되지 않았다면 먼저 정렬을 실행합니다.
-    ///
-    /// # 파라미터
-    /// - `output_id`: 역전파를 시작할 출력 노드의 ID
-    ///
-    /// # 반환값
-    /// - `MlResult<()>`: 성공 시 `Ok(())`, 실패 시 오류 메시지를 포함한 `Err`
-    ///
-    /// # 오류
-    /// - 출력 노드가 존재하지 않을 경우
-    /// - 그래디언트 초기화 실패 시
-    /// - 역전파 계산 실패 시
     #[cfg(feature = "enableBackpropagation")]
     pub(crate) fn backward(&mut self, output_id: NodeId) -> MlResult<()> {
         for node in &self.nodes {
@@ -317,31 +212,28 @@ impl ComputationGraph {
             let grad = var.grad();
             if node.function.is_none() || grad.is_none() { continue; }
             let function = node.function.as_ref().unwrap();
-            let input_tensors: Vec<&Tensor> = node.inputs
+            let input_tensors: Vec<&dyn TensorBase> = node.inputs
                 .iter()
                 .map(|&input_id| {
                     let input_idx = self.node_map[&input_id];
-                    self.nodes[input_idx].variable.tensor()
+                    self.nodes[input_idx].variable.tensor() as &dyn TensorBase
                 })
-                .collect::<Vec<&Tensor>>();
+                .collect::<Vec<&dyn TensorBase>>();
 
             let output_grad = grad.unwrap();
-            let input_grads = OPERATOR_STORAGE.with(|ops| ops.borrow().get(function).unwrap().backward(&input_tensors, &output_grad)
+            let input_grads = OPERATOR_STORAGE.with(|ops| ops.borrow().get(function).unwrap().backward(&input_tensors, output_grad)
                 .map_err(|e| MlError::StringError(format!("Failed to compute backward for function {:?}: {}", function, e))))?;
 
             for (input_id, grad) in node.inputs.iter().zip(input_grads) {
                 let input_idx = self.node_map[input_id];
                 let input_node = &self.nodes[input_idx];
-                input_node.variable.accumulate_grad(grad)?;
+                input_node.variable.accumulate_grad(grad.with_id().unwrap())?;
             }
-
-            if !var.is_retain_grad() { var.clear_grad(); }
+            
+            var.clear_grad();
         }
         Ok(())
     }
-
-    // 역전파 메서드와 반대로 기록된 노드의 순서대로 실행하고 해당 값을 노드에 저장하는 메서드
-    // pub fn apply(&mut self, input_id: NodeId) -> MlResult<()> {}
 
     pub fn clear(&mut self) {
         self.nodes.clear();
@@ -385,10 +277,11 @@ impl ComputationGraph {
 
 impl AutogradFunction for GlobalFunction {
     fn apply(&self, inputs: &[&Arc<Variable>]) -> MlResult<Arc<Variable>> {
-        let tensors: Vec<&Tensor> = inputs
+        let tensors: Vec<&dyn TensorBase> = inputs
             .iter()
-            .map(|&var| var.tensor()).collect();
-        let output = Arc::new(Variable::new(self.forward(&tensors)?.remove(0)));
+            .map(|&var| var.tensor() as &dyn TensorBase)
+            .collect::<Vec<&dyn TensorBase>>();
+        let output = Arc::new(Variable::new(self.forward(&tensors)?.remove(0).with_id()?));
 
         #[cfg(feature = "enableBackpropagation")]
         {
@@ -404,10 +297,11 @@ impl AutogradFunction for GlobalFunction {
     }
 
     fn apply_with_label(&self, inputs: &[&Arc<Variable>], label: &str) -> MlResult<Arc<Variable>> {
-        let tensors: Vec<&Tensor> = inputs
+        let tensors: Vec<&dyn TensorBase> = inputs
             .iter()
-            .map(|&var| var.tensor()).collect();
-        let output = crate::var_with_label!(self.forward(&tensors)?.remove(0), label);
+            .map(|&var| var.tensor() as &dyn TensorBase)
+            .collect::<Vec<&dyn TensorBase>>();
+        let output = crate::var_with_label!(self.forward(&tensors)?.remove(0).with_id()?, label);
         #[cfg(feature = "enableBackpropagation")]
         {
             output.clone().with_grad_fn(self.name(), inputs);

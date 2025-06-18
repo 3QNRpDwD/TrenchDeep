@@ -5,11 +5,11 @@ impl Function for Sigmoid {
         register_operator!(Sigmoid)
     }
     
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let x = targets[0];
         let ones = vec![1.0f32; x.data().len()];
         Ok(vec![
-            Tensor::from_vec(
+            GlobalTensor::from_vec(
                 self.backend.div(&ones, &self.backend.add(&ones, &self.backend.exp(x.data()))),
                 x.shape()
             )?]
@@ -17,7 +17,7 @@ impl Function for Sigmoid {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let input_x = targets[0];
         // σ'(x) = σ(x) * (1 - σ(x))
         // ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * σ'(x)
@@ -40,7 +40,7 @@ impl Function for Sigmoid {
 
         // 최종 그래디언트: ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * derivative
         Ok(vec![
-            Tensor::from_vec(
+            GlobalTensor::from_vec(
                 self.backend.multiply(&grad.data(), &derivative),
                 grad.shape()
             )?

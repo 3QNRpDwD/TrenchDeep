@@ -10,21 +10,21 @@ impl Function for Sin {
     }
 
     /// 입력 텐서에 사인 함수를 요소별로 적용하여, 동일한 모양을 가진 새로운 텐서를 반환합니다.
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|x| x.sin()).collect(), targets[0].shape())?])
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+        Ok(vec![GlobalTensor::from_vec(targets[0].data().iter().map(|x| x.sin()).collect(), targets[0].shape())?])
     }
 
     /// 사인 함수의 기울기를 계산합니다.
     /// 반환되는 기울기 텐서는 입력 텐서와 동일한 모양을 가집니다.
     /// 각 요소는 입력 텐서의 해당 요소의 코사인 값과 다음 계층의 기울기 값의 곱입니다.
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let gradient = grad.data().iter()
             .zip(targets[0].data().iter())
             .map(|(grad_data, target)|  target.cos() * grad_data)
             .collect();
 
-        Ok(vec![Tensor::from_vec(gradient, targets[0].shape())?])
+        Ok(vec![GlobalTensor::from_vec(gradient, targets[0].shape())?])
     }
 
     /// 연산에 사용되는 백엔드 객체의 참조를 반환
@@ -44,21 +44,21 @@ impl Function for Cos {
     }
 
     /// 입력 텐서에 코사인 함수를 요소별로 적용하여, 동일한 모양을 가진 새로운 텐서를 반환합니다.
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|x| x.cos()).collect(), targets[0].shape())?])
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+        Ok(vec![GlobalTensor::from_vec(targets[0].data().iter().map(|x| x.cos()).collect(), targets[0].shape())?])
     }
 
     /// 코사인 함수의 기울기를 계산합니다.
     /// 반환되는 기울기 텐서는 입력 텐서와 동일한 모양을 가집니다.
     /// 각 요소는 입력 텐서의 해당 요소의 음수 사인 값과 다음 계층의 기울기 값의 곱입니다.
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let gradient = grad.data().iter()
             .zip(targets[0].data().iter())
             .map(|(grad_data, target)|  -target.sin() * grad_data)
             .collect();
 
-        Ok(vec![Tensor::from_vec(gradient, targets[0].shape())?])
+        Ok(vec![GlobalTensor::from_vec(gradient, targets[0].shape())?])
     }
 
     /// 연산에 사용되는 백엔드 객체의 참조를 반환
@@ -86,7 +86,7 @@ impl Function for ApproxSin {
         })
     }
 
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let x = targets[0];
         let x_data = x.data();
         let mut result = x_data.to_vec(); // Start with x (first term of series)
@@ -120,11 +120,11 @@ impl Function for ApproxSin {
             current_power += 2;
         }
 
-        Ok(vec![Tensor::from_vec(result, x.shape())?])
+        Ok(vec![GlobalTensor::from_vec(result, x.shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         // The derivative of sin(x) is cos(x)
         // We can use the ApproxCos implementation for this
         let cos = ApproxCos {
@@ -142,7 +142,7 @@ impl Function for ApproxSin {
         let grad_data = grad.data();
         let cos_data = cos_output[0].data();
         let result = self.backend.multiply(cos_data, grad_data);
-        Ok(vec![Tensor::from_vec(result, x.shape())?])
+        Ok(vec![GlobalTensor::from_vec(result, x.shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -169,7 +169,7 @@ impl Function for ApproxCos {
         })
     }
 
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let x = targets[0];
         let x_data = x.data();
         let mut result = vec![1.0; x_data.len()];
@@ -201,11 +201,11 @@ impl Function for ApproxCos {
             current_power += 2;
         }
 
-        Ok(vec![Tensor::from_vec(result, x.shape())?])
+        Ok(vec![GlobalTensor::from_vec(result, x.shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         // The derivative of cos(x) is -sin(x)
         // We can use the ApproxSin implementation for this
         let sin = ApproxSin {
@@ -227,7 +227,7 @@ impl Function for ApproxCos {
         // Then multiply by gradient
         let result = self.backend.multiply(&neg_sin, grad_data);
 
-        Ok(vec![Tensor::from_vec(result, x.shape())?])
+        Ok(vec![GlobalTensor::from_vec(result, x.shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

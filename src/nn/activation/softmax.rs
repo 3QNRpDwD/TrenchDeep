@@ -7,7 +7,7 @@ impl Function for Softmax {
 
     /// Softmax 함수의 순전파를 계산합니다.
     /// S(x_i) = exp(x_i) / sum(exp(x_j))
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let input = targets[0];
         let input_data = input.data();
 
@@ -25,12 +25,12 @@ impl Function for Softmax {
         // 4. 각 exp() 값을 합계로 나누어 최종 확률을 계산합니다.
         let softmax_output: Vec<f32> = exp_values.iter().map(|&exp_val| exp_val / sum_of_exps).collect();
 
-        Ok(vec![Tensor::from_vec(softmax_output, input.shape())?])
+        Ok(vec![GlobalTensor::from_vec(softmax_output, input.shape())?])
     }
 
     /// Softmax 함수의 역전파(gradient)를 계산합니다.
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         // targets[0]는 순전파 시의 Softmax 출력(y)입니다.
         // grad는 상위 계층에서 내려온 손실 함수의 그래디언트(∂L/∂y)입니다.
         let softmax_output = targets[0];
@@ -54,7 +54,7 @@ impl Function for Softmax {
         }
 
         // 최종 계산된 그래디언트를 텐서로 변환하여 반환합니다.
-        Ok(vec![Tensor::from_vec(input_grad_data, softmax_output.shape())?])
+        Ok(vec![GlobalTensor::from_vec(input_grad_data, softmax_output.shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

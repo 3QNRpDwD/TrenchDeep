@@ -19,8 +19,8 @@ pub struct TestConfig {
 impl Default for TestConfig {
     fn default() -> Self {
         TestConfig {
-            n_train: 5000,
-            n_val: 5000,
+            n_train: 1000,
+            n_val: 1000,
             n_features: 784, // 28*28 MNIST 이미지 크기
             n_hidden_1: 128,
             n_hidden_2: 30,

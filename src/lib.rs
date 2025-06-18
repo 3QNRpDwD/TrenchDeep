@@ -158,7 +158,7 @@ mod benchmark {
     fn goldstein_price_function(x: &Arc<Variable>, y: &Arc<Variable>) -> MlResult<Arc<Variable>> {
         // Helper function to create constant variables
         fn constant(value: f32) -> Arc<Variable> {
-            let scalar = scalar!(value);
+            let scalar = Tensor::scalar(value);
             var_with_label!(scalar, &value.to_string())
         }
 
@@ -335,7 +335,7 @@ mod benchmark {
         let x0 = var_input!(Tensor::new(vec![vec![0.0]]));
         let x1 = var_input!(Tensor::new(vec![vec![2.0]]));
         let iter: usize = 1000;
-        let learning_rate = scalar!(0.001);
+        let learning_rate = Tensor::scalar(0.001);
 
         for i in 0..iter { // 0부터
             ComputationGraph::reset_graph();

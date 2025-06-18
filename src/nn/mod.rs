@@ -17,6 +17,7 @@ use crate::{
         Variable,
         OPERATOR_STORAGE,
         GlobalFunction,
+        GlobalTensor,
         NodeId,
         NODE_ID_GEN
     },

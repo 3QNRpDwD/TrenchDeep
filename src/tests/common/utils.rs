@@ -1,3 +1,4 @@
+use crate::tensor::TENSOR_STORAGE;
 use super::*;
 
 pub fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
@@ -44,8 +45,8 @@ impl MLP {
     pub fn compute_total_error(&self, X: &[Arc<Variable>], T: &[Arc<Variable>], loss_function: &GlobalFunction) -> MlResult<f32> {
         let mut total_loss = 0.0;
         for m in 0..X.len() {
-            let y = var_input!(self.predict(&X[m].tensor())?);
-            let loss = loss_function.forward(&[&y.tensor(), &T[m].tensor()])?.remove(0);
+            let y = self.predict(&X[m].tensor())?;
+            let loss = loss_function.forward(&[&y, T[m].tensor()])?.remove(0);
             total_loss += loss.data()[0];
         }
         Ok(total_loss / X.len() as f32)
@@ -95,32 +96,11 @@ impl SoftmaxRegression {
     pub fn compute_total_error(&self, X: &[Arc<Variable>], T: &[Arc<Variable>], loss_function: &GlobalFunction) -> MlResult<f32> {
         let mut total_loss = 0.0;
         for m in 0..X.len() {
-            let y = var_input!(self.predict(&X[m].tensor())?);
-            let loss = loss_function.forward(&[&y.tensor(), &T[m].tensor()])?.remove(0);
+            let y = self.predict(&X[m].tensor())?;
+            let loss = loss_function.forward(&[&y, T[m].tensor()])?.remove(0);
             total_loss += loss.data()[0];
         }
         Ok(total_loss / X.len() as f32)
-    }
-
-    pub fn train_model(
-        model: &mut SoftmaxRegression,
-        x_train: &[Arc<Variable>],
-        t_train: &[Arc<Variable>],
-        learning_rate: f32,
-        epochs: usize,
-        tolerance: f32,
-    ) -> MlResult<()> {
-        info!("Starting model training...");
-        info!("Training Parameters: LR={}, Max Epochs={}, Tolerance={}", learning_rate, epochs, tolerance);
-
-        #[cfg(feature = "enableBackpropagation")]
-        model.train(x_train, t_train, epochs,learning_rate, tolerance)?;
-        if !cfg!(feature = "enableBackpropagation") {
-            warn!("Feature: disableBackpropagation");
-        }
-
-        info!("Model training finished.");
-        Ok(())
     }
 }
 

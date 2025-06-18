@@ -6,7 +6,7 @@ impl Function for MeanSquaredError {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(MeanSquaredError)
     }
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
 
@@ -25,7 +25,7 @@ impl Function for MeanSquaredError {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
         let n = pred.data().len() as f32;
@@ -39,8 +39,8 @@ impl Function for MeanSquaredError {
 
         let grad_target_data: Vec<f32> = grad_pred_data.iter().map(|&g| -g).collect();
 
-        let grad_pred = Tensor::from_vec(grad_pred_data, pred.shape())?;
-        let grad_target = Tensor::from_vec(grad_target_data, target.shape())?;
+        let grad_pred = GlobalTensor::from_vec(grad_pred_data, pred.shape())?;
+        let grad_target = GlobalTensor::from_vec(grad_target_data, target.shape())?;
 
         Ok(vec![grad_pred, grad_target])
     }
@@ -59,7 +59,7 @@ impl Function for MeanAbsoluteError {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(MeanAbsoluteError)
     }
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
 
@@ -77,7 +77,7 @@ impl Function for MeanAbsoluteError {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
         let n = pred.data().len() as f32;
@@ -91,8 +91,8 @@ impl Function for MeanAbsoluteError {
 
         let grad_target_data: Vec<f32> = grad_pred_data.iter().map(|&g| -g).collect();
 
-        let grad_pred = Tensor::from_vec(grad_pred_data, pred.shape())?;
-        let grad_target = Tensor::from_vec(grad_target_data, target.shape())?;
+        let grad_pred = GlobalTensor::from_vec(grad_pred_data, pred.shape())?;
+        let grad_target = GlobalTensor::from_vec(grad_target_data, target.shape())?;
 
         Ok(vec![grad_pred, grad_target])
     }
@@ -125,7 +125,7 @@ impl Function for HuberLoss {
         })
     }
 
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
 
@@ -152,7 +152,7 @@ impl Function for HuberLoss {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
         let n = pred.data().len() as f32;
@@ -171,8 +171,8 @@ impl Function for HuberLoss {
 
         let grad_target_data: Vec<f32> = grad_pred_data.iter().map(|&g| -g).collect();
 
-        let grad_pred = Tensor::from_vec(grad_pred_data, pred.shape())?;
-        let grad_target = Tensor::from_vec(grad_target_data, target.shape())?;
+        let grad_pred = GlobalTensor::from_vec(grad_pred_data, pred.shape())?;
+        let grad_target = GlobalTensor::from_vec(grad_target_data, target.shape())?;
 
         Ok(vec![grad_pred, grad_target])
     }
@@ -191,7 +191,7 @@ impl Function for BinaryCrossEntropyLoss {
         register_operator!(BinaryCrossEntropyLoss)
     }
 
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
 
@@ -212,7 +212,7 @@ impl Function for BinaryCrossEntropyLoss {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
         let n = pred.data().len() as f32;
@@ -228,8 +228,8 @@ impl Function for BinaryCrossEntropyLoss {
             grad_val * -((1.0 - p_clipped).ln() - p_clipped.ln()) / n
         }).collect();
 
-        let grad_pred = Tensor::from_vec(grad_pred_data, pred.shape())?;
-        let grad_target = Tensor::from_vec(grad_target_data, target.shape())?;
+        let grad_pred = GlobalTensor::from_vec(grad_pred_data, pred.shape())?;
+        let grad_target = GlobalTensor::from_vec(grad_target_data, target.shape())?;
 
         Ok(vec![grad_pred, grad_target])
     }
@@ -279,7 +279,7 @@ impl Function for CrossEntropyLoss {
     /// * `targets`: `[&Tensor(prediction), &Tensor(target)]` 형태의 슬라이스.
     ///   - `prediction`: 모델의 예측값 (소프트맥스 출력이어야 함).
     ///   - `target`: 실제 값 (원-핫 인코딩된 벡터).
-    fn forward(&self, inputs: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         // 1. 입력 유효성 검사 강화
         let (pred, target) = match inputs {
             [p, t] => (*p, *t),
@@ -317,7 +317,7 @@ impl Function for CrossEntropyLoss {
 
     #[cfg(all(feature = "enableBackpropagation"))]
     /// Cross-Entropy Loss의 역전파를 계산합니다.
-    fn backward(&self, inputs: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, inputs: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         // 1. 입력 유효성 검사 강화
         let (pred, target) = match inputs {
             [p, t] => (*p, *t),
@@ -332,7 +332,7 @@ impl Function for CrossEntropyLoss {
         // 2. 배치 크기 계산 로직 재사용
         let batch_size = Self::get_batch_size(pred.shape());
         if batch_size == 0.0 {
-            let zero_grad = Tensor::from_vec(vec![0.0; pred.data().len()], pred.shape())?;
+            let zero_grad = GlobalTensor::from_vec(vec![0.0; pred.data().len()], pred.shape())?;
             return Ok(vec![zero_grad.clone(), zero_grad]);
         }
 
@@ -356,8 +356,8 @@ impl Function for CrossEntropyLoss {
             })
             .collect();
 
-        let grad_pred = Tensor::from_vec(grad_pred_data, pred.shape())?;
-        let grad_target = Tensor::from_vec(grad_target_data, target.shape())?;
+        let grad_pred = GlobalTensor::from_vec(grad_pred_data, pred.shape())?;
+        let grad_target = GlobalTensor::from_vec(grad_target_data, target.shape())?;
 
         Ok(vec![grad_pred, grad_target])
     }
@@ -383,7 +383,7 @@ impl Function for SoftmaxWithCrossEntropyLoss {
     /// * `inputs`: `[&Tensor(logits), &Tensor(target)]` 형태의 슬라이스.
     ///   - `logits`: 모델의 마지막 선형 계층에서 나온 원시 점수 (Softmax 적용 전).
     ///   - `target`: 실제 값 (원-핫 인코딩된 벡터).
-    fn forward(&self, inputs: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let (logits, target) = match inputs {
             [l, t] => (*l, *t),
             _ => return Err(MlError::TensorError(InvalidInputCount { expected: 2, got: inputs.len() }.into())),
@@ -416,7 +416,7 @@ impl Function for SoftmaxWithCrossEntropyLoss {
     #[cfg(all(feature = "enableBackpropagation"))]
     /// 역전파를 계산합니다.
     /// 로짓에 대한 그래디언트는 (p - t) 형태로 매우 안정적입니다.
-    fn backward(&self, inputs: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, inputs: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let (logits, target) = match inputs {
             [l, t] => (*l, *t),
             _ => return Err(MlError::TensorError(InvalidInputCount { expected: 2, got: inputs.len() }.into())),
@@ -440,10 +440,10 @@ impl Function for SoftmaxWithCrossEntropyLoss {
             .map(|(&p, &t)| grad_val * (p - t) / batch_size)
             .collect();
 
-        let grad_logits = Tensor::from_vec(grad_logits_data, logits.shape())?;
+        let grad_logits = GlobalTensor::from_vec(grad_logits_data, logits.shape())?;
 
         // target에 대한 그래디언트는 필요 없는 경우가 많지만, 완전성을 위해 계산 (보통 0으로 처리)
-        let grad_target = Tensor::zeros_like(target);
+        let grad_target = GlobalTensor::zeros(target.shape());
 
         Ok(vec![grad_logits, grad_target])
     }

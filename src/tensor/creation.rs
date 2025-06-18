@@ -3,6 +3,75 @@ use std::collections::HashMap;
 use std::ops::{Deref, DivAssign, MulAssign, SubAssign};
 use crate::tensor::operators::{Add, Div, Mul, Sub};
 
+impl TensorBase for GlobalTensor<f32> {
+    fn new(data: Vec<Vec<f32>>) -> Self {
+        let shape = vec![data.len(), data[0].len()];
+        let data: Vec<f32> = data.into_iter().flatten().collect();
+        GlobalTensor { data, shape }
+    }
+
+    fn from_vec(data: Vec<f32>, shape: &[usize]) -> MlResult<Self> {
+        let expected_len: usize = shape.iter().product();
+        if data.len() != expected_len {
+            return Err(MlError::TensorError(TensorError::InvalidDataLength {
+                expected: expected_len,
+                got: data.len(),
+            }));
+        }
+
+        Ok(GlobalTensor { data, shape: shape.to_vec() })
+    }
+
+    fn as_ptr(&self) -> *const GlobalTensor<f32> {
+        self
+    }
+
+    fn shape(&self) -> &[usize] {
+        &self.shape
+    }
+
+    fn data(&self) -> &[f32] {
+        &self.data
+    }
+
+    fn get(&self, indices: &[usize]) -> Option<&f32> {
+        self.data().get(self.index(indices)?)
+    }
+
+    fn index(&self, indices: &[usize]) -> Option<usize> {
+        if indices.len() != self.shape().len() {
+            return None;
+        }
+        let mut idx = 0;
+        let shape = self.shape();
+        for (i, &ind) in indices.iter().enumerate() {
+            if ind >= shape[i] {
+                return None;
+            }
+            idx = idx * shape[i] + ind;
+        }
+        Some(idx)
+    }
+
+    /// Verifies if two tensors can perform element-wise operations
+    ///
+    /// # Arguments
+    /// * `other` - The tensor to compare shapes with
+    ///
+    /// # Returns
+    /// * `Ok(())` if the shapes match
+    /// * `Err(MlError::TensorError)` if shapes don't match
+    fn chk_shape(&self, other: &dyn TensorBase) -> MlResult<()> {
+        if self.shape() != other.shape() {
+            return Err(MlError::TensorError(TensorError::InvalidShape {
+                expected: self.shape().to_vec(),
+                got: other.shape().to_vec(),
+            }));
+        }
+        Ok(())
+    }
+}
+
 // 매번 생성된 텐서를 전역 그래프에 저장하느라 심각한 성능저하와 메모리 낭비 발생. 아마도 연산자등에서 생성하는 텐서는 저장되지 않도록 조치를 취해야 할듯.
 impl TensorBase for Tensor {
     fn new(data: Vec<Vec<f32>>) -> Tensor {
@@ -26,22 +95,6 @@ impl TensorBase for Tensor {
         }
 
         let node_id = NODE_ID_GEN.next();
-        TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage.insert(node_id, GlobalTensor { data, shape: shape.to_vec() })
-        });
-
-        Ok(Tensor(node_id))
-    }
-
-    fn with_id(data: Vec<f32>, shape: &[usize], node_id: NodeId) -> MlResult<Tensor> {
-        let expected_len: usize = shape.iter().product();
-        if data.len() != expected_len {
-            return Err(MlError::TensorError(TensorError::InvalidDataLength {
-                expected: expected_len,
-                got: data.len(),
-            }));
-        }
-
         TENSOR_STORAGE.with_borrow_mut(|storage| {
             storage.insert(node_id, GlobalTensor { data, shape: shape.to_vec() })
         });
@@ -98,6 +151,44 @@ impl TensorBase for Tensor {
             }));
         }
         Ok(())
+    }
+}
+
+impl GlobalTensor<f32> {
+
+    pub fn with_id(self) -> MlResult<Tensor> {
+        let expected_len: usize = self.shape.iter().product();
+        if self.data.len() != expected_len {
+            return Err(MlError::TensorError(TensorError::InvalidDataLength {
+                expected: expected_len,
+                got: self.data.len(),
+            }));
+        }
+
+        let node_id = NODE_ID_GEN.next();
+        TENSOR_STORAGE.with_borrow_mut(|storage| {
+            storage.insert(node_id, self)
+        });
+
+        Ok(Tensor(node_id))
+    }
+}
+
+impl Tensor {
+    pub fn with_id(data: Vec<f32>, shape: &[usize], node_id: NodeId) -> MlResult<Tensor> {
+        let expected_len: usize = shape.iter().product();
+        if data.len() != expected_len {
+            return Err(MlError::TensorError(TensorError::InvalidDataLength {
+                expected: expected_len,
+                got: data.len(),
+            }));
+        }
+
+        TENSOR_STORAGE.with_borrow_mut(|storage| {
+            storage.insert(node_id, GlobalTensor { data, shape: shape.to_vec() })
+        });
+
+        Ok(Tensor(node_id))
     }
 }
 
@@ -350,38 +441,30 @@ impl Variable {
         )
     }
 
-    pub fn add_tensor(&self, other_tensor: Tensor) -> MlResult<()> {
-        Add::new()?.assign_forward(&[&self.tensor, &other_tensor])?;
+    pub fn add_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
+        Add::new()?.assign_forward(&[&self.tensor, &other_tensor], self.node_id())?;
         Ok(())
     }
 
-    pub fn sub_tensor(&self, other_tensor: Tensor) -> MlResult<()> {
-        Sub::new()?.assign_forward(&[&self.tensor, &other_tensor])?;
+    pub fn sub_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
+        Sub::new()?.assign_forward(&[&self.tensor, &other_tensor], self.node_id())?;
         Ok(())
     }
 
-    pub fn mul_tensor(&self, other_tensor: Tensor) -> MlResult<()> {
-        Mul::new()?.assign_forward(&[&self.tensor, &other_tensor])?;
+    pub fn mul_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
+        Mul::new()?.assign_forward(&[&self.tensor, &other_tensor], self.node_id())?;
         Ok(())
     }
 
-    pub fn div_tensor(&self, other_tensor: Tensor) -> MlResult<()> {
-        Div::new()?.assign_forward(&[&self.tensor, &other_tensor])?;
+    pub fn div_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
+        Div::new()?.assign_forward(&[&self.tensor, &other_tensor], self.node_id())?;
         Ok(())
     }
 
-    /// 변수가 보유한 텐서의 참조 반환
-    ///
-    /// # 반환 값
-    /// - 내부 텐서 데이터의 불변 참조
     pub fn tensor(&self) -> &Tensor {
         &self.tensor
     }
 
-    /// 그래디언트 보존 여부 확인
-    ///
-    /// # 반환 값
-    /// - 현재 변수의 requires_grad 플래그 상태
     pub fn is_retain_grad(&self) -> bool {
         *self.requires_grad.borrow().deref()
     }
@@ -390,40 +473,25 @@ impl Variable {
         self.requires_grad.replace(true);
     }
 
-    /// 저장된 그래디언트 값 조회
-    ///
-    /// # 특징 동작
-    /// - `enableBackpropagation` 기능 전용 메소드
-    ///
-    /// # 반환 값
-    /// - Option<Tensor>: 현재 저장된 그래디언트 또는 None
     pub fn grad(&self) -> Option<&Tensor> {
         let ptr: *const Option<Tensor> = self.grad.as_ptr();
         unsafe { ptr.as_ref().unwrap().as_ref() }
     }
 
-    /// 그래디언트 값 직접 설정
-    ///
-    /// # 특징 동작
-    /// - `enableBackpropagation` 기능 전용 메소드
-    /// - 기존 그래디언트 값을 완전히 대체
-    ///
-    /// # 파라미터
-    /// - grad: 설정할 새로운 그래디언트 텐서
     #[cfg(feature = "enableBackpropagation")]
     pub fn set_grad(&self, grad: Tensor) {
         self.grad.replace(Some(grad));
     }
 
-    /// 그래디언트 값 초기화
-    ///
-    /// # 특징 동작
-    /// - `enableBackpropagation` 기능 전용 메소드
-    /// - 기존 그래디언트 값을 삭제
     ///
     #[cfg(feature = "enableBackpropagation")]
     pub fn clear_grad(&self) {
-        self.grad.replace(None);
+        if !self.grad().is_none() && !self.is_retain_grad() {
+            let key = self.grad.replace(None);
+            // TENSOR_STORAGE.with_borrow_mut(|storage| {
+            //     storage.remove(&key.unwrap().0)
+            // });
+        }
     }
 
     /// 그래디언트 값 누적 추가
@@ -454,10 +522,10 @@ impl Variable {
                 accumulated_data[i] += val;
             }
 
-            self.grad.replace(Some(Tensor::from_vec(accumulated_data, existing_grad.shape())
-                .map_err(|e| format!("Failed gradient accumulation: {:?}", e))?));
+            Tensor::with_id(accumulated_data, existing_grad.shape(), self.grad().unwrap().0)
+                .map_err(|e| format!("Failed gradient accumulation: {:?}", e))?;
         } else {
-            self.grad.replace(Some(new_grad));
+            self.set_grad(new_grad);
         }
 
 

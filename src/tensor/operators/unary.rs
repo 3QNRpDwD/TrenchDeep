@@ -9,12 +9,12 @@ impl Function for Abs {
     ///
     /// # Returns
     /// A new tensor with the absolute values of each element
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|&x| x.abs()).collect(), targets[0].shape())?])
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+        Ok(vec![GlobalTensor::from_vec(targets[0].data().iter().map(|&x| x.abs()).collect(), targets[0].shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         todo!()
     }
 
@@ -32,18 +32,18 @@ impl Function for Exp {
     ///
     /// # Returns
     /// A new tensor with each element being e ^ tensor_element
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(self.backend().exp(targets[0].data()), targets[0].shape())?])
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+        Ok(vec![GlobalTensor::from_vec(self.backend().exp(targets[0].data()), targets[0].shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let gradiant = grad.data().iter()
             .zip(targets[0].data().iter())
             .map(|(grad_data, target_data)|  target_data.exp() * grad_data)
             .collect();
 
-        Ok(vec![Tensor::from_vec(gradiant, targets[0].shape())?])
+        Ok(vec![GlobalTensor::from_vec(gradiant, targets[0].shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -60,12 +60,12 @@ impl Function for Log {
     ///
     /// # Returns
     /// A new tensor with each element being the natural logarithm of tensor_element
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|&x| x.ln()).collect(), targets[0].shape())?])
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+        Ok(vec![GlobalTensor::from_vec(targets[0].data().iter().map(|&x| x.ln()).collect(), targets[0].shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         todo!()
     }
 
@@ -99,22 +99,22 @@ impl Function for Pow {
     ///
     /// # Returns
     /// A new tensor with each element being tensor_element ^ power
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(self.backend().pow(targets[0].data(), self.power.unwrap()), targets[0].shape())?])
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+        Ok(vec![GlobalTensor::from_vec(self.backend().pow(targets[0].data(), self.power.unwrap()), targets[0].shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let power = self.power.unwrap();
         let target = targets[0];
-        let forwarded = Tensor::from_vec(self.backend().pow(target.data(), power - 1.0), target.shape())?; // x ** (c - 1)
-        let result = Tensor::from_vec(
+        let forwarded = GlobalTensor::from_vec(self.backend().pow(target.data(), power - 1.0), target.shape())?; // x ** (c - 1)
+        let result = GlobalTensor::from_vec(
             forwarded
                 .data()
                 .iter()
                 .map(|&x| power * x)
                 .collect(), target.shape())?; // c * x ** (c - 1)
-        Ok(vec![result * grad]) // c * x ** (c -1) * gy
+        Ok(vec![&result as &dyn TensorBase * grad]) // c * x ** (c -1) * gy
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -131,12 +131,12 @@ impl Function for Square {
     ///
     /// # Returns
     /// A new tensor with each element being the square of the corresponding element in the input tensor
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(targets[0].data().iter().map(|x| x * x).collect(), targets[0].shape())?])
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+        Ok(vec![GlobalTensor::from_vec(targets[0].data().iter().map(|x| x * x).collect(), targets[0].shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         // grad가 scalar이거나 다른 shape일 때 브로드캐스팅
         let grad_broadcasted = if grad.data().len() == 1 {
             // grad가 scalar인 경우, targets[0]와 같은 길이로 복제
@@ -150,7 +150,7 @@ impl Function for Square {
             .map(|(grad_data, target_data)| grad_data * 2.0 * target_data)
             .collect();
 
-        Ok(vec![Tensor::from_vec(gradient, targets[0].shape())?])
+        Ok(vec![GlobalTensor::from_vec(gradient, targets[0].shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -167,12 +167,12 @@ impl Function for Sqrt {
     ///
     /// # Returns
     /// A new tensor with each element being the square root of tensor_element
-    fn forward(&self, targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
-        Ok(vec![Tensor::from_vec(self.backend().sqrt(targets[0].data()), targets[0].shape())?])
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+        Ok(vec![GlobalTensor::from_vec(self.backend().sqrt(targets[0].data()), targets[0].shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         todo!()
     }
 

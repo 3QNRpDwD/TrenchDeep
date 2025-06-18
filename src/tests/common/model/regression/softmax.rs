@@ -1,4 +1,5 @@
 use tracing::error;
+use crate::tensor::{GlobalTensor};
 use super::*;
 
 impl Model for SoftmaxRegression {
@@ -32,12 +33,8 @@ impl Model for SoftmaxRegression {
     fn train(&mut self, x_set: &[Arc<Variable>], t_set: &[Arc<Variable>], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()> {
         let n_batches = x_set.len();
         let training_start_time = Instant::now();
-        let lr = scalar!(learning_rate);
-
-        // --- 1. MultiProgress 객체 생성 ---
+        let lr = Tensor::scalar(learning_rate);
         let multi_bar = MultiProgress::new();
-
-        // --- 2. 에포크 프로그레스 바 설정 (ETA 및 통합 로그 추가) ---
         let epoch_bar = multi_bar.add(ProgressBar::new(epochs as u64));
         epoch_bar.set_style(
             ProgressStyle::default_bar()
@@ -45,20 +42,12 @@ impl Model for SoftmaxRegression {
                 .unwrap()
                 .progress_chars("▉ "),
         );
-
         info!("Initial error calculation...");
         let mut epoch_start_time = Instant::now();
         let mut last_loss = self.compute_total_error(x_set, t_set, &self.loss_function)?;
         let epoch_duration = epoch_start_time.elapsed();
         let initial_log = format!("Initial loss: {:.6} | Duration: {:.2?}", last_loss, epoch_duration);
         epoch_bar.set_message(initial_log.clone());
-    //     info!(
-    //     "Epoch {:>3}/{:<3} | {}",
-    //     0,
-    //     epochs,
-    //     initial_log
-    // );
-
 
         for epoch in 0..epochs {
             let mut total_loss = 0.0;
@@ -78,7 +67,6 @@ impl Model for SoftmaxRegression {
                     .progress_chars("█ "),
             );
 
-
             for (x, t) in x_set.iter().zip(t_set.iter()) {
                 ComputationGraph::reset_graph();
                 let y = self.apply(x)?;
@@ -87,7 +75,7 @@ impl Model for SoftmaxRegression {
                 total_loss += loss_var.tensor().data()[0];
                 loss_var.backward()?;
 
-                if self.w1.grad().unwrap().data()[0].is_nan() || self.b1.grad().unwrap().data()[0].is_nan() {
+                if self.w1.grad().is_some_and(|d| d.data()[0].is_nan()) || self.b1.grad().is_some_and(|d| d.data()[0].is_nan()) {
                     epoch_bar.abandon_with_message("❌ Error: NaN Gradient");
                     batch_bar.abandon_with_message("NaN Gradient");
                     error!("gradient is NaN or infinity: {}. Suspended training.", total_loss);
@@ -142,13 +130,13 @@ impl Model for SoftmaxRegression {
         add.apply(&[&uh1_pre, &self.b1])
     }
 
-    fn predict(&self, x: &Tensor) -> MlResult<Tensor> {
+    fn predict(&self, x: &Tensor) -> MlResult<GlobalTensor<f32>> {
         let matmul = Matmul::new()?;
         let add = Add::new()?;
 
         // 1) 은닉층: u_h = W1 * x + b1
-        let uh1_pre = matmul.forward(&[&self.w1.tensor(), x])?.remove(0);
-        let uh1 = add.forward(&[&uh1_pre, &self.b1.tensor()])?.remove(0);
+        let uh1_pre = matmul.forward(&[self.w1.tensor(), x])?.remove(0);
+        let uh1 = add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0);
         let ah1 = self.output_activation.forward(&[&uh1])?.remove(0);
 
         Ok(ah1)

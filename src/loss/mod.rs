@@ -6,7 +6,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 use crate::backend::{Backend, CpuBackend, Device};
 use crate::{register_operator, scalar, MlResult};
-use crate::tensor::{AutogradFunction, GlobalFunction, NodeId, Tensor, TensorBase, Variable, NODE_ID_GEN, OPERATOR_STORAGE};
+use crate::tensor::{AutogradFunction, GlobalFunction, NodeId, Tensor, TensorBase, Variable, NODE_ID_GEN, OPERATOR_STORAGE, GlobalTensor};
 
 const EPSILON: f32 = 1e-15;
 

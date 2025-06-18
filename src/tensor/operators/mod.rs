@@ -87,10 +87,6 @@ define_op!(ApproxSin, threshold: f32);  // 테일러급수를 사용한 사인 �
 define_op!(ApproxCos, threshold: f32);  // 테일러급수를 사용한 코사인 함수 입니다
 
 pub trait Function {
-    /// 새로운 연산 객체를 생성합니다.
-    ///
-    /// # 반환값
-    /// - `MlResult<Self>`: 성공 시 생성된 연산 객체, 실패 시 오류
     fn new() -> MlResult<GlobalFunction> where Self: Sized {
         unimplemented!("{} Function::new() is not implemented", std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown"))
     }
@@ -99,50 +95,20 @@ pub trait Function {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
     }
 
-    /// 순전파(Forward Pass)를 수행합니다.
-    ///
-    /// 입력 텐서들을 받아 연산을 수행하고 결과 변수를 반환합니다.
-    ///
-    /// # 매개변수
-    /// - `targets`: 연산에 사용될 입력 텐서들의 참조 배열
-    ///
-    /// # 반환값
-    /// - `MlResult<Vec<Variable<T>>>`: 성공 시 결과 변수 벡터, 실패 시 오류
-    ///
-    /// # 오류
-    /// - 입력 텐서의 형태나 데이터가 연산에 적합하지 않을 경우
-    fn forward(&self, _targets: &[&Tensor]) -> MlResult<Vec<Tensor>>{
+    fn forward(&self, _targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>>{
         unimplemented!("{} Forward pass is not implemented", self.type_name())
     }
 
-    fn assign_forward(&self, _targets: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&self, _targets: &[&dyn TensorBase], tensor_id: NodeId) -> MlResult<Vec<Tensor>> {
         unimplemented!("{} Forward pass is not implemented", self.type_name())
     }
 
-    /// 역전파(Backward Pass)를 수행합니다.
-    ///
-    /// 주어진 입력 텐서와 그래디언트를 기반으로 입력에 대한 그래디언트를 계산합니다.
-    /// 이 메서드는 `enableBackpropagation` 기능이 활성화된 경우에만 사용 가능합니다.
-    ///
-    /// # 매개변수
-    /// - `targets`: 역전파에 사용될 입력 텐서
-    /// - `grad`: 출력에 대한 그래디언트
-    ///
-    /// # 반환값
-    /// - `MlResult<Vec<Tensor<T>>>`: 성공 시 입력에 대한 그래디언트 벡터, 실패 시 오류
-    ///
-    /// # 오류
-    /// - 그래디언트 계산에 실패하거나 입력이 유효하지 않을 경우
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&Tensor], grad: &Tensor) -> MlResult<Vec<Tensor>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         // enableBackpropagation만 활성화된 경우의 기본 구현
         unimplemented!("{} Backward pass is not implemented", self.type_name())
     }
 
-    /// 연산에 사용되는 백엔드를 반환합니다.
-    ///
-    /// # 반환값
-    /// - `&Arc<dyn Backend>`: 백엔드에 대한 스마트 포인터 참조
     fn backend(&self) -> &Arc<dyn Backend> {
         unimplemented!("{} Function::backend() is not implemented", self.type_name())
     }
@@ -182,8 +148,8 @@ mod tests {
     use crate::tensor::{AutogradFunction, operators::{Add, Function, Mul, Pow, Square}, Tensor, TensorBase, Variable};
     use crate::{scalar, variable, MlResult};
 
-    pub fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
-        if tensor != expected_tensor {
+    pub fn assert_tensor_eq(tensor: &dyn TensorBase, expected_tensor: &dyn TensorBase) -> MlResult<()> {
+        if tensor.data() != expected_tensor.data() && tensor.shape() != expected_tensor.shape() {
             return Err(format!("Expected {:?}, got {:?}", expected_tensor, tensor).into());
         }
         Ok(())
@@ -245,10 +211,10 @@ mod tests {
     }
 
     fn print_forward(
-        x: &Tensor,
-        a: &Tensor,
-        b: &Tensor,
-        y: &Tensor,
+        x: &dyn TensorBase,
+        a: &dyn TensorBase,
+        b: &dyn TensorBase,
+        y: &dyn TensorBase,
     ) {
         #[cfg(feature = "debugging")]
         {
@@ -270,14 +236,14 @@ mod tests {
     }
 
     fn print_backward(
-        x: Option<&Tensor>,
-        a: Option<&Tensor>,
-        b: Option<&Tensor>,
-        y: Option<&Tensor>,
+        x: Option<&dyn TensorBase>,
+        a: Option<&dyn TensorBase>,
+        b: Option<&dyn TensorBase>,
+        y: Option<&dyn TensorBase>,
     ) {
         #[cfg(feature = "debugging")]
         {
-            let fmt_tensor = |t: Option<&Tensor>| {
+            let fmt_tensor = |t: Option<&dyn TensorBase>| {
                 if let Some(tensor) = t {
                     format!(
                         "Tensor {{ data: {:^width$?}, shape: {:^width2$?} }}",
@@ -342,15 +308,19 @@ mod tests {
         let b = exp   .apply(&[&a])?;
         let y = square.apply(&[&b])?;
 
-        crate::tensor::tests::assert_tensor_eq(&y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
-        print_forward(&x.tensor(), &a.tensor(), &b.tensor(), &y.tensor());
+        crate::tensor::tests::assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
+        print_forward(x.tensor(), a.tensor(), b.tensor(), y.tensor());
 
 
         #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?;
+            let dy = y.grad().unwrap();                              // dy = 1
+            let db = b.grad().unwrap();   // dy/db = dy/dy * 2b
+            let da = a.grad().unwrap();   // dy/da = (dy/db) * db/da
+            let dx = x.grad().unwrap();   // dy/dx = (dy/da) * da/dx
 
-            print_backward(y.grad(), b.grad(), a.grad(), x.grad());
+            print_backward(Some(dy), Some(db), Some(da), Some(dx));
             assert_tensor_eq(x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
         }
         Ok(())
@@ -378,8 +348,8 @@ mod tests {
                 assert_eq!(t.grad(), None);
             }
 
-            assert_tensor_eq(&x0.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
-            assert_tensor_eq(&x1.grad().unwrap(), &Tensor::new(vec![vec![1.0]]))?;
+            assert_tensor_eq(x0.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
+            assert_tensor_eq(x1.grad().unwrap(), &Tensor::new(vec![vec![1.0]]))?;
         }
 
         // 버그 발생: .is_retain_grad() 이 True 일때 출력이 2.0, 1.0 이어야 하는데 3.0, None 이 출력됨
@@ -513,7 +483,7 @@ mod tests {
             y.backward()?;
 
             assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
-            assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
+            assert_tensor_eq(x.grad().unwrap(), &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
         }
         Ok(())
     }
