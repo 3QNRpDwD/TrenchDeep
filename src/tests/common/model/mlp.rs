@@ -9,8 +9,8 @@ impl Model for MLP {
     /// output_activation: 출력층에 적용할 활성화 함수
     fn new(
         layer_parms: &[usize],
-        activations: &[GlobalFunction],
-        loss_function: GlobalFunction,
+        activations: &[&GlobalFunction],
+        loss_function: &GlobalFunction,
     ) -> Self {
         let n_input = layer_parms[0];
         let n_hidden = layer_parms[1];
@@ -45,7 +45,7 @@ impl Model for MLP {
             "bias_2"
         );
 
-        Self { w1, w2, b1, b2, hidden_activation: activations[0].clone(), output_activation: activations[1].clone(), loss_function }
+        Self { w1, w2, b1, b2, hidden_activation: activations[0].clone(), output_activation: activations[1].clone(), loss_function: loss_function.clone() }
     }
 
     #[cfg(feature = "enableBackpropagation")]
@@ -64,7 +64,7 @@ impl Model for MLP {
 
         info!("Initial error calculation...");
         let mut epoch_start_time = Instant::now();
-        let mut last_loss = self.compute_total_error(x_set, t_set, &self.loss_function)?;
+        let mut last_loss = self.compute_total_error(x_set, t_set)?;
         let epoch_duration = epoch_start_time.elapsed();
         let initial_log = format!("Initial loss: {:.6} | Avg Acc: {:>6.2}% | Duration: {:.2?}", last_loss, 0, epoch_duration);
         epoch_bar.set_message(initial_log.clone());
@@ -187,9 +187,9 @@ impl Model for MLP {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn apply(&self, x: &Arc<Variable>) -> MlResult<Arc<Variable>> {
-        let matmul = Matmul::new()?;
-        let add = Add::new()?;
+    fn apply(&mut self, x: &Arc<Variable>) -> MlResult<Arc<Variable>> {
+        let mut matmul = Matmul::new()?;
+        let mut add = Add::new()?;
 
         // 1) 첫 번째 은닉층
         let uh1_pre = matmul.apply(&[&self.w1, x])?;
@@ -204,9 +204,9 @@ impl Model for MLP {
         Ok(ah2)
     }
 
-    fn predict(&self, x: &Tensor) -> MlResult<GlobalTensor<f32>> {
-        let matmul = Matmul::new()?;
-        let add = Add::new()?;
+    fn predict(&mut self, x: &Tensor) -> MlResult<GlobalTensor<f32>> {
+        let mut matmul = Matmul::new()?;
+        let mut add = Add::new()?;
 
         // 1) 은닉층: u_h = W1 * x + b1
         let uh1_pre = matmul.forward(&[self.w1.tensor(), x])?.remove(0);
@@ -249,5 +249,15 @@ impl Model for MLP {
 
     fn get_loss(&self) -> f32 {
         todo!()
+    }
+
+    fn compute_total_error(&mut self, X: &[Arc<Variable>], T: &[Arc<Variable>]) -> MlResult<f32> {
+        let mut total_loss = 0.0;
+        for m in 0..X.len() {
+            let y = self.predict(&X[m].tensor())?;
+            let loss = self.loss_function.forward(&[&y, T[m].tensor()])?.remove(0);
+            total_loss += loss.data()[0];
+        }
+        Ok(total_loss / X.len() as f32)
     }
 }

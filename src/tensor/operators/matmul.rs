@@ -13,7 +13,7 @@ impl Function for Matmul {
     /// # Returns
     /// A new tensor with the result of the matrix multiplication
     // Handle empty tensors
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         if targets[0].data().is_empty() || targets[1].data().is_empty() {
             return Err(MlError::TensorError(TensorError::EmptyTensor));
         }
@@ -166,7 +166,7 @@ impl Function for Matmul {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let target_0 = targets[0];
         let target_1 = targets[1];
         let target_0_shape = target_0.shape();
@@ -392,7 +392,7 @@ mod tests {
     #[test]
     fn test_matmul_invalid_shapes() -> MlResult<()> {
         // Test incompatible shapes
-        let matmul = Matmul::new()?;
+        let mut matmul = Matmul::new()?;
         let a = Tensor::from_vec(vec![1.0, 2.0, 3.0], &[3])?;
         let b = Tensor::from_vec(vec![4.0, 5.0], &[2])?;
 
@@ -472,7 +472,7 @@ mod tests {
 
     #[test]
     fn test_matmul_empty() -> MlResult<()> {
-        let matmul = Matmul::new()?;
+        let mut matmul = Matmul::new()?;
         // Case 9: Empty Matrix Multiplication
         let a = Tensor::from_vec(vec![], &[0, 2])?;
         let b = Tensor::from_vec(vec![], &[2, 0])?;

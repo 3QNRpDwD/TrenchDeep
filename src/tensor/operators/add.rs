@@ -12,7 +12,7 @@ impl Function for Add {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise addition
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let first_target = targets[0];
         let second_target = targets[1];
         let first_shape = first_target.shape();
@@ -38,7 +38,7 @@ impl Function for Add {
         }
     }
 
-    fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&mut self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
         let first_target = targets[0];
         let second_target = targets[1];
         let first_shape = first_target.shape();
@@ -65,7 +65,7 @@ impl Function for Add {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&mut self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec() };
         Ok(vec![gt.clone(), gt])
     }
@@ -90,7 +90,7 @@ impl std::ops::Add<Tensor> for Tensor {
 
     fn add(self, other: Tensor) -> Self::Output {
         Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().forward(&[&self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().forward(&[&self, &other]).unwrap().remove(0))
     }
 }
 
@@ -99,7 +99,7 @@ impl std::ops::Add<&Tensor> for Tensor {
 
     fn add(self, other: &Tensor) -> Self::Output {
         Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().forward(&[&self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().forward(&[&self, other]).unwrap().remove(0))
     }
 }
 
@@ -108,7 +108,7 @@ impl std::ops::Add<&Tensor> for &Tensor {
 
     fn add(self, other: &Tensor) -> Self::Output {
         Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().forward(&[self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -117,7 +117,7 @@ impl std::ops::Add<Tensor> for &Tensor {
 
     fn add(self, other: Tensor) -> Self::Output {
         Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().forward(&[self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().forward(&[self, &other]).unwrap().remove(0))
     }
 }
 
@@ -126,7 +126,7 @@ impl std::ops::Add<&dyn TensorBase> for &dyn TensorBase {
 
     fn add(self, other: &dyn TensorBase) -> Self::Output {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().forward(&[self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -134,12 +134,12 @@ impl std::ops::Add<&dyn TensorBase> for &dyn TensorBase {
 impl std::ops::AddAssign<Tensor> for Tensor {
     fn add_assign(&mut self, other: Tensor) {
         Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
     }
 }
 
 impl std::ops::AddAssign<&Tensor> for Tensor {
     fn add_assign(&mut self, other: &Tensor) {
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
     }
 }

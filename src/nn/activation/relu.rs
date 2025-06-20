@@ -5,7 +5,7 @@ impl Function for ReLu {
         register_operator!(ReLu)
     }
 
-    fn forward(&self, x: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&mut self, x: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         // ReLU(x) = max(0, x)
         let result = x[0].data().iter()
             .map(|&val| if val > 0.0 { val } else { 0.0 })
@@ -15,7 +15,7 @@ impl Function for ReLu {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, target: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&mut self, target: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let relu_output = target[0];
 
         // ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * mask

@@ -20,7 +20,11 @@ macro_rules! define_op {
         #[derive(Clone)]
         pub struct $name {
             backend: Arc<dyn Backend>,
-            node_id: NodeId
+            node_id: NodeId,
+            #[cfg(feature = "enableBackpropagation")]
+            inputs: Vec<Tensor>,
+            #[cfg(feature = "enableBackpropagation")]
+            outputs: Vec<Tensor>
         }
     };
 
@@ -30,6 +34,10 @@ macro_rules! define_op {
         pub struct $name {
             backend: Arc<dyn Backend>,
             node_id: NodeId,
+            #[cfg(feature = "enableBackpropagation")]
+            inputs: Vec<Tensor>,
+            #[cfg(feature = "enableBackpropagation")]
+            outputs: Vec<Tensor>,
             pub $field: $type
         }
     };
@@ -52,7 +60,14 @@ macro_rules! register_operator {
                         false => {
                             ops.insert(
                                 String::from(my),
-                                Arc::new($name { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next() })
+                                Box::new($name {
+                                    backend: Arc::new(CpuBackend::new()?),
+                                    node_id: NODE_ID_GEN.next(),
+                                    #[cfg(feature = "enableBackpropagation")]
+                                    inputs: Vec::new(),
+                                    #[cfg(feature = "enableBackpropagation")]
+                                    outputs: Vec::new()
+                                })
                             );
                             Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
                         }
@@ -95,16 +110,16 @@ pub trait Function {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
     }
 
-    fn forward(&self, _targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>>{
+    fn forward(&mut self, _targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>>{
         unimplemented!("{} Forward pass is not implemented", self.type_name())
     }
 
-    fn assign_forward(&self, _targets: &[&dyn TensorBase], tensor_id: NodeId) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&mut self, _targets: &[&dyn TensorBase], tensor_id: NodeId) -> MlResult<Vec<Tensor>> {
         unimplemented!("{} Forward pass is not implemented", self.type_name())
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         // enableBackpropagation만 활성화된 경우의 기본 구현
         unimplemented!("{} Backward pass is not implemented", self.type_name())
     }
@@ -129,13 +144,29 @@ impl Debug for &dyn Function {
 // Add helper method to create instances with backend
 impl ApproxSin {
     pub fn with_backend(backend: Arc<dyn Backend>, threshold: f32) -> MlResult<Self> {
-        Ok(Self { backend, threshold, node_id: NODE_ID_GEN.next() })
+        Ok(Self {
+            backend,
+            threshold,
+            node_id: NODE_ID_GEN.next(),
+            #[cfg(feature = "enableBackpropagation")]
+            inputs: vec![],
+            #[cfg(feature = "enableBackpropagation")]
+            outputs: vec![]
+        })
     }
 }
 
 impl ApproxCos {
     pub fn with_backend(backend: Arc<dyn Backend>, threshold: f32) -> MlResult<Self> {
-        Ok(Self { backend, threshold, node_id: NODE_ID_GEN.next() })
+        Ok(Self {
+            backend,
+            threshold,
+            node_id: NODE_ID_GEN.next(),
+            #[cfg(feature = "enableBackpropagation")]
+            inputs: vec![],
+            #[cfg(feature = "enableBackpropagation")]
+            outputs: vec![]
+        })
     }
 }
 
@@ -274,8 +305,8 @@ mod tests {
 
     #[test]
     fn phase_test() -> MlResult<()>{
-        let square = Square::new()?;
-        let exp = Exp::new()?;
+        let mut square = Square::new()?;
+        let mut exp = Exp::new()?;
 
         let x = scalar!(0.5);
         let a = square.forward(&[ &x ])?.remove(0); // a = A(x)
@@ -300,8 +331,8 @@ mod tests {
 
     #[test]
     fn autograd_test() -> MlResult<()> {
-        let square = Square::new()?;
-        let exp = Exp::new()?;
+        let mut square = Square::new()?;
+        let mut exp = Exp::new()?;
 
         let x = Arc::new(variable!(vec![vec![0.5]]));
         let a = square.apply(&[&x])?;
@@ -328,7 +359,7 @@ mod tests {
 
     #[test]
     fn wtf() -> MlResult<()> {
-        let add = Add::new()?;
+        let mut add = Add::new()?;
 
         let x0 = Arc::new(variable!(vec![vec![1.0]]));
         let x1 = Arc::new(variable!(vec![vec![1.0]]));
@@ -370,8 +401,8 @@ mod tests {
 
     #[test]
     fn wtf2() -> MlResult<()> { // 데이터 32 기울기 64 나오면 됨
-        let add = Add::new()?;
-        let square = Square::new()?;
+        let mut add = Add::new()?;
+        let mut square = Square::new()?;
 
         let x = Arc::new(variable!(vec![vec![2.0]]));
         let a = square.apply(&[&x])?;
@@ -389,7 +420,7 @@ mod tests {
 
     #[test]
     fn wtf3() -> MlResult<()> { // 기울기 2, 3 나오면 됨
-        let add = Add::new()?;
+        let mut add = Add::new()?;
 
         let x = Arc::new(variable!(vec![vec![3.0]]));
         let y = add.apply(&[&x, &x])?; // y = add(x, x)
@@ -401,7 +432,8 @@ mod tests {
             x.clear_grad();
             y.clear_grad();
 
-            let y = add.apply(&[&add.apply(&[&x, &x])?, &x])?; // y = add(add(x, x), x)
+            let t = add.apply(&[&x, &x])?;
+            let y = add.apply(&[&t, &x])?; // y = add(add(x, x), x)
             #[cfg(feature = "enableBackpropagation")]
             y.backward()?;
             assert_eq!(x.grad(), Some(&Tensor::new(vec![vec![3.0]])));
@@ -411,8 +443,8 @@ mod tests {
 
     #[test]
     fn wtf4() -> MlResult<()> {
-        let add = Add::new()?;
-        let square = Square::new()?;
+        let mut add = Add::new()?;
+        let mut square = Square::new()?;
 
         let x = Arc::new(variable!(vec![vec![2.0]]));
         let y = Arc::new(variable!(vec![vec![3.0]]));
@@ -431,8 +463,8 @@ mod tests {
 
     #[test]
     fn wtf5() -> MlResult<()> {
-        let add = Add::new()?;
-        let mul = Mul::new()?;
+        let mut add = Add::new()?;
+        let mut mul = Mul::new()?;
 
         let a = Arc::new(variable!(vec![vec![3.0]]));
         let b = Arc::new(variable!(vec![vec![2.0]]));
@@ -473,7 +505,7 @@ mod tests {
 
     #[test]
     fn trigonometry_sin() -> MlResult<()> {
-        let sin = Sin::new()?;
+        let mut sin = Sin::new()?;
 
         let x = Arc::new(variable!(vec![vec![std::f32::consts::PI / 4.0]])); // 45도 (45 * 4 = 180)
         let y = sin.apply(&[&x])?;

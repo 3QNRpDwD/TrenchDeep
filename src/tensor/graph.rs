@@ -221,7 +221,7 @@ impl ComputationGraph {
                 .collect::<Vec<&dyn TensorBase>>();
 
             let output_grad = grad.unwrap();
-            let input_grads = OPERATOR_STORAGE.with(|ops| ops.borrow().get(function).unwrap().backward(&input_tensors, output_grad)
+            let input_grads = OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut(function).unwrap().backward(&input_tensors, output_grad)
                 .map_err(|e| MlError::StringError(format!("Failed to compute backward for function {:?}: {}", function, e))))?;
 
             for (input_id, grad) in node.inputs.iter().zip(input_grads) {
@@ -276,7 +276,7 @@ impl ComputationGraph {
 }
 
 impl AutogradFunction for GlobalFunction {
-    fn apply(&self, inputs: &[&Arc<Variable>]) -> MlResult<Arc<Variable>> {
+    fn apply(&mut self, inputs: &[&Arc<Variable>]) -> MlResult<Arc<Variable>> {
         let tensors: Vec<&dyn TensorBase> = inputs
             .iter()
             .map(|&var| var.tensor() as &dyn TensorBase)
@@ -296,7 +296,7 @@ impl AutogradFunction for GlobalFunction {
         Ok(output)
     }
 
-    fn apply_with_label(&self, inputs: &[&Arc<Variable>], label: &str) -> MlResult<Arc<Variable>> {
+    fn apply_with_label(&mut self, inputs: &[&Arc<Variable>], label: &str) -> MlResult<Arc<Variable>> {
         let tensors: Vec<&dyn TensorBase> = inputs
             .iter()
             .map(|&var| var.tensor() as &dyn TensorBase)

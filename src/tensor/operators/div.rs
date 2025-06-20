@@ -12,14 +12,14 @@ impl Function for Div {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise division
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
             _ => Ok(vec![GlobalTensor::from_vec(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape())?])
         }
     }
 
-    fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&mut self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
             _ => Ok(vec![Tensor::with_id(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape(), node_id)?])
@@ -27,7 +27,7 @@ impl Function for Div {
     }
     
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let x1 = targets[1];
 
         Ok(vec![
@@ -53,7 +53,7 @@ impl std::ops::Div<&Tensor> for Tensor {
 
     fn div(self, other: &Tensor) -> Self::Output {
         Div::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Div").unwrap().forward(&[&self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().forward(&[&self, other]).unwrap().remove(0))
     }
 }
 
@@ -62,7 +62,7 @@ impl std::ops::Div<Tensor> for Tensor {
 
     fn div(self, other: Tensor) -> Self::Output {
         Div::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Div").unwrap().forward(&[&self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().forward(&[&self, &other]).unwrap().remove(0))
     }
 }
 
@@ -72,7 +72,7 @@ impl std::ops::Div<&dyn TensorBase> for &dyn TensorBase {
 
     fn div(self, other: &dyn TensorBase) -> Self::Output {
         Div::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Div").unwrap().forward(&[self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -81,7 +81,7 @@ impl std::ops::Div<Tensor> for &Tensor {
 
     fn div(self, other: Tensor) -> Self::Output {
         Div::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Div").unwrap().forward(&[self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().forward(&[self, &other]).unwrap().remove(0))
     }
 }
 
@@ -89,13 +89,13 @@ impl std::ops::Div<Tensor> for &Tensor {
 impl std::ops::DivAssign<Tensor> for Tensor {
     fn div_assign(&mut self, other: Tensor) {
         Div::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Div").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
     }
 }
 
 impl std::ops::DivAssign<&Tensor> for Tensor {
     fn div_assign(&mut self, other: &Tensor) {
         Div::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Div").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
     }
 }

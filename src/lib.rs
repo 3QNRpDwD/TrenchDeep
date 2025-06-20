@@ -133,8 +133,8 @@ mod benchmark {
     }
 
     fn sphere_function(x: &Arc<Variable>, y: &Arc<Variable>) -> MlResult<Arc<Variable>> {
-        let square = Square::new()?;
-        let add = Add::new()?;
+        let mut square = Square::new()?;
+        let mut add = Add::new()?;
 
         add.apply(&[
             &square.apply(&[x])?,
@@ -143,15 +143,16 @@ mod benchmark {
     }
 
     fn matyas_function(x: &Arc<Variable>, y: &Arc<Variable>) -> MlResult<Arc<Variable>> {
-        let sub = Sub::new()?;
-        let mul = Mul::new()?;
+        let mut sub = Sub::new()?;
+        let mut mul = Mul::new()?;
         let O_26 = Arc::new(variable!(vec![vec![0.26]]));
         let O_48 = Arc::new(variable!(vec![vec![0.48]]));
 
         let sphere = sphere_function(x, y)?;
+        let t = mul.apply(&[x, y])?;
         sub.apply(&[                   // (0.26 * sphere) - (0.48 * x * y)
             &mul.apply(&[&O_26, &sphere])?,                     // 0.26 * sphere
-            &mul.apply(&[&O_48, &mul.apply(&[x, y])?])?  // 0.48 * x * y
+            &mul.apply(&[&O_48, &t])?  // 0.48 * x * y
         ])
     }
 
@@ -162,10 +163,10 @@ mod benchmark {
             var_with_label!(scalar, &value.to_string())
         }
 
-        let add = Add::new()?;
-        let square = Square::new()?;
-        let mul = Mul::new()?;
-        let sub = Sub::new()?;
+        let mut add = Add::new()?;
+        let mut square = Square::new()?;
+        let mut mul = Mul::new()?;
+        let mut sub = Sub::new()?;
 
         // Define constants
         let num_1   = constant(1.0);
@@ -178,9 +179,10 @@ mod benchmark {
         let neg_36  = constant(-36.0);
 
         // Compute a = x + y + 1
+        let tt = add.apply(&[x, y])?;
         let a =
             add.apply(&[
-                &add.apply(&[x, y])?,
+                &tt,
                 &num_1
             ])?;
 
@@ -191,20 +193,17 @@ mod benchmark {
         let term2_b = mul.apply(&[&neg_14, x])?;
         let term3_b = mul.apply(&[&num_3, &x_squared])?;
         let term4_b = mul.apply(&[&neg_14, y])?;
-        let term5_b = mul.apply(&[&num_6, &mul.apply(&[x, y])?])?;
+        let tb = mul.apply(&[x, y])?;
+        let term5_b = mul.apply(&[&num_6, &tb])?;
         let term6_b = mul.apply(&[&num_3, &y_squared])?;
 
-        let b =
-            add.apply(&[
-                &add.apply(&[
-                    &add.apply(&[
-                        &add.apply(&[
-                            &add.apply(&[&constant(19.0), &term2_b])?,
-                            &term3_b])?,
-                        &term4_b])?,
-                    &term5_b])? ,
-                &term6_b
-            ])?; // (((((19 - 14x) + 3x^2) - 14y) + 6xy) + 3y^2)
+        let b = {
+                let t1 = add.apply(&[&constant(19.0), &term2_b])?;      // 19 - 14x
+                let t2 = add.apply(&[&t1, &term3_b])?;                  // + 3x^2
+                let t3 = add.apply(&[&t2, &term4_b])?;                  // - 14y
+                let t4 = add.apply(&[&t3, &term5_b])?;                  // + 6xy
+                add.apply(&[&t4, &term6_b])?                            // + 3y^2
+        }; // (((((19 - 14x) + 3x^2) - 14y) + 6xy) + 3y^2)
 
         // Compute first part: 1 + (a^2 * b)
         let a_squared   = square.apply(&[&a])?;
@@ -220,19 +219,18 @@ mod benchmark {
         let term2_d = mul.apply(&[&neg_32, x])?;
         let term3_d = mul.apply(&[&num_12, &x_squared])?;
         let term4_d = mul.apply(&[&constant(48.0), y])?;
-        let term5_d = mul.apply(&[&neg_36, &mul.apply(&[x, y])?])?;
+        let tb = mul.apply(&[x, y])?;
+        let term5_d = mul.apply(&[&neg_36, &tb])?;
         let term6_d = mul.apply(&[&constant(27.0), &y_squared])?;
 
-        let d =
-            add.apply(&[
-                &add.apply(&[
-                    &add.apply(&[
-                        &add.apply(&[
-                            &add.apply(&[&constant(18.0), &term2_d])?,
-                            &term3_d])?,
-                        &term4_d])?,
-                    &term5_d])? ,
-                &term6_d])?; // 18 - 32x + 12x^2 + 48y - 36xy + 27y^2
+let d = {
+                // 18 - 32x + 12x^2 + 48y - 36xy + 27y^2
+                let t1 = add.apply(&[&constant(18.0), &term2_d])?;      // 18 - 32x
+                let t2 = add.apply(&[&t1, &term3_d])?;                  // + 12x^2
+                let t3 = add.apply(&[&t2, &term4_d])?;                  // + 48y
+                let t4 = add.apply(&[&t3, &term5_d])?;                  // - 36xy
+                add.apply(&[&t4, &term6_d])?                            // + 27y^2
+            };
 
         // Compute second part: 30 + c^2 * d
         let c_squared   = square.apply(&[&c])?;
@@ -244,18 +242,20 @@ mod benchmark {
     }
 
     fn rosenbrock_function(x0: &Arc<Variable>, x1: &Arc<Variable>) -> MlResult<Arc<Variable>> {
-        let sub = Sub::new()?;
-        let add = Add::new()?;
-        let square = Square::new()?;
-        let mul = Mul::new()?;
+        let mut sub = Sub::new()?;
+        let mut add = Add::new()?;
+        let mut square = Square::new()?;
+        let mut mul = Mul::new()?;
 
+        let sq = square.apply(&[&x0])?;
         add.apply_with_label(&[
             &mul.apply(&[
                 &Arc::new(variable!(vec![vec![100.0]])),
                 &square.apply(&[
                     &sub.apply(&[
                         &x1,
-                        &square.apply(&[&x0])?])?
+                        &sq
+                    ])?
                 ])?
             ])?,
             &square.apply(&[

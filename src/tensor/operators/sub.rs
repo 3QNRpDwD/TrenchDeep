@@ -11,7 +11,7 @@ impl Function for Sub {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise subtraction
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         if targets[0].shape().len() == 2 && targets[1].shape().len() == 1 && targets[0].shape()[1] == targets[1].shape()[0] {
             let (batch_size, features) = (targets[0].shape()[0], targets[0].shape()[1]);
             let mut data = vec![0.0; targets[0].data().len()];
@@ -30,7 +30,7 @@ impl Function for Sub {
         }
     }
 
-    fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&mut self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
         if targets[0].shape().len() == 2 && targets[1].shape().len() == 1 && targets[0].shape()[1] == targets[1].shape()[0] {
             let (batch_size, features) = (targets[0].shape()[0], targets[0].shape()[1]);
             let mut data = vec![0.0; targets[0].data().len()];
@@ -50,7 +50,7 @@ impl Function for Sub {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&mut self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let gt = GlobalTensor {data: grad.data().to_vec(), shape: grad.shape().to_vec() };
         Ok(vec![gt, GlobalTensor::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?])
     }
@@ -76,7 +76,7 @@ impl std::ops::Sub<Tensor> for Tensor {
 
     fn sub(self, other: Tensor) -> Self::Output {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[&self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().forward(&[&self, &other]).unwrap().remove(0))
     }
 }
 
@@ -85,7 +85,7 @@ impl std::ops::Sub<&Tensor> for Tensor {
 
     fn sub(self, other: &Tensor) -> Self::Output {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[&self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().forward(&[&self, other]).unwrap().remove(0))
     }
 }
 
@@ -94,7 +94,7 @@ impl std::ops::Sub<&Tensor> for &Tensor {
 
     fn sub(self, other: &Tensor) -> Self::Output {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -103,7 +103,7 @@ impl std::ops::Sub<Tensor> for &Tensor {
 
     fn sub(self, other: Tensor) -> Self::Output {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().forward(&[self, &other]).unwrap().remove(0))
     }
 }
 
@@ -112,7 +112,7 @@ impl std::ops::Sub<&dyn TensorBase> for &dyn TensorBase {
 
     fn sub(self, other: &dyn TensorBase) -> Self::Output {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -120,13 +120,13 @@ impl std::ops::Sub<&dyn TensorBase> for &dyn TensorBase {
 impl std::ops::SubAssign<Tensor> for Tensor {
     fn sub_assign(&mut self, other: Tensor) {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
     }
 }
 
 impl std::ops::SubAssign<&Tensor> for Tensor {
     fn sub_assign(&mut self, other: &Tensor) {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
     }
 }

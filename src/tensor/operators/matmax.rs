@@ -11,7 +11,7 @@ impl Function for Matmax {
                 false => {
                     ops.insert(
                         String::from(my),
-                        Arc::new(Matmax { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), matmax: None })
+                        Box::new(Matmax { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), inputs: vec![], outputs: vec![], matmax: None })
                     );
                     Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
                 }
@@ -30,7 +30,7 @@ impl Function for Matmax {
     /// If dim is None, returns a tensor with a single element containing the maximum value.
     /// If dim is specified, returns a tuple of two tensors (values, indices) containing the
     /// maximum values and their indices along the specified dimension.
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let target_0 = targets[0];
         let target_0_shape = target_0.shape();
         let target_0_data = target_0.data();
@@ -96,7 +96,7 @@ impl Function for Matmax {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         todo!()
     }
 

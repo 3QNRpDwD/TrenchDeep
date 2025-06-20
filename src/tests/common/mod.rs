@@ -44,14 +44,14 @@ use time::macros::format_description;
 use crate::tensor::GlobalTensor;
 
 pub trait Model {
-    fn new(layer_parms: &[usize], activations: &[GlobalFunction], loss: GlobalFunction) -> Self
+    fn new(layer_parms: &[usize], activations: &[&GlobalFunction], loss: &GlobalFunction) -> Self
     where
         Self: Sized;
     #[cfg(feature = "enableBackpropagation")]
     fn train(&mut self, x_set: &[Arc<Variable>], t_set: &[Arc<Variable>], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()>;
     #[cfg(feature = "enableBackpropagation")]
-    fn apply(&self, x: &Arc<Variable>) -> MlResult<Arc<Variable>>;
-    fn predict(&self, test_data: &Tensor) -> MlResult<GlobalTensor<f32>>;
+    fn apply(&mut self, x: &Arc<Variable>) -> MlResult<Arc<Variable>>;
+    fn predict(&mut self, test_data: &Tensor) -> MlResult<GlobalTensor<f32>>;
     #[cfg(feature = "enableBackpropagation")]
     fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()>;
     #[cfg(feature = "enableBackpropagation")]
@@ -59,6 +59,7 @@ pub trait Model {
     fn save(&self, path: &str) -> MlResult<()>;
     fn load(&mut self, path: &str) -> MlResult<()>;
     fn get_loss(&self) -> f32;
+    fn compute_total_error(&mut self, X: &[Arc<Variable>], T: &[Arc<Variable>]) -> MlResult<f32>;
 }
 
 

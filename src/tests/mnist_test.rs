@@ -36,7 +36,7 @@ fn mlp_mnist_classification_integration_test() -> MlResult<()> {
         config.tolerance,
     )?;
     
-    let accuracy = evaluate_model(&mlp, &dataset.x_test, &dataset.t_test)?;
+    let accuracy = evaluate_model(&mut mlp, &dataset.x_test, &dataset.t_test)?;
 
     if accuracy > config.required_accuracy {
         info!(
@@ -88,7 +88,7 @@ fn softmax_regression_mnist_classification_integration_test() -> MlResult<()> {
 
     info!("Model training finished.");
 
-    let accuracy = evaluate_model(&model, &dataset.x_test, &dataset.t_test)?;
+    let accuracy = evaluate_model(&mut model, &dataset.x_test, &dataset.t_test)?;
     if accuracy > config.required_accuracy {
         info!(
             "🎉 Target accuracy achieved! ({:.2}% > {:.2}%)",

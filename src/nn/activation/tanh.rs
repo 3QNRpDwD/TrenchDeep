@@ -5,7 +5,7 @@ impl Function for Tanh {
         register_operator!(Tanh)
     }
 
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let x = targets[0];
         let pos_exp = self.backend.exp(&x.data());
         let neg_exp = self.backend.exp(&x.data().iter().map(|&val| -val).collect::<Vec<f32>>());
@@ -29,7 +29,7 @@ impl Function for Tanh {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let tanh_output = targets[0];
         let ones = vec![1.0f32; tanh_output.data().len()];
 

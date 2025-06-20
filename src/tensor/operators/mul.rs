@@ -12,7 +12,7 @@ impl Function for Mul {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise multiplication
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let shape1 = targets[0].shape();
         let shape2 = targets[1].shape();
 
@@ -39,7 +39,7 @@ impl Function for Mul {
         }
     }
 
-    fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&mut self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
         let shape1 = targets[0].shape();
         let shape2 = targets[1].shape();
 
@@ -68,7 +68,7 @@ impl Function for Mul {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         Ok(vec![
             self.forward(&[grad, targets[1]])?.remove(0),
             self.forward(&[grad, targets[0]])?.remove(0)
@@ -97,7 +97,7 @@ impl std::ops::Mul<Tensor> for Tensor {
 
     fn mul(self, other: Tensor) -> Self::Output {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[&self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().forward(&[&self, &other]).unwrap().remove(0))
     }
 }
 
@@ -106,7 +106,7 @@ impl std::ops::Mul<&Tensor> for Tensor {
 
     fn mul(self, other: &Tensor) -> Self::Output {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[&self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().forward(&[&self, other]).unwrap().remove(0))
     }
 }
 
@@ -115,7 +115,7 @@ impl std::ops::Mul<&Tensor> for &Tensor {
 
     fn mul(self, other: &Tensor) -> Self::Output {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -124,7 +124,7 @@ impl std::ops::Mul<&dyn TensorBase> for &dyn TensorBase {
 
     fn mul(self, other: &dyn TensorBase) -> Self::Output {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -133,7 +133,7 @@ impl std::ops::Mul<Tensor> for &Tensor {
 
     fn mul(self, other: Tensor) -> Self::Output {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().forward(&[self, &other]).unwrap().remove(0))
     }
 }
 
@@ -141,13 +141,13 @@ impl std::ops::Mul<Tensor> for &Tensor {
 impl std::ops::MulAssign<Tensor> for Tensor {
     fn mul_assign(&mut self, other: Tensor) {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
     }
 }
 
 impl std::ops::MulAssign<&Tensor> for Tensor {
     fn mul_assign(&mut self, other: &Tensor) {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
     }
 }

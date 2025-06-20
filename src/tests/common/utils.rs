@@ -42,7 +42,7 @@ impl MLP {
         info!("Network Structure: {}(Input) -> {}(Hidden) -> {}(Output)", n_input, n_hidden, n_output);
         info!("Activation Functions: {} (Hidden), {} (Output)", hidden_activation.name(), output_activation.name());
 
-        let mlp = MLP::new(&[n_input, n_hidden, n_output], &[hidden_activation, output_activation], loss_function);
+        let mlp = MLP::new(&[n_input, n_hidden, n_output], &[&hidden_activation, &output_activation], &loss_function);
         info!("MLP model created successfully.");
         Ok(mlp)
     }
@@ -51,11 +51,11 @@ impl MLP {
     // 오히려 학습률이 비정상적으로 작아지는등 모습을 보임.
     // 따라서 레이어를 하나 더 추가했으나,이도 유의미한 결과를 내지 못하고있는것으로 보임. 마지막 방법으로, 옵티마이저를 적응형으로 변경하는 방안을 고려. 그 이후에도 해결되지 않는다면...
 
-    pub fn compute_total_error(&self, X: &[Arc<Variable>], T: &[Arc<Variable>], loss_function: &GlobalFunction) -> MlResult<f32> {
+    pub fn compute_total_error(&mut self, X: &[Arc<Variable>], T: &[Arc<Variable>]) -> MlResult<f32> {
         let mut total_loss = 0.0;
         for m in 0..X.len() {
             let y = self.predict(&X[m].tensor())?;
-            let loss = loss_function.forward(&[&y, T[m].tensor()])?.remove(0);
+            let loss = self.loss_function.forward(&[&y, T[m].tensor()])?.remove(0);
             total_loss += loss.data()[0];
         }
         Ok(total_loss / X.len() as f32)
@@ -93,7 +93,7 @@ impl SoftmaxRegression {
         info!("Network Structure: {}(Input) -> {}(Output)", n_input, n_output);
         info!("Activation Functions: {} (Output)", output_activation.name());
 
-        let sr = SoftmaxRegression::new(&[n_input, n_output], &[output_activation], loss_function);
+        let sr = SoftmaxRegression::new(&[n_input, n_output], &[&output_activation], &loss_function);
         info!("MLP model created successfully.");
         Ok(sr)
     }
@@ -102,15 +102,6 @@ impl SoftmaxRegression {
     // 오히려 학습률이 비정상적으로 작아지는등 모습을 보임.
     // 따라서 레이어를 하나 더 추가했으나,이도 유의미한 결과를 내지 못하고있는것으로 보임. 마지막 방법으로, 옵티마이저를 적응형으로 변경하는 방안을 고려. 그 이후에도 해결되지 않는다면...
 
-    pub fn compute_total_error(&self, X: &[Arc<Variable>], T: &[Arc<Variable>], loss_function: &GlobalFunction) -> MlResult<f32> {
-        let mut total_loss = 0.0;
-        for m in 0..X.len() {
-            let y = self.predict(&X[m].tensor())?;
-            let loss = loss_function.forward(&[&y, T[m].tensor()])?.remove(0);
-            total_loss += loss.data()[0];
-        }
-        Ok(total_loss / X.len() as f32)
-    }
 }
 
 /// 계산 그래프를 SVG 파일로 렌더링합니다. (`enableVisualization` 피처가 활성화된 경우에만 동작)

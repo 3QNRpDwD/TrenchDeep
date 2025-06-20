@@ -542,15 +542,18 @@ impl Variable {
 
 impl GlobalFunction {
     pub fn new(name: String, node_id: NodeId) -> Self {
-        Self(name, node_id)
+        Self {
+            name,
+            func_id: node_id,
+        }
     }
 
     pub fn name(&self) -> &str {
-        &self.0
+        &self.name
     }
 
-    pub fn node_id(&self) -> &NodeId {
-        &self.1
+    pub fn func_id(&self) -> &NodeId {
+        &self.func_id
     }
 }
 

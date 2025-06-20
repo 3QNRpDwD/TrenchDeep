@@ -9,6 +9,7 @@ use std::{
 };
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::process::Output;
 use std::sync::atomic::Ordering;
 
 use crate::backend::{
@@ -240,7 +241,10 @@ pub struct Variable {
 }
 
 #[derive(Clone)]
-pub struct GlobalFunction (String, NodeId);
+pub struct GlobalFunction {
+    name: String,
+    func_id: NodeId,
+}
 
 #[derive(Clone)]
 pub struct Tensor (NodeId);
@@ -255,20 +259,20 @@ impl Tensor {
 }
 
 impl Function for GlobalFunction {
-    fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&mut self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         OPERATOR_STORAGE.with(|ops| {
-            let ops = ops.borrow();
-            match ops.get(self.name()) {
+            let mut ops = ops.borrow_mut();
+            match ops.get_mut(self.name()) {
                 Some(op) => op.forward(inputs),
                 None => Err(MlError::StringError(format!("Function {} is not registered globally.", self.type_name())))
             }
         })
     }
 
-    fn assign_forward(&self, inputs: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&mut self, inputs: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
         OPERATOR_STORAGE.with(|ops| {
-            let ops = ops.borrow();
-            match ops.get(self.name()) {
+            let mut ops = ops.borrow_mut();
+            match ops.get_mut(self.name()) {
                 Some(op) => op.assign_forward(inputs, node_id),
                 None => Err(MlError::StringError(format!("Function {} is not registered globally.", self.type_name())))
             }
@@ -276,10 +280,10 @@ impl Function for GlobalFunction {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         OPERATOR_STORAGE.with(|ops| {
-            let ops = ops.borrow();
-            match ops.get(self.name()) {
+            let mut ops = ops.borrow_mut();
+            match ops.get_mut(self.name()) {
                 Some(op) => op.backward(targets, grad),
                 None => Err(MlError::StringError(format!("Function {} is not registered globally.", self.type_name())))
             }
@@ -397,7 +401,7 @@ impl ExecutionContext {
 thread_local! {
     #[cfg(feature = "enableBackpropagation")]
     pub(crate) static   COMPUTATION_GRAPH   : std::sync::Mutex<ComputationGraph> = std::sync::Mutex::new(ComputationGraph::new());
-    pub(crate) static   OPERATOR_STORAGE    : RefCell<HashMap<String, Arc<dyn Function>>> = RefCell::new(HashMap::new());
+    pub(crate) static   OPERATOR_STORAGE    : RefCell<HashMap<String, Box<dyn Function>>> = RefCell::new(HashMap::new());
     pub(crate) static   TENSOR_STORAGE      : RefCell<HashMap<NodeId, GlobalTensor<f32>>> = RefCell::new(HashMap::new());
     // pub(crate) static   EXECUTION_CONTEXT    : RefCell<ExecutionContext> = RefCell::new(ExecutionContext::new());
     #[cfg(feature = "enableVisualization")]
@@ -513,11 +517,11 @@ pub trait TensorBase {
 }
 
 pub trait AutogradFunction: Function {
-    fn apply(&self, _inputs: &[&Arc<Variable>]) -> MlResult<Arc<Variable>> {
+    fn apply(&mut self, _inputs: &[&Arc<Variable>]) -> MlResult<Arc<Variable>> {
         unimplemented!(" AutogradFunction::apply() not implemented for this type")
     }
 
-    fn apply_with_label(&self, inputs: &[&Arc<Variable>], label: &str) -> MlResult<Arc<Variable>> {
+    fn apply_with_label(&mut self, inputs: &[&Arc<Variable>], label: &str) -> MlResult<Arc<Variable>> {
         unimplemented!(" AutogradFunction::apply_with_label() not implemented for this type")
     }
 }

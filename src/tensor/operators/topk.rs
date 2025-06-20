@@ -10,7 +10,7 @@ impl Function for Topk {
                 false => {
                     ops.insert(
                         String::from(my),
-                        Arc::new(Topk { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), topk: None })
+                        Box::new(Topk { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), inputs: vec![], outputs: vec![], topk: None })
                     );
                     Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
                 }
@@ -25,7 +25,7 @@ impl Function for Topk {
     ///
     /// # Returns
     /// A tuple of two tensors (values, indices) containing the top k values and their indices
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         if self.topk.unwrap().0 == 0 {
             return Err(MlError::TensorError(TensorError::InvalidOperation {
                 op: "topk",
@@ -84,7 +84,7 @@ impl Function for Topk {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         todo!()
     }
 

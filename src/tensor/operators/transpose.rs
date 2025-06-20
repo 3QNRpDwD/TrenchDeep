@@ -11,7 +11,7 @@ impl Function for Transpose {
                 false => {
                     ops.insert(
                         String::from(my),
-                        Arc::new(Transpose { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), dims: (0, 0) })
+                        Box::new(Transpose { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), inputs: vec![], outputs: vec![], dims: (0, 0) })
                     );
                     Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
                 }
@@ -19,7 +19,7 @@ impl Function for Transpose {
         })
     }
     
-    fn forward(&self, input: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&mut self, input: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let input = input[0];
         let rank = input.shape().len();
         if rank < 2 {
@@ -80,7 +80,7 @@ impl Function for Transpose {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&mut self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let input = grad;
         let rank = input.shape().len();
         if rank < 2 {
