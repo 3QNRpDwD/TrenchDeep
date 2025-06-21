@@ -1,5 +1,3 @@
-use tracing::error;
-use crate::tensor::{GlobalTensor, TENSOR_STORAGE};
 use super::*;
 
 impl Model for SoftmaxRegression {

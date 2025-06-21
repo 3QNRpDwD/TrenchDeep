@@ -1,5 +1,3 @@
-mod display;
-
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 use crate::backend::Backend;
@@ -8,8 +6,9 @@ use crate::tensor::{NodeId, Tensor};
 use crate::tensor::operators::Function;
 
 
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum OptimError {
+    #[error("Gradient Error: {0}")]
     GradientError(String),
 }
 

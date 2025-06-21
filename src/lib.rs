@@ -8,84 +8,38 @@ pub mod tests;
 use crate::backend::BackendError;
 use crate::loss::LossError;
 use crate::optimizer::OptimError;
+use thiserror::Error;
 
-#[derive(Debug, Clone)]
+#[derive(Error, Debug, Clone)]
 pub enum TensorError {
-    InvalidShape {
-        expected: Vec<usize>,
-        got: Vec<usize>,
-    },
-
-    InvalidDataLength {
-        expected: usize,
-        got: usize,
-    },
-    InvalidOperation {
-        op: &'static str,
-        reason: String,
-    },
-    InvalidAxis {
-        axis: usize,
-        shape: Vec<usize>,
-    },
-    MatrixMultiplicationError {
-        left_shape: Vec<usize>,
-        right_shape: Vec<usize>,
-    },
+    #[error("Invalid shape: expected {:?}, got {:?}", expected, got)]
+    InvalidShape { expected: Vec<usize>, got: Vec<usize>, },
+    #[error("Invalid data length: expected {}, got {}", expected, got)]
+    InvalidDataLength { expected: usize, got: usize, },
+    #[error("Invalid operation '{}': {}", op, reason)]
+    InvalidOperation { op: &'static str, reason: String, },
+    #[error("Invalid axis {} for tensor with shape {:?}", axis, shape)]
+    InvalidAxis { axis: usize, shape: Vec<usize>, },
+    #[error("Invalid dimensions for matrix multiplication: left shape {:?}, right shape {:?}", left_shape, right_shape)]
+    MatrixMultiplicationError { left_shape: Vec<usize>, right_shape: Vec<usize>, },
+    #[error("InvalidInputCount: expected {:?}, got {:?}", expected, got)]
     InvalidInputCount { expected: i32, got: usize },
+    #[error("Empty tensor")]
     EmptyTensor,
 }
 
-impl std::error::Error for TensorError {}
-
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum MlError {
-    TensorError(TensorError),
-    LossError(LossError),
+    #[error(transparent)]
+    TensorError(#[from] TensorError),
+    #[error(transparent)]
+    LossError(#[from] LossError),
+    #[error("{0}")]
     StringError(String),
-    BackendError(BackendError),
-    OptimError(OptimError),
-}
-
-
-
-impl std::error::Error for MlError {}
-
-
-impl From<TensorError> for MlError {
-    fn from(error: TensorError) -> Self {
-        MlError::TensorError(error)
-    }
-}
-
-impl From<LossError> for MlError {
-    fn from(error: LossError) -> Self {
-        MlError::LossError(error)
-    }
-}
-
-impl From<MlError> for TensorError {
-    fn from(val: MlError) -> Self {
-        match val {
-            MlError::TensorError(e) => e,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl From<MlError> for LossError {
-    fn from(val: MlError) -> Self {
-        match val {
-            MlError::LossError(e) => e,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl From<BackendError> for MlError {
-    fn from(error: BackendError) -> Self {
-        MlError::BackendError(error)
-    }
+    #[error(transparent)]
+    BackendError(#[from] BackendError),
+    #[error(transparent)]
+    OptimError(#[from] OptimError),
 }
 
 impl From<String> for MlError {
@@ -97,12 +51,6 @@ impl From<String> for MlError {
 impl From<&str> for MlError {
     fn from(error: &str) -> Self {
         MlError::StringError(error.to_string())
-    }
-}
-
-impl From<OptimError> for MlError {
-    fn from(error: OptimError) -> Self {
-        MlError::OptimError(error)
     }
 }
 

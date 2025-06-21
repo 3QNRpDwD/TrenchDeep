@@ -1,5 +1,3 @@
-use crate::loss::{CrossEntropyLoss, HuberLoss, MeanSquaredError};
-use crate::tensor::TENSOR_STORAGE;
 use super::*;
 
 pub fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
@@ -50,17 +48,6 @@ impl MLP {
     //모델의 학습이 더이상 진행되지 않는 상황에서 파라미터를 조정해봤으나, 유의미한 영향이 있지않았음.
     // 오히려 학습률이 비정상적으로 작아지는등 모습을 보임.
     // 따라서 레이어를 하나 더 추가했으나,이도 유의미한 결과를 내지 못하고있는것으로 보임. 마지막 방법으로, 옵티마이저를 적응형으로 변경하는 방안을 고려. 그 이후에도 해결되지 않는다면...
-
-    pub fn compute_total_error(&mut self, X: &[Arc<Variable>], T: &[Arc<Variable>]) -> MlResult<f32> {
-        let mut total_loss = 0.0;
-        for m in 0..X.len() {
-            let y = self.predict(&X[m].tensor())?;
-            let loss = self.loss_function.forward(&[&y, T[m].tensor()])?.remove(0);
-            total_loss += loss.data()[0];
-        }
-        Ok(total_loss / X.len() as f32)
-    }
-
 
     pub fn train_model(
         model: &mut MLP,

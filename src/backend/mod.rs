@@ -26,23 +26,10 @@ pub trait Backend: Debug + Send + Sync {
     fn execute_compute(&self, _dimensions: [u32; 3]) -> MlResult<()>;
 }
 
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum BackendError {
+    #[error("{0}")]
     CpuError(String),
+    #[error("{0}")]
     Other(String),
-}
-
-impl Display for BackendError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BackendError::CpuError(e) => write!(f, "{}", e),
-            BackendError::Other(s) => write!(f, "{}", s),
-        }
-    }
-}
-
-impl From<String> for BackendError {
-    fn from(err: String) -> Self {
-        BackendError::CpuError(err)
-    }
 }

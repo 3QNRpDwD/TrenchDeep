@@ -1,52 +1,5 @@
 use super::*;
 
-impl Display for TensorError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        match self {
-            TensorError::InvalidShape { expected, got } => {
-                write!(f, "Invalid shape: expected {:?}, got {:?}", expected, got)
-            }
-            TensorError::InvalidDataLength { expected, got } => {
-                write!(f, "Invalid data length: expected {}, got {}", expected, got)
-            }
-            TensorError::InvalidOperation { op, reason } => {
-                write!(f, "Invalid operation '{}': {}", op, reason)
-            }
-            TensorError::InvalidAxis { axis, shape } => {
-                write!(f, "Invalid axis {} for tensor with shape {:?}", axis, shape)
-            }
-            TensorError::MatrixMultiplicationError {
-                left_shape,
-                right_shape,
-            } => {
-                write!(f, "Invalid dimensions for matrix multiplication: left shape {:?}, right shape {:?}", left_shape, right_shape)
-            }
-            TensorError::EmptyTensor => {
-                write!(f, "Empty tensor")
-            }
-
-            TensorError::InvalidInputCount {
-                expected,
-                got
-            } => {
-                write!(f, "InvalidInputCount: expected {:?}, got {:?}", expected, got)
-            }
-        }
-    }
-}
-
-impl Display for MlError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        match self {
-            MlError::TensorError(e) => write!(f, "Tensor error: {}", e),
-            MlError::LossError(e) => write!(f, "Loss error: {}", e),
-            MlError::StringError(s) => write!(f, "{}", s),
-            MlError::BackendError(e) => write!(f, "Backend error: {}", e),
-            MlError::OptimError(e) => write!(f, "Optimizer error: {}", e),
-        }
-    }
-}
-
 impl Debug for Variable {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut ds = f.debug_struct("Variable");
