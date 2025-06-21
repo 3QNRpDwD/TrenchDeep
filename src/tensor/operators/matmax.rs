@@ -11,7 +11,7 @@ impl Function for Matmax {
                 false => {
                     ops.insert(
                         String::from(my),
-                        Box::new(Matmax { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), inputs: vec![], outputs: vec![], matmax: None })
+                        Box::new(Matmax { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), matmax: None })
                     );
                     Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
                 }

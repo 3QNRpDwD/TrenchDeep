@@ -5,49 +5,26 @@ pub mod softmax;
 
 use super::*;
 
-pub trait Activation: Function {
-    fn new() -> MlResult<GlobalFunction> where Self: Sized {
-        <Self as Function>::new()
-    }
-}
+pub trait Activation: Function + Layer {}
 
-impl<T: Function> Activation for T {
-    fn new() -> MlResult<GlobalFunction> where Self: Sized {
-        <Self as Function>::new()
-    }
-}
+impl<T: Function + Layer> Activation for T {}
 
 #[derive(Debug, Clone)]
 pub struct Sigmoid { 
     backend: Arc<dyn Backend>, node_id: NodeId,
-    #[cfg(feature = "enableBackpropagation")]
-    inputs: Vec<Tensor>,
-    #[cfg(feature = "enableBackpropagation")]
-    outputs: Vec<Tensor>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Tanh    { 
     backend: Arc<dyn Backend>, node_id: NodeId,
-    #[cfg(feature = "enableBackpropagation")]
-    inputs: Vec<Tensor>,
-    #[cfg(feature = "enableBackpropagation")]
-    outputs: Vec<Tensor>,}
+}
 
 #[derive(Debug, Clone)]
 pub struct ReLu    { 
     backend: Arc<dyn Backend>, node_id: NodeId,
-    #[cfg(feature = "enableBackpropagation")]
-    inputs: Vec<Tensor>,
-    #[cfg(feature = "enableBackpropagation")]
-    outputs: Vec<Tensor>
 }
 
 #[derive(Debug, Clone)]
 pub struct Softmax { 
     backend: Arc<dyn Backend>, node_id: NodeId,
-    #[cfg(feature = "enableBackpropagation")]
-    inputs: Vec<Tensor>,
-    #[cfg(feature = "enableBackpropagation")]
-    outputs: Vec<Tensor>
 }

@@ -11,7 +11,7 @@ impl Function for Transpose {
                 false => {
                     ops.insert(
                         String::from(my),
-                        Box::new(Transpose { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), inputs: vec![], outputs: vec![], dims: (0, 0) })
+                        Box::new(Transpose { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), dims: (0, 0) })
                     );
                     Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
                 }

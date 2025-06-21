@@ -155,8 +155,7 @@ impl TensorBase for Tensor {
 }
 
 impl GlobalTensor<f32> {
-
-    pub fn with_id(self) -> MlResult<Tensor> {
+    pub fn to_id(self) -> MlResult<Tensor> {
         let expected_len: usize = self.shape.iter().product();
         if self.data.len() != expected_len {
             return Err(MlError::TensorError(TensorError::InvalidDataLength {
@@ -166,6 +165,22 @@ impl GlobalTensor<f32> {
         }
 
         let node_id = NODE_ID_GEN.next();
+        TENSOR_STORAGE.with_borrow_mut(|storage| {
+            storage.insert(node_id, self)
+        });
+
+        Ok(Tensor(node_id))
+    }
+
+    pub fn with_id(self, node_id: NodeId) -> MlResult<Tensor> {
+        let expected_len: usize = self.shape.iter().product();
+        if self.data.len() != expected_len {
+            return Err(MlError::TensorError(TensorError::InvalidDataLength {
+                expected: expected_len,
+                got: self.data.len(),
+            }));
+        }
+
         TENSOR_STORAGE.with_borrow_mut(|storage| {
             storage.insert(node_id, self)
         });
@@ -500,18 +515,7 @@ impl Variable {
             self.grad.replace(None);
         }
     }
-
-    /// 그래디언트 값 누적 추가
-    ///
-    /// # 특징 동작
-    /// - `enableBackpropagation` 기능 전용 메소드
-    /// - 기존 그래디언트와 새로운 그래디언트를 요소별 합산
-    ///
-    /// # 오류 사항
-    /// - 텐서 모양 불일치 시 에러 반환
-    ///
-    /// # 파라미터
-    /// - new_grad: 추가할 그래디언트 텐서
+    
     #[cfg(feature = "enableBackpropagation")]
     pub fn accumulate_grad(&self, new_grad: Tensor) -> MlResult<()> {
         if let Some(existing_grad) = self.grad() {

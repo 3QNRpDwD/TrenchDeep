@@ -78,7 +78,7 @@ impl Function for ApproxSin {
                 false => {
                     ops.insert(
                         String::from(my),
-                        Box::new(ApproxSin { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), inputs: vec![], outputs: vec![], threshold: 0.0001 })
+                        Box::new(ApproxSin { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), threshold: 0.0001 })
                     );
                     Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
                 }
@@ -130,9 +130,7 @@ impl Function for ApproxSin {
         let mut cos = ApproxCos {
             backend: Arc::clone(&self.backend),
             threshold: self.threshold,
-            node_id: NODE_ID_GEN.next(),
-            inputs: vec![],
-            outputs: vec![],
+            node_id: NODE_ID_GEN.next()
         };
 
         let cos_output = cos.forward(targets)?;
@@ -163,7 +161,7 @@ impl Function for ApproxCos {
                 false => {
                     ops.insert(
                         String::from(my),
-                        Box::new(ApproxCos { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), inputs: vec![], outputs: vec![], threshold: 0.0001 })
+                        Box::new(ApproxCos { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), threshold: 0.0001 })
                     );
                     Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
                 }
@@ -213,8 +211,6 @@ impl Function for ApproxCos {
         let mut sin = ApproxSin {
             backend: Arc::clone(&self.backend),
             node_id: NODE_ID_GEN.next(),
-            inputs: vec![],
-            outputs: vec![],
             threshold: self.threshold,
         };
 

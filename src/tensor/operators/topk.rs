@@ -10,7 +10,7 @@ impl Function for Topk {
                 false => {
                     ops.insert(
                         String::from(my),
-                        Box::new(Topk { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), inputs: vec![], outputs: vec![], topk: None })
+                        Box::new(Topk { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), topk: None })
                     );
                     Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
                 }

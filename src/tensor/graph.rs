@@ -227,7 +227,7 @@ impl ComputationGraph {
             for (input_id, grad) in node.inputs.iter().zip(input_grads) {
                 let input_idx = self.node_map[input_id];
                 let input_node = &self.nodes[input_idx];
-                input_node.variable.accumulate_grad(grad.with_id().unwrap())?;
+                input_node.variable.accumulate_grad(grad.to_id().unwrap())?;
             }
             
             var.clear_grad();
@@ -281,7 +281,7 @@ impl AutogradFunction for GlobalFunction {
             .iter()
             .map(|&var| var.tensor() as &dyn TensorBase)
             .collect::<Vec<&dyn TensorBase>>();
-        let output = Arc::new(Variable::new(self.forward(&tensors)?.remove(0).with_id()?));
+        let output = Arc::new(Variable::new(self.forward(&tensors)?.remove(0).to_id()?));
 
         #[cfg(feature = "enableBackpropagation")]
         {
@@ -301,7 +301,7 @@ impl AutogradFunction for GlobalFunction {
             .iter()
             .map(|&var| var.tensor() as &dyn TensorBase)
             .collect::<Vec<&dyn TensorBase>>();
-        let output = crate::var_with_label!(self.forward(&tensors)?.remove(0).with_id()?, label);
+        let output = crate::var_with_label!(self.forward(&tensors)?.remove(0).to_id()?, label);
         #[cfg(feature = "enableBackpropagation")]
         {
             output.clone().with_grad_fn(self.name(), inputs);

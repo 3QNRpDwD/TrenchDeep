@@ -21,10 +21,6 @@ macro_rules! define_op {
         pub struct $name {
             backend: Arc<dyn Backend>,
             node_id: NodeId,
-            #[cfg(feature = "enableBackpropagation")]
-            inputs: Vec<Tensor>,
-            #[cfg(feature = "enableBackpropagation")]
-            outputs: Vec<Tensor>
         }
     };
 
@@ -34,10 +30,6 @@ macro_rules! define_op {
         pub struct $name {
             backend: Arc<dyn Backend>,
             node_id: NodeId,
-            #[cfg(feature = "enableBackpropagation")]
-            inputs: Vec<Tensor>,
-            #[cfg(feature = "enableBackpropagation")]
-            outputs: Vec<Tensor>,
             pub $field: $type
         }
     };
@@ -63,10 +55,6 @@ macro_rules! register_operator {
                                 Box::new($name {
                                     backend: Arc::new(CpuBackend::new()?),
                                     node_id: NODE_ID_GEN.next(),
-                                    #[cfg(feature = "enableBackpropagation")]
-                                    inputs: Vec::new(),
-                                    #[cfg(feature = "enableBackpropagation")]
-                                    outputs: Vec::new()
                                 })
                             );
                             Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))

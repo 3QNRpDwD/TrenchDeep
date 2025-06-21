@@ -24,50 +24,26 @@ pub enum LossError {
 
 pub struct MeanSquaredError {
     backend: Arc<dyn Backend>, node_id: NodeId,
-    #[cfg(feature = "enableBackpropagation")]
-    inputs: Vec<Tensor>,
-    #[cfg(feature = "enableBackpropagation")]
-    outputs: Vec<Tensor>,
 }
 
 pub struct MeanAbsoluteError {
     backend: Arc<dyn Backend>, node_id: NodeId,
-    #[cfg(feature = "enableBackpropagation")]
-    inputs: Vec<Tensor>,
-    #[cfg(feature = "enableBackpropagation")]
-    outputs: Vec<Tensor>,
 }
 
 pub struct HuberLoss {
     backend: Arc<dyn Backend>, node_id: NodeId, delta: f32,
-    #[cfg(feature = "enableBackpropagation")]
-    inputs: Vec<Tensor>,
-    #[cfg(feature = "enableBackpropagation")]
-    outputs: Vec<Tensor>,
 }
 
 pub struct BinaryCrossEntropyLoss {
     backend: Arc<dyn Backend>, node_id: NodeId,
-    #[cfg(feature = "enableBackpropagation")]
-    inputs: Vec<Tensor>,
-    #[cfg(feature = "enableBackpropagation")]
-    outputs: Vec<Tensor>,
 }
 
 pub struct CrossEntropyLoss {
     backend: Arc<dyn Backend>, node_id: NodeId,
-    #[cfg(feature = "enableBackpropagation")]
-    inputs: Vec<Tensor>,
-    #[cfg(feature = "enableBackpropagation")]
-    outputs: Vec<Tensor>,
 }
 
 pub struct SoftmaxWithCrossEntropyLoss {
     backend: Arc<dyn Backend>, node_id: NodeId,
-    #[cfg(feature = "enableBackpropagation")]
-    inputs: Vec<Tensor>,
-    #[cfg(feature = "enableBackpropagation")]
-    outputs: Vec<Tensor>,
 }
 
 pub trait Loss: Function {
