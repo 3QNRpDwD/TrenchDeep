@@ -98,16 +98,16 @@ pub trait Function {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
     }
 
-    fn forward(&mut self, _targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>>{
+    fn forward(&self, _targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>>{
         unimplemented!("{} Forward pass is not implemented", self.type_name())
     }
 
-    fn assign_forward(&mut self, _targets: &[&dyn TensorBase], tensor_id: NodeId) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&self, _targets: &[&dyn TensorBase], tensor_id: NodeId) -> MlResult<Vec<Tensor>> {
         unimplemented!("{} Forward pass is not implemented", self.type_name())
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         unimplemented!("{} Backward pass is not implemented", self.type_name())
     }
 

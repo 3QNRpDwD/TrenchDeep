@@ -4,10 +4,10 @@ crate::impl_activation_layer!(Sigmoid);
 
 impl Function for Sigmoid {
     fn new() -> MlResult<GlobalFunction> {
-        register_layer!(Sigmoid)
+        register_function!(Sigmoid)
     }
     
-    fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let x = targets[0];
         let ones = vec![1.0f32; x.data().len()];
         Ok(vec![
@@ -19,7 +19,7 @@ impl Function for Sigmoid {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let input_x = targets[0];
         // σ'(x) = σ(x) * (1 - σ(x))
         // ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * σ'(x)

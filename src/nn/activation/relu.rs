@@ -4,10 +4,10 @@ crate::impl_activation_layer!(ReLU);
 
 impl Function for ReLU {
     fn new() -> MlResult<GlobalFunction> {
-        register_layer!(ReLU)
+        register_function!(ReLU)
     }
 
-    fn forward(&mut self, x: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, x: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         // ReLU(x) = max(0, x)
         let result = x[0].data().iter()
             .map(|&val| if val > 0.0 { val } else { 0.0 })
@@ -17,7 +17,7 @@ impl Function for ReLU {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&mut self, target: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, target: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let relu_output = target[0];
 
         // ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * mask

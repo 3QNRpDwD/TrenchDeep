@@ -158,7 +158,7 @@ impl Tensor {
 }
 
 impl Function for GlobalFunction {
-    fn forward(&mut self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         OPERATOR_STORAGE.with(|ops| {
             let mut ops = ops.borrow_mut();
             match ops.get_mut(self.name()) {
@@ -168,7 +168,7 @@ impl Function for GlobalFunction {
         })
     }
 
-    fn assign_forward(&mut self, inputs: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&self, inputs: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
         OPERATOR_STORAGE.with(|ops| {
             let mut ops = ops.borrow_mut();
             match ops.get_mut(self.name()) {
@@ -179,7 +179,7 @@ impl Function for GlobalFunction {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         OPERATOR_STORAGE.with(|ops| {
             let mut ops = ops.borrow_mut();
             match ops.get_mut(self.name()) {

@@ -19,7 +19,7 @@ impl Function for Transpose {
         })
     }
     
-    fn forward(&mut self, input: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, input: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let input = input[0];
         let rank = input.shape().len();
         if rank < 2 {
@@ -80,7 +80,7 @@ impl Function for Transpose {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward(&mut self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let input = grad;
         let rank = input.shape().len();
         if rank < 2 {

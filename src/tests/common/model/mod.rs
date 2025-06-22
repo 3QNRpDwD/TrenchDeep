@@ -1,9 +1,10 @@
+use crate::nn::Layer;
 use super::*;
 pub mod mlp;
 pub mod regression;
 
 pub trait Model {
-    fn new(layer_parms: &[usize], activations: &[&GlobalFunction], loss: &GlobalFunction) -> Self
+    fn new(layer_parms: &[usize], activations: &[&dyn Layer], loss: &GlobalFunction) -> Self
     where
         Self: Sized;
     #[cfg(feature = "enableBackpropagation")]
@@ -27,8 +28,8 @@ pub struct MLP {
     pub b1: Arc<Variable>, // shape = [hidden_node, 1]
     pub b2: Arc<Variable>, // shape = [output_node, 1]
     // 활성화 함수를 MLP 구조체의 일부로 만들어 유연성 확보
-    hidden_activation: GlobalFunction,
-    output_activation: GlobalFunction,
+    hidden_activation: Box<dyn Layer>,
+    output_activation: Box<dyn Layer>,
     loss_function: GlobalFunction,
 }
 
@@ -48,8 +49,8 @@ impl std::fmt::Debug for MLP {
 
                  self.w2.tensor().shape())?;
         // 활성화 함수 정보 추가
-        writeln!(f, "  hidden_activation = {}", self.hidden_activation.name())?;
-        writeln!(f, "  output_activation = {}", self.output_activation.name())?;
+        writeln!(f, "  hidden_activation = {}", self.hidden_activation.type_name())?;
+        writeln!(f, "  output_activation = {}", self.output_activation.type_name())?;
         writeln!(f, "  loss_function = {}", self.loss_function.name())?;
         writeln!(f, "}}")
     }

@@ -5,7 +5,7 @@ impl Function for Sum {
         register_operator!(Sum)
     }
 
-    fn forward(&mut self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         // Sum 함수는 하나의 입력 텐서만 받습니다.
         if inputs.len() != 1 {
             return Err(MlError::StringError(format!(
@@ -24,7 +24,7 @@ impl Function for Sum {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         if targets.is_empty() {
             return Err(MlError::TensorError(TensorError::EmptyTensor));
         }

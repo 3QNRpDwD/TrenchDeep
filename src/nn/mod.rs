@@ -25,7 +25,7 @@ use std::{
 };
 
 #[macro_export]
-macro_rules! register_layer {
+macro_rules! register_function {
     ($name:ident) => {
         {
         use crate::tensor::NODE_ID_GEN;
@@ -58,6 +58,13 @@ macro_rules! register_layer {
             }
         }
     };
+}
+
+pub enum Layers {
+    ReLU(Box<dyn Layer>),
+    Sigmoid(Box<dyn Layer>),
+    Softmax(Box<dyn Layer>),
+    Tanh(Box<dyn Layer>),
 }
 
 pub trait Layer {

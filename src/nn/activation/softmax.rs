@@ -4,10 +4,10 @@ crate::impl_activation_layer!(Softmax);
 
 impl Function for Softmax {
     fn new() -> MlResult<GlobalFunction> {
-        register_layer!(Softmax)
+        register_function!(Softmax)
     }
 
-    fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let input = targets[0];
         let input_data = input.data();
         let max_val = input_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
@@ -20,7 +20,7 @@ impl Function for Softmax {
 
     /// Softmax 함수의 역전파(gradient)를 계산합니다.
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let softmax_output = targets[0];
         let upstream_grad = grad;
         let s = softmax_output.data();

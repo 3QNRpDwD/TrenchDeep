@@ -9,7 +9,7 @@ impl Model for MLP {
     /// output_activation: 출력층에 적용할 활성화 함수
     fn new(
         layer_parms: &[usize],
-        activations: &[&GlobalFunction],
+        activations: &[&dyn Layer],
         loss_function: &GlobalFunction,
     ) -> Self {
         let n_input = layer_parms[0];

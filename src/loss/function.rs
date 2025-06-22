@@ -6,7 +6,7 @@ impl Function for MeanSquaredError {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(MeanSquaredError)
     }
-    fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
 
@@ -25,7 +25,7 @@ impl Function for MeanSquaredError {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
         let n = pred.data().len() as f32;
@@ -59,7 +59,7 @@ impl Function for MeanAbsoluteError {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(MeanAbsoluteError)
     }
-    fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
 
@@ -77,7 +77,7 @@ impl Function for MeanAbsoluteError {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
         let n = pred.data().len() as f32;
@@ -125,7 +125,7 @@ impl Function for HuberLoss {
         })
     }
 
-    fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
 
@@ -152,7 +152,7 @@ impl Function for HuberLoss {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
         let n = pred.data().len() as f32;
@@ -191,7 +191,7 @@ impl Function for BinaryCrossEntropyLoss {
         register_operator!(BinaryCrossEntropyLoss)
     }
 
-    fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
 
@@ -212,7 +212,7 @@ impl Function for BinaryCrossEntropyLoss {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
         let n = pred.data().len() as f32;
@@ -279,7 +279,7 @@ impl Function for CrossEntropyLoss {
     /// * `targets`: `[&Tensor(prediction), &Tensor(target)]` 형태의 슬라이스.
     ///   - `prediction`: 모델의 예측값 (소프트맥스 출력이어야 함).
     ///   - `target`: 실제 값 (원-핫 인코딩된 벡터).
-    fn forward(&mut self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         // 1. 입력 유효성 검사 강화
         let (pred, target) = match inputs {
             [p, t] => (*p, *t),
@@ -317,7 +317,7 @@ impl Function for CrossEntropyLoss {
 
     #[cfg(all(feature = "enableBackpropagation"))]
     /// Cross-Entropy Loss의 역전파를 계산합니다.
-    fn backward(&mut self, inputs: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, inputs: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         // 1. 입력 유효성 검사 강화
         let (pred, target) = match inputs {
             [p, t] => (*p, *t),
@@ -383,7 +383,7 @@ impl Function for SoftmaxWithCrossEntropyLoss {
     /// * `inputs`: `[&Tensor(logits), &Tensor(target)]` 형태의 슬라이스.
     ///   - `logits`: 모델의 마지막 선형 계층에서 나온 원시 점수 (Softmax 적용 전).
     ///   - `target`: 실제 값 (원-핫 인코딩된 벡터).
-    fn forward(&mut self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let (logits, target) = match inputs {
             [l, t] => (*l, *t),
             _ => return Err(MlError::TensorError(InvalidInputCount { expected: 2, got: inputs.len() }.into())),
@@ -416,7 +416,7 @@ impl Function for SoftmaxWithCrossEntropyLoss {
     #[cfg(all(feature = "enableBackpropagation"))]
     /// 역전파를 계산합니다.
     /// 로짓에 대한 그래디언트는 (p - t) 형태로 매우 안정적입니다.
-    fn backward(&mut self, inputs: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, inputs: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let (logits, target) = match inputs {
             [l, t] => (*l, *t),
             _ => return Err(MlError::TensorError(InvalidInputCount { expected: 2, got: inputs.len() }.into())),

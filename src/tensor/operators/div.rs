@@ -12,14 +12,14 @@ impl Function for Div {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise division
-    fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
             _ => Ok(vec![GlobalTensor::from_vec(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape())?])
         }
     }
 
-    fn assign_forward(&mut self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
             _ => Ok(vec![Tensor::with_id(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape(), node_id)?])
@@ -27,7 +27,7 @@ impl Function for Div {
     }
     
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let x1 = targets[1];
 
         Ok(vec![

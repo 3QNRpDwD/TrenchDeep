@@ -4,14 +4,11 @@ pub mod relu;
 pub mod softmax;
 
 use super::*;
-use crate::register_layer;
+use crate::register_function;
 
 #[macro_export] // 다른 모듈에서도 사용할 수 있도록 export
 macro_rules! impl_activation_layer {
-    // 매크로는 `$struct_name`이라는 이름의 '식별자(identifier)'를 인자로 받습니다.
-    // 예: impl_activation_layer!(ReLU); -> $struct_name은 ReLU가 됩니다.
     ($struct_name:ident) => {
-        // `impl Layer for $struct_name` 블록을 자동으로 생성합니다.
         impl Layer for $struct_name {
             fn forward(&mut self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
                 let input_id = input.node_id();

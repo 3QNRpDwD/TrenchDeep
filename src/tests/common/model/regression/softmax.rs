@@ -1,9 +1,10 @@
+use crate::nn::Layer;
 use super::*;
 
 impl Model for SoftmaxRegression {
     fn new(
         layer_parms: &[usize] ,
-        activations: &[&GlobalFunction],
+        activations: &[&dyn Layer],
         loss_function: &GlobalFunction,
     ) -> Self {
         let n_input = layer_parms[0];
