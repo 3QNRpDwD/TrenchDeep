@@ -117,7 +117,7 @@ impl Function for HuberLoss {
                 false => {
                     ops.insert(
                         String::from(my),
-                        Box::new(HuberLoss { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), delta: 1.0, inputs: vec![], outputs: vec![] })
+                        Box::new(HuberLoss { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), delta: 1.0})
                     );
                     Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
                 }

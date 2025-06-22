@@ -136,10 +136,6 @@ impl ApproxSin {
             backend,
             threshold,
             node_id: NODE_ID_GEN.next(),
-            #[cfg(feature = "enableBackpropagation")]
-            inputs: vec![],
-            #[cfg(feature = "enableBackpropagation")]
-            outputs: vec![]
         })
     }
 }
@@ -150,10 +146,6 @@ impl ApproxCos {
             backend,
             threshold,
             node_id: NODE_ID_GEN.next(),
-            #[cfg(feature = "enableBackpropagation")]
-            inputs: vec![],
-            #[cfg(feature = "enableBackpropagation")]
-            outputs: vec![]
         })
     }
 }

@@ -1,5 +1,23 @@
 use super::*;
 
+impl Layer for Softmax {
+    fn forward(&self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
+        todo!()
+    }
+
+    fn params(&self) -> Vec<&dyn Parameter> {
+        todo!()
+    }
+
+    fn type_name(&self) -> &str {
+        todo!()
+    }
+
+    fn label(&self) -> &str {
+        todo!()
+    }
+}
+
 impl Function for Softmax {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(Softmax)

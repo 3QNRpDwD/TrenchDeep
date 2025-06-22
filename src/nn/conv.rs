@@ -1,27 +1,19 @@
 use super::*;
 
 impl Layer for Conv {
-    fn new() -> MlResult<Self> {
+    fn forward(&self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
         todo!()
     }
 
-    fn parms(&self) -> MlResult<&[String]> {
+    fn params(&self) -> Vec<&dyn Parameter> {
         todo!()
     }
 
-    fn set_parms(&self, name: String, parm: &Arc<dyn Parameter>) -> MlResult<&HashSet<Arc<dyn Parameter>>> {
-        todo!()
+    fn type_name(&self) -> &str {
+        std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
     }
 
-    fn get_parms(&self, name: String) -> MlResult<Arc<dyn Parameter>> {
-        todo!()
-    }
-
-    fn apply(&self, input: &Arc<dyn Parameter>) -> MlResult<Arc<dyn Parameter>> {
-        todo!()
-    }
-
-    fn forward(&self, _input: &Tensor) -> MlResult<Tensor> {
-        todo!()
+    fn label(&self) -> &str {
+        &self.label
     }
 }

@@ -1,5 +1,23 @@
 use super::*;
 
+impl Layer for ReLu {
+    fn forward(&self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
+        todo!()
+    }
+
+    fn params(&self) -> Vec<&dyn Parameter> {
+        todo!()
+    }
+
+    fn type_name(&self) -> &str {
+        todo!()
+    }
+
+    fn label(&self) -> &str {
+        todo!()
+    }
+}
+
 impl Function for ReLu {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(ReLu)

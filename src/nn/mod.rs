@@ -40,9 +40,15 @@ pub trait Layer {
 pub trait Parameter {}
 impl Parameter for Variable {}
 
-pub struct Linear    { operators: Arc<dyn Function> }
-pub struct Conv      { operators: Arc<dyn Function> }
-pub struct Pooling  { operators: Arc<dyn Function> }
+pub struct Linear    {
+    label: String
+}
+pub struct Conv      {
+    label: String
+}
+pub struct Pooling  { 
+    label: String
+}
 
 pub struct Sequential {
     label: String,
