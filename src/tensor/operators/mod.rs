@@ -108,7 +108,6 @@ pub trait Function {
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&mut self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        // enableBackpropagation만 활성화된 경우의 기본 구현
         unimplemented!("{} Backward pass is not implemented", self.type_name())
     }
 

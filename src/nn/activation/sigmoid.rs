@@ -1,26 +1,10 @@
 use super::*;
 
-impl Layer for Sigmoid {
-    fn forward(&self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
-        todo!()
-    }
-
-    fn params(&self) -> Vec<&dyn Parameter> {
-        todo!()
-    }
-
-    fn type_name(&self) -> &str {
-        todo!()
-    }
-
-    fn label(&self) -> &str {
-        todo!()
-    }
-}
+crate::impl_activation_layer!(Sigmoid);
 
 impl Function for Sigmoid {
     fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Sigmoid)
+        register_layer!(Sigmoid)
     }
     
     fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {

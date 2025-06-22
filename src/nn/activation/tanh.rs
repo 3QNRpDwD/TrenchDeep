@@ -1,26 +1,10 @@
 use super::*;
 
-impl Layer for Tanh {
-    fn forward(&self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
-        todo!()
-    }
-
-    fn params(&self) -> Vec<&dyn Parameter> {
-        todo!()
-    }
-
-    fn type_name(&self) -> &str {
-        todo!()
-    }
-
-    fn label(&self) -> &str {
-        todo!()
-    }
-}
+crate::impl_activation_layer!(Tanh);
 
 impl Function for Tanh {
     fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Tanh)
+        register_layer!(Tanh)
     }
 
     fn forward(&mut self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {

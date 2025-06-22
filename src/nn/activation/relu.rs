@@ -1,26 +1,10 @@
 use super::*;
 
-impl Layer for ReLu {
-    fn forward(&self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
-        todo!()
-    }
+crate::impl_activation_layer!(ReLU);
 
-    fn params(&self) -> Vec<&dyn Parameter> {
-        todo!()
-    }
-
-    fn type_name(&self) -> &str {
-        todo!()
-    }
-
-    fn label(&self) -> &str {
-        todo!()
-    }
-}
-
-impl Function for ReLu {
+impl Function for ReLU {
     fn new() -> MlResult<GlobalFunction> {
-        register_operator!(ReLu)
+        register_layer!(ReLU)
     }
 
     fn forward(&mut self, x: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {

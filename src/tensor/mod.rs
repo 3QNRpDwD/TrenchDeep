@@ -26,44 +26,7 @@ pub mod visualization;
 use crate::{MlError, MlResult, register_operator, tensor::operators::Function, TensorError};
 use crate::tensor:: {operators::Pow};
 
-/// 다양한 텐서 연산을 위한 편리한 매크로를 제공합니다.
-///
-/// 이 매크로는 일반적인 텐서 연산을 수행하는 과정을 단순화하여
-/// 더 편리한 문법을 제공합니다. 단항 연산과 이항 연산을 모두 지원합니다.
-///
-/// # supported operator
-/// 이 매크로는 다음과 같은 연산들을 지원합니다:
-/// - 이항 연산: `Matmul`, `Add`, `Sub`, `Mul`, `Div`
-/// - 단항 연산: `Exp`, `Neg`, `Sqrt`, `Abs`, `Square`, `Log`
-/// - 특수 연산: `Topk`, `Matmax`, `Pow`
-///
-/// # Examples
-///
-/// ```rust
-/// ```
-///
-/// # Parameters
-/// - 첫 번째 매개변수는 항상 입력 텐서입니다
-/// - 이항 연산의 경우, 두 번째는 연산 타입이고 세 번째는 두 번째 텐서입니다
-/// - 단항 연산의 경우, 첫 텐서와 연산 타입만 필요합니다
-/// - 특수 연산은 추가 매개변수가 필요할 수 있습니다 (예: Topk의 k값, Pow의 지수)
-///
-/// # Return
-/// 지정된 연산의 순전파(apply) 결과를 반환합니다.
-///
-/// # Panic
-/// 연산 초기화가 실패할 경우 패닉이 발생합니다 (`unwrap()`으로 감싸져 있음).
-/// 이러한 에러를 직접 처리해야 하는 경우, 기본 메서드를 직접 사용하는 것을 고려하세요.
-///
-/// # Implementation Details
-/// - 모든 연산은 원본 텐서의 형상(shape)을 유지합니다.
-/// - 새로운 텐서를 생성하여 결과를 반환하므로, 원본 텐서는 변경되지 않습니다.
-///
-/// # Performance Considerations
-/// 매 연산 시 새로운 텐서를 생성하므로
-/// 대규모 텐서 연산 시 메모리 할당 오버헤드가 발생할 수 있습니다.
-/// 고성능 연산이 필요한 경우 in-place 연산을 지원하는 별도 메서드 구현을 권장합니다.
-#[macro_export] // 해당 매크로의 존재 의의가 다소 부족함. 제거또는 구조 변경을 고려.
+#[macro_export]
 macro_rules! tensor_ops {
     ($tensor:expr, Pow, $exponent:expr) => {{
         let mut op = Pow::new().unwrap();
@@ -94,52 +57,6 @@ macro_rules! tensor_ops {
     }};
 }
 
-
-/// 텐서와 스칼라 값 사이의 연산을 위한 매크로를 제공합니다.
-///
-/// # supported operator
-/// ## 정방향 연산 (텐서 op 스칼라)
-/// - `Add`: 텐서의 각 요소에 스칼라 값을 더함
-/// - `Sub`: 텐서의 각 요소에서 스칼라 값을 뺌
-/// - `Mul`: 텐서의 각 요소에 스칼라 값을 곱함
-/// - `Div`: 텐서의 각 요소를 스칼라 값으로 나눔
-///
-/// ## 역방향 연산 (스칼라 op 텐서)
-/// - `buS`: 스칼라 값에서 텐서의 각 요소를 뺌
-/// - `viD`: 스칼라 값을 텐서의 각 요소로 나눔
-///
-/// # Examples
-///
-/// ```rust
-/// ```
-///
-/// # Return
-/// 지정된 연산의 순전파(apply) 결과를 반환합니다.
-///
-/// # Panic
-/// 연산 초기화가 실패할 경우 패닉이 발생합니다 (`unwrap()`으로 감싸져 있음).
-/// 이러한 에러를 직접 처리해야 하는 경우, 기본 메서드를 직접 사용하는 것을 고려하세요.
-///
-/// # Implementation Details
-/// - 모든 연산은 원본 텐서의 형상(shape)을 유지합니다.
-/// - 새로운 텐서를 생성하여 결과를 반환하므로, 원본 텐서는 변경되지 않습니다.
-/// - Iterator와 map을 사용하여 각 요소에 대한 연산을 수행합니다.
-///
-/// # Performance Considerations
-/// 이 매크로는 모든 연산에서 새로운 텐서를 생성합니다. 이는 텐서의 불변성을 유지하기 위한 것이지만,
-/// 대규모 데이터나 빈번한 연산이 필요한 경우 성능 저하가 발생할 수 있습니다.
-/// 성능이 중요한 경우, 텐서의 내부 데이터를 직접 수정하는 방식을 고려해야 할 수 있습니다.
-///
-/// # Optimization Considerations
-/// 현재 구현은 다음과 같은 특징이 있습니다:
-/// - 매 연산마다 새로운 벡터와 텐서를 할당합니다.
-/// - 대규모 데이터셋에서는 메모리 사용량이 증가할 수 있습니다.
-/// - 연속적인 연산의 경우 성능 저하가 누적될 수 있습니다.
-///
-/// 향후 개선을 위해 다음과 같은 방안을 고려할 수 있습니다:
-/// - 텐서의 내부 데이터를 직접 수정하는 메서드 추가
-/// - 임시 버퍼를 재사용하는 방식 도입
-/// - SIMD 최적화 적용
 #[macro_export]
 macro_rules! scalar_ops {
     ($tensor:expr, Add, $scalar:expr) => {
@@ -206,29 +123,12 @@ macro_rules! scalar  {
 }
 
 
-/// 다차원 배열을 나타내는 텐서 구조체입니다.
-///
-/// 이 구조체는 데이터와 그 형태(shape)를 저장하여 수학적 연산을 수행하는 데 사용됩니다.
-/// 제네릭 타입 `Type`을 통해 다양한 데이터 타입을 지원합니다.
-///
-/// # 필드
-/// - `data`: 텐서의 데이터를 1차원 벡터 형태로 저장
-/// - `shape`: 텐서의 차원을 나타내는 크기 배열 (예: `[행, 열]` 또는 `[채널, 높이, 너비]`)
 #[derive(Debug, Clone)]
 pub struct GlobalTensor<Type> {
     pub data: Vec<Type>,
     pub shape: Vec<usize>,
 }
 
-/// 계산 그래프에서 사용되는 변수 구조체입니다.
-///
-/// 이 구조체는 텐서와 그래디언트 계산 여부를 관리하며, 역전파를 지원하는 경우 그래디언트를 저장합니다.
-///
-/// # 필드
-/// - `tensor`: 변수의 값이 담긴 텐서
-/// - `requires_grad`: 그래디언트 계산이 필요한지 여부
-/// - `grad`: 역전파를 위한 그래디언트 (옵션으로 저장되며, `RefCell`로 래핑되어 가변성 제공)
-///   - `enableBackpropagation` 기능이 활성화된 경우에만 포함됨
 pub struct Variable {
     #[cfg(all(feature = "enableVisualization"))]
     label: String,
@@ -289,13 +189,6 @@ impl Function for GlobalFunction {
         })
     }
 }
-
-/// 계산 그래프에서 노드의 고유 식별자를 나타내는 타입 별칭입니다.
-///
-/// 이 타입은 `usize`를 기반으로 하며, 역전파 기능이 활성화된 경우에만 정의됩니다.
-///
-/// # 사용처
-/// - `ComputationNode`와 `ComputationGraph`에서 노드를 식별하는 데 사용
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeId(u64);

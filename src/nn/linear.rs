@@ -1,7 +1,7 @@
 use super::*;
 
 impl Layer for Linear {
-    fn forward(&self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
+    fn forward(&mut self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
         todo!()
     }
 
@@ -9,8 +9,20 @@ impl Layer for Linear {
         todo!()
     }
 
-    fn type_name(&self) -> &str {
-        std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
+    fn inputs_cache(&self) -> &HashSet<NodeId> {
+        todo!()
+    }
+
+    fn outputs_cache(&self) -> &HashMap<NodeId, NodeId> {
+        todo!()
+    }
+
+    fn inputs_cache_mut(&mut self) -> &mut HashSet<NodeId> {
+        todo!()
+    }
+
+    fn outputs_cache_mut(&mut self) -> &mut HashMap<NodeId, NodeId> {
+        todo!()
     }
 
     fn label(&self) -> &str {
