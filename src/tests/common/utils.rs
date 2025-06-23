@@ -1,3 +1,5 @@
+use crate::nn::activation::SoftmaxLayer;
+use crate::nn::{Layer, Sequential};
 use super::*;
 
 pub fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
@@ -36,11 +38,12 @@ impl MLP {
         let hidden_activation = Sigmoid::new()?;
         let output_activation = Softmax::new()?;
         let loss_function = CrossEntropyLoss::new()?;
+        let layer = Sequential::new();
 
         info!("Network Structure: {}(Input) -> {}(Hidden) -> {}(Output)", n_input, n_hidden, n_output);
         info!("Activation Functions: {} (Hidden), {} (Output)", hidden_activation.name(), output_activation.name());
 
-        let mlp = MLP::new(&[n_input, n_hidden, n_output], &[&hidden_activation, &output_activation], &loss_function);
+        let mlp = MLP::new(&[n_input, n_hidden, n_output], layer, loss_function);
         info!("MLP model created successfully.");
         Ok(mlp)
     }
@@ -74,13 +77,13 @@ impl MLP {
 
 impl SoftmaxRegression {
     pub fn build_model(n_input: usize, n_output: usize) -> MlResult<SoftmaxRegression> {
-        let output_activation = Softmax::new()?;
-        let loss_function = SoftmaxWithCrossEntropyLoss::new()?;
+        let activation = Softmax::new()?;
+        let loss_function = SoftmaxCrossEntropyLoss::new()?;
 
         info!("Network Structure: {}(Input) -> {}(Output)", n_input, n_output);
-        info!("Activation Functions: {} (Output)", output_activation.name());
+        info!("Activation Functions: {} (Output)", activation.type_name());
 
-        let sr = SoftmaxRegression::new(&[n_input, n_output], &[&output_activation], &loss_function);
+        let sr = SoftmaxRegression::new(&[n_input, n_output], activation, loss_function);
         info!("MLP model created successfully.");
         Ok(sr)
     }

@@ -258,7 +258,7 @@ impl CrossEntropyLoss {
     }
 }
 
-impl SoftmaxWithCrossEntropyLoss {
+impl SoftmaxCrossEntropyLoss {
     fn get_batch_size(shape: &[usize]) -> f32 {
         if shape.len() > 1 {
             shape[0] as f32
@@ -272,13 +272,7 @@ impl Function for CrossEntropyLoss {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(CrossEntropyLoss)
     }
-
-    /// Cross-Entropy Loss의 순전파를 계산합니다.
-    ///
-    /// # Arguments
-    /// * `targets`: `[&Tensor(prediction), &Tensor(target)]` 형태의 슬라이스.
-    ///   - `prediction`: 모델의 예측값 (소프트맥스 출력이어야 함).
-    ///   - `target`: 실제 값 (원-핫 인코딩된 벡터).
+    
     fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         // 1. 입력 유효성 검사 강화
         let (pred, target) = match inputs {
@@ -316,7 +310,6 @@ impl Function for CrossEntropyLoss {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    /// Cross-Entropy Loss의 역전파를 계산합니다.
     fn backward(&self, inputs: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         // 1. 입력 유효성 검사 강화
         let (pred, target) = match inputs {
@@ -347,8 +340,7 @@ impl Function for CrossEntropyLoss {
                 grad_val * (-t / p_clipped) / batch_size
             })
             .collect();
-
-        // 4. target에 대한 gradient는 거의 사용되지 않음
+        
         let grad_target_data: Vec<f32> = pred.data().iter()
             .map(|&p| {
                 let p_clipped = p.max(EPSILON);
@@ -372,9 +364,9 @@ impl Function for CrossEntropyLoss {
 }
 
 // 기존에 소프트맥스 함수와 크로스엔트로피 로스를 따로따로 사용했을때 기울기가 폭발하는 현상이 매우 빈번하여, 각각 따로 계산되던 함수를 하나로 융합함.
-impl Function for SoftmaxWithCrossEntropyLoss {
+impl Function for SoftmaxCrossEntropyLoss {
     fn new() -> MlResult<GlobalFunction> {
-        register_operator!(SoftmaxWithCrossEntropyLoss)
+        register_operator!(SoftmaxCrossEntropyLoss)
     }
 
     /// 순전파를 계산합니다.

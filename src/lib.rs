@@ -59,8 +59,9 @@ pub type MlResult<T> = Result<T, MlError>;
 #[cfg(test)]
 mod benchmark {
     use crate::tensor::operators::{Add, Function, Mul, Square, Sub};
-    use crate::tensor::{AutogradFunction, ComputationGraph, Tensor, TensorBase, Variable};
+    use crate::tensor::{AutogradFunction, ComputationGraph, Tensor, TensorBase};
     use crate::{MlResult, scalar, var_input, var_with_label, variable};
+    use crate::nn::Variable;
     use std::sync::Arc;
 
     fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {

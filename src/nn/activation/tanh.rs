@@ -1,10 +1,62 @@
 use super::*;
 
-crate::impl_activation_layer!(Tanh);
+impl TanhLayer {
+    pub fn new(label: &str) -> Self {
+        Self {
+            label: label.to_string(),
+            inputs: HashSet::new(),
+            outputs: HashMap::new(),
+            operator: Tanh::new().unwrap(),
+        }
+    }
+}
+
+impl Layer for TanhLayer {
+    fn apply(&mut self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
+        let output = self.operator.forward(&[input.tensor()])?.remove(0);
+        let applied = match self.inputs.contains(&input.node_id()) {
+            true => output.with_id(*self.outputs.get(&input.node_id()).unwrap())?,
+            false => {
+                let tensor = output.to_id()?;
+                self.inputs.insert(input.node_id());
+                tensor
+            }
+        };
+        Ok(var_act!(applied, self.label()).with_grad_fn(self.operator.type_name(), &[&input]))
+    }
+
+    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+        Ok(self.operator.forward(&[input])?.remove(0))
+    }
+
+    fn params(&self) -> Vec<&dyn Parameter> {
+        vec![]
+    }
+
+    fn inputs_cache(&self) -> &HashSet<NodeId> {
+        &self.inputs
+    }
+
+    fn outputs_cache(&self) -> &HashMap<NodeId, NodeId> {
+        &self.outputs
+    }
+
+    fn inputs_cache_mut(&mut self) -> &mut HashSet<NodeId> {
+        &mut self.inputs
+    }
+
+    fn outputs_cache_mut(&mut self) -> &mut HashMap<NodeId, NodeId> {
+        &mut self.outputs
+    }
+
+    fn label(&self) -> &str {
+        &self.label
+    }
+}
 
 impl Function for Tanh {
     fn new() -> MlResult<GlobalFunction> {
-        register_function!(Tanh)
+        register_operator!(Tanh)
     }
 
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {

@@ -1,7 +1,11 @@
 use super::*;
 
 impl Layer for Pooling {
-    fn forward(&mut self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
+    fn apply(&mut self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
+        todo!()
+    }
+
+    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         todo!()
     }
 

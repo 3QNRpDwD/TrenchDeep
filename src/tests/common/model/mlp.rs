@@ -1,16 +1,12 @@
 use tracing::error;
+use crate::nn::Sequential;
 use super::*;
 
-impl Model for MLP {
-    /// n_input : 입력 뉴런 개수
-    /// n_hidden: 은닉 뉴런 개수
-    /// n_output: 출력 뉴런 개수
-    /// hidden_activation: 은닉층에 적용할 활성화 함수
-    /// output_activation: 출력층에 적용할 활성화 함수
-    fn new(
+impl MLP {
+    pub fn new(
         layer_parms: &[usize],
-        activations: &[&dyn Layer],
-        loss_function: &GlobalFunction,
+        layer: Sequential,
+        loss_function: GlobalFunction,
     ) -> Self {
         let n_input = layer_parms[0];
         let n_hidden = layer_parms[1];
@@ -20,33 +16,36 @@ impl Model for MLP {
             .map(|_| (rand::random::<f32>() - 0.5) * 0.5) // 0을 중심으로 분포
             .collect();
         let w1 = var_with_label!(
-            Tensor::from_vec(w1_data, &[n_hidden, n_input]).unwrap(),
-            "weight_1"
-        );
+                Tensor::from_vec(w1_data, &[n_hidden, n_input]).unwrap(),
+                "weight_1"
+            );
 
         let w2_data: Vec<f32> = (0..n_output * n_hidden)
             .map(|_| (rand::random::<f32>() - 0.5) * 0.5)
             .collect();
         let w2 = var_with_label!(
-            Tensor::from_vec(w2_data, &[n_output, n_hidden]).unwrap(),
-            "weight_2"
-        );
+                Tensor::from_vec(w2_data, &[n_output, n_hidden]).unwrap(),
+                "weight_2"
+            );
 
         // bias 항들 초기화
         let b1_data: Vec<f32> = vec![0.0; n_hidden]; // 0으로 초기화하는 것이 일반적
         let b1 = var_with_label!(
-            Tensor::from_vec(b1_data, &[n_hidden, 1]).unwrap(),
-            "bias_1"
-        );
+                Tensor::from_vec(b1_data, &[n_hidden, 1]).unwrap(),
+                "bias_1"
+            );
 
         let b2_data: Vec<f32> = vec![0.0; n_output];
         let b2 = var_with_label!(
-            Tensor::from_vec(b2_data, &[n_output, 1]).unwrap(),
-            "bias_2"
-        );
+                Tensor::from_vec(b2_data, &[n_output, 1]).unwrap(),
+                "bias_2"
+            );
 
-        Self { w1, w2, b1, b2, hidden_activation: activations[0].clone(), output_activation: activations[1].clone(), loss_function: loss_function.clone() }
+        Self { w1, w2, b1, b2, layer , loss_function }
     }
+}
+
+impl Model for MLP {
 
     #[cfg(feature = "enableBackpropagation")]
     fn train(&mut self, x_set: &[Arc<Variable>], t_set: &[Arc<Variable>], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()> {
@@ -211,12 +210,12 @@ impl Model for MLP {
         // 1) 은닉층: u_h = W1 * x + b1
         let uh1_pre = matmul.forward(&[self.w1.tensor(), x])?.remove(0);
         let uh1 = add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0);
-        let ah1 = self.hidden_activation.forward(&[&uh1])?.remove(0);
+        let ah1 = self.hidden_activation.predict(&[&uh1])?.remove(0);
 
         // 3) 은닉층: u_h = W1 * x + b1
         let uh2_pre = matmul.forward(&[self.w2.tensor(), &ah1])?.remove(0);
         let uh2 = add.forward(&[&uh2_pre, self.b2.tensor()])?.remove(0);
-        let ah2 = self.output_activation.forward(&[&uh2])?.remove(0);
+        let ah2 = self.output_activation.predict(&[&uh2])?.remove(0);
 
         Ok(ah2)
     }

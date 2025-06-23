@@ -11,7 +11,9 @@ use log::{info, warn};
 use crate::{
     nn::{
         activation::Sigmoid,
-        activation::Softmax
+        activation::Softmax,
+        Variable,
+        Parameter
     },
     var_with_label,
     var_input,
@@ -21,7 +23,6 @@ use crate::{
     tensor::{
         AutogradFunction,
         ComputationGraph,
-        Variable,
         Tensor,
         operators::Function,
         TensorBase,
@@ -39,7 +40,7 @@ use tracing_subscriber::{
 };
 use std::time::Instant;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use crate::loss::SoftmaxWithCrossEntropyLoss;
+use crate::loss::SoftmaxCrossEntropyLoss;
 use time::macros::format_description;
 use crate::tensor::GlobalTensor;
 use crate::loss::{CrossEntropyLoss};

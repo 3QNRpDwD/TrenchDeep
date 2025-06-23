@@ -6,7 +6,7 @@ impl Variable {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown").replace("<f32>", "")
     }
 
-    pub fn with_grad_fn(self: Arc<Self>, operator_name: &str, inputs: &[&Arc<Variable>]) {
+    pub fn with_grad_fn(self: Arc<Self>, operator_name: &str, inputs: &[&Arc<dyn Parameter>]) -> Arc<Variable> {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
 
@@ -17,8 +17,9 @@ impl Variable {
                 }
                 input_id
             }).collect();
-            graph.add_operation(self, operator_name, input_ids)
-        });
+            graph.add_operation(self.clone(), operator_name, input_ids);
+            self
+        })
 
         // 입력 노드 ID 찾기 또는 추가
         // 없으면 추가
@@ -33,19 +34,6 @@ impl Variable {
         // 같은 효과를 내면서도, 훨신 강력한 성능을 이끌어낼것으로 생각되어, 변경했으며, 기존보다 약 1.8배가량 성능이 향상된것으로 보임.
         // 또한, 이같은 변화로, 향후 개선돠어야할 계산그래프의 쓰레기 텐서(더이상 연산에 사용되지 않는 텐서)의 발생을 줄이는데 도움이 될것으로 보이며,
         // 계산그래프의 수정또한 더욱 쉽게 가능할것으로 보임.
-    }
-
-    pub fn backward(self: &Arc<Self>) -> MlResult<()> {
-        COMPUTATION_GRAPH.with(|graph| {
-            let mut graph = graph.lock().unwrap();
-
-            if graph.node_map.contains_key(&self.node_id()) {
-                graph.ensure_topological_sort();
-                graph.backward(self.node_id())
-            } else {
-                Err(MlError::StringError("계산 그래프가 생성되지 않았습니다.".to_string()))
-            }
-        })
     }
 }
 
@@ -65,7 +53,7 @@ impl ComputationGraph {
     }
 
 
-    pub(crate) fn add_input(&mut self, variable: Arc<Variable>) -> NodeId {
+    pub(crate) fn add_input(&mut self, variable: Arc<dyn Parameter>) -> NodeId {
         let node_id = variable.node_id();
         let node_idx = self.nodes.len();
         
@@ -95,12 +83,12 @@ impl ComputationGraph {
         node_id
     }
 
-    pub(crate) fn add_operation(&mut self, variable: Arc<Variable>, operator_name: &str, inputs: Vec<NodeId>) -> NodeId {
+    pub(crate) fn add_operation(&mut self, variable: Arc<dyn Parameter>, operator_name: &str, inputs: Vec<NodeId>) -> NodeId {
         #[cfg(feature = "enableVisualization")]
         VISUALIZATION_GRAPH.with(|viz_graph| {
             let mut viz = viz_graph.borrow_mut();
             viz.register_operation(operator_name, &inputs, variable.node_id());
-            viz.add_variable_node(&format!("{:?}", variable.node_id()), &variable.label, &variable.node_type);
+            viz.add_variable_node(&format!("{:?}", variable.node_id()), variable.label(), variable.node_type());
         });
 
 
@@ -149,7 +137,7 @@ impl ComputationGraph {
         }
     }
 
-    fn ensure_topological_sort(&mut self) {
+    pub(crate) fn ensure_topological_sort(&mut self) {
         if !self.is_sorted {
             self.topological_sort();
         }
@@ -199,8 +187,8 @@ impl ComputationGraph {
         let output_var = &self.nodes[output_idx].variable;
         if output_var.grad().is_none() {
             let grad = Tensor::from_vec(
-                vec![1.0; output_var.tensor.shape().iter().product()],
-                output_var.tensor.shape()
+                vec![1.0; output_var.tensor().shape().iter().product()],
+                output_var.tensor().shape()
             )?;
             output_var.set_grad(grad);
         }
@@ -276,7 +264,7 @@ impl ComputationGraph {
 }
 
 impl AutogradFunction for GlobalFunction {
-    fn apply(&mut self, inputs: &[&Arc<Variable>]) -> MlResult<Arc<Variable>> {
+    fn apply(&mut self, inputs: &[&Arc<dyn Parameter>]) -> MlResult<Arc<dyn Parameter>> {
         let tensors: Vec<&dyn TensorBase> = inputs
             .iter()
             .map(|&var| var.tensor() as &dyn TensorBase)
@@ -296,7 +284,7 @@ impl AutogradFunction for GlobalFunction {
         Ok(output)
     }
 
-    fn apply_with_label(&mut self, inputs: &[&Arc<Variable>], label: &str) -> MlResult<Arc<Variable>> {
+    fn apply_with_label(&mut self, inputs: &[&Arc<dyn Parameter>], label: &str) -> MlResult<Arc<dyn Parameter>> {
         let tensors: Vec<&dyn TensorBase> = inputs
             .iter()
             .map(|&var| var.tensor() as &dyn TensorBase)

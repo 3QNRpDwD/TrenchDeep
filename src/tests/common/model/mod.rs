@@ -1,12 +1,10 @@
+use crate::nn::activation::{SigmoidLayer, SoftmaxLayer};
 use crate::nn::Layer;
 use super::*;
 pub mod mlp;
 pub mod regression;
 
 pub trait Model {
-    fn new(layer_parms: &[usize], activations: &[&dyn Layer], loss: &GlobalFunction) -> Self
-    where
-        Self: Sized;
     #[cfg(feature = "enableBackpropagation")]
     fn train(&mut self, x_set: &[Arc<Variable>], t_set: &[Arc<Variable>], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()>;
     #[cfg(feature = "enableBackpropagation")]
@@ -28,8 +26,7 @@ pub struct MLP {
     pub b1: Arc<Variable>, // shape = [hidden_node, 1]
     pub b2: Arc<Variable>, // shape = [output_node, 1]
     // 활성화 함수를 MLP 구조체의 일부로 만들어 유연성 확보
-    hidden_activation: Box<dyn Layer>,
-    output_activation: Box<dyn Layer>,
+    layer: crate::nn::Sequential,
     loss_function: GlobalFunction,
 }
 
@@ -37,7 +34,7 @@ pub struct SoftmaxRegression {
     pub w1: Arc<Variable>, // shape = [hidden_node, input_node]
     pub b1: Arc<Variable>, // shape = [hidden_node, 1]
     // 활성화 함수를 MLP 구조체의 일부로 만들어 유연성 확보
-    output_activation: GlobalFunction,
+    activation: GlobalFunction,
     loss_function: GlobalFunction,
 }
 
@@ -49,8 +46,7 @@ impl std::fmt::Debug for MLP {
 
                  self.w2.tensor().shape())?;
         // 활성화 함수 정보 추가
-        writeln!(f, "  hidden_activation = {}", self.hidden_activation.type_name())?;
-        writeln!(f, "  output_activation = {}", self.output_activation.type_name())?;
+        writeln!(f, "  layer = {:?}", self.layer)?;
         writeln!(f, "  loss_function = {}", self.loss_function.name())?;
         writeln!(f, "}}")
     }

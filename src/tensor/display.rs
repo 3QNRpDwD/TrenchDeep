@@ -1,19 +1,5 @@
 use super::*;
 
-impl Debug for Variable {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let mut ds = f.debug_struct("Variable");
-        ds
-            .field("tensor", &self.tensor)
-            .field("requires_grad", &self.requires_grad);
-        #[cfg(feature = "enableBackpropagation")]
-        {
-            ds.field("grad", &self.grad);
-        }
-        ds.finish()
-    }
-}
-
 #[cfg(feature = "enableBackpropagation")]
 impl Debug for ComputationGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {

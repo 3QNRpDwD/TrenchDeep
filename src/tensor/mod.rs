@@ -17,6 +17,7 @@ use crate::backend::{
     Device
 };
 
+
 pub mod creation;
 pub mod operators;
 pub mod display;
@@ -24,6 +25,7 @@ pub mod graph;
 pub mod visualization;
 
 use crate::{MlError, MlResult, register_operator, tensor::operators::Function, TensorError};
+use crate::nn::{Parameter, Variable};
 use crate::tensor:: {operators::Pow};
 
 #[macro_export]
@@ -85,31 +87,6 @@ macro_rules! scalar_ops {
 }
 
 #[macro_export]
-macro_rules! variable {
-    ($vec:expr) => {
-        Variable::new(Tensor::new($vec))
-    };
-
-    ($data:expr, $shape:expr) => {
-        Variable::new(Tensor::from_vec($data, $shape).unwrap())
-    };
-
-    ($data:expr, $shape:expr, $label:expr) => {
-        {
-            #[cfg(feature = "enableVisualization")]
-            {
-                Variable::with_label(Tensor::from_vec($data, $shape).unwrap(), $label)
-            }
-
-            #[cfg(not(feature = "enableVisualization"))]
-            {
-                Variable::new(Tensor::from_vec($data, $shape).unwrap())
-            }
-        }
-    };
-}
-
-#[macro_export]
 macro_rules! scalar  {
 
     ($scalar:expr) => {
@@ -129,17 +106,17 @@ pub struct GlobalTensor<Type> {
     pub shape: Vec<usize>,
 }
 
-pub struct Variable {
-    #[cfg(all(feature = "enableVisualization"))]
-    label: String,
-    #[cfg(all(feature = "enableVisualization"))]
-    node_type: NodeType,
-    tensor: Tensor,
-    requires_grad: RefCell<bool>,
-    grad: RefCell<Option<Tensor>>,
-}
+// pub struct Variable {
+//     #[cfg(all(feature = "enableVisualization"))]
+//     label: String,
+//     #[cfg(all(feature = "enableVisualization"))]
+//     node_type: NodeType,
+//     tensor: Tensor,
+//     requires_grad: RefCell<bool>,
+//     grad: RefCell<Option<Tensor>>,
+// }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GlobalFunction {
     name: String,
     func_id: NodeId,
@@ -220,7 +197,7 @@ impl NodeIdGenerator {
 
 pub(crate) struct ComputationNode {
     id: NodeId,
-    variable: Arc<Variable>,
+    variable: Arc<dyn Parameter>,
     function: Option<String>,
     inputs: Vec<NodeId>,
     is_leaf: bool,
@@ -228,7 +205,7 @@ pub(crate) struct ComputationNode {
 
 pub(crate) struct ComputationGraph {
     nodes: Vec<ComputationNode>,
-    node_map: HashMap<NodeId, usize>,
+    pub(crate) node_map: HashMap<NodeId, usize>,
     adjacency_list: Vec<Vec<usize>>,
     reverse_adjacency: Vec<Vec<usize>>,
     topo_order: Vec<usize>,
@@ -308,15 +285,6 @@ thread_local! {
 impl PartialEq for Tensor {
     fn eq(&self, other: &Self) -> bool {
         self.data() == other.data() && self.shape() == other.shape()
-    }
-}
-
-#[cfg(feature = "enableBackpropagation")]
-impl PartialEq for &Variable {
-    fn eq(&self, other: &&Variable) -> bool {
-        self.tensor == other.tensor &&
-            self.requires_grad == other.requires_grad &&
-            self.grad == other.grad
     }
 }
 
@@ -409,11 +377,11 @@ pub trait TensorBase {
 }
 
 pub trait AutogradFunction: Function {
-    fn apply(&mut self, _inputs: &[&Arc<Variable>]) -> MlResult<Arc<Variable>> {
+    fn apply(&mut self, _inputs: &[&Arc<dyn Parameter>]) -> MlResult<Arc<dyn Parameter>> {
         unimplemented!(" AutogradFunction::apply() not implemented for this type")
     }
 
-    fn apply_with_label(&mut self, inputs: &[&Arc<Variable>], label: &str) -> MlResult<Arc<Variable>> {
+    fn apply_with_label(&mut self, inputs: &[&Arc<dyn Parameter>], label: &str) -> MlResult<Arc<dyn Parameter>> {
         unimplemented!(" AutogradFunction::apply_with_label() not implemented for this type")
     }
 }

@@ -1,11 +1,11 @@
 use crate::nn::Layer;
 use super::*;
 
-impl Model for SoftmaxRegression {
-    fn new(
-        layer_parms: &[usize] ,
-        activations: &[&dyn Layer],
-        loss_function: &GlobalFunction,
+impl SoftmaxRegression {
+    pub fn new(
+        layer_parms: &[usize],
+        activation: GlobalFunction,
+        loss_function: GlobalFunction,
     ) -> Self {
         let n_input = layer_parms[0];
         let n_output = layer_parms[1];
@@ -25,9 +25,12 @@ impl Model for SoftmaxRegression {
             "bias_1"
         );
 
-        Self { w1, b1, output_activation: activations[0].clone(), loss_function: loss_function.clone() }
+        Self { w1, b1, activation, loss_function }
     }
+}
 
+
+impl Model for SoftmaxRegression {
     #[cfg(feature = "enableBackpropagation")]
     fn train(&mut self, x_set: &[Arc<Variable>], t_set: &[Arc<Variable>], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()> {
         let n_batches = x_set.len();
@@ -185,7 +188,7 @@ impl Model for SoftmaxRegression {
         // 1) 은닉층: u_h = W1 * x + b1
         let uh1_pre = matmul.forward(&[self.w1.tensor(), x])?.remove(0);
         let uh1 = add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0);
-        let ah1 = self.output_activation.forward(&[&uh1])?.remove(0);
+        let ah1 = self.activation.forward(&[&uh1])?.remove(0);
 
         Ok(ah1)
     }

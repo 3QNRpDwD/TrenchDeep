@@ -152,11 +152,8 @@ impl ApproxCos {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use crate::tensor::operators::{Div, Exp, Neg, Sin, Sub};
-    use crate::tensor::{AutogradFunction, operators::{Add, Function, Mul, Pow, Square}, Tensor, TensorBase, Variable};
-    use crate::{scalar, variable, MlResult};
+    use crate::{scalar, variable};
+    use super::*;
 
     pub fn assert_tensor_eq(tensor: &dyn TensorBase, expected_tensor: &dyn TensorBase) -> MlResult<()> {
         if tensor.data() != expected_tensor.data() && tensor.shape() != expected_tensor.shape() {
@@ -166,8 +163,8 @@ mod tests {
     }
 
     pub fn assert_variable_eq(variable: &Variable, expected_variable: &Variable) -> MlResult<()> {
-        assert_eq!(variable.tensor.data(), expected_variable.tensor.data());
-        assert_eq!(variable.tensor.shape(), expected_variable.tensor.shape());
+        assert_eq!(variable.tensor().data(), expected_variable.tensor().data());
+        assert_eq!(variable.tensor().shape(), expected_variable.tensor().shape());
         Ok(())
     }
 
