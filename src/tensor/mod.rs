@@ -377,11 +377,11 @@ pub trait TensorBase {
 }
 
 pub trait AutogradFunction: Function {
-    fn apply(&mut self, _inputs: &[&Arc<dyn Parameter>]) -> MlResult<Arc<dyn Parameter>> {
+    fn apply(&mut self, _inputs: &[&Arc<Variable>]) -> MlResult<Arc<Variable>> {
         unimplemented!(" AutogradFunction::apply() not implemented for this type")
     }
 
-    fn apply_with_label(&mut self, inputs: &[&Arc<dyn Parameter>], label: &str) -> MlResult<Arc<dyn Parameter>> {
+    fn apply_with_label(&mut self, inputs: &[&Arc<Variable>], label: &str) -> MlResult<Arc<Variable>> {
         unimplemented!(" AutogradFunction::apply_with_label() not implemented for this type")
     }
 }

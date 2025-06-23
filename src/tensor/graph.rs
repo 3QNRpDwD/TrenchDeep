@@ -6,7 +6,7 @@ impl Variable {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown").replace("<f32>", "")
     }
 
-    pub fn with_grad_fn(self: Arc<Self>, operator_name: &str, inputs: &[&Arc<dyn Parameter>]) -> Arc<Variable> {
+    pub fn with_grad_fn(self: Arc<Self>, operator_name: &str, inputs: &[&Arc<Variable>]) -> Arc<Variable> {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
 
@@ -264,7 +264,7 @@ impl ComputationGraph {
 }
 
 impl AutogradFunction for GlobalFunction {
-    fn apply(&mut self, inputs: &[&Arc<dyn Parameter>]) -> MlResult<Arc<dyn Parameter>> {
+    fn apply(&mut self, inputs: &[&Arc<Variable>]) -> MlResult<Arc<Variable>> {
         let tensors: Vec<&dyn TensorBase> = inputs
             .iter()
             .map(|&var| var.tensor() as &dyn TensorBase)
@@ -284,7 +284,7 @@ impl AutogradFunction for GlobalFunction {
         Ok(output)
     }
 
-    fn apply_with_label(&mut self, inputs: &[&Arc<dyn Parameter>], label: &str) -> MlResult<Arc<dyn Parameter>> {
+    fn apply_with_label(&mut self, inputs: &[&Arc<Variable>], label: &str) -> MlResult<Arc<Variable>> {
         let tensors: Vec<&dyn TensorBase> = inputs
             .iter()
             .map(|&var| var.tensor() as &dyn TensorBase)
