@@ -63,7 +63,7 @@ impl Model for MLP {
 
         info!("Initial error calculation...");
         let mut epoch_start_time = Instant::now();
-        let mut last_loss = self.compute_total_error(x_set, t_set)?;
+        let mut last_loss = self.compute_total_error(&x_set, &t_set)?;
         let epoch_duration = epoch_start_time.elapsed();
         let initial_log = format!("Initial loss: {:.6} | Avg Acc: {:>6.2}% | Duration: {:.2?}", last_loss, 0, epoch_duration);
         epoch_bar.set_message(initial_log.clone());
@@ -89,7 +89,11 @@ impl Model for MLP {
                     .progress_chars("█ "),
             );
 
-            for (x, t) in x_set.iter().zip(t_set.iter()) {
+            let mut rng = rng();
+            let mut combined_train_data: Vec<_> = x_set.into_iter().zip(t_set.into_iter()).collect();
+            combined_train_data.shuffle(&mut rng);
+
+            for (x, t) in combined_train_data.into_iter() {
                 ComputationGraph::reset_graph();
 
                 // --- 2. 순전파 시간 측정 ---

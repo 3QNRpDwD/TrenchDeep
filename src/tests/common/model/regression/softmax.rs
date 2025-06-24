@@ -47,7 +47,7 @@ impl Model for SoftmaxRegression {
 
         info!("Initial error calculation...");
         let mut epoch_start_time = Instant::now();
-        let mut last_loss = self.compute_total_error(x_set, t_set)?;
+        let mut last_loss = self.compute_total_error(&x_set, &t_set)?;
         let epoch_duration = epoch_start_time.elapsed();
         let initial_log = format!("Initial loss: {:.6} | Avg Acc: {:>6.2}% | Duration: {:.2?}", last_loss, 0, epoch_duration);
         epoch_bar.set_message(initial_log.clone());
@@ -73,13 +73,18 @@ impl Model for SoftmaxRegression {
                     .progress_chars("█ "),
             );
 
-            for (&x, &t) in x_set.iter().zip(t_set.iter()) {
+            let mut rng = rng();
+            let mut combined_train_data: Vec<_> = x_set.into_iter().zip(t_set.into_iter()).collect();
+            combined_train_data.shuffle(&mut rng);
+            
+            for (x, t) in combined_train_data.into_iter() {
                 ComputationGraph::reset_graph();
-
                 // --- 2. 순전파 시간 측정 ---
                 let forward_start = Instant::now();
+                
                 let y = self.apply(x)?;
                 let loss_var = self.loss_function.apply_with_label(&[&y, &t], "loss")?;
+                
                 let forward_duration = forward_start.elapsed();
                 let y_pred_idx = utils::argmax(y.tensor().data()); // 예측값의 argmax
                 let t_true_idx = utils::argmax(t.tensor().data()); // 실제 정답의 argmax
@@ -144,7 +149,7 @@ impl Model for SoftmaxRegression {
             );
             epoch_bar.set_message(log_message);
             epoch_bar.inc(1);
-            
+
             if (last_loss - avg_loss).abs() < tolerance {
                 epoch_bar.finish_with_message("✅ Converged");
                 info!("Loss has converged. Early stopping.");
@@ -214,8 +219,15 @@ impl Model for SoftmaxRegression {
     fn compute_total_error(&mut self, X: &[&Variable], T: &[&Variable]) -> MlResult<f32> {
         let mut total_loss = 0.0;
         for m in 0..X.len() {
-            let y = self.predict(X[m].tensor())?;
-            let loss = self.loss_function.forward(&[&y, T[m].tensor()])?.remove(0);
+            let logit_tensor = {
+                let mut matmul = Matmul::new()?;
+                let mut add = Add::new()?;
+                let uh1_pre = matmul.forward(&[self.w1.tensor(), X[m].tensor()])?.remove(0);
+                add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0)
+            };
+
+            // logit을 사용해 손실을 계산합니다.
+            let loss = self.loss_function.forward(&[&logit_tensor, T[m].tensor()])?.remove(0);
             total_loss += loss.data()[0];
         }
         Ok(total_loss / X.len() as f32)

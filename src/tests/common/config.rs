@@ -27,7 +27,7 @@ impl Default for TestConfig {
             n_classes: 10,   // 0-9 숫자 클래스
             learning_rate: 0.07,
             epochs: 10,
-            tolerance: 1e-5,
+            tolerance: 1e-4,
             required_accuracy: 80.0, // 테스트 통과를 위한 최소 정확도
             model_save_path: "model_parameters.json".to_string(),
             visualization_path: "graph/twolayer_refactored.svg".to_string(),

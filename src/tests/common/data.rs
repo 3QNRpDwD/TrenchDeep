@@ -50,20 +50,6 @@ impl MnistDataset {
         let (mut x_train, mut t_train) = Self::convert_to_variable_dataset(&mnist_data.trn_img, &mnist_data.trn_lbl, n_train as usize, n_features, n_classes)?;
         let (x_test, t_test) = Self::convert_to_variable_dataset(&mnist_data.tst_img, &mnist_data.tst_lbl, n_val as usize, n_features, n_classes)?;
 
-        // --- 셔플 기능 추가 시작 ---
-        info!("Shuffling training data...");
-        let mut rng = rng();
-
-        // 1. x_train과 t_train을 (이미지, 라벨) 쌍으로 묶습니다.
-        let mut combined_train_data: Vec<_> = x_train.into_iter().zip(t_train.into_iter()).collect();
-
-        // 2. 묶인 데이터의 순서를 무작위로 섞습니다.
-        combined_train_data.shuffle(&mut rng);
-
-        // 3. 섞인 데이터를 다시 x_train과 t_train 벡터로 분리합니다.
-        (x_train, t_train) = combined_train_data.into_iter().unzip();
-        // --- 셔플 기능 추가 끝 ---
-
         info!("Data preparation complete.");
 
         Ok(MnistDataset { x_train, t_train, x_test, t_test })
