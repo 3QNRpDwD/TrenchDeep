@@ -2,12 +2,10 @@ pub mod activation;
 pub mod conv;
 pub mod pooling;
 pub mod linear;
-mod param;
+mod parameter;
 
 use crate::{register_operator, var_act, var_bias, var_weight, backend::Backend, MlResult, TensorError, tensor::{
-    creation::LabelGenerator,
     operators::{Add, Div, Matmul, Mul, Sub},
-    NodeType,
     TENSOR_STORAGE,
     operators::Function,
     GlobalFunction,
@@ -57,7 +55,7 @@ macro_rules! variable {
 }
 
 pub trait Layer: Debug {
-    fn apply(&mut self, input: Arc<Variable>) -> MlResult<Arc<Variable>>;
+    fn apply(&mut self, input: &Variable) -> MlResult<Variable>;
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>>;
     fn params(&self) -> Vec<&dyn Parameter>;
     fn inputs_cache(&self) -> &HashSet<NodeId>;
@@ -101,10 +99,10 @@ pub trait Parameter: Debug {
 
     fn retain_grad(&self);
 
-    fn grad(&self) -> Option<&Tensor>;
+    fn grad(&self) -> &Tensor;
 
     #[cfg(feature = "enableBackpropagation")]
-    fn set_grad(&self, grad: Tensor);
+    fn set_grad(&self, grad: GlobalTensor<f32>);
 
     #[cfg(feature = "enableVisualization")]
     fn set_label(&mut self, new_label: &str);
@@ -114,7 +112,7 @@ pub trait Parameter: Debug {
     fn label(&self) -> &str;
 
     #[cfg(feature = "enableVisualization")]
-    fn node_type(&self) -> &NodeType;
+    fn node_type(&self) -> &crate::tensor::NodeType;
 
     #[cfg(feature = "enableBackpropagation")]
     fn clear_grad(&self);
@@ -136,14 +134,15 @@ pub trait Parameter: Debug {
     }
 }
 
+#[derive(Clone)]
 pub struct Variable {
     #[cfg(all(feature = "enableVisualization"))]
     label: String,
     #[cfg(all(feature = "enableVisualization"))]
-    node_type: NodeType,
+    node_type: crate::tensor::NodeType,
     tensor: Tensor,
     requires_grad: RefCell<bool>,
-    grad: RefCell<Option<Tensor>>,
+    grad: Tensor,
 }
 
 impl Debug for Variable {
@@ -164,8 +163,8 @@ pub struct Linear    {
     label: String,
     inputs: HashSet<NodeId>,
     outputs: HashMap<NodeId, NodeId>,
-    weight: Arc<dyn Parameter>,
-    bias: Arc<dyn Parameter>,
+    weight: Variable,
+    bias: Variable
 }
 
 #[derive(Debug)]
@@ -173,8 +172,8 @@ pub struct Conv      {
     label: String,
     inputs: HashSet<NodeId>,
     outputs: HashMap<NodeId, NodeId>,
-    weight: Arc<dyn Parameter>,
-    bias: Arc<dyn Parameter>,
+    weight: Variable,
+    bias: Variable
 }
 
 #[derive(Debug)]
@@ -211,10 +210,10 @@ impl Sequential {
 }
 
 impl Layer for Sequential {
-    fn apply(&mut self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
-        let mut current_output= input.clone();
+    fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
+        let mut current_output= variable!(vec![0.0], input.tensor().shape(), &input.label);
         for layer in &mut self.layers {
-            current_output = layer.apply(current_output)?
+            current_output = layer.apply(&current_output)?
         };
         Ok(current_output)
     }

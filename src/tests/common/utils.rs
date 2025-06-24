@@ -1,5 +1,3 @@
-use crate::nn::activation::SoftmaxLayer;
-use crate::nn::{Layer, Sequential};
 use super::*;
 
 pub fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
@@ -54,8 +52,8 @@ impl MLP {
 
     pub fn train_model(
         model: &mut MLP,
-        x_train: &[Arc<Variable>],
-        t_train: &[Arc<Variable>],
+        x_train: &[&Variable],
+        t_train: &[&Variable],
         learning_rate: f32,
         epochs: usize,
         tolerance: f32,
@@ -81,7 +79,7 @@ impl SoftmaxRegression {
         let loss_function = SoftmaxCrossEntropyLoss::new()?;
 
         info!("Network Structure: {}(Input) -> {}(Output)", n_input, n_output);
-        info!("Activation Functions: {} (Output)", activation.type_name());
+        info!("Activation Functions: {} (Output)", activation.name());
 
         let sr = SoftmaxRegression::new(&[n_input, n_output], activation, loss_function);
         info!("MLP model created successfully.");

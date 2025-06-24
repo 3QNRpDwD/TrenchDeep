@@ -184,6 +184,10 @@ impl GlobalTensor<f32> {
 
         Ok(Tensor(node_id))
     }
+    
+    pub fn new_empty() -> GlobalTensor<f32> { 
+        GlobalTensor { data: vec![], shape: vec![] }
+    }
 }
 
 impl Tensor {
@@ -203,8 +207,24 @@ impl Tensor {
         Ok(Tensor(node_id))
     }
     
+    pub fn to_id(self) -> NodeId {
+        self.0
+    }
+
     pub fn id(&self) -> NodeId {
         self.0
+    }
+
+    pub fn new_empty() -> Tensor {
+        let node_id = NODE_ID_GEN.next();
+        TENSOR_STORAGE.with_borrow_mut(|storage| {
+            storage.insert(node_id, GlobalTensor { data: vec![], shape: vec![] })
+        });
+        Tensor(node_id)
+    }
+    
+    pub fn is_empty(&self) -> bool {
+        self.data().iter().all(|&d| d == 0.0) || self.data().len() == 0
     }
 }
 

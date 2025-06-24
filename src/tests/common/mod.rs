@@ -6,14 +6,29 @@ pub mod model;
 
 use serde::{Deserialize, Serialize};
 use mnist::{MnistBuilder};
-use std::{sync::Arc};
+use std::{
+    sync::Arc,
+    time::Instant
+};
 use log::{info, warn};
+use rand::{rng, seq::SliceRandom};
+use tracing_subscriber::{
+    prelude::*,
+    EnvFilter,
+    fmt,
+    layer::SubscriberExt,
+    util::SubscriberInitExt
+};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use crate::{
+    loss::SoftmaxCrossEntropyLoss,
     nn::{
         activation::Sigmoid,
         activation::Softmax,
         Variable,
-        Parameter
+        Parameter,
+        Layer,
+        Sequential
     },
     var_with_label,
     var_input,
@@ -28,20 +43,9 @@ use crate::{
         TensorBase,
         GlobalFunction,
         operators::{Add, Matmul}
-    }
+    },
+    tensor::GlobalTensor,
+    loss::{CrossEntropyLoss},
+    tests::common::model::{Model, SoftmaxRegression, MLP}
 };
-use rand::{rng, seq::SliceRandom};
-use tracing_subscriber::{
-    prelude::*,
-    EnvFilter,
-    fmt,
-    layer::SubscriberExt,
-    util::SubscriberInitExt
-};
-use std::time::Instant;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use crate::loss::SoftmaxCrossEntropyLoss;
 use time::macros::format_description;
-use crate::tensor::GlobalTensor;
-use crate::loss::{CrossEntropyLoss};
-use crate::tests::common::model::{Model, SoftmaxRegression, MLP};

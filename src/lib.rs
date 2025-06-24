@@ -61,7 +61,7 @@ mod benchmark {
     use crate::tensor::operators::{Add, Function, Mul, Square, Sub};
     use crate::tensor::{AutogradFunction, ComputationGraph, Tensor, TensorBase};
     use crate::{MlResult, scalar, var_input, var_with_label, variable};
-    use crate::nn::Variable;
+    use crate::nn::{Parameter, Variable};
     use std::sync::Arc;
 
     fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
@@ -81,17 +81,17 @@ mod benchmark {
         Ok(())
     }
 
-    fn sphere_function(x: &Arc<Variable>, y: &Arc<Variable>) -> MlResult<Arc<Variable>> {
+    fn sphere_function(x: &Variable, y: &Variable) -> MlResult<Variable> {
         let mut square = Square::new()?;
         let mut add = Add::new()?;
-
+        
         add.apply(&[
             &square.apply(&[x])?,
-            &square.apply(&[y])?]
-        )
+            &square.apply(&[y])?
+        ])
     }
 
-    fn matyas_function(x: &Arc<Variable>, y: &Arc<Variable>) -> MlResult<Arc<Variable>> {
+    fn matyas_function(x: &Variable, y: &Variable) -> MlResult<Variable> {
         let mut sub = Sub::new()?;
         let mut mul = Mul::new()?;
         let O_26 = Arc::new(variable!(vec![vec![0.26]]));
@@ -105,9 +105,9 @@ mod benchmark {
         ])
     }
 
-    fn goldstein_price_function(x: &Arc<Variable>, y: &Arc<Variable>) -> MlResult<Arc<Variable>> {
+    fn goldstein_price_function(x: &Variable, y: &Variable) -> MlResult<Variable> {
         // Helper function to create constant variables
-        fn constant(value: f32) -> Arc<Variable> {
+        fn constant(value: f32) -> Variable {
             let scalar = Tensor::scalar(value);
             var_with_label!(scalar, &value.to_string())
         }
@@ -190,7 +190,7 @@ let d = {
         mul.apply_with_label(&[&first_part, &second_part], "output")
     }
 
-    fn rosenbrock_function(x0: &Arc<Variable>, x1: &Arc<Variable>) -> MlResult<Arc<Variable>> {
+    fn rosenbrock_function(x0: &Variable, x1: &Variable) -> MlResult<Variable> {
         let mut sub = Sub::new()?;
         let mut add = Add::new()?;
         let mut square = Square::new()?;
@@ -199,7 +199,7 @@ let d = {
         let sq = square.apply(&[&x0])?;
         add.apply_with_label(&[
             &mul.apply(&[
-                &Arc::new(variable!(vec![vec![100.0]])),
+                &variable!(vec![vec![100.0]]),
                 &square.apply(&[
                     &sub.apply(&[
                         &x1,
@@ -209,7 +209,7 @@ let d = {
             ])?,
             &square.apply(&[
                 &sub.apply(&[
-                    &Arc::new(variable!(vec![vec![1.0]])),
+                    &variable!(vec![vec![1.0]]),
                     &x0
                 ])?
             ])?
@@ -225,8 +225,8 @@ let d = {
         {
             z.backward()?;
 
-            assert_tensor_eq(&x.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
-            assert_tensor_eq(&y.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
+            assert_tensor_eq(&x.grad(), &Tensor::new(vec![vec![2.0]]))?;
+            assert_tensor_eq(&y.grad(), &Tensor::new(vec![vec![2.0]]))?;
         }
         Ok(())
     }
@@ -250,8 +250,8 @@ let d = {
         {
             z.backward()?;
 
-            assert_tensor_eq(x.grad().unwrap(), &Tensor::new(vec![vec![-5376.0]]))?;
-            assert_tensor_eq(y.grad().unwrap(), &Tensor::new(vec![vec![8064.0]]))?;
+            assert_tensor_eq(x.grad(), &Tensor::new(vec![vec![-5376.0]]))?;
+            assert_tensor_eq(y.grad(), &Tensor::new(vec![vec![8064.0]]))?;
         }
 
         #[cfg(feature = "enableVisualization")]
@@ -269,8 +269,8 @@ let d = {
         {
             y.backward()?;
 
-            assert_tensor_eq(x0.grad().unwrap(), &Tensor::new(vec![vec![-2.0]]))?;
-            assert_tensor_eq(x1.grad().unwrap(), &Tensor::new(vec![vec![400.0]]))?;
+            assert_tensor_eq(x0.grad(), &Tensor::new(vec![vec![-2.0]]))?;
+            assert_tensor_eq(x1.grad(), &Tensor::new(vec![vec![400.0]]))?;
         }
 
         #[cfg(feature = "enableVisualization")]
@@ -301,8 +301,8 @@ let d = {
             // }
             
             //파라미터 갱신
-            x0.sub_tensor(x0.grad().unwrap() * &learning_rate)?;
-            x1.sub_tensor( x1.grad().unwrap() * &learning_rate)?;
+            x0.sub_tensor(x0.grad() * &learning_rate)?;
+            x1.sub_tensor( x1.grad() * &learning_rate)?;
         }
         Ok(())
     }

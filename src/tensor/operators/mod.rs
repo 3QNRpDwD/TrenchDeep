@@ -322,13 +322,13 @@ mod tests {
         #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?;
-            let dy = y.grad().unwrap();                              // dy = 1
-            let db = b.grad().unwrap();   // dy/db = dy/dy * 2b
-            let da = a.grad().unwrap();   // dy/da = (dy/db) * db/da
-            let dx = x.grad().unwrap();   // dy/dx = (dy/da) * da/dx
+            let dy = y.grad();                              // dy = 1
+            let db = b.grad();   // dy/db = dy/dy * 2b
+            let da = a.grad();   // dy/da = (dy/db) * db/da
+            let dx = x.grad();   // dy/dx = (dy/da) * da/dx
 
             print_backward(Some(dy), Some(db), Some(da), Some(dx));
-            assert_tensor_eq(x.grad().unwrap(), &Tensor::new(vec![vec![3.2974427]]))?;
+            assert_tensor_eq(x.grad(), &Tensor::new(vec![vec![3.2974427]]))?;
         }
         Ok(())
     }
@@ -347,16 +347,16 @@ mod tests {
             y.backward()?;
 
             #[cfg(feature = "requiresGrad")] {
-                assert_eq!(y.grad(), Some(&Tensor::new(vec![vec![1.0]])));
-                assert_eq!(t.grad(), Some(&Tensor::new(vec![vec![1.0]])));
+                assert_eq!(y.grad(), &Tensor::new(vec![vec![1.0]]));
+                assert_eq!(t.grad(), &Tensor::new(vec![vec![1.0]]));
             }
             #[cfg(not(feature = "requiresGrad"))] {
-                assert_eq!(y.grad(), None);
-                assert_eq!(t.grad(), None);
+                assert!(y.grad().is_empty());
+                assert!(t.grad().is_empty());
             }
 
-            assert_tensor_eq(x0.grad().unwrap(), &Tensor::new(vec![vec![2.0]]))?;
-            assert_tensor_eq(x1.grad().unwrap(), &Tensor::new(vec![vec![1.0]]))?;
+            assert_tensor_eq(x0.grad(), &Tensor::new(vec![vec![2.0]]))?;
+            assert_tensor_eq(x1.grad(), &Tensor::new(vec![vec![1.0]]))?;
         }
 
         // 버그 발생: .is_retain_grad() 이 True 일때 출력이 2.0, 1.0 이어야 하는데 3.0, None 이 출력됨
@@ -389,7 +389,7 @@ mod tests {
         {
             y.backward()?;
 
-            assert_eq!(x.grad(), Some(&Tensor::new(vec![vec![64.0]])));
+            assert_eq!(x.grad(), &Tensor::new(vec![vec![64.0]]));
         }
         Ok(())
     }
@@ -403,7 +403,7 @@ mod tests {
         #[cfg(feature = "enableBackpropagation")]
         {
             y.backward()?;
-            assert_eq!(x.grad(), Some(&Tensor::new(vec![vec![2.0]])));
+            assert_eq!(x.grad(), &Tensor::new(vec![vec![2.0]]));
 
             x.clear_grad();
             y.clear_grad();
@@ -412,7 +412,7 @@ mod tests {
             let y = add.apply(&[&t, &x])?; // y = add(add(x, x), x)
             #[cfg(feature = "enableBackpropagation")]
             y.backward()?;
-            assert_eq!(x.grad(), Some(&Tensor::new(vec![vec![3.0]])));
+            assert_eq!(x.grad(), &Tensor::new(vec![vec![3.0]]));
         }
         Ok(())
     }
@@ -431,8 +431,8 @@ mod tests {
         {
             z.backward()?;
 
-            assert_eq!(x.grad(), Some(&Tensor::new(vec![vec![4.0]])));
-            assert_eq!(y.grad(), Some(&Tensor::new(vec![vec![6.0]])));
+            assert_eq!(x.grad(), &Tensor::new(vec![vec![4.0]]));
+            assert_eq!(y.grad(), &Tensor::new(vec![vec![6.0]]));
         }
         Ok(())
     }
@@ -453,8 +453,8 @@ mod tests {
             y.backward()?;
 
             assert_eq!(y.tensor(), &Tensor::new(vec![vec![7.0]]));
-            assert_eq!(a.grad(), Some(&Tensor::new(vec![vec![2.0]])));
-            assert_eq!(b.grad(), Some(&Tensor::new(vec![vec![3.0]])));
+            assert_eq!(a.grad(), &Tensor::new(vec![vec![2.0]]));
+            assert_eq!(b.grad(), &Tensor::new(vec![vec![3.0]]));
         }
         Ok(())
     }
@@ -491,7 +491,7 @@ mod tests {
             y.backward()?;
 
             assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
-            assert_tensor_eq(x.grad().unwrap(), &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
+            assert_tensor_eq(x.grad(), &Tensor::new(vec![vec![std::f32::consts::FRAC_1_SQRT_2]]))?;
         }
         Ok(())
     }

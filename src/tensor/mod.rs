@@ -197,7 +197,7 @@ impl NodeIdGenerator {
 
 pub(crate) struct ComputationNode {
     id: NodeId,
-    variable: Arc<dyn Parameter>,
+    variable: Variable,
     function: Option<String>,
     inputs: Vec<NodeId>,
     is_leaf: bool,
@@ -377,11 +377,11 @@ pub trait TensorBase {
 }
 
 pub trait AutogradFunction: Function {
-    fn apply(&mut self, _inputs: &[&Arc<Variable>]) -> MlResult<Arc<Variable>> {
+    fn apply(&mut self, _inputs: &[&Variable]) -> MlResult<Variable> {
         unimplemented!(" AutogradFunction::apply() not implemented for this type")
     }
 
-    fn apply_with_label(&mut self, inputs: &[&Arc<Variable>], label: &str) -> MlResult<Arc<Variable>> {
+    fn apply_with_label(&mut self, inputs: &[&Variable], label: &str) -> MlResult<Variable> {
         unimplemented!(" AutogradFunction::apply_with_label() not implemented for this type")
     }
 }
