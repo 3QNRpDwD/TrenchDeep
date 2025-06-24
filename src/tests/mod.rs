@@ -29,7 +29,7 @@ mod mnist_test {
 
         let dataset = MnistDataset::load_and_prepare_data(config.n_train, config.n_val, config.n_features, config.n_classes)?;
         let mut mlp = MLP::build_model(config.n_features, config.n_hidden_2, config.n_classes)?;
-        
+
         mlp.train(
             &dataset.x_train(),
             &dataset.t_train(),

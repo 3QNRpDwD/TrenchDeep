@@ -95,7 +95,7 @@ impl Model for SoftmaxRegression {
                     error!("gradient is NaN or infinity: {}. Suspended training.", total_loss);
                     return Err(MlError::StringError("During training, numerical instability occurs".to_string()));
                 }
-                
+
                 self.update(&lr)?;
                 let update_norm = param[0].grad().data().iter().map(|&g| (learning_rate * g).powi(2)).sum::<f32>().sqrt();
                 let weight_norm = param[0].tensor().data().iter().map(|&w| w * w).sum::<f32>().sqrt();

@@ -1,4 +1,5 @@
-use crate::nn::activation::SoftmaxLayer;
+use crate::nn::activation::{SigmoidLayer, SoftmaxLayer};
+use crate::nn::Layer;
 use super::*;
 pub mod mlp;
 pub mod regression;

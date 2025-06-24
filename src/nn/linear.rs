@@ -1,4 +1,3 @@
-use log::info;
 use crate::tensor::AutogradFunction;
 use super::*;
 
@@ -47,7 +46,7 @@ impl Layer for Linear {
 
         Ok(output)
     }
-    
+
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         let matmul = Matmul::new()?;
         let add = Add::new()?;
@@ -55,7 +54,6 @@ impl Layer for Linear {
         let weight_tensor = self.weight.tensor();
         let bias_tensor = self.bias.tensor();
 
-        info!("{:?}, input: {:?}, weight: {:?}", self.label, input.shape(), weight_tensor.shape());
         let x = matmul.forward(&[input, weight_tensor])?.remove(0);
         let output = add.forward(&[&x, bias_tensor])?.remove(0);
 

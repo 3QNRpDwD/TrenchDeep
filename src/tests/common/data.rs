@@ -16,19 +16,19 @@ impl MnistDataset {
             t_test: Vec::new(),
         }
     }
-    
+
     pub fn x_train(&self) -> Vec<&Variable> {
         self.x_train.iter().collect::<Vec<_>>()
     }
-    
+
     pub fn t_train(&self) -> Vec<&Variable>{
         self.t_train.iter().collect::<Vec<_>>()
     }
-    
+
     pub fn x_test(&self) -> Vec<&Variable> {
         self.x_test.iter().collect::<Vec<_>>()
     }
-    
+
     pub fn t_test(&self) -> Vec<&Variable> {
         self.t_test.iter().collect::<Vec<_>>()
     }
