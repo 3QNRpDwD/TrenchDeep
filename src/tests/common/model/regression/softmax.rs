@@ -6,10 +6,10 @@ impl SoftmaxRegression {
         layer_parms: &[usize],
         loss_function: GlobalFunction,
     ) -> Self {
-
         let layer = Sequential::new()
             .add_layer(Linear::new(layer_parms[0], layer_parms[1], "linea layer").unwrap())
             .add_layer(SoftmaxLayer::new("softmax layer"));
+        
         info!("SoftmaxRegression::new() - layer_parms: {:?}, {:?}", layer.params()[0].tensor().shape(), layer.params()[1].tensor().shape());
         Self { layer, loss_function }
     }
@@ -33,6 +33,7 @@ impl Model for SoftmaxRegression {
 
         info!("Initial error calculation...");
         let mut epoch_start_time = Instant::now();
+        info!("{:?}", x_set[0].tensor().shape());
         let mut last_loss = self.compute_total_error(&x_set, &t_set)?;
         let epoch_duration = epoch_start_time.elapsed();
         let initial_log = format!("Initial loss: {:.6} | Avg Acc: {:>6.2}% | Duration: {:.2?}", last_loss, 0, epoch_duration);
@@ -161,7 +162,6 @@ impl Model for SoftmaxRegression {
     }
 
     fn predict(&mut self, x: &Tensor) -> MlResult<GlobalTensor<f32>> {
-        info!("{:?}", x.shape());
         self.layer.predict(x)
     }
 
@@ -196,7 +196,6 @@ impl Model for SoftmaxRegression {
     fn compute_total_error(&mut self, X: &[&Variable], T: &[&Variable]) -> MlResult<f32> {
         let mut total_loss = 0.0;
         for m in 0..X.len() {
-            info!("{:?}", X[m].tensor().shape());
             let logit_tensor = self.predict(X[m].tensor())?;
             let loss = self.loss_function.forward(&[&logit_tensor, T[m].tensor()])?.remove(0);
             total_loss += loss.data()[0];

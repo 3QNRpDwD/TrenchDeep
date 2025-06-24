@@ -68,6 +68,8 @@ mod mnist_test {
         info!("Starting model training...");
         info!("Training Parameters: LR={}, Max Epochs={}, Tolerance={}", config.learning_rate, config.epochs, config.tolerance);
 
+        info!("Training model with {} training samples...", dataset.x_train().len());
+        
         #[cfg(feature = "enableBackpropagation")]
         model.train(&dataset.x_train(), &dataset.t_train(), config.epochs, config.learning_rate, config.tolerance)?;
         if !cfg!(feature = "enableBackpropagation") {

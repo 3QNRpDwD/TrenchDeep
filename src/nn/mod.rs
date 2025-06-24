@@ -4,7 +4,7 @@ pub mod pooling;
 pub mod linear;
 mod parameter;
 
-use crate::{register_operator, var_act, var_bias, var_weight, backend::Backend, MlResult, TensorError, tensor::{
+use crate::{register_operator, var_act, var_bias, var_weight, var_loss, backend::Backend, MlResult, TensorError, tensor::{
     operators::{Add, Div, Matmul, Mul, Sub},
     operators::Function,
     GlobalFunction,
@@ -57,10 +57,8 @@ pub trait Layer: Debug {
     fn apply(&mut self, input: &Variable) -> MlResult<Variable>;
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>>;
     fn params(&self) -> Vec<&dyn Parameter>;
-    fn inputs_cache(&self) -> &HashSet<NodeId>;
-    fn outputs_cache(&self) -> &HashMap<NodeId, NodeId>;
-    fn inputs_cache_mut(&mut self) -> &mut HashSet<NodeId>;
-    fn outputs_cache_mut(&mut self) -> &mut HashMap<NodeId, NodeId>;
+    fn inputs_cache(&self) -> &HashMap<NodeId, NodeId> ;
+    fn inputs_cache_mut(&mut self) -> &mut HashMap<NodeId, NodeId> ;
     fn type_name(&self) -> &str {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
     } // 레이어를 구현하는 구조체의 이름을 반환
@@ -160,10 +158,11 @@ impl Debug for Variable {
 #[derive(Debug)]
 pub struct Linear    {
     label: String,
-    inputs: HashSet<NodeId>,
-    outputs: HashMap<NodeId, NodeId>,
+    cache: HashMap<NodeId, NodeId>,
     weight: Variable,
-    bias: Variable
+    bias: Variable,
+    matmul: GlobalFunction,
+    add: GlobalFunction
 }
 
 #[derive(Debug)]
@@ -233,13 +232,12 @@ impl Sequential {
 
 impl Layer for Sequential {
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
-        let mut current_output= variable!(vec![0.0], input.tensor().shape(), &input.label);
+        let mut current_output= input.clone();
         for layer in &mut self.layers {
             current_output = layer.apply(&current_output)?
         };
         Ok(current_output)
     }
-
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         let mut layer_iter = self.layers.iter_mut();
         let first_layer = match layer_iter.next() {
@@ -253,27 +251,9 @@ impl Layer for Sequential {
         }
         Ok(output)
     }
-
-    fn params(&self) -> Vec<&dyn Parameter> {
-        self.layers.iter().flat_map(|layer| layer.params()).collect()
-    }
-
-    fn inputs_cache(&self) -> &HashSet<NodeId> {
-        todo!()
-    }
-
-    fn outputs_cache(&self) -> &HashMap<NodeId, NodeId> {
-        todo!()
-    }
-
-    fn inputs_cache_mut(&mut self) -> &mut HashSet<NodeId> {
-        todo!()
-    }
-
-    fn outputs_cache_mut(&mut self) -> &mut HashMap<NodeId, NodeId> {
-        todo!()
-    }
-
+    fn params(&self) -> Vec<&dyn Parameter> { self.layers.iter().flat_map(|layer| layer.params()).collect() }
+    fn inputs_cache(&self) -> &HashMap<NodeId, NodeId> { todo!() }
+    fn inputs_cache_mut(&mut self) -> &mut HashMap<NodeId, NodeId> { todo!() }
     fn label(&self) -> &str { &self.label }
 }
 

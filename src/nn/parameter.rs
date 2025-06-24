@@ -172,6 +172,9 @@ impl Variable {
     }
 
     #[cfg(feature = "enableVisualization")]
+    pub fn new_loss(tensor: Tensor) -> Self { Self::with_label(tensor, "loss") }
+    
+    #[cfg(feature = "enableVisualization")]
     pub fn new_conv_weight(tensor: Tensor, layer_idx: usize) -> Self {
         Self::with_label(tensor, &format!("conv{}_weight", layer_idx))
     }
@@ -252,7 +255,6 @@ macro_rules! var_output {
 macro_rules! var_act {
     ($tensor:expr, $type_name:expr) => {
         {
-            use std::sync::Arc;
             #[cfg(feature = "enableVisualization")]
             {
                 crate::nn::Variable::new_activation($tensor, $type_name)
@@ -290,6 +292,23 @@ macro_rules! var_bias {
             #[cfg(feature = "enableVisualization")]
             {
                 crate::nn::Variable::new_bias($tensor)
+            }
+
+            #[cfg(not(feature = "enableVisualization"))]
+            {
+                crate::nn::Variable::new($tensor)
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! var_loss {
+    ($tensor:expr) => {
+        {
+            #[cfg(feature = "enableVisualization")]
+            {
+                crate::nn::Variable::new_loss($tensor)
             }
 
             #[cfg(not(feature = "enableVisualization"))]

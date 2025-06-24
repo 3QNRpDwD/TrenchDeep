@@ -207,6 +207,7 @@ impl ComputationGraph {
                     self.nodes[input_idx].variable.tensor() as &dyn TensorBase
                 })
                 .collect::<Vec<&dyn TensorBase>>();
+            info!("Computing backward for function: {:?}, inputs: {:?}", function, node.inputs);
             let input_grads = OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut(function).unwrap().backward(&input_tensors, grad)
                 .map_err(|e| MlError::StringError(format!("Failed to compute backward for function {:?}: {}", function, e))))?;
 

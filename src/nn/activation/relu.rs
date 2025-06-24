@@ -4,8 +4,7 @@ impl ReLULayer {
     pub fn new(label: &str) -> Self {
         Self {
             label: label.to_string(),
-            inputs: HashSet::new(),
-            outputs: HashMap::new(),
+            cache: HashMap::new(),
             operator: ReLU::new().unwrap()
         }
     }
@@ -14,46 +13,24 @@ impl ReLULayer {
 impl Layer for ReLULayer {
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let output = self.operator.forward(&[input.tensor()])?.remove(0);
-        let applied = match self.inputs.contains(&input.node_id()) {
-            true => output.with_id(*self.outputs.get(&input.node_id()).unwrap())?,
+        let in_id = input.node_id();
+        let applied = match self.cache.contains_key(&in_id) {
+            true => output.with_id(*self.cache.get(&in_id).unwrap())?,
             false => {
-                let tensor = output.to_id()?;
-                self.inputs.insert(input.node_id());
-                tensor
+                let temp = output.to_id()?;
+                self.cache.insert(in_id, temp.id());
+                temp
             }
         };
         let var_act = var_act!(applied, self.label());
-        var_act.with_grad_fn(self.operator.type_name(), &[&input]);
+        var_act.with_grad_fn(self.operator.name(), &[&input]);
         Ok(var_act)
     }
-
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
-        Ok(self.operator.forward(&[input])?.remove(0))
-    }
-
-    fn params(&self) -> Vec<&dyn Parameter> {
-        vec![]
-    }
-
-    fn inputs_cache(&self) -> &HashSet<NodeId> {
-        &self.inputs
-    }
-
-    fn outputs_cache(&self) -> &HashMap<NodeId, NodeId> {
-        &self.outputs
-    }
-
-    fn inputs_cache_mut(&mut self) -> &mut HashSet<NodeId> {
-        &mut self.inputs
-    }
-
-    fn outputs_cache_mut(&mut self) -> &mut HashMap<NodeId, NodeId> {
-        &mut self.outputs
-    }
-
-    fn label(&self) -> &str {
-        &self.label
-    }
+    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> { Ok(self.operator.forward(&[input])?.remove(0))}
+    fn params(&self) -> Vec<&dyn Parameter> { vec![] }
+    fn inputs_cache(&self) -> &HashMap<NodeId, NodeId> { &self.cache }
+    fn inputs_cache_mut(&mut self) -> &mut HashMap<NodeId, NodeId> { &mut self.cache }
+    fn label(&self) -> &str { &self.label }
 }
 
 impl Function for ReLU {
