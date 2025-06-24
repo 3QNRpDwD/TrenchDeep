@@ -1,3 +1,4 @@
+use crate::nn::activation::SoftmaxLayer;
 use super::*;
 pub mod mlp;
 pub mod regression;
@@ -9,7 +10,7 @@ pub trait Model {
     fn apply(&mut self, x: &Variable) -> MlResult<Variable>;
     fn predict(&mut self, test_data: &Tensor) -> MlResult<GlobalTensor<f32>>;
     #[cfg(feature = "enableBackpropagation")]
-    fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()>;
+    fn update(&self, lr: &dyn TensorBase) -> MlResult<()>;
     #[cfg(feature = "enableBackpropagation")]
     fn zero_grad(&mut self) -> MlResult<()>;
     fn save(&self, path: &str) -> MlResult<()>;
@@ -29,10 +30,7 @@ pub struct MLP {
 }
 
 pub struct SoftmaxRegression {
-    pub w1: Variable, // shape = [hidden_node, input_node]
-    pub b1: Variable, // shape = [hidden_node, 1]
-    // 활성화 함수를 MLP 구조체의 일부로 만들어 유연성 확보
-    activation: GlobalFunction,
+    layer: Sequential,
     loss_function: GlobalFunction,
 }
 

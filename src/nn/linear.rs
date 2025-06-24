@@ -1,3 +1,4 @@
+use log::info;
 use crate::tensor::AutogradFunction;
 use super::*;
 
@@ -9,9 +10,6 @@ impl Linear {
     /// * `out_features` - 출력 텐서의 특성(피처) 수
     /// * `label` - 시각화 및 디버깅을 위한 레이어의 이름
     pub fn new(in_features: usize, out_features: usize, label: &str) -> MlResult<Self> {
-        // 가중치(W) 초기화: (in_features, out_features) 형태
-        // Kaiming He 초기화와 유사하게 표준편차를 조절하여 가중치를 초기화합니다.
-        // 이는 학습 초기 단계에서 그래디언트가 소실되거나 폭발하는 것을 방지하는 데 도움이 됩니다.
         let k = 1.0 / (in_features as f32).sqrt();
         let weight_data: Vec<f32> = (0..in_features * out_features)
             .map(|_| rand::random::<f32>() * 2.0 * k - k)
@@ -57,6 +55,7 @@ impl Layer for Linear {
         let weight_tensor = self.weight.tensor();
         let bias_tensor = self.bias.tensor();
 
+        info!("{:?}, input: {:?}, weight: {:?}", self.label, input.shape(), weight_tensor.shape());
         let x = matmul.forward(&[input, weight_tensor])?.remove(0);
         let output = add.forward(&[&x, bias_tensor])?.remove(0);
 

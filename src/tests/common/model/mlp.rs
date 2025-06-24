@@ -213,7 +213,7 @@ impl Model for MLP {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()> {
+    fn update(&self, lr: &dyn TensorBase) -> MlResult<()> {
         self.w1.sub_tensor(self.w1.grad() as &dyn TensorBase * lr)?;
         self.w2.sub_tensor(self.w2.grad() as &dyn TensorBase * lr)?;
         self.b1.sub_tensor(self.b1.grad() as &dyn TensorBase * lr)?;

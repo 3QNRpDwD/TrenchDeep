@@ -4,28 +4,14 @@ use super::*;
 impl SoftmaxRegression {
     pub fn new(
         layer_parms: &[usize],
-        activation: GlobalFunction,
         loss_function: GlobalFunction,
     ) -> Self {
-        let n_input = layer_parms[0];
-        let n_output = layer_parms[1];
-        // He 초기화 또는 Xavier 초기화와 같은 더 나은 가중치 초기화 방법을 고려할 수 있음
-        let w1_data: Vec<f32> = (0..n_output * n_input)
-            .map(|_| (rand::random::<f32>() - 0.5) * 0.5) // 0을 중심으로 분포
-            .collect();
-        let w1 = var_with_label!(
-            Tensor::from_vec(w1_data, &[n_output, n_input]).unwrap(),
-            "weight_1"
-        );
 
-        // bias 항들 초기화
-        let b1_data: Vec<f32> = vec![0.0; n_output]; // 0으로 초기화하는 것이 일반적
-        let b1 = var_with_label!(
-            Tensor::from_vec(b1_data, &[n_output, 1]).unwrap(),
-            "bias_1"
-        );
-
-        Self { w1, b1, activation, loss_function }
+        let mut layer = Sequential::new();
+        layer.push(Box::new(Linear::new(layer_parms[0], layer_parms[1], "linea layer").unwrap()));
+        layer.push(Box::new(SoftmaxLayer::new("softmax_linear")));
+        info!("SoftmaxRegression::new() - layer_parms: {:?}, {:?}", layer.params()[0].tensor().shape(), layer.params()[1].tensor().shape());
+        Self { layer, loss_function }
     }
 }
 
@@ -76,15 +62,15 @@ impl Model for SoftmaxRegression {
             let mut rng = rng();
             let mut combined_train_data: Vec<_> = x_set.into_iter().zip(t_set.into_iter()).collect();
             combined_train_data.shuffle(&mut rng);
-            
+
             for (x, t) in combined_train_data.into_iter() {
                 ComputationGraph::reset_graph();
                 // --- 2. 순전파 시간 측정 ---
                 let forward_start = Instant::now();
-                
+
                 let y = self.apply(x)?;
-                let loss_var = self.loss_function.apply_with_label(&[&y, &t], "loss")?;
-                
+                // let loss_var = self.loss_function.apply_with_label(&[&y, &t], "loss")?;
+
                 let forward_duration = forward_start.elapsed();
                 let y_pred_idx = utils::argmax(y.tensor().data()); // 예측값의 argmax
                 let t_true_idx = utils::argmax(t.tensor().data()); // 실제 정답의 argmax
@@ -94,15 +80,16 @@ impl Model for SoftmaxRegression {
                     }
                     total_samples += 1;
                 }
-                total_loss += loss_var.tensor().data()[0];
+                total_loss += y.tensor().data()[0];
 
                 // --- 3. 역전파 시간 측정 ---
                 let backward_start = Instant::now();
-                loss_var.backward()?;
+                y.backward()?;
                 let backward_duration = backward_start.elapsed();
-                let grad_norm = self.w1.grad().data().iter().map(|&x| x * x).sum::<f32>().sqrt();
+                let param = self.layer.params();
+                let grad_norm = param[0].grad().data().iter().map(|&x| x * x).sum::<f32>().sqrt();
 
-                if self.w1.grad().data()[0].is_nan() || self.b1.grad().data()[0].is_nan() {
+                if param[0].grad().data()[0].is_nan() || param[1].grad().data()[0].is_nan() {
                     epoch_bar.abandon_with_message("❌ Error: NaN Gradient");
                     batch_bar.abandon_with_message("NaN Gradient");
                     error!("gradient is NaN or infinity: {}. Suspended training.", total_loss);
@@ -110,8 +97,8 @@ impl Model for SoftmaxRegression {
                 }
                 
                 self.update(&lr)?;
-                let update_norm = self.w1.grad().data().iter().map(|&g| (learning_rate * g).powi(2)).sum::<f32>().sqrt();
-                let weight_norm = self.w1.tensor().data().iter().map(|&w| w * w).sum::<f32>().sqrt();
+                let update_norm = param[0].grad().data().iter().map(|&g| (learning_rate * g).powi(2)).sum::<f32>().sqrt();
+                let weight_norm = param[0].tensor().data().iter().map(|&w| w * w).sum::<f32>().sqrt();
                 let update_ratio = if weight_norm > 1e-6 { update_norm / weight_norm } else { 0.0 };
 
                 self.zero_grad()?;
@@ -170,37 +157,27 @@ impl Model for SoftmaxRegression {
 
     #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, x: &Variable) -> MlResult<Variable> {
-        let mut matmul = Matmul::new()?;
-        let mut add = Add::new()?;
-
-        // 1) 첫 번째 은닉층
-        let uh1_pre = matmul.apply(&[&self.w1, x])?;
-        add.apply(&[&uh1_pre, &self.b1])
+        self.layer.apply(x)
     }
 
     fn predict(&mut self, x: &Tensor) -> MlResult<GlobalTensor<f32>> {
-        let mut matmul = Matmul::new()?;
-        let mut add = Add::new()?;
-
-        // 1) 은닉층: u_h = W1 * x + b1
-        let uh1_pre = matmul.forward(&[self.w1.tensor(), x])?.remove(0);
-        let uh1 = add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0);
-        let ah1 = self.activation.forward(&[&uh1])?.remove(0);
-
-        Ok(ah1)
+        info!("{:?}", x.shape());
+        self.layer.predict(x)
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()> {
-        self.w1.sub_tensor(self.w1.grad() as &dyn TensorBase * lr)?;
-        self.b1.sub_tensor(self.b1.grad() as &dyn TensorBase * lr)?;
+    fn update(&self, lr: &dyn TensorBase) -> MlResult<()> {
+        let param = self.layer.params();
+        param[0].sub_tensor(param[0].grad() as &dyn TensorBase * lr)?;
+        param[1].sub_tensor(param[1].grad() as &dyn TensorBase * lr)?;
         Ok(())
     }
 
     #[cfg(feature = "enableBackpropagation")]
     fn zero_grad(&mut self) -> MlResult<()> {
-        self.w1.clear_grad();
-        self.b1.clear_grad();
+        let param = self.layer.params();
+        param[0].clear_grad();
+        param[1].clear_grad();
         Ok(())
     }
 
@@ -219,14 +196,8 @@ impl Model for SoftmaxRegression {
     fn compute_total_error(&mut self, X: &[&Variable], T: &[&Variable]) -> MlResult<f32> {
         let mut total_loss = 0.0;
         for m in 0..X.len() {
-            let logit_tensor = {
-                let mut matmul = Matmul::new()?;
-                let mut add = Add::new()?;
-                let uh1_pre = matmul.forward(&[self.w1.tensor(), X[m].tensor()])?.remove(0);
-                add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0)
-            };
-
-            // logit을 사용해 손실을 계산합니다.
+            info!("{:?}", X[m].tensor().shape());
+            let logit_tensor = self.predict(X[m].tensor())?;
             let loss = self.loss_function.forward(&[&logit_tensor, T[m].tensor()])?.remove(0);
             total_loss += loss.data()[0];
         }

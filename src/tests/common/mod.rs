@@ -28,7 +28,8 @@ use crate::{
         Variable,
         Parameter,
         Layer,
-        Sequential
+        Sequential,
+        Linear
     },
     var_with_label,
     var_input,

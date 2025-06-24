@@ -53,13 +53,9 @@ impl MLP {
 
 impl SoftmaxRegression {
     pub fn build_model(n_input: usize, n_output: usize) -> MlResult<SoftmaxRegression> {
-        let activation = Softmax::new()?;
-        let loss_function = SoftmaxCrossEntropyLoss::new()?;
-
+        let loss_function = CrossEntropyLoss::new()?;
         info!("Network Structure: {}(Input) -> {}(Output)", n_input, n_output);
-        info!("Activation Functions: {} (Output)", activation.name());
-
-        let sr = SoftmaxRegression::new(&[n_input, n_output], activation, loss_function);
+        let sr = SoftmaxRegression::new(&[n_input, n_output], loss_function);
         info!("MLP model created successfully.");
         Ok(sr)
     }
