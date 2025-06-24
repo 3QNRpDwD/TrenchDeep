@@ -1,3 +1,4 @@
+use tracing::info;
 use super::*;
 
 #[cfg(feature = "enableBackpropagation")]
@@ -6,7 +7,7 @@ impl Variable {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown").replace("<f32>", "")
     }
 
-    pub fn with_grad_fn(self: Arc<Self>, operator_name: &str, inputs: &[&Arc<Variable>]) -> Arc<Variable> {
+    pub fn with_grad_fn(&self, operator_name: &str, inputs: &[&Variable]) {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
 
@@ -18,7 +19,6 @@ impl Variable {
                 input_id
             }).collect();
             graph.add_operation(self.clone(), operator_name, input_ids);
-            self
         })
 
         // 입력 노드 ID 찾기 또는 추가
@@ -53,7 +53,7 @@ impl ComputationGraph {
     }
 
 
-    pub(crate) fn add_input(&mut self, variable: Arc<dyn Parameter>) -> NodeId {
+    pub(crate) fn add_input(&mut self, variable: Variable) -> NodeId {
         let node_id = variable.node_id();
         let node_idx = self.nodes.len();
         
@@ -83,7 +83,7 @@ impl ComputationGraph {
         node_id
     }
 
-    pub(crate) fn add_operation(&mut self, variable: Arc<dyn Parameter>, operator_name: &str, inputs: Vec<NodeId>) -> NodeId {
+    pub(crate) fn add_operation(&mut self, variable: Variable, operator_name: &str, inputs: Vec<NodeId>) -> NodeId {
         #[cfg(feature = "enableVisualization")]
         VISUALIZATION_GRAPH.with(|viz_graph| {
             let mut viz = viz_graph.borrow_mut();
@@ -185,8 +185,8 @@ impl ComputationGraph {
         let output_idx = *self.node_map.get(&output_id)
             .ok_or_else(|| MlError::StringError("Output node not found".to_string()))?;
         let output_var = &self.nodes[output_idx].variable;
-        if output_var.grad().is_none() {
-            let grad = Tensor::from_vec(
+        if output_var.grad().is_empty() {
+            let grad = GlobalTensor::from_vec(
                 vec![1.0; output_var.tensor().shape().iter().product()],
                 output_var.tensor().shape()
             )?;
@@ -198,7 +198,7 @@ impl ComputationGraph {
             let node = &self.nodes[node_idx];
             let var = &node.variable;
             let grad = var.grad();
-            if node.function.is_none() || grad.is_none() { continue; }
+            if node.function.is_none() || grad.is_empty() { continue; }
             let function = node.function.as_ref().unwrap();
             let input_tensors: Vec<&dyn TensorBase> = node.inputs
                 .iter()
@@ -207,15 +207,13 @@ impl ComputationGraph {
                     self.nodes[input_idx].variable.tensor() as &dyn TensorBase
                 })
                 .collect::<Vec<&dyn TensorBase>>();
-
-            let output_grad = grad.unwrap();
-            let input_grads = OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut(function).unwrap().backward(&input_tensors, output_grad)
+            let input_grads = OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut(function).unwrap().backward(&input_tensors, grad)
                 .map_err(|e| MlError::StringError(format!("Failed to compute backward for function {:?}: {}", function, e))))?;
 
             for (input_id, grad) in node.inputs.iter().zip(input_grads) {
                 let input_idx = self.node_map[input_id];
                 let input_node = &self.nodes[input_idx];
-                input_node.variable.accumulate_grad(grad.to_id().unwrap())?;
+                input_node.variable.accumulate_grad(grad.to_id()?)?;
             }
             
             var.clear_grad();
@@ -264,12 +262,12 @@ impl ComputationGraph {
 }
 
 impl AutogradFunction for GlobalFunction {
-    fn apply(&mut self, inputs: &[&Arc<Variable>]) -> MlResult<Arc<Variable>> {
+    fn apply(&mut self, inputs: &[&Variable]) -> MlResult<Variable> {
         let tensors: Vec<&dyn TensorBase> = inputs
             .iter()
             .map(|&var| var.tensor() as &dyn TensorBase)
             .collect::<Vec<&dyn TensorBase>>();
-        let output = Arc::new(Variable::new(self.forward(&tensors)?.remove(0).to_id()?));
+        let output = Variable::new(self.forward(&tensors)?.remove(0).to_id()?);
 
         #[cfg(feature = "enableBackpropagation")]
         {
@@ -284,7 +282,7 @@ impl AutogradFunction for GlobalFunction {
         Ok(output)
     }
 
-    fn apply_with_label(&mut self, inputs: &[&Arc<Variable>], label: &str) -> MlResult<Arc<Variable>> {
+    fn apply_with_label(&mut self, inputs: &[&Variable], label: &str) -> MlResult<Variable> {
         let tensors: Vec<&dyn TensorBase> = inputs
             .iter()
             .map(|&var| var.tensor() as &dyn TensorBase)

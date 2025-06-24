@@ -12,7 +12,7 @@ impl SigmoidLayer {
 }
 
 impl Layer for SigmoidLayer {
-    fn apply(&mut self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
+    fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let output = self.operator.forward(&[input.tensor()])?.remove(0);
         let applied = match self.inputs.contains(&input.node_id()) {
             true => output.with_id(*self.outputs.get(&input.node_id()).unwrap())?,
@@ -22,7 +22,9 @@ impl Layer for SigmoidLayer {
                 tensor
             }
         };
-        Ok(var_act!(applied, self.label()).with_grad_fn(self.operator.type_name(), &[&input]))
+        let var_act = var_act!(applied, self.label());
+        var_act.with_grad_fn(self.operator.type_name(), &[&input]);
+        Ok(var_act)
     }
 
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {

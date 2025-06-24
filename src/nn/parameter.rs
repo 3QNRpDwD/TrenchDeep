@@ -1,20 +1,18 @@
-use crate::MlError;
-use crate::tensor::COMPUTATION_GRAPH;
 use super::*;
 
 impl Parameter for Variable {
     fn new(tensor: Tensor) -> Self {
         #[cfg(feature = "enableVisualization")]
-        let label = LabelGenerator::generate_label(&tensor, None);
+        let label = crate::tensor::creation::LabelGenerator::generate_label(&tensor, None);
 
         Variable {
             #[cfg(feature = "enableVisualization")]
             label,
             #[cfg(feature = "enableVisualization")]
-            node_type: NodeType::Variable,
+            node_type: crate::tensor::NodeType::Variable,
+            grad: tensor.zeros_like(),
             tensor,
-            requires_grad: cfg!(feature = "requiresGrad").into(),
-            grad: None.into(),
+            requires_grad: cfg!(feature = "requiresGrad").into()
         }
     }
 
@@ -31,21 +29,21 @@ impl Parameter for Variable {
 
     fn retain_grad(&self) {
         self.requires_grad.replace(true);
+        self.grad.replace(GlobalTensor::zeros(self.tensor.shape()))
     }
 
-    fn grad(&self) -> Option<&Tensor> {
-        let ptr: *const Option<Tensor> = self.grad.as_ptr();
-        unsafe { ptr.as_ref().unwrap().as_ref() }
+    fn grad(&self) -> &Tensor {
+        &self.grad
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn set_grad(&self, grad: Tensor) {
-        self.grad.replace(Some(grad));
+    fn set_grad(&self, grad: GlobalTensor<f32>) {
+        self.grad.replace(grad);
     }
 
     #[cfg(feature = "enableVisualization")]
     fn set_label(&mut self, new_label: &str) {
-        self.label = LabelGenerator::get_unique_label(new_label);
+        self.label = crate::tensor::creation::LabelGenerator::get_unique_label(new_label);
     }
 
     /// 현재 라벨 반환
@@ -55,17 +53,17 @@ impl Parameter for Variable {
     }
 
     #[cfg(feature = "enableVisualization")]
-    fn node_type(&self) -> &NodeType {
+    fn node_type(&self) -> &crate::tensor::NodeType {
         &self.node_type
     }
 
     ///
     #[cfg(feature = "enableBackpropagation")]
     fn clear_grad(&self) {
-        if !self.grad().is_none() && !self.is_retain_grad() {
-            TENSOR_STORAGE.with_borrow_mut(|storage| {
-                storage.remove(&self.grad().unwrap().id()) // 만약 스토리지가 분리되면 그냥 그래프를 초기화하면 되기 때문에 성능이 더욱 향상될듯함
-            });
+        if self.grad().is_empty() && !self.is_retain_grad() {
+            // TENSOR_STORAGE.with_borrow_mut(|storage| {
+            //     storage.remove(&self.grad().id()) // 만약 스토리지가 분리되면 그냥 그래프를 초기화하면 되기 때문에 성능이 더욱 향상될듯함
+            // });
             // 기존에 Variable 이 텐서를 소유하던 구조에서 기울기를 지우던 로직을 그대로 사용해서
             // 텐서 스토리지에 있던 기울기가 사라지지 않고 그대로 남아있던 문제가 있었음.
             // 따라서 해당 부분을 지우는 로직을 추가함.
@@ -73,34 +71,28 @@ impl Parameter for Variable {
             // 성능이 저하되는 문제가 있음. 따라서 텐서 스토리지와 계산그래프 전용 텐서 스토리지를 만들어서 완전히 분리하던가,
             // 배치별로 다른 스토리지를 만들어서 관리하도록 하던가하는 방법으로 최적화 해야할듯함.
             // 최종적으로 정적 계산그래프로 전환한다면 더욱 성능향상이 기대됨.
-            self.grad.replace(None);
+            self.grad.replace(GlobalTensor::zeros(self.tensor.shape()));
         }
     }
 
     #[cfg(feature = "enableBackpropagation")]
     fn accumulate_grad(&self, new_grad: Tensor) -> MlResult<()> {
-        if let Some(existing_grad) = self.grad() {
-            // 차원 검증 추가
-            if existing_grad.shape() != new_grad.shape() {
-                return Err(TensorError::InvalidShape {
-                    expected: existing_grad.shape().to_vec(),
-                    got: new_grad.shape().to_vec(),
-                }.into());
-            }
-
-            // 가능하다면 in-place 연산을 사용하여 효율성 개선
-            let mut accumulated_data = existing_grad.data().to_vec();
-            for (i, &val) in new_grad.data().iter().enumerate() {
-                accumulated_data[i] += val;
-            }
-
-            Tensor::with_id(accumulated_data, existing_grad.shape(), self.grad().unwrap().id())
-                .map_err(|e| format!("Failed gradient accumulation: {:?}", e))?;
-        } else {
-            self.set_grad(new_grad);
+        // 차원 검증 추가
+        if self.grad.shape() != new_grad.shape() {
+            return Err(TensorError::InvalidShape {
+                expected: self.grad.shape().to_vec(),
+                got: new_grad.shape().to_vec(),
+            }.into());
         }
 
+        // 가능하다면 in-place 연산을 사용하여 효율성 개선
+        let mut accumulated_data = self.grad.data().to_vec();
+        for (i, &val) in new_grad.data().iter().enumerate() {
+            accumulated_data[i] += val;
+        }
 
+        Tensor::with_id(accumulated_data, self.grad.shape(), self.grad().id())
+            .map_err(|e| format!("Failed gradient accumulation: {:?}", e))?;
         Ok(())
     }
 }
@@ -108,33 +100,48 @@ impl Parameter for Variable {
 impl Variable {
     /// 사용자 정의 라벨로 변수 생성
     pub fn with_label(tensor: Tensor, label_hint: &str) -> Self {
+        let label = "unlabeled".to_string();
+        let retains_grad = cfg!(feature = "requiresGrad");
+
         #[cfg(feature = "enableVisualization")]
-        let label = LabelGenerator::generate_label(&tensor, Some(label_hint));
-        #[cfg(feature = "enableVisualization")]
-        let node_type = if label.contains("input") {
-            NodeType::Input
-        } else if label.contains("weight") {
-            NodeType::Weight
-        } else if label.contains("bias") {
-            NodeType::Bias
-        } else if label.contains("output") {
-            NodeType::Output
-        } else if label.contains("act") {
-            NodeType::Activation
-        } else if label.contains("loss") {
-            NodeType::Loss
-        } else {
-            NodeType::Variable
-        };
+        {
+            use crate::tensor::NodeType;
+            let label = crate::tensor::creation::LabelGenerator::generate_label(&tensor, Some(label_hint));
+            let node_type = if label.contains("input") {
+                NodeType::Input
+            } else if label.contains("weight") {
+                NodeType::Weight
+            } else if label.contains("bias") {
+                NodeType::Bias
+            } else if label.contains("output") {
+                NodeType::Output
+            } else if label.contains("act") {
+                NodeType::Activation
+            } else if label.contains("loss") {
+                NodeType::Loss
+            } else {
+                NodeType::Variable
+            };
+
+            return Variable {
+                #[cfg(feature = "enableVisualization")]
+                label,
+                #[cfg(feature = "enableVisualization")]
+                node_type: crate::tensor::NodeType::Variable,
+                grad: tensor.zeros_like(),
+                tensor,
+                requires_grad: cfg!(feature = "requiresGrad").into()
+            }
+        }
 
         Variable {
             #[cfg(feature = "enableVisualization")]
             label,
             #[cfg(feature = "enableVisualization")]
-            node_type,
+            node_type: crate::tensor::NodeType::Variable,
+            grad: tensor.zeros_like(),
             tensor,
-            requires_grad: cfg!(feature = "requiresGrad").into(),
-            grad: None.into(),
+            requires_grad: cfg!(feature = "requiresGrad").into()
         }
     }
 
@@ -188,11 +195,11 @@ impl Variable {
     /// 텐서 정보와 함께 디버그 정보 출력
     pub fn debug_info(&self) -> String {
         format!(
-            "Variable '{}': tensor={:?}, requires_grad={:?}, has_grad={}",
+            "Variable '{}': tensor={:?}, requires_grad={:?}, grad={:?}",
             self.label(),
             self.tensor(),
             self.is_retain_grad(),
-            self.grad().is_some(),
+            self.grad(),
         )
     }
 }
@@ -211,15 +218,14 @@ impl PartialEq for &Variable {
 macro_rules! var_input {
     ($tensor:expr) => {
         {
-            use std::sync::Arc;
             #[cfg(feature = "enableVisualization")]
             {
-                Arc::new(crate::nn::Variable::new_input($tensor))
+                crate::nn::Variable::new_input($tensor)
             }
 
             #[cfg(not(feature = "enableVisualization"))]
             {
-                Arc::new(crate::nn::Variable::new($tensor))
+                crate::nn::Variable::new($tensor)
             }
         }
     };
@@ -229,15 +235,14 @@ macro_rules! var_input {
 macro_rules! var_output {
     ($tensor:expr) => {
         {
-            use std::sync::Arc;
             #[cfg(feature = "enableVisualization")]
             {
-                Arc::new(crate::nn::Variable::new_output($tensor))
+                crate::nn::Variable::new_output($tensor)
             }
 
             #[cfg(not(feature = "enableVisualization"))]
             {
-                Arc::new(crate::nn::Variable::new($tensor))
+                crate::nn::Variable::new($tensor)
             }
         }
     };
@@ -250,12 +255,12 @@ macro_rules! var_act {
             use std::sync::Arc;
             #[cfg(feature = "enableVisualization")]
             {
-                Arc::new(crate::nn::Variable::new_activation($tensor, $type_name))
+                crate::nn::Variable::new_activation($tensor, $type_name)
             }
 
             #[cfg(not(feature = "enableVisualization"))]
             {
-                Arc::new(crate::nn::Variable::new($tensor))
+                crate::nn::Variable::new($tensor)
             }
         }
     };
@@ -265,15 +270,14 @@ macro_rules! var_act {
 macro_rules! var_weight {
     ($tensor:expr) => {
         {
-            use std::sync::Arc;
             #[cfg(feature = "enableVisualization")]
             {
-                Arc::new(crate::nn::Variable::new_weight($tensor))
+                crate::nn::Variable::new_weight($tensor)
             }
 
             #[cfg(not(feature = "enableVisualization"))]
             {
-                Arc::new(crate::nn::Variable::new($tensor))
+                crate::nn::Variable::new($tensor)
             }
         }
     };
@@ -283,15 +287,14 @@ macro_rules! var_weight {
 macro_rules! var_bias {
     ($tensor:expr) => {
         {
-            use std::sync::Arc;
             #[cfg(feature = "enableVisualization")]
             {
-                Arc::new(crate::nn::Variable::new_bias($tensor))
+                crate::nn::Variable::new_bias($tensor)
             }
 
             #[cfg(not(feature = "enableVisualization"))]
             {
-                Arc::new(crate::nn::Variable::new($tensor))
+                crate::nn::Variable::new($tensor)
             }
         }
     };
@@ -301,15 +304,14 @@ macro_rules! var_bias {
 macro_rules! var_with_label {
     ($tensor:expr, $label:expr) => {
         {
-            use std::sync::Arc;
             #[cfg(feature = "enableVisualization")]
             {
-                Arc::new(crate::nn::Variable::with_label($tensor, $label))
+                crate::nn::Variable::with_label($tensor, $label)
             }
 
             #[cfg(not(feature = "enableVisualization"))]
             {
-                Arc::new(crate::nn::Variable::new($tensor))
+                crate::nn::Variable::new($tensor)
             }
         }
     };

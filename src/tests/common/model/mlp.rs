@@ -48,7 +48,7 @@ impl MLP {
 impl Model for MLP {
 
     #[cfg(feature = "enableBackpropagation")]
-    fn train(&mut self, x_set: &[Arc<Variable>], t_set: &[Arc<Variable>], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()> {
+    fn train(&mut self, x_set: &[&Variable], t_set: &[&Variable], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()> {
         let n_batches = x_set.len();
         let training_start_time = Instant::now();
         let lr = Tensor::scalar(learning_rate);
@@ -111,13 +111,9 @@ impl Model for MLP {
                 let backward_start = Instant::now();
                 loss_var.backward()?;
                 let backward_duration = backward_start.elapsed();
-                let grad_norm = if let Some(grad) = self.w1.grad() {
-                    grad.data().iter().map(|&x| x * x).sum::<f32>().sqrt()
-                } else {
-                    0.0
-                };
+                let grad_norm = self.w1.grad().data().iter().map(|&x| x * x).sum::<f32>().sqrt();
 
-                if self.w1.grad().is_some_and(|d| d.data()[0].is_nan()) || self.b1.grad().is_some_and(|d| d.data()[0].is_nan()) {
+                if self.w1.grad().data()[0].is_nan() || self.w2.grad().data()[0].is_nan() || self.b1.grad().data()[0].is_nan() || self.b2.grad().data()[0].is_nan() {
                     epoch_bar.abandon_with_message("❌ Error: NaN Gradient");
                     batch_bar.abandon_with_message("NaN Gradient");
                     error!("gradient is NaN or infinity: {}. Suspended training.", total_loss);
@@ -125,11 +121,7 @@ impl Model for MLP {
                 }
 
                 self.update(&lr)?;
-                let update_norm = if let Some(grad) = self.w1.grad() {
-                    grad.data().iter().map(|&g| (learning_rate * g).powi(2)).sum::<f32>().sqrt()
-                } else {
-                    0.0
-                };
+                let update_norm = self.w1.grad().data().iter().map(|&g| (learning_rate * g).powi(2)).sum::<f32>().sqrt();
                 let weight_norm = self.w1.tensor().data().iter().map(|&w| w * w).sum::<f32>().sqrt();
                 let update_ratio = if weight_norm > 1e-6 { update_norm / weight_norm } else { 0.0 };
 
@@ -186,19 +178,17 @@ impl Model for MLP {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn apply(&mut self, x: &Arc<Variable>) -> MlResult<Arc<Variable>> {
+    fn apply(&mut self, x: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
         let mut add = Add::new()?;
 
-        // 1) 첫 번째 은닉층
         let uh1_pre = matmul.apply(&[&self.w1, x])?;
         let uh1 = add.apply(&[&uh1_pre, &self.b1])?;
-        let ah1 = self.hidden_activation.apply(&[&uh1])?;
+        let ah1 = self.layer.apply(&uh1)?;
 
-        // 2) 두 번째 은닉층: 첫 번째 은닉층의 출력(ah1)을 입력으로 받음
         let uh2_pre = matmul.apply(&[&self.w2, &ah1])?;
         let uh2 = add.apply(&[&uh2_pre, &self.b2])?;
-        let ah2 = self.output_activation.apply(&[&uh2])?;
+        let ah2 = self.layer.apply(&uh2)?;
 
         Ok(ah2)
     }
@@ -207,25 +197,23 @@ impl Model for MLP {
         let mut matmul = Matmul::new()?;
         let mut add = Add::new()?;
 
-        // 1) 은닉층: u_h = W1 * x + b1
         let uh1_pre = matmul.forward(&[self.w1.tensor(), x])?.remove(0);
         let uh1 = add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0);
-        let ah1 = self.hidden_activation.predict(&[&uh1])?.remove(0);
+        let ah1 = self.layer.predict(&uh1)?;
 
-        // 3) 은닉층: u_h = W1 * x + b1
         let uh2_pre = matmul.forward(&[self.w2.tensor(), &ah1])?.remove(0);
         let uh2 = add.forward(&[&uh2_pre, self.b2.tensor()])?.remove(0);
-        let ah2 = self.output_activation.predict(&[&uh2])?.remove(0);
+        let ah2 = self.layer.predict(&uh2)?;
 
         Ok(ah2)
     }
 
     #[cfg(feature = "enableBackpropagation")]
     fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()> {
-        self.w1.sub_tensor(self.w1.grad().unwrap() as &dyn TensorBase * lr)?;
-        self.w2.sub_tensor(self.w2.grad().unwrap() as &dyn TensorBase * lr)?;
-        self.b1.sub_tensor(self.b1.grad().unwrap() as &dyn TensorBase * lr)?;
-        self.b2.sub_tensor(self.b2.grad().unwrap() as &dyn TensorBase * lr)?;
+        self.w1.sub_tensor(self.w1.grad() as &dyn TensorBase * lr)?;
+        self.w2.sub_tensor(self.w2.grad() as &dyn TensorBase * lr)?;
+        self.b1.sub_tensor(self.b1.grad() as &dyn TensorBase * lr)?;
+        self.b2.sub_tensor(self.b2.grad() as &dyn TensorBase * lr)?;
         Ok(())
     }
 
@@ -250,10 +238,10 @@ impl Model for MLP {
         todo!()
     }
 
-    fn compute_total_error(&mut self, X: &[Arc<Variable>], T: &[Arc<Variable>]) -> MlResult<f32> {
+    fn compute_total_error(&mut self, X: &[&Variable], T: &[&Variable]) -> MlResult<f32> {
         let mut total_loss = 0.0;
         for m in 0..X.len() {
-            let y = self.predict(&X[m].tensor())?;
+            let y = self.predict(X[m].tensor())?;
             let loss = self.loss_function.forward(&[&y, T[m].tensor()])?.remove(0);
             total_loss += loss.data()[0];
         }

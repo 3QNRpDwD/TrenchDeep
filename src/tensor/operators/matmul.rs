@@ -12,7 +12,7 @@ impl Function for Matmul {
     ///
     /// # Returns
     /// A new tensor with the result of the matrix multiplication
-    // Handle empty tensors
+    // Handle new_empty tensors
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         if targets[0].data().is_empty() || targets[1].data().is_empty() {
             return Err(MlError::TensorError(TensorError::EmptyTensor));
@@ -477,7 +477,7 @@ mod tests {
         let a = Tensor::from_vec(vec![], &[0, 2])?;
         let b = Tensor::from_vec(vec![], &[2, 0])?;
 
-        // This should return an error for empty tensors
+        // This should return an error for new_empty tensors
         assert!(matmul.forward(&[&a, &b]).is_err());
         Ok(())
     }

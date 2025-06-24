@@ -1,7 +1,7 @@
 use super::*;
 
 impl Layer for Pooling {
-    fn apply(&mut self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
+    fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         todo!()
     }
 

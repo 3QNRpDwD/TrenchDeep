@@ -34,32 +34,29 @@ impl Linear {
 
 
 impl Layer for Linear {
-    fn apply(&mut self, input: Arc<Variable>) -> MlResult<Arc<Variable>> {
+    fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
         let mut add = Add::new()?;
+        let in_id = input.node_id();
 
         // 2. y = xW + b 연산을 수행합니다.
-        let x = matmul.apply(&[&input, &self.weight])?;
+        let x = matmul.apply(&[input, &self.weight])?;
         let output = add.apply(&[&x, &self.bias])?;
 
         // 3. 입/출력 노드 ID를 캐시에 저장합니다.
-        self.inputs.insert(input.node_id());
-        self.outputs.insert(input.node_id(), output.node_id());
+        self.inputs.insert(in_id);
+        self.outputs.insert(in_id, output.node_id());
 
         Ok(output)
     }
-
-    /// 계산 그래프를 구성하지 않고 순수하게 예측만 수행합니다. (추론 시 사용)
+    
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
-        // 1. 사용할 연산자의 핸들을 가져옵니다.
         let matmul = Matmul::new()?;
         let add = Add::new()?;
 
-        // 2. Variable에서 실제 Tensor 데이터를 가져옵니다.
         let weight_tensor = self.weight.tensor();
         let bias_tensor = self.bias.tensor();
 
-        // 3. Function 트레이트의 forward 메소드를 직접 호출하여 순수 계산만 수행합니다.
         let x = matmul.forward(&[input, weight_tensor])?.remove(0);
         let output = add.forward(&[&x, bias_tensor])?.remove(0);
 
@@ -68,7 +65,7 @@ impl Layer for Linear {
 
     /// 이 레이어가 소유한 모든 파라미터(가중치, 편향)의 참조를 반환합니다.
     fn params(&self) -> Vec<&dyn Parameter> {
-        vec![self.weight.as_ref(), self.bias.as_ref()]
+        vec![&self.weight, &self.bias]
     }
 
     fn inputs_cache(&self) -> &HashSet<NodeId> {

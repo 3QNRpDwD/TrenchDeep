@@ -32,7 +32,7 @@ impl SoftmaxRegression {
 
 impl Model for SoftmaxRegression {
     #[cfg(feature = "enableBackpropagation")]
-    fn train(&mut self, x_set: &[Arc<Variable>], t_set: &[Arc<Variable>], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()> {
+    fn train(&mut self, x_set: &[&Variable], t_set: &[&Variable], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()> {
         let n_batches = x_set.len();
         let training_start_time = Instant::now();
         let lr = Tensor::scalar(learning_rate);
@@ -73,7 +73,7 @@ impl Model for SoftmaxRegression {
                     .progress_chars("█ "),
             );
 
-            for (x, t) in x_set.iter().zip(t_set.iter()) {
+            for (&x, &t) in x_set.iter().zip(t_set.iter()) {
                 ComputationGraph::reset_graph();
 
                 // --- 2. 순전파 시간 측정 ---
@@ -95,25 +95,17 @@ impl Model for SoftmaxRegression {
                 let backward_start = Instant::now();
                 loss_var.backward()?;
                 let backward_duration = backward_start.elapsed();
-                let grad_norm = if let Some(grad) = self.w1.grad() {
-                    grad.data().iter().map(|&x| x * x).sum::<f32>().sqrt()
-                } else {
-                    0.0
-                };
+                let grad_norm = self.w1.grad().data().iter().map(|&x| x * x).sum::<f32>().sqrt();
 
-                if self.w1.grad().is_some_and(|d| d.data()[0].is_nan()) || self.b1.grad().is_some_and(|d| d.data()[0].is_nan()) {
+                if self.w1.grad().data()[0].is_nan() || self.b1.grad().data()[0].is_nan() {
                     epoch_bar.abandon_with_message("❌ Error: NaN Gradient");
                     batch_bar.abandon_with_message("NaN Gradient");
                     error!("gradient is NaN or infinity: {}. Suspended training.", total_loss);
                     return Err(MlError::StringError("During training, numerical instability occurs".to_string()));
                 }
-
+                
                 self.update(&lr)?;
-                let update_norm = if let Some(grad) = self.w1.grad() {
-                    grad.data().iter().map(|&g| (learning_rate * g).powi(2)).sum::<f32>().sqrt()
-                } else {
-                    0.0
-                };
+                let update_norm = self.w1.grad().data().iter().map(|&g| (learning_rate * g).powi(2)).sum::<f32>().sqrt();
                 let weight_norm = self.w1.tensor().data().iter().map(|&w| w * w).sum::<f32>().sqrt();
                 let update_ratio = if weight_norm > 1e-6 { update_norm / weight_norm } else { 0.0 };
 
@@ -152,7 +144,7 @@ impl Model for SoftmaxRegression {
             );
             epoch_bar.set_message(log_message);
             epoch_bar.inc(1);
-
+            
             if (last_loss - avg_loss).abs() < tolerance {
                 epoch_bar.finish_with_message("✅ Converged");
                 info!("Loss has converged. Early stopping.");
@@ -172,7 +164,7 @@ impl Model for SoftmaxRegression {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn apply(&mut self, x: &Arc<Variable>) -> MlResult<Arc<Variable>> {
+    fn apply(&mut self, x: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
         let mut add = Add::new()?;
 
@@ -195,8 +187,8 @@ impl Model for SoftmaxRegression {
 
     #[cfg(feature = "enableBackpropagation")]
     fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()> {
-        self.w1.sub_tensor(self.w1.grad().unwrap() as &dyn TensorBase * lr)?;
-        self.b1.sub_tensor(self.b1.grad().unwrap() as &dyn TensorBase * lr)?;
+        self.w1.sub_tensor(self.w1.grad() as &dyn TensorBase * lr)?;
+        self.b1.sub_tensor(self.b1.grad() as &dyn TensorBase * lr)?;
         Ok(())
     }
 
@@ -219,10 +211,10 @@ impl Model for SoftmaxRegression {
         todo!()
     }
 
-    fn compute_total_error(&mut self, X: &[Arc<Variable>], T: &[Arc<Variable>]) -> MlResult<f32> {
+    fn compute_total_error(&mut self, X: &[&Variable], T: &[&Variable]) -> MlResult<f32> {
         let mut total_loss = 0.0;
         for m in 0..X.len() {
-            let y = self.predict(&X[m].tensor())?;
+            let y = self.predict(X[m].tensor())?;
             let loss = self.loss_function.forward(&[&y, T[m].tensor()])?.remove(0);
             total_loss += loss.data()[0];
         }
