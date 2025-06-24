@@ -6,7 +6,6 @@ mod parameter;
 
 use crate::{register_operator, var_act, var_bias, var_weight, backend::Backend, MlResult, TensorError, tensor::{
     operators::{Add, Div, Matmul, Mul, Sub},
-    TENSOR_STORAGE,
     operators::Function,
     GlobalFunction,
     GlobalTensor,
@@ -191,18 +190,41 @@ pub struct Sequential {
     params: HashSet<NodeId>
 }
 
+#[macro_export]
+macro_rules! sequential {
+    ($($layer:expr),* $(,)?) => {
+        {
+            let mut seq = Sequential::new();
+            $(seq.push($layer);)*
+            seq
+        }
+    };
+}
+
 impl Sequential {
     pub fn new() -> Self {
         Self { label: "Sequential".to_string(), layers: vec![], params: HashSet::new() }
     }
 
-    pub fn from(layers: Vec<Box<dyn Layer>>) -> Self {
-        Self { label: "Sequential".to_string(), layers, params: HashSet::new() }
+    pub fn from<T: Layer+ 'static>(layers: Vec<T>) -> Self {
+        // 각 레이어를 Box로 감싸서 트레이트 객체로 변환
+        let boxed_layers: Vec<Box<dyn Layer>> = layers
+            .into_iter()
+            .map(|layer| Box::new(layer) as Box<dyn Layer>)
+            .collect();
+
+        Self {
+            label: "Sequential".to_string(),
+            layers: boxed_layers,
+            params: HashSet::new(),
+        }
     }
 
-    pub fn push(&mut self, layer: Box<dyn Layer>) {
-        self.layers.push(layer);
+    pub fn add_layer<T: Layer+ 'static>(mut self, layer: T) -> Self {
+        self.layers.push(Box::new(layer) as Box<dyn Layer>);
+        self
     }
+
     
     pub fn remove(&mut self, index: usize) -> Box<dyn Layer> {
         self.layers.remove(index)

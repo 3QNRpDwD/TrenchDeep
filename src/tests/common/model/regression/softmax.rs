@@ -7,9 +7,9 @@ impl SoftmaxRegression {
         loss_function: GlobalFunction,
     ) -> Self {
 
-        let mut layer = Sequential::new();
-        layer.push(Box::new(Linear::new(layer_parms[0], layer_parms[1], "linea layer").unwrap()));
-        layer.push(Box::new(SoftmaxLayer::new("softmax_linear")));
+        let layer = Sequential::new()
+            .add_layer(Linear::new(layer_parms[0], layer_parms[1], "linea layer").unwrap())
+            .add_layer(SoftmaxLayer::new("softmax layer"));
         info!("SoftmaxRegression::new() - layer_parms: {:?}, {:?}", layer.params()[0].tensor().shape(), layer.params()[1].tensor().shape());
         Self { layer, loss_function }
     }
