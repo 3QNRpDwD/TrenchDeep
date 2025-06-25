@@ -57,8 +57,6 @@ pub trait Layer: Debug {
     fn apply(&mut self, input: &Variable) -> MlResult<Variable>;
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>>;
     fn params(&self) -> Vec<&dyn Parameter>;
-    fn inputs_cache(&self) -> &HashMap<HandleId, HandleId> ;
-    fn inputs_cache_mut(&mut self) -> &mut HashMap<HandleId, HandleId> ;
     fn type_name(&self) -> &str {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
     } // 레이어를 구현하는 구조체의 이름을 반환
@@ -252,8 +250,6 @@ impl Layer for Sequential {
         Ok(output)
     }
     fn params(&self) -> Vec<&dyn Parameter> { self.layers.iter().flat_map(|layer| layer.params()).collect() }
-    fn inputs_cache(&self) -> &HashMap<HandleId, HandleId> { todo!() }
-    fn inputs_cache_mut(&mut self) -> &mut HashMap<HandleId, HandleId> { todo!() }
     fn label(&self) -> &str { &self.label }
 }
 

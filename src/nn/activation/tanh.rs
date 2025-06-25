@@ -12,24 +12,12 @@ impl TanhLayer {
 
 impl Layer for TanhLayer {
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
-        let output = self.operator.forward(&[input.tensor()])?.remove(0);
-        let in_id = input.node_id();
-        let applied = match self.cache.contains_key(&in_id) {
-            true => output.with_id(*self.cache.get(&in_id).unwrap())?,
-            false => {
-                let temp = output.to_id()?;
-                self.cache.insert(in_id, temp.id());
-                temp
-            }
-        };
-        let var_act = var_act!(applied, self.label());
-        var_act.with_grad_fn(self.operator.name(), &[&input]);
-        Ok(var_act)
+        let output = var_act!(self.operator.forward(&[input.tensor()])?.remove(0).to_id()?, self.label());
+        output.with_grad_fn(self.operator.name(), &[&input]);
+        Ok(output)
     }
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> { Ok(self.operator.forward(&[input])?.remove(0)) }
     fn params(&self) -> Vec<&dyn Parameter> { vec![] }
-    fn inputs_cache(&self) -> &HashMap<HandleId, HandleId> { &self.cache }
-    fn inputs_cache_mut(&mut self) -> &mut HashMap<HandleId, HandleId> { &mut self.cache }
     fn label(&self) -> &str { &self.label }
 }
 

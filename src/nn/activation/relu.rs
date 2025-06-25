@@ -28,8 +28,6 @@ impl Layer for ReLULayer {
     }
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> { Ok(self.operator.forward(&[input])?.remove(0))}
     fn params(&self) -> Vec<&dyn Parameter> { vec![] }
-    fn inputs_cache(&self) -> &HashMap<HandleId, HandleId> { &self.cache }
-    fn inputs_cache_mut(&mut self) -> &mut HashMap<HandleId, HandleId> { &mut self.cache }
     fn label(&self) -> &str { &self.label }
 }
 

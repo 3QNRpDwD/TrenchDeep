@@ -35,34 +35,19 @@ impl Layer for Linear {
         let x = self.matmul.forward(&[self.weight.tensor(), input.tensor()])?.remove(0);
         let output = self.add.forward(&[&x, self.bias.tensor()])?.remove(0);
 
-        let in_id = input.node_id();
-        let applied = var_loss!(match self.cache.contains_key(&in_id) {  // 입출력에 대한 계산그래프 구성을 재설계 해야함
-            true => output.with_id(*self.cache.get(&in_id).unwrap())?,
-            false => {
-                let temp = output.to_id()?;
-                self.cache.insert(in_id, temp.id());
-                temp
-            }
-        });
-
         x.with_grad_fn(self.type_name(), &[&input]); // 입출력에 대한 계산그래프 구성을 재설계 해야함
-        applied.with_grad_fn(self.type_name(), &[&x, self.bias.tensor()]);
+        output.with_grad_fn(self.type_name(), &[&x, self.bias.tensor()]);
         Ok(applied)
     }
 
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
-        let weight_tensor = self.weight.tensor();
-        let bias_tensor = self.bias.tensor();
-
-        let x = self.matmul.forward(&[weight_tensor, input])?.remove(0);
-        let output = self.add.forward(&[&x, bias_tensor])?.remove(0);
+        let x = self.matmul.forward(&[self.weight.tensor(), input])?.remove(0);
+        let output = self.add.forward(&[&x, self.bias.tensor()])?.remove(0);
 
         Ok(output)
     }
 
     /// 이 레이어가 소유한 모든 파라미터(가중치, 편향)의 참조를 반환합니다.
     fn params(&self) -> Vec<&dyn Parameter> { vec![&self.weight, &self.bias] }
-    fn inputs_cache(&self) -> &HashMap<HandleId, HandleId> { &self.cache }
-    fn inputs_cache_mut(&mut self) -> &mut HashMap<HandleId, HandleId> { &mut self.cache }
     fn label(&self) -> &str { &self.label }
 }

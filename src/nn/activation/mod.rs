@@ -17,7 +17,6 @@ pub struct Sigmoid {
 #[derive(Debug, Clone)]
 pub struct SigmoidLayer {
     label: String,
-    cache: HashMap<HandleId, HandleId>,
     operator: GlobalFunction
 }
 
@@ -29,7 +28,6 @@ pub struct Tanh    {
 #[derive(Debug, Clone)]
 pub struct TanhLayer {
     label: String,
-    cache: HashMap<HandleId, HandleId>,
     operator: GlobalFunction
 }
 
@@ -41,7 +39,6 @@ pub struct ReLU {
 #[derive(Debug, Clone)]
 pub struct ReLULayer {
     label: String,
-    cache: HashMap<HandleId, HandleId>,
     operator: GlobalFunction
 }
 
@@ -53,6 +50,5 @@ pub struct Softmax {
 #[derive(Debug, Clone)]
 pub struct SoftmaxLayer {
     label: String,
-    cache: HashMap<HandleId, HandleId>,
     operator: GlobalFunction
 }
