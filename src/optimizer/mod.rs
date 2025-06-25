@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 use crate::backend::Backend;
 use crate::nn::Parameter;
-use crate::tensor::{NodeId, Tensor};
+use crate::tensor::{HandleId, Tensor};
 use crate::tensor::operators::Function;
 
 
@@ -12,25 +12,25 @@ pub enum OptimError {
     GradientError(String),
 }
 
-pub struct BGD { backend: Arc<dyn Backend>, node_id: NodeId }
+pub struct BGD { backend: Arc<dyn Backend>, node_id: HandleId }
 
-pub struct SGD { backend: Arc<dyn Backend>, node_id: NodeId }
+pub struct SGD { backend: Arc<dyn Backend>, node_id: HandleId }
 
-pub struct  MiniBGD { backend: Arc<dyn Backend>, node_id: NodeId }
+pub struct  MiniBGD { backend: Arc<dyn Backend>, node_id: HandleId }
 
-pub struct Momentum { backend: Arc<dyn Backend>, node_id: NodeId }
+pub struct Momentum { backend: Arc<dyn Backend>, node_id: HandleId }
 
-pub struct NAG { backend: Arc<dyn Backend>, node_id: NodeId }
+pub struct NAG { backend: Arc<dyn Backend>, node_id: HandleId }
 
-pub struct AdaGrad { backend: Arc<dyn Backend>, node_id: NodeId }
+pub struct AdaGrad { backend: Arc<dyn Backend>, node_id: HandleId }
 
-pub struct AdaDelta { backend: Arc<dyn Backend>, node_id: NodeId }
+pub struct AdaDelta { backend: Arc<dyn Backend>, node_id: HandleId }
 
-pub struct RMSProp { backend: Arc<dyn Backend>, node_id: NodeId }
+pub struct RMSProp { backend: Arc<dyn Backend>, node_id: HandleId }
 
-pub struct Adam { backend: Arc<dyn Backend>, node_id: NodeId }
+pub struct Adam { backend: Arc<dyn Backend>, node_id: HandleId }
 
-pub struct AdamW { backend: Arc<dyn Backend>, node_id: NodeId }
+pub struct AdamW { backend: Arc<dyn Backend>, node_id: HandleId }
 
 pub trait Optimizer<T: Debug + Clone> {
     fn step(&self);

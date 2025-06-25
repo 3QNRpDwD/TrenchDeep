@@ -11,7 +11,7 @@ impl Variable {
         COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
 
-            let input_ids: Vec<NodeId> = inputs.iter().map(|&input_var| {
+            let input_ids: Vec<HandleId> = inputs.iter().map(|&input_var| {
                 let input_id = input_var.node_id();
                 if !graph.node_map.contains_key(&input_id) {
                     graph.add_input(input_var.clone());
@@ -53,7 +53,7 @@ impl ComputationGraph {
     }
 
 
-    pub(crate) fn add_input(&mut self, variable: Variable) -> NodeId {
+    pub(crate) fn add_input(&mut self, variable: Variable) -> HandleId {
         let node_id = variable.node_id();
         let node_idx = self.nodes.len();
         
@@ -83,7 +83,7 @@ impl ComputationGraph {
         node_id
     }
 
-    pub(crate) fn add_operation(&mut self, variable: Variable, operator_name: &str, inputs: Vec<NodeId>) -> NodeId {
+    pub(crate) fn add_operation(&mut self, variable: Variable, operator_name: &str, inputs: Vec<HandleId>) -> HandleId {
         #[cfg(feature = "enableVisualization")]
         VISUALIZATION_GRAPH.with(|viz_graph| {
             let mut viz = viz_graph.borrow_mut();
@@ -177,7 +177,7 @@ impl ComputationGraph {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    pub(crate) fn backward(&mut self, output_id: NodeId) -> MlResult<()> {
+    pub(crate) fn backward(&mut self, output_id: HandleId) -> MlResult<()> {
         for node in &self.nodes {
             node.variable.clear_grad();
         }

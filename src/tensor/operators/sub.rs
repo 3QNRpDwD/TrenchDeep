@@ -30,7 +30,7 @@ impl Function for Sub {
         }
     }
 
-    fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: HandleId) -> MlResult<Vec<Tensor>> {
         if targets[0].shape().len() == 2 && targets[1].shape().len() == 1 && targets[0].shape()[1] == targets[1].shape()[0] {
             let (batch_size, features) = (targets[0].shape()[0], targets[0].shape()[1]);
             let mut data = vec![0.0; targets[0].data().len()];
@@ -57,7 +57,7 @@ impl Function for Sub {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    fn node_id(&self) -> &NodeId { &self.node_id }
+    fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
 

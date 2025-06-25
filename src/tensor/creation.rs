@@ -1,5 +1,28 @@
 use super::*;
 
+impl TensorBase for PooledTensor {
+    fn as_ptr(&self) -> *const GlobalTensor<f32> {
+        TENSOR_ALLOCATOR.with_borrow(|allocator| {
+            // `Ref`의 수명을 연장하기 위해 raw 포인터를 사용.
+            // allocator의 borrow가 끝난 후에도 포인터가 유효하다고 가정.
+            let tensor_ref = allocator.get_tensor_ref(&self.0).unwrap();
+            tensor_ref as *const GlobalTensor<f32>
+        })
+    }
+
+    fn shape(&self) -> &[usize] {
+        unsafe { &self.as_ptr().as_ref().unwrap().shape }
+    }
+
+    fn data(&self) -> &[f32] {
+        unsafe { &self.as_ptr().as_ref().unwrap().data }
+    }
+
+    fn get(&self, indices: &[usize]) -> Option<&f32> {
+        self.data().get(self.index(indices)?)
+    }
+}
+
 impl TensorBase for GlobalTensor<f32> {
     fn new(data: Vec<Vec<f32>>) -> Self {
         let shape = vec![data.len(), data[0].len()];
@@ -34,39 +57,6 @@ impl TensorBase for GlobalTensor<f32> {
     fn get(&self, indices: &[usize]) -> Option<&f32> {
         self.data().get(self.index(indices)?)
     }
-
-    fn index(&self, indices: &[usize]) -> Option<usize> {
-        if indices.len() != self.shape().len() {
-            return None;
-        }
-        let mut idx = 0;
-        let shape = self.shape();
-        for (i, &ind) in indices.iter().enumerate() {
-            if ind >= shape[i] {
-                return None;
-            }
-            idx = idx * shape[i] + ind;
-        }
-        Some(idx)
-    }
-
-    /// Verifies if two tensors can perform element-wise operations
-    ///
-    /// # Arguments
-    /// * `other` - The tensor to compare shapes with
-    ///
-    /// # Returns
-    /// * `Ok(())` if the shapes match
-    /// * `Err(MlError::TensorError)` if shapes don't match
-    fn chk_shape(&self, other: &dyn TensorBase) -> MlResult<()> {
-        if self.shape() != other.shape() {
-            return Err(MlError::TensorError(TensorError::InvalidShape {
-                expected: self.shape().to_vec(),
-                got: other.shape().to_vec(),
-            }));
-        }
-        Ok(())
-    }
 }
 
 // 매번 생성된 텐서를 전역 그래프에 저장하느라 심각한 성능저하와 메모리 낭비 발생. 아마도 연산자등에서 생성하는 텐서는 저장되지 않도록 조치를 취해야 할듯.
@@ -75,36 +65,26 @@ impl TensorBase for Tensor {
         let shape = vec![data.len(), data[0].len()];
         let data: Vec<f32> = data.into_iter().flatten().collect();
 
-        let node_id = NODE_ID_GEN.next();
-        TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage.insert(node_id, GlobalTensor { data, shape })
-        });
-        Tensor(node_id)
+        TENSOR_ALLOCATOR.with_borrow_mut(|allocator| {
+            allocator.alloc_permanent(data, shape).unwrap()
+        })
     }
 
     fn from_vec(data: Vec<f32>, shape: &[usize]) -> MlResult<Tensor> {
-        let expected_len: usize = shape.iter().product();
-        if data.len() != expected_len {
-            return Err(MlError::TensorError(TensorError::InvalidDataLength {
-                expected: expected_len,
-                got: data.len(),
-            }));
-        }
-
-        let node_id = NODE_ID_GEN.next();
-        TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage.insert(node_id, GlobalTensor { data, shape: shape.to_vec() })
-        });
-
-        Ok(Tensor(node_id))
+        TENSOR_ALLOCATOR.with_borrow_mut(|allocator| {
+            allocator.alloc_permanent(data, shape.to_vec())
+        })
     }
 
     fn as_ptr(&self) -> *const GlobalTensor<f32> {
-        TENSOR_STORAGE.with(|storage| {
-            storage.borrow().get(&self.0).map(|gt| gt as *const GlobalTensor<f32>).unwrap()
+        TENSOR_ALLOCATOR.with_borrow(|allocator| {
+            // `Ref`의 수명을 연장하기 위해 raw 포인터를 사용.
+            // allocator의 borrow가 끝난 후에도 포인터가 유효하다고 가정.
+            let tensor_ref = allocator.get_tensor_ref(&self.0).unwrap();
+            tensor_ref as *const GlobalTensor<f32>
         })
     }
-    
+
     fn shape(&self) -> &[usize] {
         unsafe { &self.as_ptr().as_ref().unwrap().shape }
     }
@@ -116,73 +96,27 @@ impl TensorBase for Tensor {
     fn get(&self, indices: &[usize]) -> Option<&f32> {
         self.data().get(self.index(indices)?)
     }
+}
 
-    fn index(&self, indices: &[usize]) -> Option<usize> {
-        if indices.len() != self.shape().len() {
-            return None;
-        }
-        let mut idx = 0;
-        let shape = self.shape();
-        for (i, &ind) in indices.iter().enumerate() {
-            if ind >= shape[i] {
-                return None;
-            }
-            idx = idx * shape[i] + ind;
-        }
-        Some(idx)
-    }
-
-    /// Verifies if two tensors can perform element-wise operations
-    ///
-    /// # Arguments
-    /// * `other` - The tensor to compare shapes with
-    ///
-    /// # Returns
-    /// * `Ok(())` if the shapes match
-    /// * `Err(MlError::TensorError)` if shapes don't match
-    fn chk_shape(&self, other: &dyn TensorBase) -> MlResult<()> {
-        if self.shape() != other.shape() {
-            return Err(MlError::TensorError(TensorError::InvalidShape {
-                expected: self.shape().to_vec(),
-                got: other.shape().to_vec(),
-            }));
-        }
-        Ok(())
+impl PooledTensor {
+    pub fn to_id(mut self) -> MlResult<Tensor> {
+        self.detached = true;
+        Ok(Tensor(self.node_id))
     }
 }
 
 impl GlobalTensor<f32> {
     pub fn to_id(self) -> MlResult<Tensor> {
-        let expected_len: usize = self.shape.iter().product();
-        if self.data.len() != expected_len {
-            return Err(MlError::TensorError(TensorError::InvalidDataLength {
-                expected: expected_len,
-                got: self.data.len(),
-            }));
-        }
-
-        let node_id = NODE_ID_GEN.next();
-        TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage.insert(node_id, self)
-        });
-
-        Ok(Tensor(node_id))
+        TENSOR_ALLOCATOR.with_borrow_mut(|allocator| {
+            allocator.alloc_permanent(self.data, self.shape)
+        })
     }
 
-    pub fn with_id(self, node_id: NodeId) -> MlResult<Tensor> {
-        let expected_len: usize = self.shape.iter().product();
-        if self.data.len() != expected_len {
-            return Err(MlError::TensorError(TensorError::InvalidDataLength {
-                expected: expected_len,
-                got: self.data.len(),
-            }));
-        }
-
-        TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage.insert(node_id, self)
-        });
-
-        Ok(Tensor(node_id))
+    pub fn with_id(self, node_id: HandleId) -> MlResult<Tensor> {
+        TENSOR_ALLOCATOR.with_borrow_mut(|allocator| {
+            allocator.storage.insert(node_id, self);
+            Ok(Tensor(node_id))
+        })
     }
     
     pub fn new_empty() -> GlobalTensor<f32> { 
@@ -191,34 +125,26 @@ impl GlobalTensor<f32> {
 }
 
 impl Tensor {
-    pub fn with_id(data: Vec<f32>, shape: &[usize], node_id: NodeId) -> MlResult<Tensor> {
-        let expected_len: usize = shape.iter().product();
-        if data.len() != expected_len {
-            return Err(MlError::TensorError(TensorError::InvalidDataLength {
-                expected: expected_len,
-                got: data.len(),
-            }));
-        }
-
-        TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage.insert(node_id, GlobalTensor { data, shape: shape.to_vec() })
-        });
-
-        Ok(Tensor(node_id))
+    pub fn with_id(data: Vec<f32>, shape: &[usize], node_id: HandleId) -> MlResult<Tensor> {
+        let global_tensor = GlobalTensor::from_vec(data, shape)?;
+        TENSOR_ALLOCATOR.with_borrow_mut(|allocator| {
+            allocator.storage.insert(node_id, global_tensor);
+            Ok(Tensor(node_id))
+        })
     }
     
-    pub fn to_id(self) -> NodeId {
-        self.0
+    pub fn to_id(self) -> MlResult<HandleId> {
+        Ok(self.0)
     }
 
-    pub fn id(&self) -> NodeId {
+    pub fn id(&self) -> HandleId {
         self.0
     }
 
     pub fn new_empty() -> Tensor {
         let node_id = NODE_ID_GEN.next();
-        TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage.insert(node_id, GlobalTensor { data: vec![], shape: vec![] })
+        TENSOR_ALLOCATOR.with_borrow_mut(|allocator| {
+            allocator.storage.insert(node_id, GlobalTensor::new_empty());
         });
         Tensor(node_id)
     }
@@ -350,7 +276,7 @@ impl LabelGenerator {
 }
 
 impl GlobalFunction {
-    pub fn new(name: String, node_id: NodeId) -> Self {
+    pub fn new(name: String, node_id: HandleId) -> Self {
         Self {
             name,
             func_id: node_id,
@@ -361,7 +287,7 @@ impl GlobalFunction {
         &self.name
     }
 
-    pub fn func_id(&self) -> &NodeId {
+    pub fn func_id(&self) -> &HandleId {
         &self.func_id
     }
 }

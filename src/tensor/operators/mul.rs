@@ -39,7 +39,7 @@ impl Function for Mul {
         }
     }
 
-    fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: HandleId) -> MlResult<Vec<Tensor>> {
         let shape1 = targets[0].shape();
         let shape2 = targets[1].shape();
 
@@ -77,7 +77,7 @@ impl Function for Mul {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    fn node_id(&self) -> &NodeId { &self.node_id }
+    fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
 

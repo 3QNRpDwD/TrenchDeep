@@ -16,7 +16,7 @@ impl Parameter for Variable {
         }
     }
 
-    fn node_id(&self) -> NodeId {
+    fn node_id(&self) -> HandleId {
         self.tensor.id()
     }
 

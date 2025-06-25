@@ -6,7 +6,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 use crate::backend::{Backend, CpuBackend, Device};
 use crate::{register_operator, scalar, MlResult};
-use crate::tensor::{AutogradFunction, GlobalFunction, NodeId, Tensor, TensorBase, NODE_ID_GEN, OPERATOR_STORAGE, GlobalTensor};
+use crate::tensor::{AutogradFunction, GlobalFunction, HandleId, Tensor, TensorBase, NODE_ID_GEN, OPERATOR_STORAGE, GlobalTensor};
 
 const EPSILON: f32 = 1e-15;
 
@@ -23,27 +23,27 @@ pub enum LossError {
 }
 
 pub struct MeanSquaredError {
-    backend: Arc<dyn Backend>, node_id: NodeId,
+    backend: Arc<dyn Backend>, node_id: HandleId,
 }
 
 pub struct MeanAbsoluteError {
-    backend: Arc<dyn Backend>, node_id: NodeId,
+    backend: Arc<dyn Backend>, node_id: HandleId,
 }
 
 pub struct HuberLoss {
-    backend: Arc<dyn Backend>, node_id: NodeId, delta: f32,
+    backend: Arc<dyn Backend>, node_id: HandleId, delta: f32,
 }
 
 pub struct BinaryCrossEntropyLoss {
-    backend: Arc<dyn Backend>, node_id: NodeId,
+    backend: Arc<dyn Backend>, node_id: HandleId,
 }
 
 pub struct CrossEntropyLoss {
-    backend: Arc<dyn Backend>, node_id: NodeId,
+    backend: Arc<dyn Backend>, node_id: HandleId,
 }
 
 pub struct SoftmaxCrossEntropyLoss {
-    backend: Arc<dyn Backend>, node_id: NodeId,
+    backend: Arc<dyn Backend>, node_id: HandleId,
 }
 
 pub trait Loss: Function {

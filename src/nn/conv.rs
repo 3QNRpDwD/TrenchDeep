@@ -10,8 +10,8 @@ impl Layer for Conv {
     fn params(&self) -> Vec<&dyn Parameter> {
         todo!()
     }
-    fn inputs_cache(&self) -> &HashMap<NodeId, NodeId> { todo!() }
-    fn inputs_cache_mut(&mut self) -> &mut HashMap<NodeId, NodeId> { todo!() }
+    fn inputs_cache(&self) -> &HashMap<HandleId, HandleId> { todo!() }
+    fn inputs_cache_mut(&mut self) -> &mut HashMap<HandleId, HandleId> { todo!() }
     fn label(&self) -> &str {
         &self.label
     }

@@ -49,7 +49,7 @@ impl Function for MeanSquaredError {
         &self.backend
     }
 
-    fn node_id(&self) -> &NodeId {
+    fn node_id(&self) -> &HandleId {
         &self.node_id
     }
 }
@@ -101,7 +101,7 @@ impl Function for MeanAbsoluteError {
         &self.backend
     }
 
-    fn node_id(&self) -> &NodeId {
+    fn node_id(&self) -> &HandleId {
         &self.node_id
     }
 }
@@ -181,7 +181,7 @@ impl Function for HuberLoss {
         &self.backend
     }
 
-    fn node_id(&self) -> &NodeId {
+    fn node_id(&self) -> &HandleId {
         &self.node_id
     }
 }
@@ -238,7 +238,7 @@ impl Function for BinaryCrossEntropyLoss {
         &self.backend
     }
 
-    fn node_id(&self) -> &NodeId {
+    fn node_id(&self) -> &HandleId {
         &self.node_id
     }
 }
@@ -358,7 +358,7 @@ impl Function for CrossEntropyLoss {
         &self.backend
     }
 
-    fn node_id(&self) -> &NodeId {
+    fn node_id(&self) -> &HandleId {
         &self.node_id
     }
 }
@@ -445,7 +445,7 @@ impl Function for SoftmaxCrossEntropyLoss {
         &self.backend
     }
 
-    fn node_id(&self) -> &NodeId {
+    fn node_id(&self) -> &HandleId {
         &self.node_id
     }
 }

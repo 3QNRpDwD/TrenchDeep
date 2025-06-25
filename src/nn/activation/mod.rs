@@ -11,48 +11,48 @@ impl<T: Layer> Activation for T {}
 
 #[derive(Debug, Clone)]
 pub struct Sigmoid { 
-    backend: Arc<dyn Backend>, node_id: NodeId
+    backend: Arc<dyn Backend>, node_id: HandleId
 }
 
 #[derive(Debug, Clone)]
 pub struct SigmoidLayer {
     label: String,
-    cache: HashMap<NodeId, NodeId>,
+    cache: HashMap<HandleId, HandleId>,
     operator: GlobalFunction
 }
 
 #[derive(Debug, Clone)]
 pub struct Tanh    { 
-    backend: Arc<dyn Backend>, node_id: NodeId
+    backend: Arc<dyn Backend>, node_id: HandleId
 }
 
 #[derive(Debug, Clone)]
 pub struct TanhLayer {
     label: String,
-    cache: HashMap<NodeId, NodeId>,
+    cache: HashMap<HandleId, HandleId>,
     operator: GlobalFunction
 }
 
 #[derive(Debug, Clone)]
 pub struct ReLU { 
-    backend: Arc<dyn Backend>, node_id: NodeId
+    backend: Arc<dyn Backend>, node_id: HandleId
 }
 
 #[derive(Debug, Clone)]
 pub struct ReLULayer {
     label: String,
-    cache: HashMap<NodeId, NodeId>,
+    cache: HashMap<HandleId, HandleId>,
     operator: GlobalFunction
 }
 
 #[derive(Debug, Clone)]
 pub struct Softmax { 
-    backend: Arc<dyn Backend>, node_id: NodeId
+    backend: Arc<dyn Backend>, node_id: HandleId
 }
 
 #[derive(Debug, Clone)]
 pub struct SoftmaxLayer {
     label: String,
-    cache: HashMap<NodeId, NodeId>,
+    cache: HashMap<HandleId, HandleId>,
     operator: GlobalFunction
 }

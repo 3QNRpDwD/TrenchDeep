@@ -20,7 +20,7 @@ macro_rules! define_op {
         #[derive(Clone)]
         pub struct $name {
             backend: Arc<dyn Backend>,
-            node_id: NodeId,
+            node_id: HandleId,
         }
     };
 
@@ -29,7 +29,7 @@ macro_rules! define_op {
         #[derive(Clone)]
         pub struct $name {
             backend: Arc<dyn Backend>,
-            node_id: NodeId,
+            node_id: HandleId,
             pub $field: $type
         }
     };
@@ -98,16 +98,16 @@ pub trait Function {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
     }
 
-    fn forward(&self, _targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>>{
+    fn forward(&self, _targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>>{
         unimplemented!("{} Forward pass is not implemented", self.type_name())
     }
 
-    fn assign_forward(&self, _targets: &[&dyn TensorBase], tensor_id: NodeId) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&self, _targets: &[&dyn TensorBase], tensor_id: HandleId) -> MlResult<Vec<Tensor>> {
         unimplemented!("{} Forward pass is not implemented", self.type_name())
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
         unimplemented!("{} Backward pass is not implemented", self.type_name())
     }
 
@@ -115,7 +115,7 @@ pub trait Function {
         unimplemented!("{} Function::backend() is not implemented", self.type_name())
     }
     
-    fn node_id(&self) -> &NodeId {
+    fn node_id(&self) -> &HandleId {
         unimplemented!("{} Function::node_id() is not implemented", self.type_name())
     }
 }

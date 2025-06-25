@@ -16,7 +16,6 @@ mod mnist_test {
                 model::{Model, SoftmaxRegression, MLP}
             }
         },
-        tensor::TENSOR_STORAGE,
         nn::Parameter
     };
 

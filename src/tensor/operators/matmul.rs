@@ -327,7 +327,7 @@ impl Function for Matmul {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    fn node_id(&self) -> &NodeId { &self.node_id }
+    fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
 

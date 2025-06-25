@@ -9,7 +9,7 @@ use crate::{register_operator, var_act, var_bias, var_weight, var_loss, backend:
     operators::Function,
     GlobalFunction,
     GlobalTensor,
-    NodeId,
+    HandleId,
     Tensor,
     TensorBase
 }, MlError};
@@ -57,8 +57,8 @@ pub trait Layer: Debug {
     fn apply(&mut self, input: &Variable) -> MlResult<Variable>;
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>>;
     fn params(&self) -> Vec<&dyn Parameter>;
-    fn inputs_cache(&self) -> &HashMap<NodeId, NodeId> ;
-    fn inputs_cache_mut(&mut self) -> &mut HashMap<NodeId, NodeId> ;
+    fn inputs_cache(&self) -> &HashMap<HandleId, HandleId> ;
+    fn inputs_cache_mut(&mut self) -> &mut HashMap<HandleId, HandleId> ;
     fn type_name(&self) -> &str {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
     } // 레이어를 구현하는 구조체의 이름을 반환
@@ -69,7 +69,7 @@ pub trait Parameter: Debug {
     fn new(tensor: Tensor) -> Self where Self: Sized;
 
     #[cfg(feature = "enableBackpropagation")]
-    fn node_id(&self) -> NodeId;
+    fn node_id(&self) -> HandleId;
 
     fn add_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
         Add::new()?.assign_forward(&[self.tensor(), &other_tensor], self.node_id())?;
@@ -158,7 +158,7 @@ impl Debug for Variable {
 #[derive(Debug)]
 pub struct Linear    {
     label: String,
-    cache: HashMap<NodeId, NodeId>,
+    cache: HashMap<HandleId, HandleId>,
     weight: Variable,
     bias: Variable,
     matmul: GlobalFunction,
@@ -168,8 +168,8 @@ pub struct Linear    {
 #[derive(Debug)]
 pub struct Conv      {
     label: String,
-    inputs: HashSet<NodeId>,
-    outputs: HashMap<NodeId, NodeId>,
+    inputs: HashSet<HandleId>,
+    outputs: HashMap<HandleId, HandleId>,
     weight: Variable,
     bias: Variable
 }
@@ -177,8 +177,8 @@ pub struct Conv      {
 #[derive(Debug)]
 pub struct Pooling  {
     label: String,
-    inputs: HashSet<NodeId>,
-    outputs: HashMap<NodeId, NodeId>,
+    inputs: HashSet<HandleId>,
+    outputs: HashMap<HandleId, HandleId>,
     weight: Arc<dyn Parameter>,
     bias: Arc<dyn Parameter>,
 }
@@ -186,7 +186,7 @@ pub struct Pooling  {
 pub struct Sequential {
     label: String,
     layers: Vec<Box<dyn Layer>>, // Box<dyn Layer>를 사용하여 다양한 종류의 레이어를 하나의 Vec에 저장
-    params: HashSet<NodeId>
+    params: HashSet<HandleId>
 }
 
 #[macro_export]
@@ -252,8 +252,8 @@ impl Layer for Sequential {
         Ok(output)
     }
     fn params(&self) -> Vec<&dyn Parameter> { self.layers.iter().flat_map(|layer| layer.params()).collect() }
-    fn inputs_cache(&self) -> &HashMap<NodeId, NodeId> { todo!() }
-    fn inputs_cache_mut(&mut self) -> &mut HashMap<NodeId, NodeId> { todo!() }
+    fn inputs_cache(&self) -> &HashMap<HandleId, HandleId> { todo!() }
+    fn inputs_cache_mut(&mut self) -> &mut HashMap<HandleId, HandleId> { todo!() }
     fn label(&self) -> &str { &self.label }
 }
 

@@ -62,7 +62,7 @@ impl Layer for Linear {
 
     /// 이 레이어가 소유한 모든 파라미터(가중치, 편향)의 참조를 반환합니다.
     fn params(&self) -> Vec<&dyn Parameter> { vec![&self.weight, &self.bias] }
-    fn inputs_cache(&self) -> &HashMap<NodeId, NodeId> { &self.cache }
-    fn inputs_cache_mut(&mut self) -> &mut HashMap<NodeId, NodeId> { &mut self.cache }
+    fn inputs_cache(&self) -> &HashMap<HandleId, HandleId> { &self.cache }
+    fn inputs_cache_mut(&mut self) -> &mut HashMap<HandleId, HandleId> { &mut self.cache }
     fn label(&self) -> &str { &self.label }
 }

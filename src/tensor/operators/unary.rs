@@ -20,7 +20,7 @@ impl Function for Abs {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    fn node_id(&self) -> &NodeId { &self.node_id }
+    fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
 impl Function for Exp {
@@ -48,7 +48,7 @@ impl Function for Exp {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    fn node_id(&self) -> &NodeId { &self.node_id }
+    fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
 impl Function for Log {
@@ -71,7 +71,7 @@ impl Function for Log {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    fn node_id(&self) -> &NodeId { &self.node_id }
+    fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
 impl Function for Pow {
@@ -119,7 +119,7 @@ impl Function for Pow {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    fn node_id(&self) -> &NodeId { &self.node_id }
+    fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
 impl Function for Square {
@@ -155,7 +155,7 @@ impl Function for Square {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    fn node_id(&self) -> &NodeId { &self.node_id }
+    fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
 impl Function for Sqrt {
@@ -178,5 +178,5 @@ impl Function for Sqrt {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    fn node_id(&self) -> &NodeId { &self.node_id }
+    fn node_id(&self) -> &HandleId { &self.node_id }
 }

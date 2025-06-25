@@ -2,7 +2,7 @@ use super::*;
 
 use std::collections::{HashMap, HashSet};
 #[cfg(feature = "enableVisualization")]
-use crate::tensor::{LABEL_COUNTERS, NodeId, NodeType, VISUALIZATION_GRAPH, VisualizationGraph};
+use crate::tensor::{LABEL_COUNTERS, HandleId, NodeType, VISUALIZATION_GRAPH, VisualizationGraph};
 
 #[cfg(feature = "enableVisualization")]
 impl VisualizationGraph {
@@ -293,7 +293,7 @@ impl VisualizationGraph {
     }
 
     // 고유한 함수 노드 ID를 생성하는 새로운 메서드
-    pub fn add_unique_function_node(&mut self, operator_name: &str, inputs: &[NodeId]) -> String {
+    pub fn add_unique_function_node(&mut self, operator_name: &str, inputs: &[HandleId]) -> String {
         // 입력 노드들의 해시를 기반으로 고유 ID 생성
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
@@ -325,7 +325,7 @@ impl VisualizationGraph {
     }
 
     // 연산자와 변수들 간의 관계를 등록하는 편의 메서드
-    pub fn register_operation(&mut self, operator_name: &str, inputs: &[NodeId], output: NodeId) -> String {
+    pub fn register_operation(&mut self, operator_name: &str, inputs: &[HandleId], output: HandleId) -> String {
         let function_id = self.add_unique_function_node(operator_name, inputs);
 
         // 입력들에서 함수로의 엣지 추가

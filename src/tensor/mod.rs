@@ -23,6 +23,7 @@ pub mod operators;
 pub mod display;
 pub mod graph;
 pub mod visualization;
+mod allocator;
 
 use crate::{MlError, MlResult, register_operator, tensor::operators::Function, TensorError};
 use crate::nn::{Parameter, Variable};
@@ -119,23 +120,23 @@ pub struct GlobalTensor<Type> {
 #[derive(Clone, Debug)]
 pub struct GlobalFunction {
     name: String,
-    func_id: NodeId,
+    func_id: HandleId,
 }
 
 #[derive(Clone)]
-pub struct Tensor (NodeId);
+pub struct Tensor (HandleId);
 // 기존의 텐서는 직접 variable 에 소유되는 구조로, 메모리 관리와 정적계산그래프 구현이 불가능하기 때문에 실제 텐서는 전역으로 관리하며 기존의 텐서는 아이디를 통해서 관리하도록 변경함.
 
 impl Tensor {
     pub fn replace(&self, other_tensor: GlobalTensor<f32>) {
-        TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage.insert(self.0, other_tensor)
+        TENSOR_ALLOCATOR.with_borrow_mut(|allocator| {
+            allocator.storage.insert(self.0, other_tensor)
         });
     }
 }
 
 impl Function for GlobalFunction {
-    fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         OPERATOR_STORAGE.with(|ops| {
             let mut ops = ops.borrow_mut();
             match ops.get_mut(self.name()) {
@@ -145,7 +146,7 @@ impl Function for GlobalFunction {
         })
     }
 
-    fn assign_forward(&self, inputs: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&self, inputs: &[&dyn TensorBase], node_id: HandleId) -> MlResult<Vec<Tensor>> {
         OPERATOR_STORAGE.with(|ops| {
             let mut ops = ops.borrow_mut();
             match ops.get_mut(self.name()) {
@@ -156,7 +157,7 @@ impl Function for GlobalFunction {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
         OPERATOR_STORAGE.with(|ops| {
             let mut ops = ops.borrow_mut();
             match ops.get_mut(self.name()) {
@@ -168,7 +169,7 @@ impl Function for GlobalFunction {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct NodeId(u64);
+pub struct HandleId(u64);
 
 
 pub struct NodeIdGenerator {
@@ -186,8 +187,8 @@ impl NodeIdGenerator {
         }
     }
 
-    pub fn next(&self) -> NodeId {
-        NodeId(self.counter.fetch_add(1, Ordering::Relaxed))
+    pub fn next(&self) -> HandleId {
+        HandleId(self.counter.fetch_add(1, Ordering::Relaxed))
     }
 
     pub fn reset(&self) {
@@ -196,16 +197,16 @@ impl NodeIdGenerator {
 }
 
 pub(crate) struct ComputationNode {
-    id: NodeId,
+    id: HandleId,
     variable: Variable,
     function: Option<String>,
-    inputs: Vec<NodeId>,
+    inputs: Vec<HandleId>,
     is_leaf: bool,
 }
 
 pub(crate) struct ComputationGraph {
     nodes: Vec<ComputationNode>,
-    pub(crate) node_map: HashMap<NodeId, usize>,
+    pub(crate) node_map: HashMap<HandleId, usize>,
     adjacency_list: Vec<Vec<usize>>,
     reverse_adjacency: Vec<Vec<usize>>,
     topo_order: Vec<usize>,
@@ -234,45 +235,25 @@ pub enum NodeType {
     Output,
 }
 
-pub struct ExecutionContext {
-    pub graph: ComputationGraph,
-    pub tensor_storage: HashMap<NodeId, GlobalTensor<f32>>,
-    pub node_id_generator: NodeIdGenerator, // NodeId 생성기도 컨텍스트에 포함
-    // 필요하다면 시각화 그래프나 다른 상태도 여기에 추가할 수 있습니다.
-    #[cfg(feature = "enableVisualization")]
-    pub visualization_graph: VisualizationGraph,
+pub struct TensorAllocator {
+    // 모든 텐서의 실제 데이터가 저장
+    storage: HashMap<HandleId, GlobalTensor<f32>>,
+    // 재활용 가능한 텐서들의 ID를 모양(shape)별로 관리하는 풀
+    pool: HashMap<Vec<usize>, Vec<HandleId>>,
 }
 
-impl ExecutionContext {
-    pub fn new() -> Self {
-        Self {
-            graph: ComputationGraph::new(),
-            tensor_storage: HashMap::new(),
-            node_id_generator: NodeIdGenerator::new(),
-            #[cfg(feature = "enableVisualization")]
-            visualization_graph: VisualizationGraph::new(),
-        }
-    }
-
-    pub fn add_tensor(&mut self, tensor: GlobalTensor<f32>) -> Tensor {
-        let node_id = self.node_id_generator.next();
-        self.tensor_storage.insert(node_id, tensor);
-        Tensor(node_id)
-    }
-
-    pub fn get_tensor_data(&self, tensor: &Tensor) -> Option<&GlobalTensor<f32>> {
-        self.tensor_storage.get(&tensor.0)
-    }
-
-    // ... 기타 필요한 헬퍼 메서드들 ...
+/// 풀에서 빌린 임시 텐서를 감싸는 RAII 래퍼
+/// 스코프를 벗어나면 자동으로 TensorAllocator의 풀에 반환됩니다.
+pub struct PooledTensor {
+    node_id: HandleId,
+    detached: bool
 }
 
 thread_local! {
     #[cfg(feature = "enableBackpropagation")]
     pub(crate) static   COMPUTATION_GRAPH   : std::sync::Mutex<ComputationGraph> = std::sync::Mutex::new(ComputationGraph::new());
     pub(crate) static   OPERATOR_STORAGE    : RefCell<HashMap<String, Box<dyn Function>>> = RefCell::new(HashMap::new());
-    pub(crate) static   TENSOR_STORAGE      : RefCell<HashMap<NodeId, GlobalTensor<f32>>> = RefCell::new(HashMap::new());
-    // pub(crate) static   EXECUTION_CONTEXT    : RefCell<ExecutionContext> = RefCell::new(ExecutionContext::new());
+    pub(crate) static   TENSOR_ALLOCATOR: RefCell<TensorAllocator> = RefCell::new(TensorAllocator::new());
     #[cfg(feature = "enableVisualization")]
     pub(crate) static   VISUALIZATION_GRAPH : RefCell<VisualizationGraph> = RefCell::new(VisualizationGraph::new());
     #[cfg(feature = "enableVisualization")]
@@ -330,8 +311,19 @@ pub trait TensorBase {
         unimplemented!(" TensorBase::get() is not implemented ")
     }
 
-    fn index(&self, _indices: &[usize]) -> Option<usize> {
-        unimplemented!(" TensorBase::index() is not implemented ")
+    fn index(&self, indices: &[usize]) -> Option<usize> {
+        if indices.len() != self.shape().len() {
+            return None;
+        }
+        let mut idx = 0;
+        let shape = self.shape();
+        for (i, &ind) in indices.iter().enumerate() {
+            if ind >= shape[i] {
+                return None;
+            }
+            idx = idx * shape[i] + ind;
+        }
+        Some(idx)
     }
 
     fn chk_shape(&self, other: &dyn TensorBase) -> MlResult<()> {

@@ -12,7 +12,7 @@ impl Function for Add {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise addition
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let first_target = targets[0];
         let second_target = targets[1];
         let first_shape = first_target.shape();
@@ -38,7 +38,7 @@ impl Function for Add {
         }
     }
 
-    fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: HandleId) -> MlResult<Vec<Tensor>> {
         let first_target = targets[0];
         let second_target = targets[1];
         let first_shape = first_target.shape();
@@ -65,14 +65,14 @@ impl Function for Add {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
         let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec() };
         Ok(vec![gt.clone(), gt])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
     
-    fn node_id(&self) -> &NodeId { &self.node_id }
+    fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
 /// Add trait implementation for owned tensors

@@ -19,7 +19,7 @@ impl Function for Div {
         }
     }
 
-    fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
+    fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: HandleId) -> MlResult<Vec<Tensor>> {
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
             _ => Ok(vec![Tensor::with_id(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape(), node_id)?])
@@ -38,7 +38,7 @@ impl Function for Div {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    fn node_id(&self) -> &NodeId { &self.node_id }
+    fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
 /// Divide trait implementation for owned tensors

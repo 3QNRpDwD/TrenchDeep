@@ -31,7 +31,7 @@ impl Function for Sin {
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn node_id(&self) -> &NodeId { &self.node_id }
+    fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
 /// `Cos` 함수는 입력 텐서의 각 요소에 코사인 함수를 적용합니다.
@@ -65,7 +65,7 @@ impl Function for Cos {
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn node_id(&self) -> &NodeId { &self.node_id }
+    fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
 impl Function for ApproxSin {
@@ -148,7 +148,7 @@ impl Function for ApproxSin {
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn node_id(&self) -> &NodeId { &self.node_id }
+    fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
 impl Function for ApproxCos {
@@ -232,5 +232,5 @@ impl Function for ApproxCos {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    fn node_id(&self) -> &NodeId { &self.node_id }
+    fn node_id(&self) -> &HandleId { &self.node_id }
 }
