@@ -70,23 +70,23 @@ pub trait Parameter: Debug {
     #[cfg(feature = "enableBackpropagation")]
     fn node_id(&self) -> HandleId;
 
-    fn add_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
-        Add::new()?.assign_forward(&[self.tensor(), &other_tensor], self.node_id())?;
+    fn add_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
+        Add::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 
-    fn sub_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
-        Sub::new()?.assign_forward(&[self.tensor(), &other_tensor], self.node_id())?;
+    fn sub_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
+        Sub::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 
-    fn mul_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
-        Mul::new()?.assign_forward(&[self.tensor(), &other_tensor], self.node_id())?;
+    fn mul_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
+        Mul::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 
-    fn div_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
-        Div::new()?.assign_forward(&[self.tensor(), &other_tensor], self.node_id())?;
+    fn div_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
+        Div::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 

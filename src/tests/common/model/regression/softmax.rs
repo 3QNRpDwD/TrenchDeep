@@ -168,8 +168,8 @@ impl Model for SoftmaxRegression {
     #[cfg(feature = "enableBackpropagation")]
     fn update(&self, lr: &dyn TensorBase) -> MlResult<()> {
         let param = self.layer.params();
-        param[0].sub_tensor(param[0].grad() as &dyn TensorBase * lr)?;
-        param[1].sub_tensor(param[1].grad() as &dyn TensorBase * lr)?;
+        param[0].sub_tensor(&(param[0].grad() as &dyn TensorBase * lr))?;
+        param[1].sub_tensor(&(param[1].grad() as &dyn TensorBase * lr))?;
         Ok(())
     }
 

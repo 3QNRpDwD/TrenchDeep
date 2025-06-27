@@ -301,8 +301,8 @@ let d = {
             // }
             
             //파라미터 갱신
-            x0.sub_tensor(x0.grad() * &learning_rate)?;
-            x1.sub_tensor( x1.grad() * &learning_rate)?;
+            x0.sub_tensor(&(x0.grad() * &learning_rate))?;
+            x1.sub_tensor( &(x1.grad() * &learning_rate))?;
         }
         Ok(())
     }
