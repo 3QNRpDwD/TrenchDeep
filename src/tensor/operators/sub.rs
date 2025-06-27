@@ -11,7 +11,7 @@ impl Function for Sub {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise subtraction
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         if targets[0].shape().len() == 2 && targets[1].shape().len() == 1 && targets[0].shape()[1] == targets[1].shape()[0] {
             let (batch_size, features) = (targets[0].shape()[0], targets[0].shape()[1]);
             let mut data = vec![0.0; targets[0].data().len()];
@@ -21,12 +21,12 @@ impl Function for Sub {
                     data[i * features + j] = targets[0].data()[i * features + j] - targets[1].data()[j];
                 }
             }
-            return Ok(vec![GlobalTensor::from_vec(data, &targets[0].shape())?])
+            return Ok(vec![PooledTensor::from_vec(data, &targets[0].shape())?])
         }
 
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
-            _ => Ok(vec![GlobalTensor::from_vec(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape())?])
+            _ => Ok(vec![PooledTensor::from_vec(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape())?])
         }
     }
 
@@ -50,9 +50,9 @@ impl Function for Sub {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        let gt = GlobalTensor {data: grad.data().to_vec(), shape: grad.shape().to_vec() };
-        Ok(vec![gt, GlobalTensor::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?])
+    fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
+        let gt = PooledTensor::from_vec(grad.data().to_vec(), grad.shape())?;
+        Ok(vec![gt, PooledTensor::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -72,7 +72,7 @@ impl Function for Sub {
 /// # Broadcasting
 /// * Supports broadcasting when subtracting a 1D tensor from each row of a 2D tensor
 impl std::ops::Sub<Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn sub(self, other: Tensor) -> Self::Output {
         Sub::new().unwrap();
@@ -81,7 +81,7 @@ impl std::ops::Sub<Tensor> for Tensor {
 }
 
 impl std::ops::Sub<&Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn sub(self, other: &Tensor) -> Self::Output {
         Sub::new().unwrap();
@@ -90,7 +90,7 @@ impl std::ops::Sub<&Tensor> for Tensor {
 }
 
 impl std::ops::Sub<&Tensor> for &Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn sub(self, other: &Tensor) -> Self::Output {
         Sub::new().unwrap();
@@ -99,7 +99,7 @@ impl std::ops::Sub<&Tensor> for &Tensor {
 }
 
 impl std::ops::Sub<Tensor> for &Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn sub(self, other: Tensor) -> Self::Output {
         Sub::new().unwrap();
@@ -108,7 +108,7 @@ impl std::ops::Sub<Tensor> for &Tensor {
 }
 
 impl std::ops::Sub<&dyn TensorBase> for &dyn TensorBase {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn sub(self, other: &dyn TensorBase) -> Self::Output {
         Mul::new().unwrap();

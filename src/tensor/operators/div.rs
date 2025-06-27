@@ -12,10 +12,10 @@ impl Function for Div {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise division
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
-            _ => Ok(vec![GlobalTensor::from_vec(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape())?])
+            _ => Ok(vec![PooledTensor::from_vec(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape())?])
         }
     }
 
@@ -27,7 +27,7 @@ impl Function for Div {
     }
     
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
         let x1 = targets[1];
 
         Ok(vec![
@@ -49,7 +49,7 @@ impl Function for Div {
 /// # Returns
 /// A new tensor containing the element-wise quotient
 impl std::ops::Div<&Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn div(self, other: &Tensor) -> Self::Output {
         Div::new().unwrap();
@@ -58,7 +58,7 @@ impl std::ops::Div<&Tensor> for Tensor {
 }
 
 impl std::ops::Div<Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn div(self, other: Tensor) -> Self::Output {
         Div::new().unwrap();
@@ -68,7 +68,7 @@ impl std::ops::Div<Tensor> for Tensor {
 
 
 impl std::ops::Div<&dyn TensorBase> for &dyn TensorBase {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn div(self, other: &dyn TensorBase) -> Self::Output {
         Div::new().unwrap();
@@ -77,7 +77,7 @@ impl std::ops::Div<&dyn TensorBase> for &dyn TensorBase {
 }
 
 impl std::ops::Div<Tensor> for &Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn div(self, other: Tensor) -> Self::Output {
         Div::new().unwrap();

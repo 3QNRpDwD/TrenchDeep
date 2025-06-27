@@ -1,6 +1,5 @@
 use super::*;
 
-
 impl Function for Matmul {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(Matmul)
@@ -13,7 +12,7 @@ impl Function for Matmul {
     /// # Returns
     /// A new tensor with the result of the matrix multiplication
     // Handle new_empty tensors
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         if targets[0].data().is_empty() || targets[1].data().is_empty() {
             return Err(MlError::TensorError(TensorError::EmptyTensor));
         }
@@ -32,7 +31,7 @@ impl Function for Matmul {
             (1, 1) => {
                 match target_0.chk_shape(target_1) {
                     Err(e) => return Err(e),
-                    _ => GlobalTensor::from_vec(vec![target_0_data.iter().zip(target_1_data.iter()).map(|(&a, &b)| a * b).sum::<f32>()], &vec![])?
+                    _ => PooledTensor::from_vec(vec![target_0_data.iter().zip(target_1_data.iter()).map(|(&a, &b)| a * b).sum::<f32>()], &vec![])?
                 }
             }
 
@@ -57,7 +56,7 @@ impl Function for Matmul {
                     }
                     data[i] = sum;
                 }
-                GlobalTensor::from_vec(data, &[m].to_vec())?
+                PooledTensor::from_vec(data, &[m].to_vec())?
             }
 
             (1, 2) => {
@@ -80,7 +79,7 @@ impl Function for Matmul {
                     }
                     data[j] = sum;
                 }
-                GlobalTensor::from_vec(data, &[n].to_vec())?
+                PooledTensor::from_vec(data, &[n].to_vec())?
             }
 
             // Case 3: Higher dimensional tensor multiplication
@@ -159,14 +158,14 @@ impl Function for Matmul {
                 }
                 shape.push(m);
                 shape.push(n);
-                GlobalTensor::from_vec(data, &shape)?
+                PooledTensor::from_vec(data, &shape)?
             }
         };
         Ok(vec![buffer])
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
         let target_0 = targets[0];
         let target_1 = targets[1];
         let target_0_shape = target_0.shape();
@@ -185,8 +184,8 @@ impl Function for Matmul {
                 let grad_1_data: Vec<f32> = target_0.data().iter().map(|&x| x * grad_scalar).collect();
 
                 (
-                    GlobalTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
-                    GlobalTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                    PooledTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    PooledTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
                 )
             }
 
@@ -216,8 +215,8 @@ impl Function for Matmul {
                 }
 
                 (
-                    GlobalTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
-                    GlobalTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                    PooledTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    PooledTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
                 )
             }
 
@@ -247,8 +246,8 @@ impl Function for Matmul {
                 }
 
                 (
-                    GlobalTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
-                    GlobalTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                    PooledTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    PooledTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
                 )
             }
 
@@ -316,8 +315,8 @@ impl Function for Matmul {
                 }
 
                 (
-                    GlobalTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
-                    GlobalTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                    PooledTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    PooledTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
                 )
             }
         };
@@ -333,9 +332,9 @@ impl Function for Matmul {
 
 #[cfg(test)]
 mod tests {
-    use crate::tensor::operators::{Function, Matmul};
+    use crate::{MlResult, tensor_ops};
     use crate::tensor::{Tensor, TensorBase};
-    use crate::{tensor_ops, MlResult};
+    use crate::tensor::operators::{Function, Matmul};
 
     #[test]
     fn test_matmul_2d_2d() -> MlResult<()> {

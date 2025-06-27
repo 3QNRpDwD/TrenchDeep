@@ -5,7 +5,7 @@ impl Function for Sum {
         register_operator!(Sum)
     }
 
-    fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         // Sum 함수는 하나의 입력 텐서만 받습니다.
         if inputs.len() != 1 {
             return Err(MlError::StringError(format!(
@@ -20,16 +20,16 @@ impl Function for Sum {
         let total_sum: f32 = target.data().iter().sum();
 
         // 결과를 shape이 [1]인 새로운 텐서(스칼라)로 만들어 반환합니다.
-        Ok(vec![GlobalTensor::from_vec(vec![total_sum], &[1,1])?])
+        Ok(vec![PooledTensor::from_vec(vec![total_sum], &[1,1])?])
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
         if targets.is_empty() {
             return Err(MlError::TensorError(TensorError::EmptyTensor));
         }
 
-        let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec() };
+        let gt = PooledTensor::from_vec(grad.data().to_vec(), grad.shape())?;
         Ok(vec![gt.clone(); targets.len()])
     }
     

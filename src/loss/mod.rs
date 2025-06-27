@@ -1,12 +1,31 @@
-mod display;
-mod function;
-
-use crate::tensor::operators::{Function, Matmax, Sub};
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
-use crate::backend::{Backend, CpuBackend, Device};
-use crate::{register_operator, scalar, MlResult};
-use crate::tensor::{AutogradFunction, GlobalFunction, HandleId, Tensor, TensorBase, NODE_ID_GEN, OPERATOR_STORAGE, GlobalTensor};
+
+use crate::{
+    register_operator,
+    MlResult,
+    scalar,
+    backend::{
+        Backend,
+        CpuBackend,
+        Device
+    },
+    tensor::{
+        GlobalFunction,
+        HandleId,
+        NODE_ID_GEN,
+        OPERATOR_STORAGE,
+        PooledTensor,
+        Tensor,
+        TensorBase,
+        operators::Function
+    },
+    MlError,
+    TensorError::InvalidInputCount
+};
+
+mod display;
+mod function;
 
 const EPSILON: f32 = 1e-15;
 

@@ -1,9 +1,16 @@
-use std::fmt::{Debug, Display, Formatter};
-use std::sync::Arc;
-use crate::backend::Backend;
-use crate::nn::Parameter;
-use crate::tensor::{HandleId, Tensor};
-use crate::tensor::operators::Function;
+use std::{
+    fmt::{Debug, Display, Formatter},
+    sync::Arc
+};
+use crate::{
+    backend::Backend,
+    nn::Parameter,
+    tensor::{
+        HandleId,
+        Tensor,
+        operators::Function
+    }
+};
 
 
 #[derive(thiserror::Error, Debug)]

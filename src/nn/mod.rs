@@ -1,32 +1,50 @@
+use std::{
+    cell::RefCell,
+    collections::{
+        HashMap,
+        HashSet
+    },
+    fmt::{
+        Debug,
+        Formatter
+    },
+    ops::Deref,
+    sync::Arc
+};
+
+use crate::{
+    backend::Backend,
+    MlError,
+    MlResult,
+    register_operator,
+    tensor::{
+        GlobalFunction,
+        GlobalTensor,
+        HandleId,
+        operators::{
+            Add,
+            Div,
+            Matmul,
+            Mul,
+            Sub,
+            Function
+        },
+        Tensor,
+        TensorBase,
+        PooledTensor,
+        TENSOR_ALLOCATOR
+    },
+    TensorError,
+    var_act,
+    var_bias,
+    var_weight,
+};
+
 pub mod activation;
 pub mod conv;
 pub mod pooling;
 pub mod linear;
 mod parameter;
-
-use crate::{register_operator, var_act, var_bias, var_weight, var_loss, backend::Backend, MlResult, TensorError, tensor::{
-    operators::{Add, Div, Matmul, Mul, Sub},
-    operators::Function,
-    GlobalFunction,
-    GlobalTensor,
-    HandleId,
-    Tensor,
-    TensorBase
-}, MlError};
-use std::{
-    cell::RefCell,
-    fmt::{
-        Formatter,
-        Debug
-    },
-    ops::Deref,
-    collections::{
-        HashMap,
-        HashSet
-    },
-    sync::Arc
-};
-use crate::tensor::COMPUTATION_GRAPH;
 
 #[macro_export]
 macro_rules! variable {
@@ -54,38 +72,36 @@ macro_rules! variable {
 }
 
 pub trait Layer: Debug {
+    #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable>;
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>>;
     fn params(&self) -> Vec<&dyn Parameter>;
-    fn type_name(&self) -> &str {
-        std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
-    } // 레이어를 구현하는 구조체의 이름을 반환
+    fn type_name(&self) -> &str { std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown") } // 레이어를 구현하는 구조체의 이름을 반환
     fn label(&self) -> &str;    // 유저가 설정한 레이어의 이름을 반환
 }
 
 pub trait Parameter: Debug {
     fn new(tensor: Tensor) -> Self where Self: Sized;
 
-    #[cfg(feature = "enableBackpropagation")]
     fn node_id(&self) -> HandleId;
 
-    fn add_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
-        Add::new()?.assign_forward(&[self.tensor(), &other_tensor], self.node_id())?;
+    fn add_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
+        Add::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 
-    fn sub_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
-        Sub::new()?.assign_forward(&[self.tensor(), &other_tensor], self.node_id())?;
+    fn sub_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
+        Sub::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 
-    fn mul_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
-        Mul::new()?.assign_forward(&[self.tensor(), &other_tensor], self.node_id())?;
+    fn mul_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
+        Mul::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 
-    fn div_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
-        Div::new()?.assign_forward(&[self.tensor(), &other_tensor], self.node_id())?;
+    fn div_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
+        Div::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 
@@ -115,8 +131,9 @@ pub trait Parameter: Debug {
     #[cfg(feature = "enableBackpropagation")]
     fn accumulate_grad(&self, new_grad: Tensor) -> MlResult<()>;
 
+    #[cfg(feature = "enableBackpropagation")]
     fn backward(&self) -> MlResult<()> {
-        COMPUTATION_GRAPH.with(|graph| {
+        crate::tensor::COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
 
             if graph.node_map.contains_key(&self.node_id()) {
@@ -126,6 +143,10 @@ pub trait Parameter: Debug {
                 Err(MlError::StringError("계산 그래프가 생성되지 않았습니다.".to_string()))
             }
         })
+    }
+
+    fn tpye_name(&self) -> String {
+        std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown").replace("<f32>", "")
     }
 }
 
@@ -144,11 +165,11 @@ impl Debug for Variable {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut ds = f.debug_struct("Variable");
         ds
-            .field("tensor", &self.tensor)
-            .field("requires_grad", &self.requires_grad);
+            .field("tensor", &self.tensor.id())
+            .field("requires_grad", &self.requires_grad.take());
         #[cfg(feature = "enableBackpropagation")]
         {
-            ds.field("grad", &self.grad);
+            ds.field("grad", &self.grad.id());
         }
         ds.finish()
     }
@@ -156,7 +177,6 @@ impl Debug for Variable {
 #[derive(Debug)]
 pub struct Linear    {
     label: String,
-    cache: HashMap<HandleId, HandleId>,
     weight: Variable,
     bias: Variable,
     matmul: GlobalFunction,
@@ -229,6 +249,7 @@ impl Sequential {
 }
 
 impl Layer for Sequential {
+    #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let mut current_output= input.clone();
         for layer in &mut self.layers {

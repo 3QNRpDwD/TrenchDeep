@@ -13,7 +13,7 @@ impl Function for Reshape {
     ///
     /// # Returns
     /// A new tensor with the specified shape.
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let target = targets[0];
         let target_shape = target.shape();
         let target_size: usize = target_shape.iter().product();
@@ -28,11 +28,11 @@ impl Function for Reshape {
             }));
         }
 
-        Ok(vec![GlobalTensor::from_vec(target.data().to_vec(), new_shape)?])
+        Ok(vec![PooledTensor::from_vec(target.data().to_vec(), new_shape)?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
         let target = targets[0];
         let target_shape = target.shape();
         let target_size: usize = target_shape.iter().product();
@@ -46,7 +46,7 @@ impl Function for Reshape {
             }));
         }
 
-        Ok(vec![GlobalTensor::from_vec(grad.data().to_vec(), target_shape)?])
+        Ok(vec![PooledTensor::from_vec(grad.data().to_vec(), target_shape)?])
     }
     
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

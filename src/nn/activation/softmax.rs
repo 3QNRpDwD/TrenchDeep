@@ -1,36 +1,31 @@
+use crate::tensor::TENSOR_ALLOCATOR;
+
 use super::*;
 
 impl SoftmaxLayer {
     pub fn new(label: &str) -> Self {
         Self {
             label: label.to_string(),
-            cache: HashMap::new(),
             operator: Softmax::new().unwrap(),
         }
     }
 }
 
 impl Layer for SoftmaxLayer {
+    #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let output = self.operator.forward(&[input.tensor()])?.remove(0);
-        let in_id = input.node_id();
-        let applied = match self.cache.contains_key(&in_id) {
-            true => output.with_id(*self.cache.get(&in_id).unwrap())?,
-            false => {
-                let temp = output.to_id()?;
-                self.cache.insert(in_id, temp.id());
-                temp
-            }
-        };
-        let var_act = var_act!(applied, self.label());
+        let var_act = var_act!(output.to_id(false)?, self.label());
         var_act.with_grad_fn(self.operator.name(), &[&input]);
         Ok(var_act)
     }
 
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
-        Ok(self.operator.forward(&[input])?.remove(0))
+        let output = self.operator.forward(&[input])?.remove(0);
+        TENSOR_ALLOCATOR.with_borrow( |alloc| {
+            Ok(alloc.get_tensor_ref(&output.id()).unwrap().clone())
+        })
     }
-
     fn params(&self) -> Vec<&dyn Parameter> {
         vec![]
     }
@@ -42,7 +37,7 @@ impl Function for Softmax {
         register_operator!(Softmax)
     }
 
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let input = targets[0];
         let input_data = input.data();
         let max_val = input_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
@@ -50,12 +45,12 @@ impl Function for Softmax {
         let sum_of_exps: f32 = exp_values.iter().sum();
         let softmax_output: Vec<f32> = exp_values.iter().map(|&exp_val| exp_val / sum_of_exps).collect();
 
-        Ok(vec![GlobalTensor::from_vec(softmax_output, input.shape())?])
+        Ok(vec![PooledTensor::from_vec(softmax_output, input.shape())?])
     }
 
     /// Softmax 함수의 역전파(gradient)를 계산합니다.
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
         let softmax_output = targets[0];
         let upstream_grad = grad;
         let s = softmax_output.data();
@@ -68,7 +63,7 @@ impl Function for Softmax {
             input_grad_data.push(grad_i);
         }
 
-        Ok(vec![GlobalTensor::from_vec(input_grad_data, softmax_output.shape())?])
+        Ok(vec![PooledTensor::from_vec(input_grad_data, softmax_output.shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

@@ -1,6 +1,7 @@
 use super::*;
 
 impl Layer for Conv {
+    #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         todo!()
     }

@@ -1,13 +1,16 @@
+use super::*;
+
 pub mod sigmoid;
 pub mod tanh;
 pub mod relu;
 pub mod softmax;
 
-use super::*;
-
 pub trait Activation: Layer {}
 
-impl<T: Layer> Activation for T {}
+impl Activation for SoftmaxLayer {}
+impl Activation for SigmoidLayer {}
+impl Activation for ReLULayer {}
+impl Activation for TanhLayer {}
 
 #[derive(Debug, Clone)]
 pub struct Sigmoid { 

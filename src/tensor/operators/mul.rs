@@ -12,7 +12,7 @@ impl Function for Mul {
     ///
     /// # Returns
     /// A new tensor with the result of the element-wise multiplication
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let shape1 = targets[0].shape();
         let shape2 = targets[1].shape();
 
@@ -26,12 +26,12 @@ impl Function for Mul {
                 .map(|&x| x * scalar_value)
                 .collect::<Vec<f32>>();
 
-            Ok(vec![GlobalTensor::from_vec(result, shape1)?])
+            Ok(vec![PooledTensor::from_vec(result, shape1)?])
         } else {
             // 기존 코드 유지
             match targets[0].chk_shape(targets[1]) {
                 Err(e) => Err(e),
-                _ => Ok(vec![GlobalTensor::from_vec(
+                _ => Ok(vec![PooledTensor::from_vec(
                     self.backend().multiply(targets[0].data(), targets[1].data()),
                     shape1
                 )?])
@@ -68,7 +68,7 @@ impl Function for Mul {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
         Ok(vec![
             self.forward(&[grad, targets[1]])?.remove(0),
             self.forward(&[grad, targets[0]])?.remove(0)
@@ -93,7 +93,7 @@ impl Function for Mul {
 /// * This performs element-wise multiplication, not matrix multiplication
 /// * For matrix multiplication, use `matmul()` instead
 impl std::ops::Mul<Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn mul(self, other: Tensor) -> Self::Output {
         Mul::new().unwrap();
@@ -102,7 +102,7 @@ impl std::ops::Mul<Tensor> for Tensor {
 }
 
 impl std::ops::Mul<&Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn mul(self, other: &Tensor) -> Self::Output {
         Mul::new().unwrap();
@@ -111,7 +111,7 @@ impl std::ops::Mul<&Tensor> for Tensor {
 }
 
 impl std::ops::Mul<&Tensor> for &Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn mul(self, other: &Tensor) -> Self::Output {
         Mul::new().unwrap();
@@ -120,7 +120,7 @@ impl std::ops::Mul<&Tensor> for &Tensor {
 }
 
 impl std::ops::Mul<&dyn TensorBase> for &dyn TensorBase {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn mul(self, other: &dyn TensorBase) -> Self::Output {
         Mul::new().unwrap();
@@ -129,7 +129,7 @@ impl std::ops::Mul<&dyn TensorBase> for &dyn TensorBase {
 }
 
 impl std::ops::Mul<Tensor> for &Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn mul(self, other: Tensor) -> Self::Output {
         Mul::new().unwrap();

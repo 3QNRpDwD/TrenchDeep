@@ -1,32 +1,30 @@
+use crate::tensor::TENSOR_ALLOCATOR;
+
 use super::*;
 
 impl ReLULayer {
     pub fn new(label: &str) -> Self {
         Self {
             label: label.to_string(),
-            cache: HashMap::new(),
             operator: ReLU::new().unwrap()
         }
     }
 }
 
 impl Layer for ReLULayer {
+    #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let output = self.operator.forward(&[input.tensor()])?.remove(0);
-        let in_id = input.node_id();
-        let applied = match self.cache.contains_key(&in_id) {
-            true => output.with_id(*self.cache.get(&in_id).unwrap())?,
-            false => {
-                let temp = output.to_id()?;
-                self.cache.insert(in_id, temp.id());
-                temp
-            }
-        };
-        let var_act = var_act!(applied, self.label());
+        let var_act = var_act!(output.to_id(false)?, self.label());
         var_act.with_grad_fn(self.operator.name(), &[&input]);
         Ok(var_act)
     }
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> { Ok(self.operator.forward(&[input])?.remove(0))}
+    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+        TENSOR_ALLOCATOR.with_borrow( |alloc| {
+            let output = self.operator.forward(&[input])?.remove(0);
+            Ok(alloc.get_tensor_ref(&output.id()).unwrap().clone())
+        })
+    }
     fn params(&self) -> Vec<&dyn Parameter> { vec![] }
     fn label(&self) -> &str { &self.label }
 }
@@ -36,22 +34,22 @@ impl Function for ReLU {
         register_operator!(ReLU)
     }
 
-    fn forward(&self, x: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, x: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         // ReLU(x) = max(0, x)
         let result = x[0].data().iter()
             .map(|&val| if val > 0.0 { val } else { 0.0 })
             .collect::<Vec<f32>>();
 
-        Ok(vec![GlobalTensor::from_vec(result, x[0].shape())?])
+        Ok(vec![PooledTensor::from_vec(result, x[0].shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, target: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, target: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
         let relu_output = target[0];
 
         // ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * mask
         Ok(vec![
-            GlobalTensor::from_vec(
+            PooledTensor::from_vec(
                 self.backend.multiply(
                     &grad.data(),
                     &relu_output.data().iter()

@@ -5,18 +5,32 @@ use std::{
         Formatter,
         Result
     },
-    sync::Arc
-};
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
-use std::sync::atomic::Ordering;
-
-use crate::backend::{
-    Backend,
-    CpuBackend,
-    Device
+    sync::{
+        Arc,
+        atomic::Ordering
+    },
+    collections::{HashMap, HashSet},
+    cell::RefCell,
 };
 
+use crate::{
+    backend::{
+        Backend,
+        CpuBackend,
+        Device
+    },
+    MlResult,
+    MlError,
+    register_operator,
+    tensor::{
+        operators::{
+            Function,
+            Pow
+        }
+    },
+    nn::{Parameter, Variable},
+    TensorError,
+};
 
 pub mod creation;
 pub mod operators;
@@ -24,10 +38,6 @@ pub mod display;
 pub mod graph;
 pub mod visualization;
 mod allocator;
-
-use crate::{MlError, MlResult, register_operator, tensor::operators::Function, TensorError};
-use crate::nn::{Parameter, Variable};
-use crate::tensor:: {operators::Pow};
 
 #[macro_export]
 macro_rules! tensor_ops {
@@ -92,9 +102,9 @@ macro_rules! scalar  {
 
     ($scalar:expr) => {
         {
-            use crate::tensor::GlobalTensor;
+            use crate::tensor::PooledTensor;
             {
-                GlobalTensor::new(vec![vec![$scalar]])
+                PooledTensor::new(vec![vec![$scalar]])
             }
         }
     };
@@ -244,6 +254,7 @@ pub struct TensorAllocator {
 
 /// 풀에서 빌린 임시 텐서를 감싸는 RAII 래퍼
 /// 스코프를 벗어나면 자동으로 TensorAllocator의 풀에 반환됩니다.
+#[derive(Debug, Clone)]
 pub struct PooledTensor {
     node_id: HandleId,
     detached: bool
@@ -253,7 +264,7 @@ thread_local! {
     #[cfg(feature = "enableBackpropagation")]
     pub(crate) static   COMPUTATION_GRAPH   : std::sync::Mutex<ComputationGraph> = std::sync::Mutex::new(ComputationGraph::new());
     pub(crate) static   OPERATOR_STORAGE    : RefCell<HashMap<String, Box<dyn Function>>> = RefCell::new(HashMap::new());
-    pub(crate) static   TENSOR_ALLOCATOR: RefCell<TensorAllocator> = RefCell::new(TensorAllocator::new());
+    pub(crate) static   TENSOR_ALLOCATOR    : RefCell<TensorAllocator> = RefCell::new(TensorAllocator::new());
     #[cfg(feature = "enableVisualization")]
     pub(crate) static   VISUALIZATION_GRAPH : RefCell<VisualizationGraph> = RefCell::new(VisualizationGraph::new());
     #[cfg(feature = "enableVisualization")]
@@ -380,9 +391,9 @@ pub trait AutogradFunction: Function {
 
 #[cfg(test)]
 mod tests {
-    use crate::tensor::operators::{Abs, Add, Div, Exp, Function, Log, Matmul, Mul, Neg, Sqrt, Square, Sub};
-    use crate::tensor::{Tensor, TensorBase};
     use crate::MlResult;
+    use crate::tensor::{Tensor, TensorBase};
+    use crate::tensor::operators::{Abs, Add, Div, Exp, Function, Log, Matmul, Mul, Neg, Sqrt, Square, Sub};
 
     pub fn assert_tensor_eq(tensor: &dyn TensorBase, expected_tensor: &dyn TensorBase) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());

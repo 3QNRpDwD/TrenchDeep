@@ -5,9 +5,11 @@ pub mod optimizer;
 pub mod loss;
 pub mod tests;
 
-use crate::backend::BackendError;
-use crate::loss::LossError;
-use crate::optimizer::OptimError;
+use crate::{
+    backend::BackendError,
+    loss::LossError,
+    optimizer::OptimError
+};
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
@@ -59,10 +61,12 @@ pub type MlResult<T> = Result<T, MlError>;
 #[cfg(test)]
 mod benchmark {
     use crate::tensor::operators::{Add, Function, Mul, Square, Sub};
-    use crate::tensor::{AutogradFunction, ComputationGraph, Tensor, TensorBase};
+    use crate::tensor::{AutogradFunction, ComputationGraph, OPERATOR_STORAGE, PooledTensor, Tensor, TensorBase};
     use crate::{MlResult, scalar, var_input, var_with_label, variable};
     use crate::nn::{Parameter, Variable};
     use std::sync::Arc;
+    use tracing::info;
+    use crate::tests::common::utils::setup_logging;
 
     fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
         if tensor.shape() != expected_tensor.shape() {
@@ -84,7 +88,7 @@ mod benchmark {
     fn sphere_function(x: &Variable, y: &Variable) -> MlResult<Variable> {
         let mut square = Square::new()?;
         let mut add = Add::new()?;
-        
+        OPERATOR_STORAGE.with(|storage| println!("{:?}", storage.borrow().keys()));
         add.apply(&[
             &square.apply(&[x])?,
             &square.apply(&[y])?
@@ -172,7 +176,7 @@ mod benchmark {
         let term5_d = mul.apply(&[&neg_36, &tb])?;
         let term6_d = mul.apply(&[&constant(27.0), &y_squared])?;
 
-let d = {
+        let d = {
                 // 18 - 32x + 12x^2 + 48y - 36xy + 27y^2
                 let t1 = add.apply(&[&constant(18.0), &term2_d])?;      // 18 - 32x
                 let t2 = add.apply(&[&t1, &term3_d])?;                  // + 12x^2
@@ -223,7 +227,14 @@ let d = {
         let z = sphere_function(&x, &y)?;
         #[cfg(feature = "enableBackpropagation")]
         {
+            let _ = setup_logging("trace");
             z.backward()?;
+            
+            // 변수 x, y, z 의 파라미터를 모두 출력
+            println!("data: x({:?}) = {:?}, y({:?}) = {:?}, z({:?}) = {:?}", x.node_id(), x.tensor().data(), y.node_id(), y.tensor().data(), z.node_id(), z.tensor().data());
+            // 기울기의 아이디와 함께 기울기 출력
+            println!("x.grad().id() = {:?}, y.grad().id() = {:?}, z.grad().id() = {:?}", x.grad().id(), y.grad().id(), z.grad().id());
+            println!("x.grad() = {:?}, y.grad() = {:?}, z.grad() = {:?},", x.grad(), y.grad(), z.grad());
 
             assert_tensor_eq(&x.grad(), &Tensor::new(vec![vec![2.0]]))?;
             assert_tensor_eq(&y.grad(), &Tensor::new(vec![vec![2.0]]))?;
@@ -301,8 +312,8 @@ let d = {
             // }
             
             //파라미터 갱신
-            x0.sub_tensor(x0.grad() * &learning_rate)?;
-            x1.sub_tensor( x1.grad() * &learning_rate)?;
+            x0.sub_tensor(&(x0.grad() * &learning_rate))?;
+            x1.sub_tensor( &(x1.grad() * &learning_rate))?;
         }
         Ok(())
     }

@@ -153,6 +153,7 @@ impl ApproxCos {
 #[cfg(test)]
 mod tests {
     use crate::{scalar, variable};
+
     use super::*;
 
     pub fn assert_tensor_eq(tensor: &dyn TensorBase, expected_tensor: &dyn TensorBase) -> MlResult<()> {

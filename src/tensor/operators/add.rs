@@ -29,12 +29,12 @@ impl Function for Add {
                 }
             }
             
-            return Ok(vec![GlobalTensor::from_vec(data, first_shape)?])
+            return Ok(vec![PooledTensor::from_vec(data, first_shape)?])
         }
 
         match first_target.chk_shape(second_target) {
             Err(e) => Err(e),
-            _ => Ok(vec![GlobalTensor::from_vec(self.backend().add(first_target.data(), second_target.data()), first_target.shape())?])
+            _ => Ok(vec![PooledTensor::from_vec(self.backend().add(first_target.data(), second_target.data()), first_target.shape())?])
         }
     }
 
@@ -66,7 +66,7 @@ impl Function for Add {
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
-        let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec() };
+        let gt = PooledTensor::from_vec(grad.data().to_vec(), grad.shape())?;
         Ok(vec![gt.clone(), gt])
     }
 
@@ -86,7 +86,7 @@ impl Function for Add {
 /// # Broadcasting
 /// * Supports broadcasting when adding a 1D tensor to each row of a 2D tensor
 impl std::ops::Add<Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn add(self, other: Tensor) -> Self::Output {
         Add::new().unwrap();
@@ -95,7 +95,7 @@ impl std::ops::Add<Tensor> for Tensor {
 }
 
 impl std::ops::Add<&Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn add(self, other: &Tensor) -> Self::Output {
         Add::new().unwrap();
@@ -104,7 +104,7 @@ impl std::ops::Add<&Tensor> for Tensor {
 }
 
 impl std::ops::Add<&Tensor> for &Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn add(self, other: &Tensor) -> Self::Output {
         Add::new().unwrap();
@@ -113,7 +113,7 @@ impl std::ops::Add<&Tensor> for &Tensor {
 }
 
 impl std::ops::Add<Tensor> for &Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn add(self, other: Tensor) -> Self::Output {
         Add::new().unwrap();
@@ -122,7 +122,7 @@ impl std::ops::Add<Tensor> for &Tensor {
 }
 
 impl std::ops::Add<&dyn TensorBase> for &dyn TensorBase {
-    type Output = GlobalTensor<f32>;
+    type Output = PooledTensor;
 
     fn add(self, other: &dyn TensorBase) -> Self::Output {
         Mul::new().unwrap();

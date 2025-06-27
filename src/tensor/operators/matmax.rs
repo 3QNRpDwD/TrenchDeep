@@ -1,6 +1,5 @@
 use super::*;
 
-
 impl Function for Matmax {
     fn new() -> MlResult<GlobalFunction> {
         OPERATOR_STORAGE.with(|ops| {
@@ -30,7 +29,7 @@ impl Function for Matmax {
     /// If dim is None, returns a tensor with a single element containing the maximum value.
     /// If dim is specified, returns a tuple of two tensors (values, indices) containing the
     /// maximum values and their indices along the specified dimension.
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let target_0 = targets[0];
         let target_0_shape = target_0.shape();
         let target_0_data = target_0.data();
@@ -38,7 +37,7 @@ impl Function for Matmax {
             None => {
                 // Find global maximum
                 let max_val = target_0_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-                vec![GlobalTensor::from_vec(vec![max_val], &vec![1])?, GlobalTensor::zeros(target_0_shape)]
+                vec![PooledTensor::from_vec(vec![max_val], &vec![1])?, PooledTensor::zeros(target_0_shape)]
             }
             Some(d) => {
                 let dim = if d < 0 {
@@ -88,7 +87,7 @@ impl Function for Matmax {
                     }
                 }
 
-                vec![GlobalTensor::from_vec(max_values, &new_shape)?, GlobalTensor::from_vec(max_indices, &new_shape)?]
+                vec![PooledTensor::from_vec(max_values, &new_shape)?, PooledTensor::from_vec(max_indices, &new_shape)?]
             }
         };
 
@@ -96,7 +95,7 @@ impl Function for Matmax {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
         todo!()
     }
 
@@ -107,9 +106,8 @@ impl Function for Matmax {
 
 #[cfg(test)]
 mod tests {
-    use crate::tensor::operators::{Function, Matmax};
-    use crate::tensor::{Tensor, TensorBase};
-    use crate::{tensor_ops, MlResult};
+    use crate::MlResult;
+
     #[test]
     fn test_max() -> MlResult<()> {
         // Test global maximum

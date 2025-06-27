@@ -1,11 +1,7 @@
-use tracing::info;
 use super::*;
 
 #[cfg(feature = "enableBackpropagation")]
 impl Variable {
-    pub fn tpye_name(&self) -> String {
-        std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown").replace("<f32>", "")
-    }
 
     pub fn with_grad_fn(&self, operator_name: &str, inputs: &[&Variable]) {
         COMPUTATION_GRAPH.with(|graph| {
@@ -176,30 +172,122 @@ impl ComputationGraph {
         self.is_sorted = true;
     }
 
+    // #[cfg(feature = "enableBackpropagation")]
+    // pub(crate) fn backward(&mut self, output_id: HandleId) -> MlResult<()> {
+    //     for node in &self.nodes {
+    //         node.variable.clear_grad();
+    //     }
+    //     // Set output node's gradient to 1.0
+    //     let output_idx = *self.node_map.get(&output_id)
+    //         .ok_or_else(|| MlError::StringError("Output node not found".to_string()))?;
+    //     let output_var = &self.nodes[output_idx].variable;
+    //     if output_var.grad().is_empty() {
+    //         let grad = GlobalTensor::from_vec(
+    //             vec![1.0; output_var.tensor().shape().iter().product()],
+    //             output_var.tensor().shape()
+    //         )?;
+    //         output_var.set_grad(grad);
+    //     }
+    // 
+    //     // 위상 정렬된 순서의 역순으로 순회
+    //     for &node_idx in self.topo_order.iter().rev() {
+    //         let node = &self.nodes[node_idx];
+    //         let var = &node.variable;
+    //         let grad = var.grad();
+    //         if node.function.is_none() || grad.is_empty() { continue; }
+    //         let function = node.function.as_ref().unwrap();
+    //         let input_tensors: Vec<&dyn TensorBase> = node.inputs
+    //             .iter()
+    //             .map(|&input_id| {
+    //                 let input_idx = self.node_map[&input_id];
+    //                 self.nodes[input_idx].variable.tensor() as &dyn TensorBase
+    //             })
+    //             .collect::<Vec<&dyn TensorBase>>();
+    // 
+    //         let input_grads = OPERATOR_STORAGE.with(|ops| {
+    //             let mut ops_borrow = ops.borrow_mut();
+    //             match ops_borrow.get_mut(function) {
+    //                 Some(op) => {
+    //                     op.backward(&input_tensors, grad)
+    //                         .map_err(|e| MlError::StringError(format!("Failed to compute backward for function {:?}: {}", function, e)))
+    //                 }
+    //                 None => {
+    //                     // 연산자가 등록되지 않은 경우 상세한 오류 메시지 제공
+    //                     let available_ops: Vec<String> = ops_borrow.keys().cloned().collect();
+    //                     Err(MlError::StringError(format!(
+    //                         "연산자 '{}'가 OPERATOR_STORAGE에 등록되지 않았습니다. 사용 가능한 연산자: {:?}",
+    //                         function, available_ops
+    //                     )))
+    //                 }
+    //             }
+    //         })?;
+    // 
+    // 
+    //         for (input_id, grad) in node.inputs.iter().zip(input_grads) {
+    //             let input_idx = self.node_map[input_id];
+    //             let input_node = &self.nodes[input_idx];
+    //             input_node.variable.accumulate_grad(grad.to_id(false)?)?;
+    //         }
+    // 
+    //         var.clear_grad();
+    //     }
+    //     Ok(())
+    // }
+
     #[cfg(feature = "enableBackpropagation")]
     pub(crate) fn backward(&mut self, output_id: HandleId) -> MlResult<()> {
+        use log::{info, debug, trace};
+
+        // --- INPUT DEBUGGING ---
+        info!("[BACKWARD START] Initiating backpropagation for output_id: {:?}", output_id);
+
+        trace!("[Init] Clearing all existing gradients before backpropagation.");
         for node in &self.nodes {
             node.variable.clear_grad();
         }
+
         // Set output node's gradient to 1.0
         let output_idx = *self.node_map.get(&output_id)
-            .ok_or_else(|| MlError::StringError("Output node not found".to_string()))?;
+            .ok_or_else(|| MlError::StringError(format!("Output node with id {:?} not found in graph.", output_id)))?;
+
         let output_var = &self.nodes[output_idx].variable;
+        debug!("[Init] Identified output node (index: {}, id: {:?})", output_idx, output_id);
+
+        // --- OUTPUT DEBUGGING (Initial Gradient) ---
         if output_var.grad().is_empty() {
-            let grad = GlobalTensor::from_vec(
-                vec![1.0; output_var.tensor().shape().iter().product()],
-                output_var.tensor().shape()
-            )?;
+            let shape = output_var.tensor().shape();
+            let size = shape.iter().product();
+            let grad_vec = vec![1.0; size];
+
+            trace!("[Init] Setting initial gradient for output node {}. Shape: {:?}, Size: {}. Value: 1.0", output_idx, shape, size);
+
+            let grad = GlobalTensor::from_vec(grad_vec, shape)?;
             output_var.set_grad(grad);
         }
 
         // 위상 정렬된 순서의 역순으로 순회
+        info!("[MAIN LOOP] Starting reverse-order traversal of nodes.");
         for &node_idx in self.topo_order.iter().rev() {
             let node = &self.nodes[node_idx];
             let var = &node.variable;
-            let grad = var.grad();
-            if node.function.is_none() || grad.is_empty() { continue; }
+
+            debug!("[Node Processing] Current node_idx: {}, id: {:?}", node_idx, node.id);
+
+            if node.function.is_none() {
+                trace!("  -> Skipping node {}: It's a leaf node (no function).", node_idx);
+                continue;
+            }
+
+            let grad = var.grad(); // 이 노드까지 전파된 출력 측 그래디언트
+            if grad.is_empty() {
+                trace!("  -> Skipping node {}: Gradient is empty (no back-propagation path).", node_idx);
+                continue;
+            }
+
             let function = node.function.as_ref().unwrap();
+            debug!("  - Function to process: '{:?}'", function);
+
+            // --- OPERATOR INPUT DEBUGGING ---
             let input_tensors: Vec<&dyn TensorBase> = node.inputs
                 .iter()
                 .map(|&input_id| {
@@ -207,18 +295,51 @@ impl ComputationGraph {
                     self.nodes[input_idx].variable.tensor() as &dyn TensorBase
                 })
                 .collect::<Vec<&dyn TensorBase>>();
-            info!("Computing backward for function: {:?}, inputs: {:?}", function, node.inputs);
-            let input_grads = OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut(function).unwrap().backward(&input_tensors, grad)
-                .map_err(|e| MlError::StringError(format!("Failed to compute backward for function {:?}: {}", function, e))))?;
 
-            for (input_id, grad) in node.inputs.iter().zip(input_grads) {
+            trace!("  - Operator Inputs: Calling op.backward for '{:?}' with:", function);
+            for (i, t) in input_tensors.iter().enumerate() {
+                trace!("    - input_tensor[{}]: data={:?}", i, t.data());
+            }
+            trace!("    - input_grad: data={:?}", grad.data());
+
+
+            let output_grads = OPERATOR_STORAGE.with(|ops| {
+                let mut ops_borrow = ops.borrow_mut();
+                match ops_borrow.get_mut(function) {
+                    Some(op) => op.backward(&input_tensors, grad),
+                    None => {
+                        let available_ops: Vec<String> = ops_borrow.keys().cloned().collect();
+                        log::error!("Operator '{:?}' not registered!", function);
+                        Err(MlError::StringError(format!(
+                            "연산자 '{}'가 OPERATOR_STORAGE에 등록되지 않았습니다. 사용 가능한 연산자: {:?}",
+                            function, available_ops
+                        )))
+                    }
+                }
+            }).map_err(|e| MlError::StringError(format!("[BACKWARD FAIL] on op '{:?}': {}", function, e)))?;
+
+            // --- OPERATOR OUTPUT DEBUGGING ---
+            debug!("  - Operator Outputs: op.backward for '{:?}' returned {} gradients.", function, output_grads.len());
+            for (i, g) in output_grads.iter().enumerate() {
+                trace!("    - output_grads[{}]: data={:?}", i, g.data());
+            }
+
+            for (input_id, grad_to_accumulate) in node.inputs.iter().zip(output_grads) {
                 let input_idx = self.node_map[input_id];
                 let input_node = &self.nodes[input_idx];
-                input_node.variable.accumulate_grad(grad.to_id()?)?;
+
+                // --- GRADIENT ACCUMULATION DEBUGGING ---
+                trace!("  - Accumulating gradient for input node (idx: {}, id: {:?}). Grad shape: {:?}", 
+                   input_idx, input_id, grad_to_accumulate.shape());
+
+                input_node.variable.accumulate_grad(grad_to_accumulate.to_id(false)?)?;
             }
-            
+
+            trace!("  - Clearing gradient for current node {} after propagation.", node_idx);
             var.clear_grad();
         }
+
+        info!("[BACKWARD END] Backpropagation finished successfully.");
         Ok(())
     }
 
@@ -268,11 +389,12 @@ impl AutogradFunction for GlobalFunction {
             .iter()
             .map(|&var| var.tensor() as &dyn TensorBase)
             .collect::<Vec<&dyn TensorBase>>();
-        let output = Variable::new(self.forward(&tensors)?.remove(0).to_id()?);
+        let output = Variable::new(self.forward(&tensors)?.remove(0).to_id(false)?);
 
         #[cfg(feature = "enableBackpropagation")]
         {
-            output.clone().with_grad_fn(self.name(), inputs);
+            println!("[GlobalFunction] Applying with inputs: {:?}", (inputs, "->", self.name(), "->", &output));
+            output.with_grad_fn(self.name(), inputs);
             return Ok(output)
         }
         // 정적계산 그래프를 통해서 메모리 효율성을 증대하려 했으나, 사전에 텐서의 정보가 주입되지 않으면 메모리 관리가 어려워,
@@ -288,10 +410,10 @@ impl AutogradFunction for GlobalFunction {
             .iter()
             .map(|&var| var.tensor() as &dyn TensorBase)
             .collect::<Vec<&dyn TensorBase>>();
-        let output = crate::var_with_label!(self.forward(&tensors)?.remove(0).to_id()?, label);
+        let output = crate::var_with_label!(self.forward(&tensors)?.remove(0).to_id(false)?, label);
         #[cfg(feature = "enableBackpropagation")]
         {
-            output.clone().with_grad_fn(self.name(), inputs);
+            output.with_grad_fn(self.name(), inputs);
             return Ok(output)
         }
         // 정적계산 그래프를 통해서 메모리 효율성을 증대하려 했으나, 사전에 텐서의 정보가 주입되지 않으면 메모리 관리가 어려워,

@@ -22,29 +22,36 @@ impl Linear {
             label: label.to_string(),
             weight: var_weight!(weight_tensor),
             bias: var_bias!(bias_tensor),
-            cache: HashMap::new(),
             matmul: Matmul::new()?,
             add: Add::new()?,
         })
     }
 }
 
-
 impl Layer for Linear {
+    #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
-        let x = self.matmul.forward(&[self.weight.tensor(), input.tensor()])?.remove(0);
-        let output = self.add.forward(&[&x, self.bias.tensor()])?.remove(0);
+        let x = Variable::new(
+            self.matmul
+                .forward(&[self.weight.tensor(), input.tensor()])?
+                .remove(0)
+                .to_id(false)?);
+        let output = Variable::new(
+            self.add
+                .forward(&[x.tensor(), self.bias.tensor()])?
+                .remove(0)
+                .to_id(false)?);
 
-        x.with_grad_fn(self.type_name(), &[&input]); // 입출력에 대한 계산그래프 구성을 재설계 해야함
-        output.with_grad_fn(self.type_name(), &[&x, self.bias.tensor()]);
-        Ok(applied)
+        x.with_grad_fn(self.matmul.name(), &[&self.weight, &input]); // 입출력에 대한 계산그래프 구성을 재설계 해야함
+        output.with_grad_fn(self.add.name(), &[&x, &self.bias]);
+        Ok(output)
     }
 
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         let x = self.matmul.forward(&[self.weight.tensor(), input])?.remove(0);
         let output = self.add.forward(&[&x, self.bias.tensor()])?.remove(0);
 
-        Ok(output)
+        Ok(TENSOR_ALLOCATOR.with_borrow(|alloc| alloc.get_tensor_ref(&output.id()).cloned().unwrap()))
     }
 
     /// 이 레이어가 소유한 모든 파라미터(가중치, 편향)의 참조를 반환합니다.

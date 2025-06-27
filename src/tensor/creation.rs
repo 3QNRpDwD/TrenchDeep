@@ -1,11 +1,37 @@
 use super::*;
 
 impl TensorBase for PooledTensor {
+    fn new(data: Vec<Vec<f32>>) -> Self {
+        let shape = vec![data.len(), data[0].len()];
+        let data: Vec<f32> = data.into_iter().flatten().collect();
+        TENSOR_ALLOCATOR.with_borrow_mut(|alloc| {
+            let unit =  alloc.alloc_temporary(&shape);
+            alloc.storage.get_mut(&unit.id()).unwrap().data = data;
+            unit
+        })
+    }
+
+    fn from_vec(data: Vec<f32>, shape: &[usize]) -> MlResult<Self> {
+        let expected_len: usize = shape.iter().product();
+        if data.len() != expected_len {
+            return Err(MlError::TensorError(TensorError::InvalidDataLength {
+                expected: expected_len,
+                got: data.len(),
+            }));
+        }
+        
+        TENSOR_ALLOCATOR.with_borrow_mut(|alloc| {
+            let unit =  alloc.alloc_temporary(&shape);
+            alloc.storage.get_mut(&unit.id()).unwrap().data = data;
+            Ok(unit)
+        })
+    }
+    
     fn as_ptr(&self) -> *const GlobalTensor<f32> {
         TENSOR_ALLOCATOR.with_borrow(|allocator| {
             // `Ref`의 수명을 연장하기 위해 raw 포인터를 사용.
             // allocator의 borrow가 끝난 후에도 포인터가 유효하다고 가정.
-            let tensor_ref = allocator.get_tensor_ref(&self.0).unwrap();
+            let tensor_ref = allocator.get_tensor_ref(&self.node_id).unwrap();
             tensor_ref as *const GlobalTensor<f32>
         })
     }
@@ -99,8 +125,8 @@ impl TensorBase for Tensor {
 }
 
 impl PooledTensor {
-    pub fn to_id(mut self) -> MlResult<Tensor> {
-        self.detached = true;
+    pub fn to_id(mut self, detached: bool) -> MlResult<Tensor> {
+        self.detached = detached;
         Ok(Tensor(self.node_id))
     }
 }
