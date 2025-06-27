@@ -12,6 +12,7 @@ impl SoftmaxLayer {
 }
 
 impl Layer for SoftmaxLayer {
+    #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let output = self.operator.forward(&[input.tensor()])?.remove(0);
         let var_act = var_act!(output.to_id(false)?, self.label());
@@ -25,7 +26,6 @@ impl Layer for SoftmaxLayer {
             Ok(alloc.get_tensor_ref(&output.id()).unwrap().clone())
         })
     }
-
     fn params(&self) -> Vec<&dyn Parameter> {
         vec![]
     }

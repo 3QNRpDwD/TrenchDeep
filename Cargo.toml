@@ -34,7 +34,6 @@ thiserror = "2.0.12"               #오류 전파용 크레이트
 debug = true
 
 [profile.release]
-debug = true
 opt-level = 3
 
 #This framework is a project that I am independently designing/developing to study about deep learning.

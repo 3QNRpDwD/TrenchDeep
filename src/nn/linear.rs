@@ -29,8 +29,8 @@ impl Linear {
     }
 }
 
-
 impl Layer for Linear {
+    #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let x = Variable::new(
             self.matmul

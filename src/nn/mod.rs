@@ -26,7 +26,6 @@ use std::{
     },
     sync::Arc
 };
-use crate::tensor::COMPUTATION_GRAPH;
 use crate::tensor::PooledTensor;
 
 #[macro_export]
@@ -55,21 +54,19 @@ macro_rules! variable {
 }
 
 pub trait Layer: Debug {
+    #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable>;
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>>;
     fn params(&self) -> Vec<&dyn Parameter>;
-    fn type_name(&self) -> &str {
-        std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
-    } // 레이어를 구현하는 구조체의 이름을 반환
+    fn type_name(&self) -> &str { std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown") } // 레이어를 구현하는 구조체의 이름을 반환
     fn label(&self) -> &str;    // 유저가 설정한 레이어의 이름을 반환
 }
 
 pub trait Parameter: Debug {
     fn new(tensor: Tensor) -> Self where Self: Sized;
-
-    #[cfg(feature = "enableBackpropagation")]
+    
     fn node_id(&self) -> HandleId;
-
+    
     fn add_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
         Add::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
@@ -116,8 +113,9 @@ pub trait Parameter: Debug {
     #[cfg(feature = "enableBackpropagation")]
     fn accumulate_grad(&self, new_grad: Tensor) -> MlResult<()>;
 
+    #[cfg(feature = "enableBackpropagation")]
     fn backward(&self) -> MlResult<()> {
-        COMPUTATION_GRAPH.with(|graph| {
+        crate::tensor::COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
 
             if graph.node_map.contains_key(&self.node_id()) {
@@ -233,6 +231,7 @@ impl Sequential {
 }
 
 impl Layer for Sequential {
+    #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let mut current_output= input.clone();
         for layer in &mut self.layers {

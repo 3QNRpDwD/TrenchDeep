@@ -12,6 +12,7 @@ impl TanhLayer {
 }
 
 impl Layer for TanhLayer {
+    #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let output = self.operator.forward(&[input.tensor()])?.remove(0);
         let var_act = var_act!(output.to_id(false)?, self.label());
