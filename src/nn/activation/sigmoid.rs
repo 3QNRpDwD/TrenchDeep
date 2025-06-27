@@ -1,3 +1,4 @@
+use crate::tensor::TENSOR_ALLOCATOR;
 use super::*;
 
 impl SigmoidLayer {
@@ -13,26 +14,20 @@ impl SigmoidLayer {
 impl Layer for SigmoidLayer {
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let output = self.operator.forward(&[input.tensor()])?.remove(0);
-        let in_id = input.node_id();
-        let applied = match self.cache.contains_key(&in_id) {
-            true => output.with_id(*self.cache.get(&in_id).unwrap())?,
-            false => {
-                let temp = output.to_id()?;
-                self.cache.insert(in_id, temp.id());
-                temp
-            }
-        };
-        let var_act = var_act!(applied, self.label());
+        let var_act = var_act!(output.to_id(false)?, self.label());
         var_act.with_grad_fn(self.operator.name(), &[&input]);
         Ok(var_act)
     }
 
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> { Ok(self.operator.forward(&[input])?.remove(0)) }
+    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+        TENSOR_ALLOCATOR.with_borrow( |alloc| {
+            let output = self.operator.forward(&[input])?.remove(0);
+            Ok(alloc.get_tensor_ref(&output.id()).unwrap().clone())
+        })
+    }
     fn params(&self) -> Vec<&dyn Parameter> {
         vec![]
     }
-    fn inputs_cache(&self) -> &HashMap<HandleId, HandleId> { &self.cache }
-    fn inputs_cache_mut(&mut self) -> &mut HashMap<HandleId, HandleId> { &mut self.cache }
     fn label(&self) -> &str { &self.label }
 }
 
@@ -41,11 +36,11 @@ impl Function for Sigmoid {
         register_operator!(Sigmoid)
     }
     
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let x = targets[0];
         let ones = vec![1.0f32; x.data().len()];
         Ok(vec![
-            GlobalTensor::from_vec(
+            PooledTensor::from_vec(
                 self.backend.div(&ones, &self.backend.add(&ones, &self.backend.exp(x.data()))),
                 x.shape()
             )?]
@@ -53,7 +48,7 @@ impl Function for Sigmoid {
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
         let input_x = targets[0];
         // σ'(x) = σ(x) * (1 - σ(x))
         // ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * σ'(x)
@@ -76,7 +71,7 @@ impl Function for Sigmoid {
 
         // 최종 그래디언트: ∂L/∂x = ∂L/∂y * ∂y/∂x = grad * derivative
         Ok(vec![
-            GlobalTensor::from_vec(
+            PooledTensor::from_vec(
                 self.backend.multiply(&grad.data(), &derivative),
                 grad.shape()
             )?

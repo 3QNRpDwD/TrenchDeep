@@ -25,7 +25,7 @@ pub mod graph;
 pub mod visualization;
 mod allocator;
 
-use crate::{MlError, MlResult, register_operator, tensor::operators::Function, TensorError};
+use crate::{MlError, MlResult, register_operator, temporary_unit, tensor::operators::Function, TensorError};
 use crate::nn::{Parameter, Variable};
 use crate::tensor:: {operators::Pow};
 
@@ -92,9 +92,9 @@ macro_rules! scalar  {
 
     ($scalar:expr) => {
         {
-            use crate::tensor::GlobalTensor;
+            use crate::tensor::PooledTensor;
             {
-                GlobalTensor::new(vec![vec![$scalar]])
+                PooledTensor::new(vec![vec![$scalar]])
             }
         }
     };
@@ -244,6 +244,7 @@ pub struct TensorAllocator {
 
 /// 풀에서 빌린 임시 텐서를 감싸는 RAII 래퍼
 /// 스코프를 벗어나면 자동으로 TensorAllocator의 풀에 반환됩니다.
+#[derive(Debug, Clone)]
 pub struct PooledTensor {
     node_id: HandleId,
     detached: bool

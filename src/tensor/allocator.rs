@@ -1,5 +1,9 @@
 use super::*;
 
+#[macro_export]
+macro_rules! temporary_unit {
+    ($shape:expr) => { TENSOR_ALLOCATOR.with_borrow_mut(|allocator| allocator.alloc_temporary($shape)) }
+}
 
 impl TensorAllocator {
     pub fn new() -> Self {
