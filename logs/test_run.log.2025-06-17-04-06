@@ -1,0 +1,51 @@
+2025-06-17T04:06:07.717699Z  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-17T04:06:07.717856Z  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 50, n_val: 100, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-17T04:06:07.718089Z  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 50, Test: 100)    
+2025-06-17T04:06:08.005183Z  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-17T04:06:08.008970Z  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-17T04:06:08.009134Z  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-17T04:06:08.020161Z  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-17T04:06:08.020264Z  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-17T04:06:08.023720Z  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-17T04:06:08.023781Z  INFO trench_deep::tests::common::utils: Starting model training...    
+2025-06-17T04:06:08.024048Z  INFO trench_deep::tests::common::utils: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-17T04:06:08.024687Z  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-17T04:06:08.029634Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   0/10  | initial loss: 0.225006 | Duration: 4.90ms    
+2025-06-17T04:06:08.334475Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   1/10  | Avg Loss: 0.234255 | Loss Chg: +0.009249 | Duration: 304.72ms    
+2025-06-17T04:06:08.651492Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   2/10  | Avg Loss: 0.225384 | Loss Chg: -0.008871 | Duration: 316.83ms    
+2025-06-17T04:06:08.961779Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   3/10  | Avg Loss: 0.217332 | Loss Chg: -0.008052 | Duration: 310.09ms    
+2025-06-17T04:06:09.280293Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   4/10  | Avg Loss: 0.209878 | Loss Chg: -0.007454 | Duration: 318.28ms    
+2025-06-17T04:06:09.589522Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   5/10  | Avg Loss: 0.202892 | Loss Chg: -0.006985 | Duration: 309.03ms    
+2025-06-17T04:06:09.902834Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   6/10  | Avg Loss: 0.196294 | Loss Chg: -0.006599 | Duration: 313.14ms    
+2025-06-17T04:06:10.213736Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   7/10  | Avg Loss: 0.190026 | Loss Chg: -0.006267 | Duration: 310.62ms    
+2025-06-17T04:06:10.525978Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   8/10  | Avg Loss: 0.184053 | Loss Chg: -0.005974 | Duration: 311.74ms    
+2025-06-17T04:06:10.846616Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   9/10  | Avg Loss: 0.178345 | Loss Chg: -0.005708 | Duration: 320.45ms    
+2025-06-17T04:06:11.158475Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch  10/10  | Avg Loss: 0.172881 | Loss Chg: -0.005464 | Duration: 311.65ms    
+2025-06-17T04:06:11.158608Z  INFO trench_deep::tests::common::model::regression::softmax: 🏁 Total training time: 3.13s. Final average loss: 0.172881    
+2025-06-17T04:06:11.159000Z  INFO trench_deep::tests::common::utils: Model training finished.    
+2025-06-17T04:06:11.159077Z  INFO trench_deep::tests::common::evaluation: Starting model evaluation on 100 test samples...    
+2025-06-17T04:06:11.169920Z  INFO trench_deep::tests::common::evaluation: ✅ Evaluation complete: Accuracy = 33.00%    
+2025-06-17T04:06:11.170000Z  WARN trench_deep::tests::mnist_test: ⚠️ Target accuracy NOT met. (Actual: 33.00%, Required: 80.00%).    
+2025-06-17T04:06:11.170125Z  INFO trench_deep::tests::mnist_test: === MLP MNIST Test Finished ===    
+2025-06-17T04:06:28.829776Z  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-17T04:06:28.830026Z  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 500, n_val: 100, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-17T04:06:28.830335Z  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 500, Test: 100)    
+2025-06-17T04:06:29.100528Z  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-17T04:06:29.109314Z  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-17T04:06:29.109655Z  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-17T04:06:29.118168Z  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-17T04:06:29.118240Z  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-17T04:06:29.120756Z  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-17T04:06:29.120808Z  INFO trench_deep::tests::common::utils: Starting model training...    
+2025-06-17T04:06:29.120969Z  INFO trench_deep::tests::common::utils: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-17T04:06:29.121497Z  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-17T04:06:29.172690Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   0/10  | initial loss: 0.232188 | Duration: 51.05ms    
+2025-06-17T04:06:32.286205Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   1/10  | Avg Loss: 0.254266 | Loss Chg: +0.022078 | Duration: 3.11s    
+2025-06-17T04:06:35.311466Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   2/10  | Avg Loss: 0.195664 | Loss Chg: -0.058601 | Duration: 3.03s    
+2025-06-17T04:06:38.744005Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   3/10  | Avg Loss: 0.159587 | Loss Chg: -0.036078 | Duration: 3.43s    
+2025-06-17T04:06:41.758356Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   4/10  | Avg Loss: 0.134477 | Loss Chg: -0.025110 | Duration: 3.01s    
+2025-06-17T04:06:44.702603Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   5/10  | Avg Loss: 0.116422 | Loss Chg: -0.018054 | Duration: 2.94s    
+2025-06-17T04:06:47.874780Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   6/10  | Avg Loss: 0.103044 | Loss Chg: -0.013379 | Duration: 3.17s    
+2025-06-17T04:06:51.036089Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   7/10  | Avg Loss: 0.092832 | Loss Chg: -0.010212 | Duration: 3.16s    
+2025-06-17T04:06:54.128941Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   8/10  | Avg Loss: 0.084826 | Loss Chg: -0.008007 | Duration: 3.09s    
+2025-06-17T04:06:57.255119Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   9/10  | Avg Loss: 0.078397 | Loss Chg: -0.006428 | Duration: 3.13s    

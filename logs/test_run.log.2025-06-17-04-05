@@ -1,0 +1,35 @@
+2025-06-17T04:05:17.694005Z  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-17T04:05:17.694268Z  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 50, n_val: 100, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-17T04:05:17.694664Z  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 50, Test: 100)    
+2025-06-17T04:05:17.975944Z  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-17T04:05:17.978315Z  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-17T04:05:17.978517Z  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-17T04:05:37.923836Z  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-17T04:05:37.924074Z  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 50, n_val: 100, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-17T04:05:37.924743Z  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 50, Test: 100)    
+2025-06-17T04:05:38.220204Z  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-17T04:05:38.222837Z  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-17T04:05:38.223062Z  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-17T04:05:38.232772Z  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 30(Hidden) -> 10(Output)    
+2025-06-17T04:05:38.232864Z  INFO trench_deep::tests::common::utils: Activation Functions: Sigmoid (Hidden), Softmax (Output)    
+2025-06-17T04:05:38.240539Z  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-17T04:05:38.240600Z  INFO trench_deep::tests::common::utils: Starting model training...    
+2025-06-17T04:05:38.240750Z  INFO trench_deep::tests::common::utils: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-17T04:05:38.241460Z  INFO trench_deep::tests::common::model::mlp: Initial error calculation...    
+2025-06-17T04:05:38.256855Z  INFO trench_deep::tests::common::model::mlp: Epoch   0/10  | initial loss: 0.230852 | Duration: 15.30ms    
+2025-06-17T04:05:39.452819Z  INFO trench_deep::tests::common::model::mlp: Epoch   1/10  | Avg Loss: 0.243894 | Loss Chg: +0.013042 | Duration: 1.20s    
+2025-06-17T04:05:40.364656Z  INFO trench_deep::tests::common::model::mlp: Epoch   2/10  | Avg Loss: 0.242532 | Loss Chg: -0.001362 | Duration: 911.62ms    
+2025-06-17T04:05:41.313355Z  INFO trench_deep::tests::common::model::mlp: Epoch   3/10  | Avg Loss: 0.241285 | Loss Chg: -0.001247 | Duration: 948.49ms    
+2025-06-17T04:05:42.231838Z  INFO trench_deep::tests::common::model::mlp: Epoch   4/10  | Avg Loss: 0.240143 | Loss Chg: -0.001142 | Duration: 918.11ms    
+2025-06-17T04:05:43.161364Z  INFO trench_deep::tests::common::model::mlp: Epoch   5/10  | Avg Loss: 0.239097 | Loss Chg: -0.001046 | Duration: 929.34ms    
+2025-06-17T04:05:44.106412Z  INFO trench_deep::tests::common::model::mlp: Epoch   6/10  | Avg Loss: 0.238139 | Loss Chg: -0.000958 | Duration: 944.68ms    
+2025-06-17T04:05:45.028349Z  INFO trench_deep::tests::common::model::mlp: Epoch   7/10  | Avg Loss: 0.237261 | Loss Chg: -0.000878 | Duration: 921.76ms    
+2025-06-17T04:05:45.970673Z  INFO trench_deep::tests::common::model::mlp: Epoch   8/10  | Avg Loss: 0.236456 | Loss Chg: -0.000805 | Duration: 941.93ms    
+2025-06-17T04:05:46.918987Z  INFO trench_deep::tests::common::model::mlp: Epoch   9/10  | Avg Loss: 0.235719 | Loss Chg: -0.000738 | Duration: 948.04ms    
+2025-06-17T04:05:47.818093Z  INFO trench_deep::tests::common::model::mlp: Epoch  10/10  | Avg Loss: 0.235043 | Loss Chg: -0.000676 | Duration: 898.74ms    
+2025-06-17T04:05:47.818504Z  INFO trench_deep::tests::common::model::mlp: 🏁 Total training time: 9.58s. Final average loss: 0.235043    
+2025-06-17T04:05:47.818722Z  INFO trench_deep::tests::common::utils: Model training finished.    
+2025-06-17T04:05:47.819029Z  INFO trench_deep::tests::common::evaluation: Starting model evaluation on 100 test samples...    
+2025-06-17T04:05:47.848385Z  INFO trench_deep::tests::common::evaluation: ✅ Evaluation complete: Accuracy = 9.00%    
+2025-06-17T04:05:47.848500Z  WARN trench_deep::tests::mnist_test: ⚠️ Target accuracy NOT met. (Actual: 9.00%, Required: 80.00%).    
+2025-06-17T04:05:47.848747Z  INFO trench_deep::tests::mnist_test: === MLP MNIST Test Finished ===    

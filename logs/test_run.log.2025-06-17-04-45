@@ -1,0 +1,1 @@
+2025-06-17T04:45:30.165125Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   8/15  | Avg Loss: 0.030450 | Loss Chg: -0.000514 | Duration: 249.03s    

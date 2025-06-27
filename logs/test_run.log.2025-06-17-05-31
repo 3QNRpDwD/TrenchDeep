@@ -1,0 +1,6 @@
+2025-06-17T05:31:48.087261Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch  15/15  | Avg Loss: 0.028439 | Loss Chg: -0.000193 | Duration: 346.36s    
+2025-06-17T05:31:48.092632Z  INFO trench_deep::tests::common::model::regression::softmax: 🏁 Total training time: 4272.41s. Final average loss: 0.028439    
+2025-06-17T05:31:48.097537Z  INFO trench_deep::tests::common::utils: Model training finished.    
+2025-06-17T05:31:48.098689Z  INFO trench_deep::tests::common::evaluation: Starting model evaluation on 5000 test samples...    
+2025-06-17T05:31:48.778454Z  INFO trench_deep::tests::common::evaluation: ✅ Evaluation complete: Accuracy = 91.06%    
+2025-06-17T05:31:48.780064Z  INFO trench_deep::tests::mnist_test: 🎉 Target accuracy achieved! (91.06% > 80.00%)    

@@ -1,0 +1,2145 @@
+2025-06-18T04:49:45  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T04:49:45  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T04:49:45  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T04:49:45  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T04:49:45  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T04:49:45  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T04:49:45  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T04:49:45  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T04:49:45  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T04:49:45  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T04:49:45  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T04:49:45  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T04:50:15  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T04:50:15  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T04:50:15  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T04:50:15  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T04:50:15  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T04:50:15  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T04:50:15  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T04:50:15  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T04:50:15  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T04:50:15  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T04:50:15  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T04:50:15  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T04:51:56  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T04:51:56  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T04:51:56  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T04:51:56  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T04:51:56  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T04:51:56  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T04:51:56  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T04:51:56  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T04:51:56  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T04:51:56  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T04:51:56  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T04:51:56  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T04:52:48  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T04:52:48  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T04:52:48  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T04:52:48  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T04:52:48  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T04:52:48  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T04:52:48  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T04:52:48  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T04:52:48  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T04:52:48  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T04:52:48  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T04:52:48  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T04:53:47  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T04:53:47  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T04:53:47  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T04:53:47  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T04:53:47  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T04:53:47  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T04:53:47  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T04:53:47  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T04:53:47  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T04:53:47  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T04:53:47  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T04:53:47  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T04:54:28  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T04:54:28  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T04:54:28  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T04:54:29  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T04:54:29  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T04:54:29  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T04:54:29  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T04:54:29  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T04:54:29  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T04:54:29  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T04:54:29  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T04:54:29  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T04:54:57  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T04:54:57  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T04:54:57  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T04:54:57  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T04:54:57  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T04:54:57  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T04:54:57  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T04:54:57  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T04:54:57  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T04:54:57  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T04:54:57  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T04:54:57  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T04:55:09  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T04:55:09  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T04:55:09  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T04:55:09  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T04:55:09  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T04:55:09  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T04:55:09  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T04:55:09  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T04:55:09  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T04:55:09  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T04:55:09  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T04:55:09  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T04:56:33  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T04:56:33  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T04:56:33  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T04:56:33  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:56:33  INFO trench_deep::tests::common::utils: 4003    
+2025-06-18T04:57:13  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T04:57:13  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T04:57:13  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T04:57:13  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T04:57:13  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T04:57:13  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T04:57:13  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T04:57:13  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T04:57:13  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T04:57:13  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T04:57:13  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T04:57:13  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T04:57:13  INFO trench_deep::tests::common::utils: 1000    
+2025-06-18T04:57:46  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T04:57:46  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T04:57:46  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T04:57:46  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T04:57:46  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T04:57:46  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T04:57:46  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T04:57:46  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T04:57:46  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T04:57:46  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T04:57:46  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T04:57:46  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T04:57:59  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T04:57:59  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T04:57:59  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T04:58:00  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T04:58:00  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 0, [0.23343024]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 1, [0.2405026]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 2, [0.23462045]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 3, [0.23813125]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 4, [0.23381655]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 5, [0.23992582]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 6, [0.21497485]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 7, [0.23888321]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 8, [0.23992816]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 9, [0.23093946]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 10, [0.23670645]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 11, [0.23745374]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 12, [0.22721457]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 13, [0.24034064]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 14, [0.22330551]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 15, [0.23703086]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 16, [0.23968434]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 17, [0.23182645]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 18, [0.23999822]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 19, [0.23251787]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 20, [0.24024573]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 21, [0.23828259]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 22, [0.22726929]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 23, [0.2348264]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 24, [0.2367355]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 25, [0.23195931]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 26, [0.2398839]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 27, [0.23635991]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 28, [0.23710506]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 29, [0.2304621]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 30, [0.22795391]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 31, [0.23900345]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 32, [0.2372473]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 33, [0.23718491]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 34, [0.23951761]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 35, [0.23388374]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 36, [0.19749776]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 37, [0.22718695]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 38, [0.23684569]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 39, [0.2313241]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 40, [0.24142332]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 41, [0.23589686]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 42, [0.22303239]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 43, [0.22690411]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 44, [0.23385306]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 45, [0.23094001]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 46, [0.22265935]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 47, [0.20987377]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 48, [0.20148441]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 49, [0.24025087]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 50, [0.23973174]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 51, [0.21662167]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 52, [0.23982176]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 53, [0.24018082]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 54, [0.23222847]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 55, [0.23602316]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 56, [0.23094317]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 57, [0.23058183]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 58, [0.23580194]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 59, [0.23378065]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 60, [0.23677163]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 61, [0.23668416]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 62, [0.23105884]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 63, [0.22710712]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 64, [0.23308524]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 65, [0.23778066]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 66, [0.23992212]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 67, [0.23365057]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 68, [0.2393939]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 69, [0.19528553]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 70, [0.2398247]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 71, [0.23425555]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 72, [0.2279335]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 73, [0.22481401]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 74, [0.19029348]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 75, [0.22412558]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 76, [0.23365343]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 77, [0.23887691]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 78, [0.23369591]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 79, [0.21020141]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 80, [0.23719093]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 81, [0.2319113]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 82, [0.23175617]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 83, [0.23903164]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 84, [0.23682936]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 85, [0.22738731]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 86, [0.24019262]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 87, [0.20157544]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 88, [0.20857212]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 89, [0.23143227]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 90, [0.2407062]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 91, [0.23136565]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 92, [0.23090073]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 93, [0.23845823]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 94, [0.240382]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 95, [0.22855718]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 96, [0.21306106]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 97, [0.2420933]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 98, [0.21979208]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 99, [0.19037934]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 100, [0.23359995]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 101, [0.23803529]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 102, [0.24206178]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 103, [0.23130266]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 104, [0.2389923]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 105, [0.23737831]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 106, [0.23169112]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 107, [0.23392966]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 108, [0.23985973]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 109, [0.23860022]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 110, [0.23635831]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 111, [0.1910278]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 112, [0.24069412]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 113, [0.236231]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 114, [0.24007003]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 115, [0.23241027]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 116, [0.23708913]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 117, [0.23758583]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 118, [0.24099386]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 119, [0.23837534]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 120, [0.23798458]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 121, [0.23893127]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 122, [0.21442667]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 123, [0.23806007]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 124, [0.20789537]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 125, [0.23756206]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 126, [0.23728319]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 127, [0.23373719]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 128, [0.2291063]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 129, [0.22574274]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 130, [0.22892013]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 131, [0.2271407]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 132, [0.24079545]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 133, [0.23544343]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 134, [0.23636284]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 135, [0.22607999]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 136, [0.23100615]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 137, [0.23024027]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 138, [0.18128625]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 139, [0.22106187]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 140, [0.24051416]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 141, [0.22489631]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 142, [0.24270852]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 143, [0.19191232]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 144, [0.2090203]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 145, [0.22469166]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 146, [0.23721492]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 147, [0.23486134]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 148, [0.20599572]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 149, [0.23450236]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 150, [0.23444107]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 151, [0.24339373]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 152, [0.23517473]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 153, [0.2399977]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 154, [0.23064867]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 155, [0.23611458]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 156, [0.23424813]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 157, [0.23713915]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 158, [0.23671529]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 159, [0.2340465]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 160, [0.23993015]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 161, [0.236117]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 162, [0.22869897]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 163, [0.23847564]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 164, [0.24006736]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 165, [0.20336942]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 166, [0.23807514]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 167, [0.236377]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 168, [0.22785056]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 169, [0.2368418]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 170, [0.22274008]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 171, [0.23580298]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 172, [0.24099569]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 173, [0.23660453]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 174, [0.24144554]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 175, [0.22700691]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 176, [0.21891172]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 177, [0.23485002]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 178, [0.23356764]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 179, [0.22366162]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 180, [0.23673317]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 181, [0.23895654]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 182, [0.20515916]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 183, [0.24036458]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 184, [0.24038379]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 185, [0.23873954]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 186, [0.23652868]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 187, [0.23690805]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 188, [0.22231631]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 189, [0.23543672]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 190, [0.23933625]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 191, [0.21963616]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 192, [0.24098966]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 193, [0.2408152]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 194, [0.23184328]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 195, [0.23615186]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 196, [0.23037168]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 197, [0.2283922]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 198, [0.23123333]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 199, [0.24047399]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 200, [0.23873344]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 201, [0.24078968]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 202, [0.22146785]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 203, [0.23924439]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 204, [0.21781449]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 205, [0.23352046]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 206, [0.22040904]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 207, [0.22091226]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 208, [0.24034655]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 209, [0.22255206]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 210, [0.23781173]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 211, [0.23669133]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 212, [0.24063866]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 213, [0.22892801]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 214, [0.23031488]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 215, [0.22713403]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 216, [0.23198693]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 217, [0.23727623]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 218, [0.237641]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 219, [0.23446862]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 220, [0.23113818]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 221, [0.23384523]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 222, [0.23602232]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 223, [0.23420247]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 224, [0.23406675]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 225, [0.24104819]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 226, [0.24176678]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 227, [0.23816593]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 228, [0.23212118]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 229, [0.23791473]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 230, [0.23984739]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 231, [0.23026359]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 232, [0.23731335]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 233, [0.22856562]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 234, [0.213003]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 235, [0.22579078]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 236, [0.23800643]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 237, [0.23364225]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 238, [0.23825963]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 239, [0.24020569]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 240, [0.23911338]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 241, [0.24011782]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 242, [0.23856466]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 243, [0.22812112]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 244, [0.24033709]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 245, [0.23781791]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 246, [0.23830087]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 247, [0.20627339]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 248, [0.24008349]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 249, [0.22032323]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 250, [0.24226621]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 251, [0.23976496]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 252, [0.19981106]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 253, [0.24251561]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 254, [0.23140617]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 255, [0.23792279]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 256, [0.21654153]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 257, [0.24017318]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 258, [0.23869748]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 259, [0.2398744]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 260, [0.23764782]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 261, [0.23162787]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 262, [0.23938498]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 263, [0.23532316]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 264, [0.2375376]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 265, [0.23621814]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 266, [0.23762643]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 267, [0.22048895]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 268, [0.24045917]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 269, [0.24022749]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 270, [0.196531]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 271, [0.24004433]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 272, [0.24126947]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 273, [0.2327604]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 274, [0.2393957]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 275, [0.21454008]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 276, [0.23099482]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 277, [0.2395376]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 278, [0.23879424]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 279, [0.2367146]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 280, [0.21958883]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 281, [0.2227468]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 282, [0.23897132]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 283, [0.23923671]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 284, [0.21711786]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 285, [0.2365928]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 286, [0.23972897]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 287, [0.23261154]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 288, [0.23674715]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 289, [0.23632975]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 290, [0.23660772]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 291, [0.23495081]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 292, [0.23271005]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 293, [0.24057469]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 294, [0.24028501]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 295, [0.21555094]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 296, [0.23961079]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 297, [0.23851295]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 298, [0.23757866]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 299, [0.22158155]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 300, [0.22685738]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 301, [0.23521295]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 302, [0.22367537]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 303, [0.2396783]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 304, [0.19847743]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 305, [0.24042146]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 306, [0.2402927]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 307, [0.22578299]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 308, [0.22959992]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 309, [0.2379415]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 310, [0.22976783]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 311, [0.23535328]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 312, [0.23934606]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 313, [0.23502767]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 314, [0.23287947]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 315, [0.23539086]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 316, [0.22231221]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 317, [0.224632]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 318, [0.18235834]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 319, [0.23046026]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 320, [0.24123624]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 321, [0.23951021]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 322, [0.22557993]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 323, [0.23441811]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 324, [0.20554423]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 325, [0.23761961]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 326, [0.22980745]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 327, [0.23855555]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 328, [0.23894212]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 329, [0.21858749]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 330, [0.23038514]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 331, [0.23106666]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 332, [0.20938203]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 333, [0.23743515]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 334, [0.23595531]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 335, [0.23522165]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 336, [0.23333113]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 337, [0.23922352]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 338, [0.22278945]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 339, [0.21272168]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 340, [0.21779759]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 341, [0.19214097]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 342, [0.20064545]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 343, [0.22629115]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 344, [0.2384241]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 345, [0.24058613]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 346, [0.24001661]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 347, [0.2391351]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 348, [0.24017923]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 349, [0.23855135]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 350, [0.23934945]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 351, [0.22684734]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 352, [0.22817007]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 353, [0.21561575]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 354, [0.23902798]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 355, [0.23020509]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 356, [0.22520778]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 357, [0.23822391]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 358, [0.19816628]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 359, [0.2361228]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 360, [0.23989959]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 361, [0.23374084]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 362, [0.20801179]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 363, [0.22686596]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 364, [0.22276548]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 365, [0.22171144]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 366, [0.22679968]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 367, [0.20498452]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 368, [0.22138762]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 369, [0.23904891]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 370, [0.20126125]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 371, [0.2426481]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 372, [0.23294476]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 373, [0.2318739]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 374, [0.23637697]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 375, [0.2367127]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 376, [0.23500581]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 377, [0.20996197]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 378, [0.21824864]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 379, [0.22204208]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 380, [0.20563552]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 381, [0.22705564]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 382, [0.22149292]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 383, [0.22135007]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 384, [0.21191359]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 385, [0.23195553]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 386, [0.22507587]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 387, [0.18128988]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 388, [0.22927742]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 389, [0.23678431]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 390, [0.21736197]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 391, [0.18766454]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 392, [0.23964477]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 393, [0.22909792]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 394, [0.24000382]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 395, [0.23705176]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 396, [0.19972289]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 397, [0.22941108]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 398, [0.23760135]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 399, [0.20710823]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 400, [0.23445804]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 401, [0.23998182]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 402, [0.23717046]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 403, [0.22196683]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 404, [0.2428017]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 405, [0.22885978]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 406, [0.23224106]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 407, [0.23173252]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 408, [0.23833044]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 409, [0.22573665]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 410, [0.22382545]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 411, [0.23323563]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 412, [0.18253666]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 413, [0.23904257]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 414, [0.22787349]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 415, [0.23909311]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 416, [0.23063712]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 417, [0.23390019]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 418, [0.23053065]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 419, [0.2210851]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 420, [0.2384691]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 421, [0.23829179]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 422, [0.2083582]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 423, [0.24171767]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 424, [0.21882406]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 425, [0.22682616]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 426, [0.23935494]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 427, [0.18794136]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 428, [0.23913571]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 429, [0.22619955]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 430, [0.23434956]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 431, [0.24004655]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 432, [0.21110563]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 433, [0.23613119]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 434, [0.23683377]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 435, [0.24087799]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 436, [0.21319862]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 437, [0.23870623]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 438, [0.19630182]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 439, [0.24038462]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 440, [0.2315906]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 441, [0.24026375]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 442, [0.21318837]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 443, [0.235581]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 444, [0.22833256]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 445, [0.22632012]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 446, [0.22767818]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 447, [0.2358139]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 448, [0.2395736]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 449, [0.23237982]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 450, [0.22241421]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 451, [0.2349947]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 452, [0.21929581]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 453, [0.23458926]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 454, [0.21177152]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 455, [0.24004368]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 456, [0.23575898]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 457, [0.22449264]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 458, [0.2320474]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 459, [0.24152024]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 460, [0.23971057]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 461, [0.2411365]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 462, [0.23424569]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 463, [0.23231284]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 464, [0.24190791]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 465, [0.23123872]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 466, [0.23157904]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 467, [0.23840284]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 468, [0.22581609]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 469, [0.23769096]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 470, [0.21864891]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 471, [0.23655972]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 472, [0.22278325]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 473, [0.19962434]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 474, [0.21991146]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 475, [0.24153955]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 476, [0.23714414]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 477, [0.23830073]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 478, [0.22950585]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 479, [0.23002693]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 480, [0.23678538]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 481, [0.22638085]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 482, [0.23933487]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 483, [0.24028297]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 484, [0.23649582]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 485, [0.24070148]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 486, [0.24021478]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 487, [0.24078901]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 488, [0.20533314]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 489, [0.23960237]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 490, [0.23669603]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 491, [0.2034786]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 492, [0.23012897]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 493, [0.23780394]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 494, [0.2324214]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 495, [0.21838108]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 496, [0.23947111]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 497, [0.21845312]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 498, [0.24068351]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 499, [0.22714023]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 500, [0.20609549]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 501, [0.23808458]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 502, [0.23263149]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 503, [0.22046009]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 504, [0.23672977]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 505, [0.23217566]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 506, [0.23939815]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 507, [0.23428078]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 508, [0.22961566]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 509, [0.23863888]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 510, [0.23608926]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 511, [0.22954051]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 512, [0.23890062]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 513, [0.1740475]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 514, [0.23885553]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 515, [0.18193825]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 516, [0.24123771]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 517, [0.23687553]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 518, [0.21724221]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 519, [0.23768966]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 520, [0.2244765]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 521, [0.24180451]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 522, [0.23762223]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 523, [0.23935464]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 524, [0.18038495]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 525, [0.24079731]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 526, [0.2328147]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 527, [0.23483928]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 528, [0.19777147]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 529, [0.23656663]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 530, [0.23966503]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 531, [0.18682204]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 532, [0.24024406]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 533, [0.21304798]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 534, [0.23571809]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 535, [0.22931609]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 536, [0.20424059]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 537, [0.23431313]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 538, [0.23430696]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 539, [0.23489305]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 540, [0.22249965]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 541, [0.23830163]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 542, [0.20946495]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 543, [0.21906686]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 544, [0.22922783]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 545, [0.2373929]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 546, [0.23197035]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 547, [0.2396235]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 548, [0.23933375]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 549, [0.2350438]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 550, [0.2338789]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 551, [0.21502402]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 552, [0.23781273]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 553, [0.24011822]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 554, [0.23609516]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 555, [0.21272393]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 556, [0.21881998]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 557, [0.24018267]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 558, [0.23517427]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 559, [0.22414657]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 560, [0.2369065]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 561, [0.23938636]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 562, [0.23966062]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 563, [0.234183]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 564, [0.22027898]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 565, [0.24260183]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 566, [0.23962235]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 567, [0.23671332]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 568, [0.2261149]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 569, [0.24210167]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 570, [0.21739748]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 571, [0.23998418]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 572, [0.2338185]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 573, [0.23998947]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 574, [0.23989463]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 575, [0.2349503]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 576, [0.20648918]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 577, [0.22264536]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 578, [0.239346]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 579, [0.23710659]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 580, [0.24064426]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 581, [0.23782697]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 582, [0.23728593]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 583, [0.24086885]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 584, [0.20082915]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 585, [0.23242739]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 586, [0.2300289]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 587, [0.23644641]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 588, [0.23412791]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 589, [0.23887858]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 590, [0.22040507]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 591, [0.20946911]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 592, [0.23837605]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 593, [0.208668]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 594, [0.23783211]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 595, [0.24003038]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 596, [0.23846121]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 597, [0.2334971]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 598, [0.24084237]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 599, [0.22141504]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 600, [0.23262982]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 601, [0.2223405]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 602, [0.23755984]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 603, [0.22632882]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 604, [0.22972322]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 605, [0.22464216]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 606, [0.22802413]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 607, [0.23111]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 608, [0.23036817]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 609, [0.23972479]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 610, [0.2404257]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 611, [0.24151477]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 612, [0.20728259]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 613, [0.23061693]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 614, [0.24030292]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 615, [0.23359045]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 616, [0.24076438]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 617, [0.17878619]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 618, [0.2264082]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 619, [0.23961961]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 620, [0.230328]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 621, [0.2395409]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 622, [0.21187636]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 623, [0.24029323]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 624, [0.22729483]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 625, [0.22220087]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 626, [0.21741942]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 627, [0.24294439]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 628, [0.21210375]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 629, [0.23905757]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 630, [0.23866077]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 631, [0.22841594]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 632, [0.22461566]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 633, [0.2342309]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 634, [0.22822781]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 635, [0.22860047]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 636, [0.21953318]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 637, [0.18480757]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 638, [0.23345442]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 639, [0.23610373]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 640, [0.2212797]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 641, [0.2242882]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 642, [0.24016051]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 643, [0.23756173]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 644, [0.2381573]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 645, [0.22908004]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 646, [0.2313011]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 647, [0.2383306]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 648, [0.20797265]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 649, [0.20643964]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 650, [0.2164487]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 651, [0.22367588]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 652, [0.2216645]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 653, [0.23345952]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 654, [0.23999539]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 655, [0.24055883]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 656, [0.21382408]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 657, [0.23816618]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 658, [0.22048147]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 659, [0.23524722]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 660, [0.23780611]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 661, [0.19671783]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 662, [0.22176842]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 663, [0.23823693]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 664, [0.21529002]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 665, [0.23380141]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 666, [0.23963948]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 667, [0.22631963]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 668, [0.22486964]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 669, [0.24039486]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 670, [0.24350993]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 671, [0.2403065]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 672, [0.23665953]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 673, [0.22568063]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 674, [0.238956]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 675, [0.1669759]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 676, [0.23286302]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 677, [0.23966174]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 678, [0.22276719]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 679, [0.23908088]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 680, [0.23250344]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 681, [0.23945315]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 682, [0.22742522]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 683, [0.23330072]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 684, [0.2258595]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 685, [0.2211537]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 686, [0.2209408]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 687, [0.24064486]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 688, [0.24068227]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 689, [0.2305967]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 690, [0.22209425]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 691, [0.19452153]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 692, [0.23927608]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 693, [0.22220063]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 694, [0.23522298]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 695, [0.2112962]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 696, [0.18387523]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 697, [0.23936936]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 698, [0.23632634]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 699, [0.24102703]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 700, [0.23306558]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 701, [0.21665964]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 702, [0.2342608]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 703, [0.23188353]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 704, [0.23472714]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 705, [0.18831328]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 706, [0.23496047]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 707, [0.23433359]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 708, [0.2366621]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 709, [0.23487982]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 710, [0.23369953]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 711, [0.22977023]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 712, [0.23575735]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 713, [0.23918188]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 714, [0.24352567]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 715, [0.2384582]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 716, [0.23631208]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 717, [0.23218143]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 718, [0.23406258]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 719, [0.24037912]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 720, [0.22686262]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 721, [0.23853824]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 722, [0.23795573]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 723, [0.23218401]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 724, [0.22793081]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 725, [0.22092828]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 726, [0.23425677]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 727, [0.24110901]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 728, [0.24187303]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 729, [0.22661054]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 730, [0.20736995]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 731, [0.23126097]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 732, [0.23746054]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 733, [0.23700151]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 734, [0.21982837]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 735, [0.23117526]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 736, [0.17458336]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 737, [0.23684856]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 738, [0.22912936]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 739, [0.2303052]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 740, [0.23278444]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 741, [0.22527969]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 742, [0.23412924]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 743, [0.24108574]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 744, [0.21338177]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 745, [0.22527155]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 746, [0.23832285]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 747, [0.23036358]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 748, [0.2203612]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 749, [0.23610374]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 750, [0.23821867]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 751, [0.18020162]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 752, [0.2388175]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 753, [0.23917457]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 754, [0.2364845]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 755, [0.21354756]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 756, [0.1983226]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 757, [0.22179103]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 758, [0.20682788]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 759, [0.23716028]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 760, [0.2000113]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 761, [0.23982656]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 762, [0.21358225]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 763, [0.20735434]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 764, [0.22600166]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 765, [0.22037998]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 766, [0.23805371]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 767, [0.2335717]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 768, [0.2026021]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 769, [0.2292364]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 770, [0.2352134]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 771, [0.23203298]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 772, [0.22307992]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 773, [0.23622768]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 774, [0.23890345]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 775, [0.20790091]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 776, [0.21897729]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 777, [0.23702943]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 778, [0.23136398]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 779, [0.23826614]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 780, [0.23577651]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 781, [0.22639802]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 782, [0.2059069]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 783, [0.22049479]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 784, [0.22443418]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 785, [0.20859718]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 786, [0.2285454]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 787, [0.23522851]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 788, [0.23957548]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 789, [0.24256995]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 790, [0.23231475]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 791, [0.23919141]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 792, [0.22664484]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 793, [0.23973712]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 794, [0.2396346]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 795, [0.21106413]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 796, [0.21930635]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 797, [0.24049897]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 798, [0.23432688]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 799, [0.23292486]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 800, [0.22052649]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 801, [0.23373668]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 802, [0.24048376]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 803, [0.2408673]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 804, [0.24000983]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 805, [0.21809092]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 806, [0.23038033]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 807, [0.24058299]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 808, [0.23160954]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 809, [0.20187923]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 810, [0.23337547]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 811, [0.22794867]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 812, [0.22529423]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 813, [0.23176749]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 814, [0.23979971]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 815, [0.22986212]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 816, [0.19675198]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 817, [0.23707506]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 818, [0.23876826]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 819, [0.24098869]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 820, [0.22896776]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 821, [0.22793773]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 822, [0.23938616]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 823, [0.2361035]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 824, [0.23749217]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 825, [0.23981813]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 826, [0.23907316]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 827, [0.23693526]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 828, [0.23123303]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 829, [0.22798903]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 830, [0.23948964]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 831, [0.23360005]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 832, [0.23617852]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 833, [0.20450287]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 834, [0.24036077]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 835, [0.21087685]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 836, [0.24021514]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 837, [0.23946396]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 838, [0.20769982]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 839, [0.2378602]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 840, [0.22849901]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 841, [0.24161717]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 842, [0.22419167]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 843, [0.23298483]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 844, [0.22879891]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 845, [0.1926787]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 846, [0.23840925]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 847, [0.23516059]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 848, [0.23826702]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 849, [0.24202633]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 850, [0.24391875]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 851, [0.23290797]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 852, [0.20585378]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 853, [0.22010267]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 854, [0.23663072]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 855, [0.22969262]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 856, [0.2345546]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 857, [0.23681243]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 858, [0.23815215]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 859, [0.23775837]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 860, [0.23238254]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 861, [0.19969603]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 862, [0.20733917]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 863, [0.23637792]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 864, [0.18405566]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 865, [0.23191161]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 866, [0.23457208]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 867, [0.23790956]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 868, [0.23758034]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 869, [0.22296777]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 870, [0.2393429]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 871, [0.23967078]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 872, [0.21358156]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 873, [0.236702]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 874, [0.22535722]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 875, [0.24027245]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 876, [0.2253267]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 877, [0.22864568]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 878, [0.22357658]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 879, [0.23449722]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 880, [0.21093306]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 881, [0.23653372]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 882, [0.2374198]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 883, [0.24072754]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 884, [0.22773024]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 885, [0.23068134]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 886, [0.23892196]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 887, [0.23992753]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 888, [0.21775568]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 889, [0.23993811]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 890, [0.23925702]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 891, [0.24015303]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 892, [0.22539723]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 893, [0.23815855]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 894, [0.18895762]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 895, [0.23791794]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 896, [0.23574054]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 897, [0.23804125]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 898, [0.2309728]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 899, [0.23306029]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 900, [0.23931518]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 901, [0.2394094]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 902, [0.24056599]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 903, [0.23033538]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 904, [0.22265382]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 905, [0.21948776]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 906, [0.20393369]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 907, [0.22910699]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 908, [0.22992966]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 909, [0.23919852]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 910, [0.23171628]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 911, [0.2190258]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 912, [0.23314719]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 913, [0.22121207]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 914, [0.23848347]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 915, [0.22555256]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 916, [0.24013647]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 917, [0.24109411]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 918, [0.23283848]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 919, [0.22798479]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 920, [0.22497967]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 921, [0.21296585]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 922, [0.23936419]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 923, [0.23465855]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 924, [0.2243137]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 925, [0.22221813]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 926, [0.2318866]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 927, [0.23940074]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 928, [0.1971092]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 929, [0.2391834]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 930, [0.23403105]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 931, [0.22644982]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 932, [0.23356692]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 933, [0.23641746]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 934, [0.23706524]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 935, [0.2118685]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 936, [0.193874]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 937, [0.22547439]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 938, [0.22954845]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 939, [0.23599029]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 940, [0.22855058]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 941, [0.22854455]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 942, [0.23482642]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 943, [0.24029815]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 944, [0.23599653]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 945, [0.21071199]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 946, [0.23900744]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 947, [0.23371637]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 948, [0.22780061]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 949, [0.24085848]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 950, [0.23667724]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 951, [0.23944621]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 952, [0.20995495]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 953, [0.19563733]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 954, [0.20852366]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 955, [0.2272964]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 956, [0.22845924]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 957, [0.23957875]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 958, [0.23347239]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 959, [0.23772709]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 960, [0.23391911]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 961, [0.22972746]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 962, [0.22810201]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 963, [0.22077294]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 964, [0.24005802]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 965, [0.24010798]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 966, [0.23661327]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 967, [0.23586702]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 968, [0.2278053]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 969, [0.22700293]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 970, [0.23922345]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 971, [0.23226857]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 972, [0.23236962]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 973, [0.23212138]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 974, [0.186986]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 975, [0.23881984]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 976, [0.23798665]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 977, [0.23701565]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 978, [0.23675433]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 979, [0.24196994]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 980, [0.23565225]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 981, [0.22609787]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 982, [0.2400899]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 983, [0.22054121]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 984, [0.240243]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 985, [0.22647564]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 986, [0.21907201]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 987, [0.23346785]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 988, [0.21888201]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 989, [0.23177382]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 990, [0.2189985]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 991, [0.21561293]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 992, [0.23262802]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 993, [0.2389806]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 994, [0.23516853]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 995, [0.23986557]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 996, [0.24002025]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 997, [0.23254308]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 998, [0.23360245]    
+2025-06-18T04:58:00  INFO trench_deep::tests::common::utils: 999, [0.21379879]    

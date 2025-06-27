@@ -1,0 +1,82 @@
+[2m2025-06-17T07:34:17.464576Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === Starting MLP MNIST Classification Test with Config ===    
+[2m2025-06-17T07:34:17.464819Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m TestConfig { n_train: 1000, n_val: 100, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 15, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+[2m2025-06-17T07:34:17.465289Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Loading MNIST dataset... (Train: 1000, Test: 100)    
+[2m2025-06-17T07:34:17.874956Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Converting data to model input format...    
+[2m2025-06-17T07:34:17.900505Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Shuffling training data...    
+[2m2025-06-17T07:34:17.901574Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Data preparation complete.    
+[2m2025-06-17T07:34:17.914868Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Network Structure: 784(Input) -> 10(Output)    
+[2m2025-06-17T07:34:17.915941Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Activation Functions: Softmax (Output)    
+[2m2025-06-17T07:34:17.919927Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m MLP model created successfully.    
+[2m2025-06-17T07:34:17.920242Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Starting model training...    
+[2m2025-06-17T07:34:17.920727Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Training Parameters: LR=0.01, Max Epochs=15, Tolerance=0.00001    
+[2m2025-06-17T07:34:17.921386Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Initial error calculation...    
+[2m2025-06-17T07:34:18.111357Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   0/15  | initial loss: 0.228949 | Duration: 189.72ms    
+[2m2025-06-17T07:34:24.922811Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   1/15  | Avg Loss: 0.222350 | Loss Chg: -0.006599 | Duration: 6.81s    
+[2m2025-06-17T07:34:34.278546Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   2/15  | Avg Loss: 0.155520 | Loss Chg: -0.066830 | Duration: 9.35s    
+[2m2025-06-17T07:34:47.656199Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   3/15  | Avg Loss: 0.122032 | Loss Chg: -0.033488 | Duration: 13.38s    
+[2m2025-06-17T07:34:56.346103Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   4/15  | Avg Loss: 0.102581 | Loss Chg: -0.019451 | Duration: 8.69s    
+[2m2025-06-17T07:35:04.685646Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   5/15  | Avg Loss: 0.090005 | Loss Chg: -0.012576 | Duration: 8.32s    
+[2m2025-06-17T07:35:13.545741Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   6/15  | Avg Loss: 0.081168 | Loss Chg: -0.008837 | Duration: 8.86s    
+[2m2025-06-17T07:35:22.991629Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   7/15  | Avg Loss: 0.074573 | Loss Chg: -0.006595 | Duration: 9.44s    
+[2m2025-06-17T07:35:31.733263Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   8/15  | Avg Loss: 0.069427 | Loss Chg: -0.005146 | Duration: 8.74s    
+[2m2025-06-17T07:35:40.470783Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   9/15  | Avg Loss: 0.065273 | Loss Chg: -0.004154 | Duration: 8.74s    
+[2m2025-06-17T07:35:49.388392Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  10/15  | Avg Loss: 0.061830 | Loss Chg: -0.003443 | Duration: 8.92s    
+[2m2025-06-17T07:35:57.973322Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  11/15  | Avg Loss: 0.058915 | Loss Chg: -0.002915 | Duration: 8.58s    
+[2m2025-06-17T07:36:05.988154Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  12/15  | Avg Loss: 0.056405 | Loss Chg: -0.002511 | Duration: 8.01s    
+[2m2025-06-17T07:36:15.399045Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  13/15  | Avg Loss: 0.054211 | Loss Chg: -0.002194 | Duration: 9.41s    
+[2m2025-06-17T07:36:24.210086Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  14/15  | Avg Loss: 0.052272 | Loss Chg: -0.001939 | Duration: 8.81s    
+[2m2025-06-17T07:36:33.065931Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  15/15  | Avg Loss: 0.050540 | Loss Chg: -0.001732 | Duration: 8.85s    
+[2m2025-06-17T07:36:33.066680Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m 🏁 Total training time: 135.15s. Final average loss: 0.050540    
+[2m2025-06-17T07:36:33.066875Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Model training finished.    
+[2m2025-06-17T07:36:33.066995Z[0m [32m INFO[0m [2mtrench_deep::tests::common::evaluation[0m[2m:[0m Starting model evaluation on 100 test samples...    
+[2m2025-06-17T07:36:33.079645Z[0m [32m INFO[0m [2mtrench_deep::tests::common::evaluation[0m[2m:[0m ✅ Evaluation complete: Accuracy = 77.00%    
+[2m2025-06-17T07:36:33.080022Z[0m [33m WARN[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m ⚠️ Target accuracy NOT met. (Actual: 77.00%, Required: 80.00%).    
+[2m2025-06-17T07:36:33.080692Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === MLP MNIST Test Finished ===    
+[2m2025-06-17T07:47:15.362812Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === Starting MLP MNIST Classification Test with Config ===    
+[2m2025-06-17T07:47:15.363390Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m TestConfig { n_train: 1000, n_val: 100, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 30, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+[2m2025-06-17T07:47:15.363551Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Loading MNIST dataset... (Train: 1000, Test: 100)    
+[2m2025-06-17T07:47:15.651509Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Converting data to model input format...    
+[2m2025-06-17T07:47:15.668720Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Shuffling training data...    
+[2m2025-06-17T07:47:15.669735Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Data preparation complete.    
+[2m2025-06-17T07:47:15.680785Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Network Structure: 784(Input) -> 10(Output)    
+[2m2025-06-17T07:47:15.681223Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Activation Functions: Softmax (Output)    
+[2m2025-06-17T07:47:15.685252Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m MLP model created successfully.    
+[2m2025-06-17T07:47:15.685625Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Starting model training...    
+[2m2025-06-17T07:47:15.685925Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Training Parameters: LR=0.01, Max Epochs=30, Tolerance=0.00001    
+[2m2025-06-17T07:47:15.686826Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Initial error calculation...    
+[2m2025-06-17T07:47:15.791092Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   0/30  | initial loss: 0.229752 | Duration: 103.88ms    
+[2m2025-06-17T07:47:22.549215Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   1/30  | Avg Loss: 0.215684 | Loss Chg: -0.014068 | Duration: 6.76s    
+[2m2025-06-17T07:47:28.758359Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   2/30  | Avg Loss: 0.148365 | Loss Chg: -0.067319 | Duration: 6.21s    
+[2m2025-06-17T07:47:35.441986Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   3/30  | Avg Loss: 0.116677 | Loss Chg: -0.031688 | Duration: 6.68s    
+[2m2025-06-17T07:47:41.951356Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   4/30  | Avg Loss: 0.098501 | Loss Chg: -0.018176 | Duration: 6.51s    
+[2m2025-06-17T07:47:48.191660Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   5/30  | Avg Loss: 0.086717 | Loss Chg: -0.011784 | Duration: 6.24s    
+[2m2025-06-17T07:47:54.290005Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   6/30  | Avg Loss: 0.078403 | Loss Chg: -0.008314 | Duration: 6.10s    
+[2m2025-06-17T07:48:00.412245Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   7/30  | Avg Loss: 0.072182 | Loss Chg: -0.006221 | Duration: 6.12s    
+[2m2025-06-17T07:48:06.532281Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   8/30  | Avg Loss: 0.067324 | Loss Chg: -0.004858 | Duration: 6.12s    
+[2m2025-06-17T07:48:13.105592Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   9/30  | Avg Loss: 0.063405 | Loss Chg: -0.003920 | Duration: 6.57s    
+[2m2025-06-17T07:48:19.546535Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  10/30  | Avg Loss: 0.060159 | Loss Chg: -0.003245 | Duration: 6.44s    
+[2m2025-06-17T07:48:25.880375Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  11/30  | Avg Loss: 0.057415 | Loss Chg: -0.002744 | Duration: 6.33s    
+[2m2025-06-17T07:48:31.386655Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  12/30  | Avg Loss: 0.055055 | Loss Chg: -0.002360 | Duration: 5.50s    
+[2m2025-06-17T07:48:37.198980Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  13/30  | Avg Loss: 0.052995 | Loss Chg: -0.002060 | Duration: 5.81s    
+[2m2025-06-17T07:48:43.166250Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  14/30  | Avg Loss: 0.051175 | Loss Chg: -0.001820 | Duration: 5.97s    
+[2m2025-06-17T07:48:48.912068Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  15/30  | Avg Loss: 0.049550 | Loss Chg: -0.001625 | Duration: 5.74s    
+[2m2025-06-17T07:48:54.678010Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  16/30  | Avg Loss: 0.048087 | Loss Chg: -0.001464 | Duration: 5.76s    
+[2m2025-06-17T07:49:01.180710Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  17/30  | Avg Loss: 0.046758 | Loss Chg: -0.001329 | Duration: 6.50s    
+[2m2025-06-17T07:49:07.749734Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  18/30  | Avg Loss: 0.045543 | Loss Chg: -0.001215 | Duration: 6.57s    
+[2m2025-06-17T07:49:13.687958Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  19/30  | Avg Loss: 0.044425 | Loss Chg: -0.001118 | Duration: 5.94s    
+[2m2025-06-17T07:49:19.824742Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  20/30  | Avg Loss: 0.043392 | Loss Chg: -0.001033 | Duration: 6.14s    
+[2m2025-06-17T07:49:25.832337Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  21/30  | Avg Loss: 0.042432 | Loss Chg: -0.000960 | Duration: 6.01s    
+[2m2025-06-17T07:49:32.261519Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  22/30  | Avg Loss: 0.041536 | Loss Chg: -0.000896 | Duration: 6.43s    
+[2m2025-06-17T07:49:38.165025Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  23/30  | Avg Loss: 0.040696 | Loss Chg: -0.000840 | Duration: 5.90s    
+[2m2025-06-17T07:49:43.482317Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  24/30  | Avg Loss: 0.039907 | Loss Chg: -0.000789 | Duration: 5.32s    
+[2m2025-06-17T07:49:48.934393Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  25/30  | Avg Loss: 0.039163 | Loss Chg: -0.000744 | Duration: 5.45s    
+[2m2025-06-17T07:49:54.928440Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  26/30  | Avg Loss: 0.038459 | Loss Chg: -0.000704 | Duration: 5.99s    
+[2m2025-06-17T07:50:01.142016Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  27/30  | Avg Loss: 0.037791 | Loss Chg: -0.000667 | Duration: 6.21s    
+[2m2025-06-17T07:50:08.044733Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  28/30  | Avg Loss: 0.037157 | Loss Chg: -0.000634 | Duration: 6.90s    
+[2m2025-06-17T07:50:14.112028Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  29/30  | Avg Loss: 0.036552 | Loss Chg: -0.000604 | Duration: 6.07s    
+[2m2025-06-17T07:50:20.102412Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch  30/30  | Avg Loss: 0.035975 | Loss Chg: -0.000577 | Duration: 5.99s    
+[2m2025-06-17T07:50:20.103125Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m 🏁 Total training time: 184.42s. Final average loss: 0.035975    
+[2m2025-06-17T07:50:20.104042Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Model training finished.    
+[2m2025-06-17T07:50:20.104342Z[0m [32m INFO[0m [2mtrench_deep::tests::common::evaluation[0m[2m:[0m Starting model evaluation on 100 test samples...    
+[2m2025-06-17T07:50:20.114921Z[0m [32m INFO[0m [2mtrench_deep::tests::common::evaluation[0m[2m:[0m ✅ Evaluation complete: Accuracy = 83.00%    
+[2m2025-06-17T07:50:20.115727Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m 🎉 Target accuracy achieved! (83.00% > 80.00%)    

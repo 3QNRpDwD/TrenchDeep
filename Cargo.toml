@@ -1,6 +1,6 @@
 [package]
 name = "trench-deep"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 description = "This framework is a project that I am independently designing/developing to study about deep learning. Basic levels of computation and automatic differential engines are implemented."
 license = "Apache 2.0 License"

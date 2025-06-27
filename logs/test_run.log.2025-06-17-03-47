@@ -1,0 +1,14 @@
+2025-06-17T03:47:31.504491Z  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-17T03:47:31.505209Z  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 50, n_val: 100, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-17T03:47:31.505786Z  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 50, Test: 100)    
+2025-06-17T03:47:31.788517Z  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-17T03:47:31.791620Z  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-17T03:47:31.792679Z  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-17T03:47:31.803007Z  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-17T03:47:31.803243Z  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-17T03:47:31.806115Z  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-17T03:47:31.806280Z  INFO trench_deep::tests::common::utils: Starting model training...    
+2025-06-17T03:47:31.806410Z  INFO trench_deep::tests::common::utils: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-17T03:47:31.806936Z  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-17T03:47:31.814910Z  INFO trench_deep::tests::common::model::regression::softmax: Epoch   0/10  | initial loss: 0.298427 | Duration: 7.81ms    
+2025-06-17T03:47:31.840364Z ERROR trench_deep::tests::common::model::regression::softmax: gradient is NaN or infinity: 8.074953. Suspended training.

@@ -1,0 +1,176 @@
+[2m2025-06-17T05:35:14.877283Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === Starting MLP MNIST Classification Test with Config ===    
+[2m2025-06-17T05:35:14.877662Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m TestConfig { n_train: 5000, n_val: 500, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 100, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+[2m2025-06-17T05:35:14.878136Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Loading MNIST dataset... (Train: 5000, Test: 500)    
+[2m2025-06-17T05:35:15.158604Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Converting data to model input format...    
+[2m2025-06-17T05:35:15.240632Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Shuffling training data...    
+[2m2025-06-17T05:35:15.242433Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Data preparation complete.    
+[2m2025-06-17T05:35:15.250878Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Network Structure: 784(Input) -> 10(Output)    
+[2m2025-06-17T05:35:15.251694Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Activation Functions: Softmax (Output)    
+[2m2025-06-17T05:35:15.255327Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m MLP model created successfully.    
+[2m2025-06-17T05:35:15.255942Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Starting model training...    
+[2m2025-06-17T05:35:15.256373Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Training Parameters: LR=0.01, Max Epochs=100, Tolerance=0.00001    
+[2m2025-06-17T05:35:15.257610Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Initial error calculation...    
+[2m2025-06-17T05:35:15.832313Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   0/100 | initial loss: 0.232362 | Duration: 573.77ms    
+[2m2025-06-17T05:35:50.539235Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   1/100 | Avg Loss: 0.146445 | Loss Chg: -0.085917 | Duration: 34.71s    
+[2m2025-06-17T05:36:53.532823Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   2/100 | Avg Loss: 0.073463 | Loss Chg: -0.072982 | Duration: 62.99s    
+[2m2025-06-17T05:37:38.582534Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   3/100 | Avg Loss: 0.058163 | Loss Chg: -0.015300 | Duration: 45.05s    
+[2m2025-06-17T05:37:56.920990Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === Starting MLP MNIST Classification Test with Config ===    
+[2m2025-06-17T05:37:56.921085Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === Starting MLP MNIST Classification Test with Config ===    
+[2m2025-06-17T05:37:56.921212Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m TestConfig { n_train: 5000, n_val: 500, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 100, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+[2m2025-06-17T05:37:56.921509Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m TestConfig { n_train: 5000, n_val: 500, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 100, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+[2m2025-06-17T05:37:56.921607Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Loading MNIST dataset... (Train: 5000, Test: 500)    
+[2m2025-06-17T05:37:56.923074Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Loading MNIST dataset... (Train: 5000, Test: 500)    
+[2m2025-06-17T05:37:57.322637Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Converting data to model input format...    
+[2m2025-06-17T05:37:57.325120Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Converting data to model input format...    
+[2m2025-06-17T05:38:07.515262Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === Starting MLP MNIST Classification Test with Config ===    
+[2m2025-06-17T05:38:07.515424Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m TestConfig { n_train: 5000, n_val: 500, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 100, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+[2m2025-06-17T05:38:07.515462Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === Starting MLP MNIST Classification Test with Config ===    
+[2m2025-06-17T05:38:07.515667Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Loading MNIST dataset... (Train: 5000, Test: 500)    
+[2m2025-06-17T05:38:07.516460Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m TestConfig { n_train: 5000, n_val: 500, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 100, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+[2m2025-06-17T05:38:07.516641Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Loading MNIST dataset... (Train: 5000, Test: 500)    
+[2m2025-06-17T05:38:07.906966Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Converting data to model input format...    
+[2m2025-06-17T05:38:07.908745Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Converting data to model input format...    
+[2m2025-06-17T05:38:08.000176Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Shuffling training data...    
+[2m2025-06-17T05:38:08.001660Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Data preparation complete.    
+[2m2025-06-17T05:38:08.010393Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Network Structure: 784(Input) -> 10(Output)    
+[2m2025-06-17T05:38:08.010454Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Activation Functions: Softmax (Output)    
+[2m2025-06-17T05:38:08.011306Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Shuffling training data...    
+[2m2025-06-17T05:38:08.012786Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Data preparation complete.    
+[2m2025-06-17T05:38:08.013640Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m MLP model created successfully.    
+[2m2025-06-17T05:38:08.013676Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Starting model training...    
+[2m2025-06-17T05:38:08.013792Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Training Parameters: LR=0.01, Max Epochs=100, Tolerance=0.00001    
+[2m2025-06-17T05:38:08.014251Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Initial error calculation...    
+[2m2025-06-17T05:38:08.023759Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Network Structure: 784(Input) -> 30(Hidden) -> 10(Output)    
+[2m2025-06-17T05:38:08.023822Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Activation Functions: Sigmoid (Hidden), Softmax (Output)    
+[2m2025-06-17T05:38:08.032791Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m MLP model created successfully.    
+[2m2025-06-17T05:38:08.032846Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Starting model training...    
+[2m2025-06-17T05:38:08.032960Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Training Parameters: LR=0.01, Max Epochs=100, Tolerance=0.00001    
+[2m2025-06-17T05:38:08.033130Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Initial error calculation...    
+[2m2025-06-17T05:38:08.551407Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::regression::softmax[0m[2m:[0m Epoch   0/100 | initial loss: 0.231761 | Duration: 536.96ms    
+[2m2025-06-17T05:38:09.547010Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Epoch   0/100 | initial loss: 0.230150 | Duration: 1.51s    
+[2m2025-06-17T05:38:43.143777Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === Starting MLP MNIST Classification Test with Config ===    
+[2m2025-06-17T05:38:43.143897Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m TestConfig { n_train: 5000, n_val: 500, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 100, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+[2m2025-06-17T05:38:43.144030Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Loading MNIST dataset... (Train: 5000, Test: 500)    
+[2m2025-06-17T05:38:43.447747Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Converting data to model input format...    
+[2m2025-06-17T05:38:43.561168Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Shuffling training data...    
+[2m2025-06-17T05:38:43.562747Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Data preparation complete.    
+[2m2025-06-17T05:38:43.573050Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Network Structure: 784(Input) -> 30(Hidden) -> 10(Output)    
+[2m2025-06-17T05:38:43.573121Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Activation Functions: Sigmoid (Hidden), Softmax (Output)    
+[2m2025-06-17T05:38:43.581382Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m MLP model created successfully.    
+[2m2025-06-17T05:38:43.581454Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Starting model training...    
+[2m2025-06-17T05:38:43.581648Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Training Parameters: LR=0.01, Max Epochs=100, Tolerance=0.00001    
+[2m2025-06-17T05:38:43.581954Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Initial error calculation...    
+[2m2025-06-17T05:38:45.101865Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Epoch   0/100 | initial loss: 0.229987 | Duration: 1.52s    
+[2m2025-06-17T05:39:08.204253Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === Starting MLP MNIST Classification Test with Config ===    
+[2m2025-06-17T05:39:08.204413Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m TestConfig { n_train: 50, n_val: 500, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 1, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+[2m2025-06-17T05:39:08.204685Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Loading MNIST dataset... (Train: 50, Test: 500)    
+[2m2025-06-17T05:39:08.456595Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Converting data to model input format...    
+[2m2025-06-17T05:39:08.468893Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Shuffling training data...    
+[2m2025-06-17T05:39:08.469514Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Data preparation complete.    
+[2m2025-06-17T05:39:08.480169Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Network Structure: 784(Input) -> 30(Hidden) -> 10(Output)    
+[2m2025-06-17T05:39:08.480272Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Activation Functions: Sigmoid (Hidden), Softmax (Output)    
+[2m2025-06-17T05:39:08.489013Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m MLP model created successfully.    
+[2m2025-06-17T05:39:08.489071Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Starting model training...    
+[2m2025-06-17T05:39:08.489579Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Training Parameters: LR=0.01, Max Epochs=1, Tolerance=0.00001    
+[2m2025-06-17T05:39:08.489999Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Initial error calculation...    
+[2m2025-06-17T05:39:08.505588Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Epoch   0/1   | initial loss: 0.230102 | Duration: 15.51ms    
+[2m2025-06-17T05:39:09.478262Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Epoch   1/1   | Avg Loss: 0.231451 | Loss Chg: +0.001349 | Duration: 972.46ms    
+[2m2025-06-17T05:39:09.478394Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m 🏁 Total training time: 988.77ms. Final average loss: 0.231451    
+[2m2025-06-17T05:39:09.479038Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Model training finished.    
+[2m2025-06-17T05:39:09.479111Z[0m [32m INFO[0m [2mtrench_deep::tests::common::evaluation[0m[2m:[0m Starting model evaluation on 500 test samples...    
+[2m2025-06-17T05:39:09.625195Z[0m [32m INFO[0m [2mtrench_deep::tests::common::evaluation[0m[2m:[0m ✅ Evaluation complete: Accuracy = 10.00%    
+[2m2025-06-17T05:39:09.625347Z[0m [33m WARN[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m ⚠️ Target accuracy NOT met. (Actual: 10.00%, Required: 80.00%).    
+[2m2025-06-17T05:39:09.625950Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Generating computation graph visualization...    
+[2m2025-06-17T05:39:13.780230Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m SVG graph saved to 'graph/twolayer_refactored.svg'    
+[2m2025-06-17T05:39:13.780349Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === MLP MNIST Test Finished ===    
+[2m2025-06-17T05:40:59.731378Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === Starting MLP MNIST Classification Test with Config ===    
+[2m2025-06-17T05:40:59.731949Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m TestConfig { n_train: 50, n_val: 500, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 1, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+[2m2025-06-17T05:40:59.732043Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Loading MNIST dataset... (Train: 50, Test: 500)    
+[2m2025-06-17T05:41:00.023772Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Converting data to model input format...    
+[2m2025-06-17T05:41:00.033892Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Shuffling training data...    
+[2m2025-06-17T05:41:00.034196Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Data preparation complete.    
+[2m2025-06-17T05:41:00.042986Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Network Structure: 784(Input) -> 30(Hidden) -> 10(Output)    
+[2m2025-06-17T05:41:00.043058Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Activation Functions: Sigmoid (Hidden), Softmax (Output)    
+[2m2025-06-17T05:41:00.050829Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m MLP model created successfully.    
+[2m2025-06-17T05:41:00.050887Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Starting model training...    
+[2m2025-06-17T05:41:00.051125Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Training Parameters: LR=0.01, Max Epochs=1, Tolerance=0.00001    
+[2m2025-06-17T05:41:00.051591Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Initial error calculation...    
+[2m2025-06-17T05:41:00.066046Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Epoch   0/1   | initial loss: 0.245786 | Duration: 14.40ms    
+[2m2025-06-17T05:41:39.048342Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === Starting MLP MNIST Classification Test with Config ===    
+[2m2025-06-17T05:41:39.048530Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m TestConfig { n_train: 50, n_val: 500, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 1, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+[2m2025-06-17T05:41:39.048961Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Loading MNIST dataset... (Train: 50, Test: 500)    
+[2m2025-06-17T05:41:39.349801Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Converting data to model input format...    
+[2m2025-06-17T05:41:39.362138Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Shuffling training data...    
+[2m2025-06-17T05:41:39.362661Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Data preparation complete.    
+[2m2025-06-17T05:41:39.372638Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Network Structure: 784(Input) -> 30(Hidden) -> 10(Output)    
+[2m2025-06-17T05:41:39.372695Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Activation Functions: Sigmoid (Hidden), Softmax (Output)    
+[2m2025-06-17T05:41:39.380776Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m MLP model created successfully.    
+[2m2025-06-17T05:41:39.380834Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Starting model training...    
+[2m2025-06-17T05:41:39.380988Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Training Parameters: LR=0.01, Max Epochs=1, Tolerance=0.00001    
+[2m2025-06-17T05:41:39.381444Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Initial error calculation...    
+[2m2025-06-17T05:41:39.398338Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Epoch   0/1   | initial loss: 0.254578 | Duration: 16.67ms    
+[2m2025-06-17T05:41:39.849034Z[0m [31mERROR[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m gradient is NaN or infinity: 13.639056. Suspended training.
+[2m2025-06-17T05:42:07.085004Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === Starting MLP MNIST Classification Test with Config ===    
+[2m2025-06-17T05:42:07.085290Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m TestConfig { n_train: 50, n_val: 500, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 1e-5, epochs: 1, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+[2m2025-06-17T05:42:07.085514Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Loading MNIST dataset... (Train: 50, Test: 500)    
+[2m2025-06-17T05:42:07.373647Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Converting data to model input format...    
+[2m2025-06-17T05:42:07.383820Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Shuffling training data...    
+[2m2025-06-17T05:42:07.384077Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Data preparation complete.    
+[2m2025-06-17T05:42:07.393144Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Network Structure: 784(Input) -> 30(Hidden) -> 10(Output)    
+[2m2025-06-17T05:42:07.393215Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Activation Functions: Sigmoid (Hidden), Softmax (Output)    
+[2m2025-06-17T05:42:07.402834Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m MLP model created successfully.    
+[2m2025-06-17T05:42:07.402899Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Starting model training...    
+[2m2025-06-17T05:42:07.403430Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Training Parameters: LR=0.00001, Max Epochs=1, Tolerance=0.00001    
+[2m2025-06-17T05:42:07.403880Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Initial error calculation...    
+[2m2025-06-17T05:42:07.419783Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Epoch   0/1   | initial loss: 0.238788 | Duration: 15.84ms    
+[2m2025-06-17T05:42:08.406871Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Epoch   1/1   | Avg Loss: 0.238791 | Loss Chg: +0.000003 | Duration: 986.89ms    
+[2m2025-06-17T05:42:08.407016Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m ✅ Loss has converged at epoch 1. Early stopping.    
+[2m2025-06-17T05:42:08.407281Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m 🏁 Total training time: 1.00s. Final average loss: 0.238788    
+[2m2025-06-17T05:42:08.407407Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Model training finished.    
+[2m2025-06-17T05:42:08.407875Z[0m [32m INFO[0m [2mtrench_deep::tests::common::evaluation[0m[2m:[0m Starting model evaluation on 500 test samples...    
+[2m2025-06-17T05:42:08.572187Z[0m [32m INFO[0m [2mtrench_deep::tests::common::evaluation[0m[2m:[0m ✅ Evaluation complete: Accuracy = 7.20%    
+[2m2025-06-17T05:42:08.572326Z[0m [33m WARN[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m ⚠️ Target accuracy NOT met. (Actual: 7.20%, Required: 80.00%).    
+[2m2025-06-17T05:42:08.572607Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Generating computation graph visualization...    
+[2m2025-06-17T05:42:09.627918Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m SVG graph saved to 'graph/twolayer_refactored.svg'    
+[2m2025-06-17T05:42:09.628027Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === MLP MNIST Test Finished ===    
+[2m2025-06-17T05:43:57.510564Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === Starting MLP MNIST Classification Test with Config ===    
+[2m2025-06-17T05:43:57.510732Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m TestConfig { n_train: 5000, n_val: 500, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 1, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+[2m2025-06-17T05:43:57.511004Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Loading MNIST dataset... (Train: 5000, Test: 500)    
+[2m2025-06-17T05:43:57.803211Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Converting data to model input format...    
+[2m2025-06-17T05:43:57.900406Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Shuffling training data...    
+[2m2025-06-17T05:43:57.902459Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Data preparation complete.    
+[2m2025-06-17T05:43:57.911592Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Network Structure: 784(Input) -> 30(Hidden) -> 10(Output)    
+[2m2025-06-17T05:43:57.911664Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Activation Functions: Sigmoid (Hidden), Softmax (Output)    
+[2m2025-06-17T05:43:57.920675Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m MLP model created successfully.    
+[2m2025-06-17T05:43:57.920754Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Starting model training...    
+[2m2025-06-17T05:43:57.921046Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Training Parameters: LR=0.01, Max Epochs=1, Tolerance=0.00001    
+[2m2025-06-17T05:43:57.921535Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Initial error calculation...    
+[2m2025-06-17T05:43:59.517054Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Epoch   0/1   | initial loss: 0.230513 | Duration: 1.60s    
+[2m2025-06-17T05:53:34.059933Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === Starting MLP MNIST Classification Test with Config ===    
+[2m2025-06-17T05:53:34.060115Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m TestConfig { n_train: 5000, n_val: 500, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 1, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+[2m2025-06-17T05:53:34.060484Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Loading MNIST dataset... (Train: 5000, Test: 500)    
+[2m2025-06-17T05:53:34.371134Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Converting data to model input format...    
+[2m2025-06-17T05:53:34.475370Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Shuffling training data...    
+[2m2025-06-17T05:53:34.477342Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Data preparation complete.    
+[2m2025-06-17T05:53:34.488702Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Network Structure: 784(Input) -> 30(Hidden) -> 10(Output)    
+[2m2025-06-17T05:53:34.488784Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Activation Functions: Sigmoid (Hidden), Softmax (Output)    
+[2m2025-06-17T05:53:34.498595Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m MLP model created successfully.    
+[2m2025-06-17T05:53:34.498654Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Starting model training...    
+[2m2025-06-17T05:53:34.498794Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Training Parameters: LR=0.01, Max Epochs=1, Tolerance=0.00001    
+[2m2025-06-17T05:53:34.499256Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Initial error calculation...    
+[2m2025-06-17T05:53:36.105806Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Epoch   0/1   | initial loss: 0.234720 | Duration: 1.61s    
+[2m2025-06-17T05:53:37.342361Z[0m [31mERROR[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m gradient is NaN or infinity: 25.265533. Suspended training.
+[2m2025-06-17T05:55:10.787603Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m === Starting MLP MNIST Classification Test with Config ===    
+[2m2025-06-17T05:55:10.787823Z[0m [32m INFO[0m [2mtrench_deep::tests::mnist_test[0m[2m:[0m TestConfig { n_train: 5000, n_val: 500, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 1, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+[2m2025-06-17T05:55:10.787982Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Loading MNIST dataset... (Train: 5000, Test: 500)    
+[2m2025-06-17T05:55:11.076205Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Converting data to model input format...    
+[2m2025-06-17T05:55:11.177124Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Shuffling training data...    
+[2m2025-06-17T05:55:11.179197Z[0m [32m INFO[0m [2mtrench_deep::tests::common::data[0m[2m:[0m Data preparation complete.    
+[2m2025-06-17T05:55:11.188376Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Network Structure: 784(Input) -> 30(Hidden) -> 10(Output)    
+[2m2025-06-17T05:55:11.188425Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Activation Functions: Sigmoid (Hidden), Softmax (Output)    
+[2m2025-06-17T05:55:11.196352Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m MLP model created successfully.    
+[2m2025-06-17T05:55:11.196417Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Starting model training...    
+[2m2025-06-17T05:55:11.196676Z[0m [32m INFO[0m [2mtrench_deep::tests::common::utils[0m[2m:[0m Training Parameters: LR=0.01, Max Epochs=1, Tolerance=0.00001    
+[2m2025-06-17T05:55:11.197346Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Initial error calculation...    
+[2m2025-06-17T05:55:12.900373Z[0m [32m INFO[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m Epoch   0/1   | initial loss: 0.234545 | Duration: 1.70s    
+[2m2025-06-17T05:55:13.683610Z[0m [31mERROR[0m [2mtrench_deep::tests::common::model::mlp[0m[2m:[0m gradient is NaN or infinity: NaN or NaN. Suspended training.
