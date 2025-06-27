@@ -254,7 +254,7 @@ thread_local! {
     #[cfg(feature = "enableBackpropagation")]
     pub(crate) static   COMPUTATION_GRAPH   : std::sync::Mutex<ComputationGraph> = std::sync::Mutex::new(ComputationGraph::new());
     pub(crate) static   OPERATOR_STORAGE    : RefCell<HashMap<String, Box<dyn Function>>> = RefCell::new(HashMap::new());
-    pub(crate) static   TENSOR_ALLOCATOR: RefCell<TensorAllocator> = RefCell::new(TensorAllocator::new());
+    pub(crate) static   TENSOR_ALLOCATOR    : RefCell<TensorAllocator> = RefCell::new(TensorAllocator::new());
     #[cfg(feature = "enableVisualization")]
     pub(crate) static   VISUALIZATION_GRAPH : RefCell<VisualizationGraph> = RefCell::new(VisualizationGraph::new());
     #[cfg(feature = "enableVisualization")]

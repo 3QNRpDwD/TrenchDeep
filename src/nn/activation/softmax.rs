@@ -20,8 +20,8 @@ impl Layer for SoftmaxLayer {
     }
 
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+        let output = self.operator.forward(&[input])?.remove(0);
         TENSOR_ALLOCATOR.with_borrow( |alloc| {
-            let output = self.operator.forward(&[input])?.remove(0);
             Ok(alloc.get_tensor_ref(&output.id()).unwrap().clone())
         })
     }

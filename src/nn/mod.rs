@@ -128,6 +128,10 @@ pub trait Parameter: Debug {
             }
         })
     }
+    
+    fn tpye_name(&self) -> String {
+        std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown").replace("<f32>", "")
+    }
 }
 
 #[derive(Clone)]
