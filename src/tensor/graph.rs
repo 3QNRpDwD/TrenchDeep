@@ -204,8 +204,24 @@ impl ComputationGraph {
                     self.nodes[input_idx].variable.tensor() as &dyn TensorBase
                 })
                 .collect::<Vec<&dyn TensorBase>>();
-            let input_grads = OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut(function).unwrap().backward(&input_tensors, grad)
-                .map_err(|e| MlError::StringError(format!("Failed to compute backward for function {:?}: {}", function, e))))?;
+            let input_grads = OPERATOR_STORAGE.with(|ops| {
+                let mut ops_borrow = ops.borrow_mut();
+                match ops_borrow.get_mut(function) {
+                    Some(op) => {
+                        op.backward(&input_tensors, grad)
+                            .map_err(|e| MlError::StringError(format!("Failed to compute backward for function {:?}: {}", function, e)))
+                    }
+                    None => {
+                        // 연산자가 등록되지 않은 경우 상세한 오류 메시지 제공
+                        let available_ops: Vec<String> = ops_borrow.keys().cloned().collect();
+                        Err(MlError::StringError(format!(
+                            "연산자 '{}'가 OPERATOR_STORAGE에 등록되지 않았습니다. 사용 가능한 연산자: {:?}",
+                            function, available_ops
+                        )))
+                    }
+                }
+            })?;
+
 
             for (input_id, grad) in node.inputs.iter().zip(input_grads) {
                 let input_idx = self.node_map[input_id];

@@ -43,8 +43,8 @@ impl Layer for Linear {
                 .remove(0)
                 .to_id(false)?);
 
-        x.with_grad_fn(self.type_name(), &[&input]); // 입출력에 대한 계산그래프 구성을 재설계 해야함
-        output.with_grad_fn(self.type_name(), &[&x, &self.bias]);
+        x.with_grad_fn(self.matmul.name(), &[&self.weight, &input]); // 입출력에 대한 계산그래프 구성을 재설계 해야함
+        output.with_grad_fn(self.add.name(), &[&x, &self.bias]);
         Ok(output)
     }
 

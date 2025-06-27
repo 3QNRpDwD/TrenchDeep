@@ -25,7 +25,7 @@ pub mod graph;
 pub mod visualization;
 mod allocator;
 
-use crate::{MlError, MlResult, register_operator, temporary_unit, tensor::operators::Function, TensorError};
+use crate::{MlError, MlResult, register_operator, tensor::operators::Function, TensorError};
 use crate::nn::{Parameter, Variable};
 use crate::tensor:: {operators::Pow};
 
