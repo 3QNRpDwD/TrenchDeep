@@ -1,3 +1,4 @@
+use crate::tensor::TENSOR_ALLOCATOR;
 use super::*;
 
 impl Linear {
@@ -54,7 +55,7 @@ impl Layer for Linear {
         let x = self.matmul.forward(&[weight_tensor, input])?.remove(0);
         let output = self.add.forward(&[&x, bias_tensor])?.remove(0);
 
-        Ok(output)
+        Ok(TENSOR_ALLOCATOR.with_borrow(|alloc| alloc.get_tensor_ref(&output.id()).cloned().unwrap()))
     }
 
     /// 이 레이어가 소유한 모든 파라미터(가중치, 편향)의 참조를 반환합니다.
