@@ -31,10 +31,8 @@ impl TensorAllocator {
     /// 임시 텐서를 할당하거나 풀에서 가져옵니다. PooledTensor로 반환됩니다.
     pub fn alloc_temporary(&mut self, shape: &[usize]) -> PooledTensor {
         let node_id = if let Some(nodes) = self.pool.get_mut(shape) {
-            // 해당 모양의 풀에 사용 가능한 텐서가 있으면 가져온다.
             nodes.pop()
         } else {
-            // 없으면 None
             None
         };
 
@@ -52,8 +50,7 @@ impl TensorAllocator {
 
         PooledTensor { node_id: tensor_id, detached: false }
     }
-
-    /// 사용이 끝난 임시 텐서를 풀에 반환합니다.
+    
     fn release(&mut self, node_id: HandleId) {
         if let Some(tensor) = self.storage.get(&node_id) {
             let shape = tensor.shape().to_vec();

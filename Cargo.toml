@@ -3,8 +3,12 @@ name = "trench-deep"
 version = "0.0.2"
 edition = "2024"
 description = "This framework is a project that I am independently designing/developing to study about deep learning. Basic levels of computation and automatic differential engines are implemented."
+readme = "README.md"
+repository = "https://github.com/3QNRpDwD/TrenchDeep"
 license = "Apache 2.0 License"
+keywords = ["DL", "ML", "AI", "deep-learning", "machine-learning"] # 검색에 도움이 될 키워드
 authors = ["2QRNpDwD@gmail.com"]
+categories = ["science", "algorithms", "data-structures", "mathematics"]
 
 [features]
 enableBackpropagation = [] # 역전파 관련 기능들을 활성화 할경우 사용
@@ -30,6 +34,7 @@ thiserror = "2.0.12"               #오류 전파용 크레이트
 debug = true
 
 [profile.release]
+debug = true
 opt-level = 3
 
 #This framework is a project that I am independently designing/developing to study about deep learning.
