@@ -227,7 +227,7 @@ impl ComputationGraph {
             for (input_id, grad) in node.inputs.iter().zip(input_grads) {
                 let input_idx = self.node_map[input_id];
                 let input_node = &self.nodes[input_idx];
-                input_node.variable.accumulate_grad(grad.to_id(false)?)?;
+                input_node.variable.accumulate_grad(grad.to_id(true)?)?;
             }
     
             var.clear_grad();
