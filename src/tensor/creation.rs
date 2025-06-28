@@ -111,6 +111,15 @@ impl TensorBase for Tensor {
         })
     }
 
+    fn as_mut(&self) -> *mut GlobalTensor<f32> {
+        TENSOR_ALLOCATOR.with_borrow_mut(|allocator| {
+            // `Mut`의 수명을 연장하기 위해 raw 포인터를 사용.
+            // allocator의 borrow가 끝난 후에도 포인터가 유효하다고 가정.
+            let tensor_mut = allocator.get_tensor_mut(&self.0).unwrap();
+            tensor_mut as *mut GlobalTensor<f32>
+        })
+    }
+
     fn shape(&self) -> &[usize] {
         unsafe { &self.as_ptr().as_ref().unwrap().shape }
     }

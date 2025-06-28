@@ -15,7 +15,7 @@ impl Layer for ReLULayer {
     #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let output = self.operator.forward(&[input.tensor()])?.remove(0);
-        let var_act = var_act!(output.to_id(false)?, self.label());
+        let var_act = var_act!(output.to_id(true)?, self.label());
         var_act.with_grad_fn(self.operator.name(), &[&input]);
         Ok(var_act)
     }

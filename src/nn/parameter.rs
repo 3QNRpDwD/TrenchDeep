@@ -71,7 +71,14 @@ impl Parameter for Variable {
             // 성능이 저하되는 문제가 있음. 따라서 텐서 스토리지와 계산그래프 전용 텐서 스토리지를 만들어서 완전히 분리하던가,
             // 배치별로 다른 스토리지를 만들어서 관리하도록 하던가하는 방법으로 최적화 해야할듯함.
             // 최종적으로 정적 계산그래프로 전환한다면 더욱 성능향상이 기대됨.
-            self.grad.replace(GlobalTensor::zeros(self.tensor.shape()));
+            TENSOR_ALLOCATOR.with_borrow_mut(|allocator| {
+                // 2. `grad` 텐서의 ID를 사용하여 Allocator로부터 가변 참조를 요청합니다.
+                if let Some(grad_tensor) = allocator.get_tensor_mut(&self.grad.id()) {
+                    // 3. 이제 가변 참조를 통해 안전하게 데이터를 수정할 수 있습니다.
+                    //    .clear() 대신 .fill(0.0)을 사용해야 합니다. (아래 설명 참조)
+                    grad_tensor.data.fill(0.0);
+                }
+            });
         }
     }
 

@@ -35,12 +35,12 @@ impl Layer for Linear {
             self.matmul
                 .forward(&[self.weight.tensor(), input.tensor()])?
                 .remove(0)
-                .to_id(false)?);
+                .to_id(true)?);
         let output = Variable::new(
             self.add
                 .forward(&[x.tensor(), self.bias.tensor()])?
                 .remove(0)
-                .to_id(false)?);
+                .to_id(true)?);
 
         x.with_grad_fn(self.matmul.name(), &[&self.weight, &input]); // 입출력에 대한 계산그래프 구성을 재설계 해야함
         output.with_grad_fn(self.add.name(), &[&x, &self.bias]);

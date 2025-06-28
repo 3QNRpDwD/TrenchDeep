@@ -55,7 +55,7 @@ mod mnist_test {
 
     #[test]
     fn softmax_regression_mnist_classification_integration_test() -> MlResult<()> {
-        let _ = setup_logging("info");
+        let _ = setup_logging("trace");
         let config = TestConfig::default();
         info!("=== Starting MLP MNIST Classification Test with Config ===");
         info!("{:?}", config);

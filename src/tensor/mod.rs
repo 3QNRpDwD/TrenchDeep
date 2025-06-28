@@ -310,6 +310,10 @@ pub trait TensorBase {
         unimplemented!(" TensorBase::tensor_ptr() is not implemented ")
     }
 
+    fn as_mut(&self) -> *mut GlobalTensor<f32> {
+        unimplemented!(" TensorBase::tensor_mut() is not implemented ")
+    }
+
     fn shape(&self) -> &[usize] {
         unimplemented!(" TensorBase::shape() is not implemented ")
     }

@@ -13,6 +13,11 @@ impl TensorAllocator {
         self.storage.get(node_id)
     }
 
+    pub fn get_tensor_mut(&mut self, node_id: &HandleId) -> Option<&mut GlobalTensor<f32>> {
+        self.storage.get_mut(node_id)
+    }
+
+
     /// 영구 텐서를 할당합니다. 이 텐서는 풀에 반환되지 않습니다.
     pub fn alloc_permanent(&mut self, data: Vec<f32>, shape: Vec<usize>) -> MlResult<Tensor> {
         let expected_len: usize = shape.iter().product();
