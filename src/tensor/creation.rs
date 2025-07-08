@@ -160,6 +160,10 @@ impl GlobalTensor<f32> {
 }
 
 impl Tensor {
+    pub fn from_global(data: GlobalTensor<f32>) -> MlResult<Tensor> {
+        data.to_id()
+    }
+
     pub fn with_id(data: Vec<f32>, shape: &[usize], node_id: HandleId) -> MlResult<Tensor> {
         let global_tensor = GlobalTensor::from_vec(data, shape)?;
         TENSOR_ALLOCATOR.with_borrow_mut(|allocator| {

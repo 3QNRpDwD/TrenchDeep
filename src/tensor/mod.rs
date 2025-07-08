@@ -221,6 +221,7 @@ pub(crate) struct ComputationGraph {
     reverse_adjacency: Vec<Vec<usize>>,
     topo_order: Vec<usize>,
     is_sorted: bool,
+    pub(crate) memory_pool: Vec<HandleId>
 }
 
 #[cfg(feature = "enableVisualization")]
@@ -245,6 +246,7 @@ pub enum NodeType {
     Output,
 }
 
+#[derive(Debug)]
 pub struct TensorAllocator {
     // 모든 텐서의 실제 데이터가 저장
     storage: HashMap<HandleId, GlobalTensor<f32>>,

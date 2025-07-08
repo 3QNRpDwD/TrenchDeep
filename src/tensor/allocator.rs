@@ -56,7 +56,7 @@ impl TensorAllocator {
         PooledTensor { node_id: tensor_id, detached: false }
     }
     
-    fn release(&mut self, node_id: HandleId) {
+    pub fn release(&mut self, node_id: HandleId) {
         if let Some(tensor) = self.storage.get(&node_id) {
             let shape = tensor.shape().to_vec();
             self.pool.entry(shape).or_default().push(node_id);

@@ -157,8 +157,15 @@ pub struct Variable {
     #[cfg(all(feature = "enableVisualization"))]
     node_type: crate::tensor::NodeType,
     tensor: Tensor,
-    requires_grad: RefCell<bool>,
     grad: Tensor,
+    requires_grad: RefCell<bool>,
+    is_persistent: RefCell<bool>,
+}
+
+impl Variable {
+    pub fn is_persistent(&self) -> bool {
+        *self.is_persistent.borrow()
+    }
 }
 
 impl Debug for Variable {

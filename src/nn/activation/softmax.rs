@@ -16,7 +16,7 @@ impl Layer for SoftmaxLayer {
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let output = self.operator.forward(&[input.tensor()])?.remove(0);
         let var_act = var_act!(output.to_id(true)?, self.label());
-        var_act.with_grad_fn(self.operator.name(), &[&input]);
+        var_act.with_grad_fn(self.operator.name(), &[&var_act]);
         Ok(var_act)
     }
 
@@ -39,7 +39,7 @@ impl Function for Softmax {
 
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let input = targets[0];
-        let input_data = input.data();
+        let input_data = input.data().to_vec();
         let max_val = input_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
         let exp_values: Vec<f32> = input_data.iter().map(|&x| (x - max_val).exp()).collect();
         let sum_of_exps: f32 = exp_values.iter().sum();
