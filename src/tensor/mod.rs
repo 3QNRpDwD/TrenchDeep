@@ -21,11 +21,9 @@ use crate::{
     },
     MlResult,
     MlError,
-    register_operator,
     tensor::{
         operators::{
             Function,
-            Pow
         }
     },
     nn::{Parameter, Variable},
@@ -41,32 +39,31 @@ mod allocator;
 
 #[macro_export]
 macro_rules! tensor_ops {
-    ($tensor:expr, Pow, $exponent:expr) => {{
-        let mut op = Pow::new().unwrap();
-        op.power = Some($exponent);
+    // 파라미터가 있는 연산자 (e.g., Pow, power = 2.0)
+    ($tensor:expr, $op:ident, $($field:ident = $value:expr),+) => {{
+        let op = crate::tensor::operators::$op::new($($value),+);
         op.forward(&[&$tensor]).unwrap().remove(0)
     }};
-
-    ($tensor:expr, $op:ident, $second_tensor:expr) => {
-        $op::new().unwrap().forward(&[&$tensor, &$second_tensor]).unwrap().remove(0)
-    };
-
-    ($tensor:expr, $op:ident) => {
-        $op::new().unwrap().forward(&[&$tensor]).unwrap().remove(0)
-    };
-
+    // Topk, Matmax 등 특수 반환 값을 갖는 연산자
     ($tensor:expr, Topk, $k:expr, $sorted:expr) => {{
-        let mut op = Topk::new().unwrap();
-        op.topk = Some(($k, $sorted));
+        let op = crate::tensor::operators::Topk::new(Some(($k, $sorted)));
         let mut result = op.forward(&[&$tensor]).unwrap();
         (result.remove(0), result.remove(0))
     }};
-
     ($tensor:expr, Matmax, $dim:expr, $keepdim:expr) => {{
-        let mut op = Matmax::new().unwrap();
-        op.matmax = Some(($dim, $keepdim));
+        let op = crate::tensor::operators::Matmax::new(Some(($dim, $keepdim)));
         let mut result = op.forward(&[&$tensor]).unwrap();
         (result.remove(0), result.remove(0))
+    }};
+    // 이항 연산자
+    ($tensor:expr, $op:ident, $second_tensor:expr) => {{
+        let op = crate::tensor::operators::$op::new();
+        op.forward(&[&$tensor, &$second_tensor]).unwrap().remove(0)
+    }};
+    // 단항 연산자
+    ($tensor:expr, $op:ident) => {{
+        let op = crate::tensor::operators::$op::new();
+        op.forward(&[&$tensor]).unwrap().remove(0)
     }};
 }
 
@@ -117,64 +114,14 @@ pub struct GlobalTensor<Type> {
     pub shape: Vec<usize>,
 }
 
-// pub struct Variable {
-//     #[cfg(all(feature = "enableVisualization"))]
-//     label: String,
-//     #[cfg(all(feature = "enableVisualization"))]
-//     node_type: NodeType,
-//     tensor: Tensor,
-//     requires_grad: RefCell<bool>,
-//     grad: RefCell<Option<Tensor>>,
-// }
-
-#[derive(Clone, Debug)]
-pub struct GlobalFunction {
-    name: String,
-    func_id: HandleId,
-}
-
 #[derive(Clone)]
 pub struct Tensor (HandleId);
-// 기존의 텐서는 직접 variable 에 소유되는 구조로, 메모리 관리와 정적계산그래프 구현이 불가능하기 때문에 실제 텐서는 전역으로 관리하며 기존의 텐서는 아이디를 통해서 관리하도록 변경함.
 
 impl Tensor {
     pub fn replace(&self, other_tensor: GlobalTensor<f32>) {
         TENSOR_ALLOCATOR.with_borrow_mut(|allocator| {
             allocator.storage.insert(self.0, other_tensor)
         });
-    }
-}
-
-impl Function for GlobalFunction {
-    fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
-        OPERATOR_STORAGE.with(|ops| {
-            let mut ops = ops.borrow_mut();
-            match ops.get_mut(self.name()) {
-                Some(op) => op.forward(inputs),
-                None => Err(MlError::StringError(format!("Function {} is not registered globally.", self.type_name())))
-            }
-        })
-    }
-
-    fn assign_forward(&self, inputs: &[&dyn TensorBase], node_id: HandleId) -> MlResult<Vec<Tensor>> {
-        OPERATOR_STORAGE.with(|ops| {
-            let mut ops = ops.borrow_mut();
-            match ops.get_mut(self.name()) {
-                Some(op) => op.assign_forward(inputs, node_id),
-                None => Err(MlError::StringError(format!("Function {} is not registered globally.", self.type_name())))
-            }
-        })
-    }
-
-    #[cfg(feature = "enableBackpropagation")]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
-        OPERATOR_STORAGE.with(|ops| {
-            let mut ops = ops.borrow_mut();
-            match ops.get_mut(self.name()) {
-                Some(op) => op.backward(targets, grad),
-                None => Err(MlError::StringError(format!("Function {} is not registered globally.", self.type_name())))
-            }
-        })
     }
 }
 
@@ -209,7 +156,7 @@ impl NodeIdGenerator {
 pub(crate) struct ComputationNode {
     id: HandleId,
     variable: Variable,
-    function: Option<String>,
+    function: Option<Arc<dyn Function + Send + Sync>>,
     inputs: Vec<HandleId>,
     is_leaf: bool,
 }
@@ -248,14 +195,10 @@ pub enum NodeType {
 
 #[derive(Debug)]
 pub struct TensorAllocator {
-    // 모든 텐서의 실제 데이터가 저장
     storage: HashMap<HandleId, GlobalTensor<f32>>,
-    // 재활용 가능한 텐서들의 ID를 모양(shape)별로 관리하는 풀
     pool: HashMap<Vec<usize>, Vec<HandleId>>,
 }
 
-/// 풀에서 빌린 임시 텐서를 감싸는 RAII 래퍼
-/// 스코프를 벗어나면 자동으로 TensorAllocator의 풀에 반환됩니다.
 #[derive(Debug, Clone)]
 pub struct PooledTensor {
     node_id: HandleId,
@@ -265,7 +208,6 @@ pub struct PooledTensor {
 thread_local! {
     #[cfg(feature = "enableBackpropagation")]
     pub(crate) static   COMPUTATION_GRAPH   : std::sync::Mutex<ComputationGraph> = std::sync::Mutex::new(ComputationGraph::new());
-    pub(crate) static   OPERATOR_STORAGE    : RefCell<HashMap<String, Box<dyn Function>>> = RefCell::new(HashMap::new());
     pub(crate) static   TENSOR_ALLOCATOR    : RefCell<TensorAllocator> = RefCell::new(TensorAllocator::new());
     #[cfg(feature = "enableVisualization")]
     pub(crate) static   VISUALIZATION_GRAPH : RefCell<VisualizationGraph> = RefCell::new(VisualizationGraph::new());
@@ -385,12 +327,12 @@ pub trait TensorBase {
     }
 }
 
-pub trait AutogradFunction: Function {
-    fn apply(&mut self, _inputs: &[&Variable]) -> MlResult<Variable> {
+pub trait AutogradFunction: Function + Send + Sync  + 'static {
+    fn apply(self: &Arc<Self>, _inputs: &[&Variable]) -> MlResult<Variable> {
         unimplemented!(" AutogradFunction::apply() not implemented for this type")
     }
 
-    fn apply_with_label(&mut self, inputs: &[&Variable], label: &str) -> MlResult<Variable> {
+    fn apply_with_label(self: &Arc<Self>, inputs: &[&Variable], label: &str) -> MlResult<Variable> {
         unimplemented!(" AutogradFunction::apply_with_label() not implemented for this type")
     }
 }
@@ -399,7 +341,7 @@ pub trait AutogradFunction: Function {
 mod tests {
     use crate::MlResult;
     use crate::tensor::{Tensor, TensorBase};
-    use crate::tensor::operators::{Abs, Add, Div, Exp, Function, Log, Matmul, Mul, Neg, Sqrt, Square, Sub};
+    use crate::tensor::operators::{Abs, Add, Div, Exp, Log, Matmul, Mul, Neg, Sqrt, Square, Sub, Pow, Function};
 
     pub fn assert_tensor_eq(tensor: &dyn TensorBase, expected_tensor: &dyn TensorBase) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
@@ -508,10 +450,9 @@ mod tests {
 
     #[test]
     fn test_pow_macro() {
-        todo!(" Pow macro test is not implemented yet. It requires a Pow operator implementation."); // 전역으로 선언된 pow 구조체의 내부 power 필드에 접근할수 있는 방법이 필요함
-        // let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
-        // let result = tensor_ops!(tensor, Pow, 2.0);
-        // assert_eq!(result.data(), vec![4.0, 9.0]);
+        let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
+        let result = tensor_ops!(tensor, Pow, power = Some(2.0));
+        assert_eq!(result.data(), vec![4.0, 9.0]);
     }
 
     #[test]

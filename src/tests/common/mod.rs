@@ -29,9 +29,9 @@ use crate::{
     }
     ,
     tensor::{
-        AutogradFunction,
+        
         ComputationGraph,
-        GlobalFunction,
+        
         operators::{Add, Matmul},
         operators::Function,
         Tensor,

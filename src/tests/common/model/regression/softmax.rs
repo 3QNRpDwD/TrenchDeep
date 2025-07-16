@@ -1,11 +1,15 @@
+use crate::tensor::{AutogradFunction, PooledTensor};
 use std::ops::Deref;
 use crate::tensor::TENSOR_ALLOCATOR;
 use super::*;
 
+use std::sync::Arc;
+use crate::tensor::operators::Function;
+
 impl SoftmaxRegression {
     pub fn new(
         layer_parms: &[usize],
-        loss_function: GlobalFunction,
+        loss_function: Arc<CrossEntropyLoss>,
     ) -> Self {
         let layer = Sequential::new()
             .add_layer(Linear::new(layer_parms[0], layer_parms[1], "linea layer").unwrap())
@@ -72,7 +76,7 @@ impl Model for SoftmaxRegression {
                 let y = self.apply(x)?;
                 #[cfg(feature = "enableVisualization")]
                 crate::tensor::VisualizationGraph::render_to_svg(format!("graph/softmax_regression_{}_{:?}_{:?}.svg", epoch, (x.node_id(), x.node_type()), (t.node_id(), t.node_type()))).unwrap();
-                let loss_var = self.loss_function.apply_with_label(&[&y, &t], "loss")?;
+                let loss_var = self.loss_function.apply(&[&y, &t])?;
 
                 let forward_duration = forward_start.elapsed();
                 let y_pred_idx = utils::argmax(loss_var.tensor().data()); // 예측값의 argmax

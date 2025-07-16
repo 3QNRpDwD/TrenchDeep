@@ -1,23 +1,6 @@
 use super::*;
 
 impl Function for Matmax {
-    fn new() -> MlResult<GlobalFunction> {
-        OPERATOR_STORAGE.with(|ops| {
-            let my = "Matmax";
-            let mut ops = ops.borrow_mut();
-            match ops.contains_key(my) {
-                true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
-                false => {
-                    ops.insert(
-                        String::from(my),
-                        Box::new(Matmax { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), matmax: None })
-                    );
-                    Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
-                }
-            }
-        })
-    }
-    
     /// Returns the maximum value of all elements in the input tensor.
     /// If dim is specified, returns the maximum values along the given dimension.
     ///

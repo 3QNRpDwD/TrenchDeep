@@ -19,15 +19,18 @@ pub trait Model {
     fn compute_total_error(&mut self, X: &[&Variable], T: &[&Variable]) -> MlResult<f32>;
 }
 
+use std::sync::Arc;
+use crate::tensor::operators::Function;
+
 pub struct MLP {
     // 활성화 함수를 MLP 구조체의 일부로 만들어 유연성 확보
     layer: Sequential,
-    loss_function: GlobalFunction,
+    loss_function: Arc<dyn Function + Send + Sync>,
 }
 
 pub struct SoftmaxRegression {
     layer: Sequential,
-    loss_function: GlobalFunction,
+    loss_function: Arc<CrossEntropyLoss>,
 }
 
 // impl std::fmt::Debug for MLP {

@@ -1,28 +1,17 @@
 use super::*;
 
 impl Function for Div {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Div)
-    }
-    
-    /// Divides two tensors element-wise
-    ///
-    /// # Arguments
-    /// * `other` - The tensor to divide the current tensor by
-    ///
-    /// # Returns
-    /// A new tensor with the result of the element-wise division
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
-            _ => Ok(vec![PooledTensor::from_vec(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape())?])
+            _ => Ok(vec![PooledTensor::from_vec(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape()).unwrap()])
         }
     }
 
     fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: HandleId) -> MlResult<Vec<Tensor>> {
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
-            _ => Ok(vec![Tensor::with_id(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape(), node_id)?])
+            _ => Ok(vec![Tensor::with_id(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape(), node_id).unwrap()])
         }
     }
     
@@ -41,38 +30,30 @@ impl Function for Div {
     fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
-/// Divide trait implementation for owned tensors
-///
-/// # Arguments
-/// * `other` - The tensor to divide self by
-///
-/// # Returns
-/// A new tensor containing the element-wise quotient
-impl std::ops::Div<&Tensor> for Tensor {
-    type Output = PooledTensor;
-
-    fn div(self, other: &Tensor) -> Self::Output {
-        Div::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().forward(&[&self, other]).unwrap().remove(0))
-    }
-}
-
 impl std::ops::Div<Tensor> for Tensor {
     type Output = PooledTensor;
 
     fn div(self, other: Tensor) -> Self::Output {
-        Div::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().forward(&[&self, &other]).unwrap().remove(0))
+        let op = Div::new();
+        op.forward(&[&self, &other]).unwrap().remove(0)
     }
 }
 
-
-impl std::ops::Div<&dyn TensorBase> for &dyn TensorBase {
+impl std::ops::Div<&Tensor> for Tensor {
     type Output = PooledTensor;
 
-    fn div(self, other: &dyn TensorBase) -> Self::Output {
-        Div::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().forward(&[self, other]).unwrap().remove(0))
+    fn div(self, other: &Tensor) -> Self::Output {
+        let op = Div::new();
+        op.forward(&[&self, other]).unwrap().remove(0)
+    }
+}
+
+impl std::ops::Div<&Tensor> for &Tensor {
+    type Output = PooledTensor;
+
+    fn div(self, other: &Tensor) -> Self::Output {
+        let op = Div::new();
+        op.forward(&[self, other]).unwrap().remove(0)
     }
 }
 
@@ -80,22 +61,30 @@ impl std::ops::Div<Tensor> for &Tensor {
     type Output = PooledTensor;
 
     fn div(self, other: Tensor) -> Self::Output {
-        Div::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().forward(&[self, &other]).unwrap().remove(0))
+        let op = Div::new();
+        op.forward(&[self, &other]).unwrap().remove(0)
     }
 }
 
-/// DivAssign trait implementation for Tensor
+impl std::ops::Div<&dyn TensorBase> for &dyn TensorBase {
+    type Output = PooledTensor;
+
+    fn div(self, other: &dyn TensorBase) -> Self::Output {
+        let op = Div::new();
+        op.forward(&[self, other]).unwrap().remove(0)
+    }
+}
+
 impl std::ops::DivAssign<Tensor> for Tensor {
     fn div_assign(&mut self, other: Tensor) {
-        Div::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
+        let op = Div::new();
+        op.assign_forward(&[self, &other], self.0).unwrap();
     }
 }
 
 impl std::ops::DivAssign<&Tensor> for Tensor {
     fn div_assign(&mut self, other: &Tensor) {
-        Div::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
+        let op = Div::new();
+        op.assign_forward(&[self, other], self.0).unwrap();
     }
 }

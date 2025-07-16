@@ -16,9 +16,7 @@ use crate::{
     backend::Backend,
     MlError,
     MlResult,
-    register_operator,
     tensor::{
-        GlobalFunction,
         GlobalTensor,
         HandleId,
         operators::{
@@ -27,6 +25,9 @@ use crate::{
             Matmul,
             Mul,
             Sub,
+            AvgPool,
+            MaxPool,
+            Conv2d,
             Function
         },
         Tensor,
@@ -86,22 +87,22 @@ pub trait Parameter: Debug {
     fn node_id(&self) -> HandleId;
 
     fn add_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
-        Add::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
+        Add::new().assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 
     fn sub_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
-        Sub::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
+        Sub::new().assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 
     fn mul_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
-        Mul::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
+        Mul::new().assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 
     fn div_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
-        Div::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
+        Div::new().assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 
@@ -186,26 +187,28 @@ pub struct Linear    {
     label: String,
     weight: Variable,
     bias: Variable,
-    matmul: GlobalFunction,
-    add: GlobalFunction
+    matmul: Arc<Matmul>,
+    add: Arc<Add>
 }
 
-#[derive(Debug)]
-pub struct Conv      {
+#[derive(Clone, Debug)]
+pub struct Conv {
     label: String,
-    inputs: HashSet<HandleId>,
-    outputs: HashMap<HandleId, HandleId>,
     weight: Variable,
-    bias: Variable
+    bias: Option<Variable>,
+    conv2d: Arc<Conv2d>,
 }
 
 #[derive(Debug)]
-pub struct Pooling  {
+pub struct MaxPooling  {
     label: String,
-    inputs: HashSet<HandleId>,
-    outputs: HashMap<HandleId, HandleId>,
-    weight: Arc<dyn Parameter>,
-    bias: Arc<dyn Parameter>,
+    max_pool: Arc<MaxPool>,
+}
+
+#[derive(Debug)]
+pub struct AvgPooling  {
+    label: String,
+    avg_pool: Arc<AvgPool>,
 }
 
 pub struct Sequential {

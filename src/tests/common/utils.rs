@@ -46,7 +46,7 @@ pub fn argmax(data: &[f32]) -> Option<usize> {
 
 impl SoftmaxRegression {
     pub fn build_model(n_input: usize, n_output: usize) -> MlResult<SoftmaxRegression> {
-        let sr = SoftmaxRegression::new(&[n_input, n_output], CrossEntropyLoss::new()?);
+        let sr = SoftmaxRegression::new(&[n_input, n_output], CrossEntropyLoss::new());
         info!("Network Structure: {}(Input) -> {}(Output)", n_input, n_output);
         info!("MLP model created successfully.");
         Ok(sr)

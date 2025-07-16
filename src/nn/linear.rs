@@ -22,8 +22,8 @@ impl Linear {
             label: label.to_string(),
             weight: var_weight!(weight_tensor),
             bias: var_bias!(bias_tensor),
-            matmul: Matmul::new()?,
-            add: Add::new()?,
+            matmul: Matmul::new(),
+            add: Add::new(),
         })
     }
 }
@@ -42,8 +42,10 @@ impl Layer for Linear {
                 .remove(0)
                 .to_id(true)?);
 
-        x.with_grad_fn(self.matmul.name(), &[&self.weight, &input]); // 입출력에 대한 계산그래프 구성을 재설계 해야함
-        output.with_grad_fn(self.add.name(), &[&x, &self.bias]);
+        let matmul: Arc<dyn Function + Send + Sync> = self.matmul.clone();
+        let add: Arc<dyn Function + Send + Sync> = self.add.clone();
+        x.with_grad_fn(matmul, &[&self.weight, &input]); // 입출력에 대한 계산그래프 구성을 재설계 해야함
+        output.with_grad_fn(add, &[&x, &self.bias]);
         Ok(output)
     }
 

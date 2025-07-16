@@ -61,7 +61,7 @@ pub type MlResult<T> = Result<T, MlError>;
 #[cfg(test)]
 mod benchmark {
     use crate::tensor::operators::{Add, Function, Mul, Square, Sub};
-    use crate::tensor::{AutogradFunction, ComputationGraph, OPERATOR_STORAGE, PooledTensor, Tensor, TensorBase};
+    use crate::tensor::{AutogradFunction, ComputationGraph, PooledTensor, Tensor, TensorBase};
     use crate::{MlResult, scalar, var_input, var_with_label, variable};
     use crate::nn::{Parameter, Variable};
     use std::sync::Arc;
@@ -86,9 +86,9 @@ mod benchmark {
     }
 
     fn sphere_function(x: &Variable, y: &Variable) -> MlResult<Variable> {
-        let mut square = Square::new()?;
-        let mut add = Add::new()?;
-        OPERATOR_STORAGE.with(|storage| println!("{:?}", storage.borrow().keys()));
+        let square = Square::new();
+        let add = Add::new();
+        crate::tensor::operators::OPERATOR_STORAGE.with(|storage| println!("{:?}", storage.borrow().keys()));
         add.apply(&[
             &square.apply(&[x])?,
             &square.apply(&[y])?
@@ -96,8 +96,8 @@ mod benchmark {
     }
 
     fn matyas_function(x: &Variable, y: &Variable) -> MlResult<Variable> {
-        let mut sub = Sub::new()?;
-        let mut mul = Mul::new()?;
+        let sub = Sub::new();
+        let mul = Mul::new();
         let O_26 = Arc::new(variable!(vec![vec![0.26]]));
         let O_48 = Arc::new(variable!(vec![vec![0.48]]));
 
@@ -116,10 +116,10 @@ mod benchmark {
             var_with_label!(scalar, &value.to_string())
         }
 
-        let mut add = Add::new()?;
-        let mut square = Square::new()?;
-        let mut mul = Mul::new()?;
-        let mut sub = Sub::new()?;
+        let add = Add::new();
+        let square = Square::new();
+        let mul = Mul::new();
+        let sub = Sub::new();
 
         // Define constants
         let num_1   = constant(1.0);
@@ -195,11 +195,12 @@ mod benchmark {
     }
 
     fn rosenbrock_function(x0: &Variable, x1: &Variable) -> MlResult<Variable> {
-        let mut sub = Sub::new()?;
-        let mut add = Add::new()?;
-        let mut square = Square::new()?;
-        let mut mul = Mul::new()?;
+        let sub = Sub::new();
+        let add = Add::new();
+        let square = Square::new();
+        let mul = Mul::new();
 
+        // f(x,y)= (a-x)^2 + b(y-x^2)^2 a = 1, b = 100
         let sq = square.apply(&[&x0])?;
         add.apply_with_label(&[
             &mul.apply(&[
@@ -272,6 +273,7 @@ mod benchmark {
 
     #[test]
     fn rosenbrock() -> MlResult<()> {
+        let a = setup_logging("info");
         let x0 = var_input!(Tensor::from_vec(vec![0.0], &[1,1])?);
         let x1 = var_input!(Tensor::from_vec(vec![2.0], &[1,1])?);
 
@@ -285,6 +287,7 @@ mod benchmark {
         }
 
         #[cfg(feature = "enableVisualization")]
+
         crate::tensor::VisualizationGraph::save_graph("graph/rosenbrock.dot").unwrap();
         Ok(())
     }
@@ -294,7 +297,7 @@ mod benchmark {
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
         let x0 = var_input!(Tensor::new(vec![vec![0.0]]));
         let x1 = var_input!(Tensor::new(vec![vec![2.0]]));
-        let iter: usize = 1000;
+        let iter: usize = 0;
         let learning_rate = Tensor::scalar(0.001);
 
         for i in 0..iter { // 0부터

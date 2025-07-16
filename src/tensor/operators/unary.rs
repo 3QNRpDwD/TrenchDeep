@@ -1,10 +1,6 @@
 use super::*;
 
 impl Function for Abs {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Abs)
-    }
-    
     /// Computes the absolute value of each element in the tensor.
     ///
     /// # Returns
@@ -24,10 +20,6 @@ impl Function for Abs {
 }
 
 impl Function for Exp {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Exp)
-    }
-    
     /// Applies the exponential function to each element in the tensor
     ///
     /// # Returns
@@ -52,10 +44,6 @@ impl Function for Exp {
 }
 
 impl Function for Log {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Log)
-    }
-    
     /// Applies the natural logarithm to each element in the tensor
     ///
     /// # Returns
@@ -75,23 +63,6 @@ impl Function for Log {
 }
 
 impl Function for Pow {
-    fn new() -> MlResult<GlobalFunction> {
-        OPERATOR_STORAGE.with(|ops| {
-            let my = "Pow";
-            let mut ops = ops.borrow_mut();
-            match ops.contains_key(my) {
-                true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
-                false => {
-                    ops.insert(
-                        String::from(my),
-                        Box::new(Pow { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), power: None })
-                    );
-                    Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
-                }
-            }
-        })
-    }
-    
     /// Raises each element in the tensor to a power
     ///
     /// # Arguments
@@ -123,10 +94,6 @@ impl Function for Pow {
 }
 
 impl Function for Square {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Square)
-    }
-    
     /// Returns a new tensor with the square of the elements of input
     ///
     /// # Returns
@@ -159,10 +126,6 @@ impl Function for Square {
 }
 
 impl Function for Sqrt {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Sqrt)
-    }
-    
     /// Takes the square root of each element in the tensor
     ///
     /// # Returns

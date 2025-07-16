@@ -4,7 +4,7 @@ impl TanhLayer {
     pub fn new(label: &str) -> Self {
         Self {
             label: label.to_string(),
-            operator: Tanh::new().unwrap(),
+            operator: Tanh::new()
         }
     }
 }
@@ -14,7 +14,8 @@ impl Layer for TanhLayer {
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let output = self.operator.forward(&[input.tensor()])?.remove(0);
         let var_act = var_act!(output.to_id(true)?, self.label());
-        var_act.with_grad_fn(self.operator.name(), &[&input]);
+        let op: Arc<dyn Function + Send + Sync> = self.operator.clone();
+        var_act.with_grad_fn(op, &[input]);
         Ok(var_act)
     }
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
@@ -28,10 +29,6 @@ impl Layer for TanhLayer {
 }
 
 impl Function for Tanh {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Tanh)
-    }
-
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let x = targets[0];
         let pos_exp = self.backend.exp(&x.data());

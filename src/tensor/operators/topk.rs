@@ -1,22 +1,6 @@
 use super::*;
 
 impl Function for Topk {
-    fn new() -> MlResult<GlobalFunction> {
-        OPERATOR_STORAGE.with(|ops| {
-            let my = "Topk";
-            let mut ops = ops.borrow_mut();
-            match ops.contains_key(my) {
-                true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
-                false => {
-                    ops.insert(
-                        String::from(my),
-                        Box::new(Topk { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), topk: None })
-                    );
-                    Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
-                }
-            }
-        })
-    }
     /// Returns the k largest elements of the tensor along the last dimension.
     ///
     /// # Arguments

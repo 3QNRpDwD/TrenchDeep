@@ -1,10 +1,6 @@
 use super::*;
 
 impl Function for Sum {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Sum)
-    }
-
     fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         // Sum 함수는 하나의 입력 텐서만 받습니다.
         if inputs.len() != 1 {
@@ -20,7 +16,7 @@ impl Function for Sum {
         let total_sum: f32 = target.data().iter().sum();
 
         // 결과를 shape이 [1]인 새로운 텐서(스칼라)로 만들어 반환합니다.
-        Ok(vec![PooledTensor::from_vec(vec![total_sum], &[1,1])?])
+        Ok(vec![PooledTensor::from_vec(vec![total_sum], &[1,1]).unwrap()])
     }
 
     #[cfg(feature = "enableBackpropagation")]
@@ -29,7 +25,7 @@ impl Function for Sum {
             return Err(MlError::TensorError(TensorError::EmptyTensor));
         }
 
-        let gt = PooledTensor::from_vec(grad.data().to_vec(), grad.shape())?;
+        let gt = PooledTensor::from_vec(grad.data().to_vec(), grad.shape()).unwrap();
         Ok(vec![gt.clone(); targets.len()])
     }
     

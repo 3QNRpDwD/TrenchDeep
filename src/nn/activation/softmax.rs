@@ -6,7 +6,7 @@ impl SoftmaxLayer {
     pub fn new(label: &str) -> Self {
         Self {
             label: label.to_string(),
-            operator: Softmax::new().unwrap(),
+            operator: Softmax::new()
         }
     }
 }
@@ -16,7 +16,8 @@ impl Layer for SoftmaxLayer {
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let output = self.operator.forward(&[input.tensor()])?.remove(0);
         let var_act = var_act!(output.to_id(true)?, self.label());
-        var_act.with_grad_fn(self.operator.name(), &[&var_act]);
+        let op: Arc<dyn Function + Send + Sync> = self.operator.clone();
+        var_act.with_grad_fn(op, &[input]);
         Ok(var_act)
     }
 
@@ -33,10 +34,6 @@ impl Layer for SoftmaxLayer {
 }
 
 impl Function for Softmax {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Softmax)
-    }
-
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let input = targets[0];
         let input_data = input.data().to_vec();

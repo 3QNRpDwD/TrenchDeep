@@ -1,10 +1,6 @@
 use super::*;
 
 impl Function for Reshape {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Reshape)
-    }
-
     /// Reshapes the tensor to the specified shape.
     ///
     /// # Arguments
@@ -28,7 +24,7 @@ impl Function for Reshape {
             }));
         }
 
-        Ok(vec![PooledTensor::from_vec(target.data().to_vec(), new_shape)?])
+        Ok(vec![PooledTensor::from_vec(target.data().to_vec(), new_shape).unwrap()])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
@@ -46,7 +42,7 @@ impl Function for Reshape {
             }));
         }
 
-        Ok(vec![PooledTensor::from_vec(grad.data().to_vec(), target_shape)?])
+        Ok(vec![PooledTensor::from_vec(grad.data().to_vec(), target_shape).unwrap()])
     }
     
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

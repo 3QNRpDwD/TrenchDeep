@@ -1,17 +1,6 @@
 use super::*;
 
 impl Function for Add {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Add)
-    }
-    
-    /// Adds two tensors element-wise
-    ///
-    /// # Arguments
-    /// * `other` - The tensor to add to the current tensor
-    ///
-    /// # Returns
-    /// A new tensor with the result of the element-wise addition
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let first_target = targets[0];
         let second_target = targets[1];
@@ -29,12 +18,12 @@ impl Function for Add {
                 }
             }
             
-            return Ok(vec![PooledTensor::from_vec(data, first_shape)?])
+            return Ok(vec![PooledTensor::from_vec(data, first_shape).unwrap()])
         }
 
         match first_target.chk_shape(second_target) {
             Err(e) => Err(e),
-            _ => Ok(vec![PooledTensor::from_vec(self.backend().add(first_target.data(), second_target.data()), first_target.shape())?])
+            _ => Ok(vec![PooledTensor::from_vec(self.backend().add(first_target.data(), second_target.data()), first_target.shape()).unwrap()])
         }
     }
 
@@ -55,18 +44,18 @@ impl Function for Add {
                 }
             }
 
-            return Ok(vec![Tensor::with_id(data, first_shape, node_id)?])
+            return Ok(vec![Tensor::with_id(data, first_shape, node_id).unwrap()])
         }
 
         match first_target.chk_shape(second_target) {
             Err(e) => Err(e),
-            _ => Ok(vec![Tensor::with_id(self.backend().add(first_target.data(), second_target.data()), first_target.shape(), node_id)?])
+            _ => Ok(vec![Tensor::with_id(self.backend().add(first_target.data(), second_target.data()), first_target.shape(), node_id).unwrap()])
         }
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
-        let gt = PooledTensor::from_vec(grad.data().to_vec(), grad.shape())?;
+        let gt = PooledTensor::from_vec(grad.data().to_vec(), grad.shape()).unwrap();
         Ok(vec![gt.clone(), gt])
     }
 
@@ -75,22 +64,12 @@ impl Function for Add {
     fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
-/// Add trait implementation for owned tensors
-///
-/// # Arguments
-/// * `other` - The tensor to add to self
-///
-/// # Returns
-/// A new tensor containing the element-wise sum
-///
-/// # Broadcasting
-/// * Supports broadcasting when adding a 1D tensor to each row of a 2D tensor
 impl std::ops::Add<Tensor> for Tensor {
     type Output = PooledTensor;
 
     fn add(self, other: Tensor) -> Self::Output {
-        Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().forward(&[&self, &other]).unwrap().remove(0))
+        let op = Add::new();
+        op.forward(&[&self, &other]).unwrap().remove(0)
     }
 }
 
@@ -98,8 +77,8 @@ impl std::ops::Add<&Tensor> for Tensor {
     type Output = PooledTensor;
 
     fn add(self, other: &Tensor) -> Self::Output {
-        Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().forward(&[&self, other]).unwrap().remove(0))
+        let op = Add::new();
+        op.forward(&[&self, other]).unwrap().remove(0)
     }
 }
 
@@ -107,8 +86,8 @@ impl std::ops::Add<&Tensor> for &Tensor {
     type Output = PooledTensor;
 
     fn add(self, other: &Tensor) -> Self::Output {
-        Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().forward(&[self, other]).unwrap().remove(0))
+        let op = Add::new();
+        op.forward(&[self, other]).unwrap().remove(0)
     }
 }
 
@@ -116,8 +95,8 @@ impl std::ops::Add<Tensor> for &Tensor {
     type Output = PooledTensor;
 
     fn add(self, other: Tensor) -> Self::Output {
-        Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().forward(&[self, &other]).unwrap().remove(0))
+        let op = Add::new();
+        op.forward(&[self, &other]).unwrap().remove(0)
     }
 }
 
@@ -125,21 +104,21 @@ impl std::ops::Add<&dyn TensorBase> for &dyn TensorBase {
     type Output = PooledTensor;
 
     fn add(self, other: &dyn TensorBase) -> Self::Output {
-        Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().forward(&[self, other]).unwrap().remove(0))
+        let op = Add::new();
+        op.forward(&[self, other]).unwrap().remove(0)
     }
 }
 
-/// AddAssign trait implementation for Tensor
 impl std::ops::AddAssign<Tensor> for Tensor {
     fn add_assign(&mut self, other: Tensor) {
-        Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
+        let op = Add::new();
+        op.assign_forward(&[self, &other], self.0).unwrap();
     }
 }
 
 impl std::ops::AddAssign<&Tensor> for Tensor {
     fn add_assign(&mut self, other: &Tensor) {
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
+        let op = Add::new();
+        op.assign_forward(&[self, other], self.0).unwrap();
     }
 }

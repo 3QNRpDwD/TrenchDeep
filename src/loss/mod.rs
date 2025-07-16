@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 use crate::{
-    register_operator,
+    define_op,
     MlResult,
     scalar,
     backend::{
@@ -11,14 +11,12 @@ use crate::{
         Device
     },
     tensor::{
-        GlobalFunction,
         HandleId,
         NODE_ID_GEN,
-        OPERATOR_STORAGE,
         PooledTensor,
         Tensor,
         TensorBase,
-        operators::Function
+        operators::{Function, OPERATOR_STORAGE}
     },
     MlError,
     TensorError::InvalidInputCount
@@ -41,34 +39,14 @@ pub enum LossError {
     },
 }
 
-pub struct MeanSquaredError {
-    backend: Arc<dyn Backend>, node_id: HandleId,
-}
-
-pub struct MeanAbsoluteError {
-    backend: Arc<dyn Backend>, node_id: HandleId,
-}
-
-pub struct HuberLoss {
-    backend: Arc<dyn Backend>, node_id: HandleId, delta: f32,
-}
-
-pub struct BinaryCrossEntropyLoss {
-    backend: Arc<dyn Backend>, node_id: HandleId,
-}
-
-pub struct CrossEntropyLoss {
-    backend: Arc<dyn Backend>, node_id: HandleId,
-}
-
-pub struct SoftmaxCrossEntropyLoss {
-    backend: Arc<dyn Backend>, node_id: HandleId,
-}
+define_op!(MeanSquaredError);
+define_op!(MeanAbsoluteError);
+define_op!(HuberLoss, delta: f32);
+define_op!(BinaryCrossEntropyLoss);
+define_op!(CrossEntropyLoss);
+define_op!(SoftmaxCrossEntropyLoss);
 
 pub trait Loss: Function {
-    fn new() -> MlResult<GlobalFunction> where Self: Sized {
-        <Self as Function>::new()
-    }
     fn loss(&self, predict: Tensor, target: Tensor) -> MlResult<f32> {
         Ok(*<Self as Function>::forward(&self, &[&predict, &target])?.remove(0).data().first().unwrap())
     }

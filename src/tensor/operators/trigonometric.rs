@@ -3,15 +3,9 @@ use super::*;
 /// `Sin` 함수는 입력 텐서의 각 요소에 사인 함수를 적용합니다.
 /// 입력 텐서는 각도로, 출력 텐서는 해당 각도의 사인 값을 포함합니다.
 impl Function for Sin {
-    /// 새로운 `Sin` 인스턴스를 생성합니다.
-    /// CPU 백엔드를 사용합니다.
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Sin)
-    }
-
     /// 입력 텐서에 사인 함수를 요소별로 적용하여, 동일한 모양을 가진 새로운 텐서를 반환합니다.
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
-        Ok(vec![PooledTensor::from_vec(targets[0].data().iter().map(|x| x.sin()).collect(), targets[0].shape())?])
+        Ok(vec![PooledTensor::from_vec(targets[0].data().iter().map(|x| x.sin()).collect(), targets[0].shape()).unwrap()])
     }
 
     /// 사인 함수의 기울기를 계산합니다.
@@ -24,7 +18,7 @@ impl Function for Sin {
             .map(|(grad_data, target)|  target.cos() * grad_data)
             .collect();
 
-        Ok(vec![PooledTensor::from_vec(gradient, targets[0].shape())?])
+        Ok(vec![PooledTensor::from_vec(gradient, targets[0].shape()).unwrap()])
     }
 
     /// 연산에 사용되는 백엔드 객체의 참조를 반환
@@ -37,15 +31,9 @@ impl Function for Sin {
 /// `Cos` 함수는 입력 텐서의 각 요소에 코사인 함수를 적용합니다.
 /// 입력 텐서는 각도로, 출력 텐서는 해당 각도의 코사인 값을 포함합니다.
 impl Function for Cos {
-    /// 새로운 `Cos` 인스턴스를 생성합니다.
-    /// CPU 백엔드를 사용합니다.
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Cos)
-    }
-
-    /// 입력 텐서에 코사인 함수를 요소별로 적용하여, 동일한 모양을 가진 새로운 텐서를 반환합니다.
+    /// 입력 텐서��� 코사인 함수를 요소별로 적용하여, 동일한 모양을 가진 새로운 텐서를 반환합니다.
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
-        Ok(vec![PooledTensor::from_vec(targets[0].data().iter().map(|x| x.cos()).collect(), targets[0].shape())?])
+        Ok(vec![PooledTensor::from_vec(targets[0].data().iter().map(|x| x.cos()).collect(), targets[0].shape()).unwrap()])
     }
 
     /// 코사인 함수의 기울기를 계산합니다.
@@ -58,7 +46,7 @@ impl Function for Cos {
             .map(|(grad_data, target)|  -target.sin() * grad_data)
             .collect();
 
-        Ok(vec![PooledTensor::from_vec(gradient, targets[0].shape())?])
+        Ok(vec![PooledTensor::from_vec(gradient, targets[0].shape()).unwrap()])
     }
 
     /// 연산에 사용되는 백엔드 객체의 참조를 반환
@@ -69,23 +57,6 @@ impl Function for Cos {
 }
 
 impl Function for ApproxSin {
-    fn new() -> MlResult<GlobalFunction> {
-        OPERATOR_STORAGE.with(|ops| {
-            let my = "ApproxSin";
-            let mut ops = ops.borrow_mut();
-            match ops.contains_key(my) {
-                true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
-                false => {
-                    ops.insert(
-                        String::from(my),
-                        Box::new(ApproxSin { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), threshold: 0.0001 })
-                    );
-                    Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
-                }
-            }
-        })
-    }
-
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let x = targets[0];
         let x_data = x.data();
@@ -120,29 +91,25 @@ impl Function for ApproxSin {
             current_power += 2;
         }
 
-        Ok(vec![PooledTensor::from_vec(result, x.shape())?])
+        Ok(vec![PooledTensor::from_vec(result, x.shape()).unwrap()])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
         // The derivative of sin(x) is cos(x)
         // We can use the ApproxCos implementation for this
-        let mut cos = ApproxCos {
-            backend: Arc::clone(&self.backend),
-            threshold: self.threshold,
-            node_id: NODE_ID_GEN.next()
-        };
+        let cos = ApproxCos::new(self.threshold);
 
         let cos_output = cos.forward(targets)?;
 
         // Multiply the cos result with the incoming gradient
         let x = targets[0];
-        cos_output[0].chk_shape(grad)?;
+        cos_output[0].chk_shape(grad).unwrap();
 
         let grad_data = grad.data();
         let cos_data = cos_output[0].data();
         let result = self.backend.multiply(cos_data, grad_data);
-        Ok(vec![PooledTensor::from_vec(result, x.shape())?])
+        Ok(vec![PooledTensor::from_vec(result, x.shape()).unwrap()])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -152,23 +119,6 @@ impl Function for ApproxSin {
 }
 
 impl Function for ApproxCos {
-    fn new() -> MlResult<GlobalFunction> {
-        OPERATOR_STORAGE.with(|ops| {
-            let my = "ApproxCos";
-            let mut ops = ops.borrow_mut();
-            match ops.contains_key(my) {
-                true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
-                false => {
-                    ops.insert(
-                        String::from(my),
-                        Box::new(ApproxCos { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), threshold: 0.0001 })
-                    );
-                    Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
-                }
-            }
-        })
-    }
-
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let x = targets[0];
         let x_data = x.data();
@@ -201,23 +151,19 @@ impl Function for ApproxCos {
             current_power += 2;
         }
 
-        Ok(vec![PooledTensor::from_vec(result, x.shape())?])
+        Ok(vec![PooledTensor::from_vec(result, x.shape()).unwrap()])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
         // The derivative of cos(x) is -sin(x)
         // We can use the ApproxSin implementation for this
-        let mut sin = ApproxSin {
-            backend: Arc::clone(&self.backend),
-            node_id: NODE_ID_GEN.next(),
-            threshold: self.threshold,
-        };
+        let sin = ApproxSin::new(self.threshold);
 
         let sin_output = sin.forward(targets)?;
         // Multiply the -sin result with the incoming gradient
         let x = targets[0];
-        sin_output[0].chk_shape(grad)?;
+        sin_output[0].chk_shape(grad).unwrap();
 
         let grad_data = grad.data();
         let sin_data = sin_output[0].data();
@@ -227,7 +173,7 @@ impl Function for ApproxCos {
         // Then multiply by gradient
         let result = self.backend.multiply(&neg_sin, grad_data);
 
-        Ok(vec![PooledTensor::from_vec(result, x.shape())?])
+        Ok(vec![PooledTensor::from_vec(result, x.shape()).unwrap()])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

@@ -1,16 +1,6 @@
 use super::*;
 
 impl Function for Sub {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Sub)
-    }
-    /// Subtracts two tensors element-wise
-    ///
-    /// # Arguments
-    /// * `other` - The tensor to subtract from_vec the current tensor
-    ///
-    /// # Returns
-    /// A new tensor with the result of the element-wise subtraction
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         if targets[0].shape().len() == 2 && targets[1].shape().len() == 1 && targets[0].shape()[1] == targets[1].shape()[0] {
             let (batch_size, features) = (targets[0].shape()[0], targets[0].shape()[1]);
@@ -21,12 +11,12 @@ impl Function for Sub {
                     data[i * features + j] = targets[0].data()[i * features + j] - targets[1].data()[j];
                 }
             }
-            return Ok(vec![PooledTensor::from_vec(data, &targets[0].shape())?])
+            return Ok(vec![PooledTensor::from_vec(data, &targets[0].shape()).unwrap()])
         }
 
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
-            _ => Ok(vec![PooledTensor::from_vec(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape())?])
+            _ => Ok(vec![PooledTensor::from_vec(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape()).unwrap()])
         }
     }
 
@@ -40,19 +30,19 @@ impl Function for Sub {
                     data[i * features + j] = targets[0].data()[i * features + j] - targets[1].data()[j];
                 }
             }
-            return Ok(vec![Tensor::with_id(data, &targets[0].shape(), node_id)?])
+            return Ok(vec![Tensor::with_id(data, &targets[0].shape(), node_id).unwrap()])
         }
 
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
-            _ => Ok(vec![Tensor::with_id(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape(), node_id)?])
+            _ => Ok(vec![Tensor::with_id(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape(), node_id).unwrap()])
         }
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
-        let gt = PooledTensor::from_vec(grad.data().to_vec(), grad.shape())?;
-        Ok(vec![gt, PooledTensor::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?])
+        let gt = PooledTensor::from_vec(grad.data().to_vec(), grad.shape()).unwrap();
+        Ok(vec![gt, PooledTensor::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape()).unwrap()])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -60,23 +50,12 @@ impl Function for Sub {
     fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
-
-/// Subtract trait implementation for owned tensors
-///
-/// # Arguments
-/// * `other` - The tensor to subtract from self
-///
-/// # Returns
-/// A new tensor containing the element-wise difference
-///
-/// # Broadcasting
-/// * Supports broadcasting when subtracting a 1D tensor from each row of a 2D tensor
 impl std::ops::Sub<Tensor> for Tensor {
     type Output = PooledTensor;
 
     fn sub(self, other: Tensor) -> Self::Output {
-        Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().forward(&[&self, &other]).unwrap().remove(0))
+        let op = Sub::new();
+        op.forward(&[&self, &other]).unwrap().remove(0)
     }
 }
 
@@ -84,8 +63,8 @@ impl std::ops::Sub<&Tensor> for Tensor {
     type Output = PooledTensor;
 
     fn sub(self, other: &Tensor) -> Self::Output {
-        Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().forward(&[&self, other]).unwrap().remove(0))
+        let op = Sub::new();
+        op.forward(&[&self, other]).unwrap().remove(0)
     }
 }
 
@@ -93,8 +72,8 @@ impl std::ops::Sub<&Tensor> for &Tensor {
     type Output = PooledTensor;
 
     fn sub(self, other: &Tensor) -> Self::Output {
-        Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().forward(&[self, other]).unwrap().remove(0))
+        let op = Sub::new();
+        op.forward(&[self, other]).unwrap().remove(0)
     }
 }
 
@@ -102,8 +81,8 @@ impl std::ops::Sub<Tensor> for &Tensor {
     type Output = PooledTensor;
 
     fn sub(self, other: Tensor) -> Self::Output {
-        Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().forward(&[self, &other]).unwrap().remove(0))
+        let op = Sub::new();
+        op.forward(&[self, &other]).unwrap().remove(0)
     }
 }
 
@@ -111,22 +90,21 @@ impl std::ops::Sub<&dyn TensorBase> for &dyn TensorBase {
     type Output = PooledTensor;
 
     fn sub(self, other: &dyn TensorBase) -> Self::Output {
-        Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().forward(&[self, other]).unwrap().remove(0))
+        let op = Sub::new();
+        op.forward(&[self, other]).unwrap().remove(0)
     }
 }
 
-/// SubAssign trait implementation for Tensor
 impl std::ops::SubAssign<Tensor> for Tensor {
     fn sub_assign(&mut self, other: Tensor) {
-        Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
+        let op = Sub::new();
+        op.assign_forward(&[self, &other], self.0).unwrap();
     }
 }
 
 impl std::ops::SubAssign<&Tensor> for Tensor {
     fn sub_assign(&mut self, other: &Tensor) {
-        Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
+        let op = Sub::new();
+        op.assign_forward(&[self, other], self.0).unwrap();
     }
 }

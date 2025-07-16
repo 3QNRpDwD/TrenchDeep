@@ -314,23 +314,6 @@ impl LabelGenerator {
     }
 }
 
-impl GlobalFunction {
-    pub fn new(name: String, node_id: HandleId) -> Self {
-        Self {
-            name,
-            func_id: node_id,
-        }
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn func_id(&self) -> &HandleId {
-        &self.func_id
-    }
-}
-
 // 사용 예시를 위한 테스트 함수들
 // #[cfg(feature = "enableVisualization")]
 // #[cfg(test)]

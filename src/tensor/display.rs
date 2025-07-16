@@ -21,7 +21,7 @@ impl Debug for ComputationNode {
         ds
             .field("id", &self.id)
             .field("variable", &self.variable)
-            .field("function", &self.function.as_ref().unwrap())
+            .field("function", &self.function.as_ref().unwrap().type_name())
             .field("inputs", &self.inputs)
             .field("is_leaf", &self.is_leaf)
             .finish()

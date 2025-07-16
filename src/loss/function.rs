@@ -1,9 +1,6 @@
 use super::*;
 
 impl Function for MeanSquaredError {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(MeanSquaredError)
-    }
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let pred = targets[0];
         let target = targets[1];
@@ -54,9 +51,6 @@ impl Function for MeanSquaredError {
 
 
 impl Function for MeanAbsoluteError {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(MeanAbsoluteError)
-    }
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let pred = targets[0];
         let target = targets[1];
@@ -106,23 +100,6 @@ impl Function for MeanAbsoluteError {
 
 
 impl Function for HuberLoss {
-    fn new() -> MlResult<GlobalFunction> {
-        OPERATOR_STORAGE.with(|ops| {
-            let my = "HuberLoss";
-            let mut ops = ops.borrow_mut();
-            match ops.contains_key(my) {
-                true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
-                false => {
-                    ops.insert(
-                        String::from(my),
-                        Box::new(HuberLoss { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), delta: 1.0})
-                    );
-                    Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
-                }
-            }
-        })
-    }
-
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let pred = targets[0];
         let target = targets[1];
@@ -185,10 +162,6 @@ impl Function for HuberLoss {
 }
 
 impl Function for BinaryCrossEntropyLoss {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(BinaryCrossEntropyLoss)
-    }
-
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let pred = targets[0];
         let target = targets[1];
@@ -267,10 +240,6 @@ impl SoftmaxCrossEntropyLoss {
 }
 
 impl Function for CrossEntropyLoss {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(CrossEntropyLoss)
-    }
-    
     fn forward(&self, inputs: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         // 1. 입력 유효성 검사 강화
         let (pred, target) = match inputs {
@@ -363,10 +332,6 @@ impl Function for CrossEntropyLoss {
 
 // 기존에 소프트맥스 함수와 크로스엔트로피 로스를 따로따로 사용했을때 기울기가 폭발하는 현상이 매우 빈번하여, 각각 따로 계산되던 함수를 하나로 융합함.
 impl Function for SoftmaxCrossEntropyLoss {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(SoftmaxCrossEntropyLoss)
-    }
-
     /// 순전파를 계산합니다.
     ///
     /// # Arguments
@@ -395,7 +360,7 @@ impl Function for SoftmaxCrossEntropyLoss {
         let log_sum_exp = sum_exp.ln();
 
         // 3. 실제 로짓과 타겟의 내적(dot product) 계산
-        let dot_product = logits_data.iter().zip(target_data.iter()).map(|(&z, &t)| z * t).sum::<f32>();
+        let dot_product = logits_data.iter().zip(target.data().iter()).map(|(&z, &t)| z * t).sum::<f32>();
 
         // 4. 최종 손실 계산 (뺐던 최댓값을 다시 더해줌)
         let loss = (max_logit + log_sum_exp) - dot_product;
