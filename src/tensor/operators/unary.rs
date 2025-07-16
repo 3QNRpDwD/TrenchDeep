@@ -11,7 +11,10 @@ impl Function for Abs {
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
-        todo!()
+        let input = targets[0];
+        let sign_data: Vec<f32> = input.data().iter().map(|&x| if x > 0.0 { 1.0 } else if x < 0.0 { -1.0 } else { 0.0 }).collect();
+        let sign_tensor = PooledTensor::from_vec(sign_data, input.shape())?;
+        Ok(vec![grad * &sign_tensor])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -54,7 +57,9 @@ impl Function for Log {
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
-        todo!()
+        let input = targets[0];
+        let grad_data: Vec<f32> = grad.data().iter().zip(input.data().iter()).map(|(g, i)| g / i).collect();
+        Ok(vec![PooledTensor::from_vec(grad_data, input.shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -136,10 +141,126 @@ impl Function for Sqrt {
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
-        todo!()
+        let input = targets[0];
+        let output = self.forward(targets)?;
+        let grad_data: Vec<f32> = grad.data().iter().zip(output[0].data().iter()).map(|(g, o)| g / (2.0 * o)).collect();
+        Ok(vec![PooledTensor::from_vec(grad_data, input.shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
     fn node_id(&self) -> &HandleId { &self.node_id }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{MlResult, tensor::{TensorBase, Tensor}, variable};
+    use crate::nn::Parameter;
+    use crate::tensor::AutogradFunction;
+    use crate::tensor::operators::{Abs, Function, Exp, Log, Pow, Square, Sqrt};
+    use crate::tensor::operators::tests::assert_tensor_eq;
+
+    #[test]
+    fn tensor_abs_operator() -> MlResult<()> {
+        let tensor = Tensor::new(vec![vec![-1.0, 2.0, -3.0]]);
+        let op = Abs::new();
+        let result = op.forward(&[&tensor])?.remove(0);
+        assert_eq!(result.data(), vec![1.0, 2.0, 3.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_abs_backward() -> MlResult<()> {
+        let a = variable!(vec![vec![-1.0, 2.0], vec![-3.0, 4.0]]);
+        let op = Abs::new();
+        let output = op.apply(&[&a])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let expected_grad = Tensor::from_vec(vec![-1.0, 1.0, -1.0, 1.0], &[2, 2])?;
+        assert_tensor_eq(grad_a, &expected_grad)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_exp_backward() -> MlResult<()> {
+        let a = variable!(vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+        let op = Exp::new();
+        let output = op.apply(&[&a])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let expected_grad_data: Vec<f32> = a.tensor().data().iter().map(|x| x.exp()).collect();
+        let expected_grad = Tensor::from_vec(expected_grad_data, &[2, 2])?;
+        assert_tensor_eq(grad_a, &expected_grad)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_log_backward() -> MlResult<()> {
+        let a = variable!(vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+        let op = Log::new();
+        let output = op.apply(&[&a])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let expected_grad_data: Vec<f32> = a.tensor().data().iter().map(|x| 1.0 / x).collect();
+        let expected_grad = Tensor::from_vec(expected_grad_data, &[2, 2])?;
+        assert_tensor_eq(grad_a, &expected_grad)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pow_backward() -> MlResult<()> {
+        let a = variable!(vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+        let op = Pow::new(Some(3.0));
+        let output = op.apply(&[&a])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let expected_grad_data: Vec<f32> = a.tensor().data().iter().map(|x| 3.0 * x.powi(2)).collect();
+        let expected_grad = Tensor::from_vec(expected_grad_data, &[2, 2])?;
+        assert_tensor_eq(grad_a, &expected_grad)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_square_backward() -> MlResult<()> {
+        let a = variable!(vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+        let op = Square::new();
+        let output = op.apply(&[&a])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let expected_grad_data: Vec<f32> = a.tensor().data().iter().map(|x| 2.0 * x).collect();
+        let expected_grad = Tensor::from_vec(expected_grad_data, &[2, 2])?;
+        assert_tensor_eq(grad_a, &expected_grad)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_sqrt_backward() -> MlResult<()> {
+        let a = variable!(vec![vec![1.0, 4.0], vec![9.0, 16.0]]);
+        let op = Sqrt::new();
+        let output = op.apply(&[&a])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let expected_grad_data: Vec<f32> = a.tensor().data().iter().map(|x| 0.5 / x.sqrt()).collect();
+        let expected_grad = Tensor::from_vec(expected_grad_data, &[2, 2])?;
+        assert_tensor_eq(grad_a, &expected_grad)?;
+
+        Ok(())
+    }
 }

@@ -84,3 +84,37 @@ impl Function for AvgPool {
         Ok(vec![input_grad_tensor])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::nn::{Parameter, Variable};
+use crate::{MlResult, tensor::{TensorBase, Tensor}, variable};
+    use crate::tensor::AutogradFunction;
+    use crate::tensor::operators::{AvgPool, Function};
+    use crate::tensor::operators::tests::assert_tensor_eq;
+
+    #[test]
+    fn tensor_avg_pool_operator() -> MlResult<()> {
+        let tensor = Tensor::from_vec((1..=16).map(|x| x as f32).collect(), &[1, 1, 4, 4]).unwrap();
+        let op = AvgPool::new((2, 2), (2, 2), (0, 0));
+        let result = op.forward(&[&tensor])?.remove(0);
+        assert_eq!(result.shape(), vec![1, 1, 2, 2]);
+        assert_eq!(result.data(), vec![3.5, 5.5, 11.5, 13.5]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_avg_pool_backward() -> MlResult<()> {
+        let a = Variable::new(Tensor::from_vec((1..=16).map(|x| x as f32).collect(), &[1, 1, 4, 4])?);
+        let op = AvgPool::new((2, 2), (2, 2), (0, 0));
+        let output = op.apply(&[&a])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let expected_grad = Tensor::from_vec(vec![0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25], &[1, 1, 4, 4])?;
+        assert_tensor_eq(grad_a, &expected_grad)?;
+
+        Ok(())
+    }
+}

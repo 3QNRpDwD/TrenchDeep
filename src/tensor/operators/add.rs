@@ -122,3 +122,29 @@ impl std::ops::AddAssign<&Tensor> for Tensor {
         op.assign_forward(&[self, other], self.0).unwrap();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{variable, MlResult, tensor::{TensorBase, Tensor}};
+    use crate::tensor::operators::tests::assert_tensor_eq;
+
+    #[test]
+    fn test_add_backward() -> MlResult<()> {
+        let a = variable!(vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+        let b = variable!(vec![vec![5.0, 6.0], vec![7.0, 8.0]]);
+        let op = Add::new();
+        let output = op.apply(&[&a, &b])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let grad_b = b.grad();
+
+        let expected_grad = Tensor::from_vec(vec![1.0, 1.0, 1.0, 1.0], &[2, 2])?;
+        assert_tensor_eq(grad_a, &expected_grad)?;
+        assert_tensor_eq(grad_b, &expected_grad)?;
+
+        Ok(())
+    }
+}

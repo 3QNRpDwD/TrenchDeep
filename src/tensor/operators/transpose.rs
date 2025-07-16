@@ -126,3 +126,27 @@ impl Function for Transpose {
 
     fn node_id(&self) -> &HandleId { &self.node_id }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{MlResult, tensor::{TensorBase, Tensor}, variable};
+    use crate::nn::Parameter;
+    use crate::tensor::AutogradFunction;
+    use crate::tensor::operators::{Transpose, Function};
+    use crate::tensor::operators::tests::assert_tensor_eq;
+
+    #[test]
+    fn test_transpose_backward() -> MlResult<()> {
+        let a = variable!(vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+        let op = Transpose::new((0, 1));
+        let output = op.apply(&[&a])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let expected_grad = Tensor::from_vec(vec![1.0, 1.0, 1.0, 1.0], &[2, 2])?;
+        assert_tensor_eq(grad_a, &expected_grad)?;
+
+        Ok(())
+    }
+}

@@ -209,3 +209,32 @@ fn col2im(col: &dyn TensorBase, input_shape: (usize, usize, usize, usize), kh: u
     }
     PooledTensor::from_vec(img_data, &[n, c, h, w])
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{MlResult, tensor::{TensorBase, Tensor}};
+    use crate::tensor::operators::{Conv2d, Function};
+
+    #[test]
+    fn tensor_conv2d_operator() -> MlResult<()> {
+        let input = Tensor::from_vec((1..=16).map(|x| x as f32).collect(), &[1, 1, 4, 4]).unwrap();
+        let weight = Tensor::from_vec(vec![1.0, 1.0, 1.0, 1.0], &[1, 1, 2, 2]).unwrap();
+        let op = Conv2d::new((2, 2), (2, 2), (0, 0));
+        let result = op.forward(&[&input, &weight])?.remove(0);
+        assert_eq!(result.shape(), vec![1, 1, 2, 2]);
+        assert_eq!(result.data(), vec![24.0, 28.0, 40.0, 44.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn tensor_conv2d_with_bias_operator() -> MlResult<()> {
+        let input = Tensor::from_vec((1..=16).map(|x| x as f32).collect(), &[1, 1, 4, 4]).unwrap();
+        let weight = Tensor::from_vec(vec![1.0, 1.0, 1.0, 1.0], &[1, 1, 2, 2]).unwrap();
+        let bias = Tensor::from_vec(vec![10.0], &[1]).unwrap();
+        let op = Conv2d::new((2, 2), (2, 2), (0, 0));
+        let result = op.forward(&[&input, &weight, &bias])?.remove(0);
+        assert_eq!(result.shape(), vec![1, 1, 2, 2]);
+        assert_eq!(result.data(), vec![34.0, 38.0, 50.0, 54.0]);
+        Ok(())
+    }
+}

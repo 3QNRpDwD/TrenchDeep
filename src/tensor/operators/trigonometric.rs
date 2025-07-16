@@ -31,7 +31,7 @@ impl Function for Sin {
 /// `Cos` 함수는 입력 텐서의 각 요소에 코사인 함수를 적용합니다.
 /// 입력 텐서는 각도로, 출력 텐서는 해당 각도의 코사인 값을 포함합니다.
 impl Function for Cos {
-    /// 입력 텐서��� 코사인 함수를 요소별로 적용하여, 동일한 모양을 가진 새로운 텐서를 반환합니다.
+    /// 입력 텐서에 코사인 함수를 요소별로 적용하여, 동일한 모양을 가진 새로운 텐서를 반환합니다.
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         Ok(vec![PooledTensor::from_vec(targets[0].data().iter().map(|x| x.cos()).collect(), targets[0].shape()).unwrap()])
     }
@@ -179,4 +179,67 @@ impl Function for ApproxCos {
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
     fn node_id(&self) -> &HandleId { &self.node_id }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{MlResult, tensor::{TensorBase, Tensor}, variable};
+    use crate::nn::Parameter;
+    use crate::tensor::AutogradFunction;
+    use crate::tensor::operators::{ApproxSin, ApproxCos, Function, Sin, Cos};
+    use crate::tensor::operators::tests::assert_tensor_eq;
+
+    #[test]
+    fn tensor_approx_sin_operator() -> MlResult<()> {
+        let tensor = Tensor::new(vec![vec![0.0, std::f32::consts::PI / 2.0]]);
+        let op = ApproxSin::new(0.001);
+        let result = op.forward(&[&tensor])?.remove(0);
+        // Note: This is an approximation, so we'll check for a small difference
+        assert!((result.data()[0] - 0.0).abs() < 0.001);
+        assert!((result.data()[1] - 1.0).abs() < 0.001);
+        Ok(())
+    }
+
+    #[test]
+    fn tensor_approx_cos_operator() -> MlResult<()> {
+        let tensor = Tensor::new(vec![vec![0.0, std::f32::consts::PI]]);
+        let op = ApproxCos::new(0.001);
+        let result = op.forward(&[&tensor])?.remove(0);
+        // Note: This is an approximation, so we'll check for a small difference
+        assert!((result.data()[0] - 1.0).abs() < 0.001);
+        assert!((result.data()[1] - -1.0).abs() < 0.001);
+        Ok(())
+    }
+
+    #[test]
+    fn test_sin_backward() -> MlResult<()> {
+        let a = variable!(vec![vec![0.0, std::f32::consts::PI / 2.0]]);
+        let op = Sin::new();
+        let output = op.apply(&[&a])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let expected_grad_data: Vec<f32> = a.tensor().data().iter().map(|x| x.cos()).collect();
+        let expected_grad = Tensor::from_vec(expected_grad_data, &[1, 2])?;
+        assert_tensor_eq(grad_a, &expected_grad)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_cos_backward() -> MlResult<()> {
+        let a = variable!(vec![vec![0.0, std::f32::consts::PI]]);
+        let op = Cos::new();
+        let output = op.apply(&[&a])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let expected_grad_data: Vec<f32> = a.tensor().data().iter().map(|x| -x.sin()).collect();
+        let expected_grad = Tensor::from_vec(expected_grad_data, &[1, 2])?;
+        assert_tensor_eq(grad_a, &expected_grad)?;
+
+        Ok(())
+    }
 }

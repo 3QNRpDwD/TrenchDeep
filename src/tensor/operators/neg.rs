@@ -32,3 +32,26 @@ impl std::ops::Neg for &dyn TensorBase {
         op.forward(&[self]).unwrap().remove(0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{MlResult, variable,tensor::{TensorBase, Tensor}};
+    use crate::tensor::operators::tests::assert_tensor_eq;
+
+    #[test]
+    fn test_neg_backward() -> MlResult<()> {
+        let a = variable!(vec![vec![1.0, -2.0], vec![3.0, -4.0]]);
+        let op = Neg::new();
+        let output = op.apply(&[&a])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+
+        let expected_grad = Tensor::from_vec(vec![-1.0, -1.0, -1.0, -1.0], &[2, 2])?;
+        assert_tensor_eq(grad_a, &expected_grad)?;
+
+        Ok(())
+    }
+}

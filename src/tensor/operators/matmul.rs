@@ -321,9 +321,11 @@ impl Function for Matmul {
 
 #[cfg(test)]
 mod tests {
-    use crate::{MlResult, tensor_ops};
-    use crate::tensor::{Tensor, TensorBase};
+    use crate::nn::Parameter;
+use crate::{MlResult, tensor_ops, variable};
+    use crate::tensor::{AutogradFunction, Tensor, TensorBase};
     use crate::tensor::operators::{Function, Matmul};
+    use crate::tensor::operators::tests::assert_tensor_eq;
 
     #[test]
     fn test_matmul_2d_2d() -> MlResult<()> {
@@ -485,6 +487,37 @@ mod tests {
             19.0, 22.0, 43.0, 50.0, 19.0, 22.0, 43.0, 50.0, 19.0, 22.0, 43.0, 50.0,
         ];
         assert_eq!(c.data(), &expected);
+        Ok(())
+    }
+
+    #[test]
+    fn tensor_matmul_operator() -> MlResult<()> {
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3]).unwrap();
+        let b = Tensor::from_vec(vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0], &[3, 2]).unwrap();
+        let op = Matmul::new();
+        let result = op.forward(&[&a, &b])?.remove(0);
+        assert_eq!(result.shape(), &[2, 2]);
+        assert_eq!(result.data(), &[58.0, 64.0, 139.0, 154.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_matmul_backward() -> MlResult<()> {
+        let a = variable!(vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+        let b = variable!(vec![vec![5.0, 6.0], vec![7.0, 8.0]]);
+        let op = Matmul::new();
+        let output = op.apply(&[&a, &b])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let grad_b = b.grad();
+
+        let expected_grad_a = Tensor::from_vec(vec![11.0, 15.0, 11.0, 15.0], &[2, 2])?;
+        let expected_grad_b = Tensor::from_vec(vec![4.0, 4.0, 6.0, 6.0], &[2, 2])?;
+        assert_tensor_eq(grad_a, &expected_grad_a)?;
+        assert_tensor_eq(grad_b, &expected_grad_b)?;
+
         Ok(())
     }
 }

@@ -108,3 +108,30 @@ impl std::ops::SubAssign<&Tensor> for Tensor {
         op.assign_forward(&[self, other], self.0).unwrap();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{MlResult, variable,tensor::{TensorBase, Tensor}};
+    use crate::tensor::operators::tests::assert_tensor_eq;
+
+    #[test]
+    fn test_sub_backward() -> MlResult<()> {
+        let a = variable!(vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+        let b = variable!(vec![vec![5.0, 6.0], vec![7.0, 8.0]]);
+        let op = Sub::new();
+        let output = op.apply(&[&a, &b])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let grad_b = b.grad();
+
+        let expected_grad_a = Tensor::from_vec(vec![1.0, 1.0, 1.0, 1.0], &[2, 2])?;
+        let expected_grad_b = Tensor::from_vec(vec![-1.0, -1.0, -1.0, -1.0], &[2, 2])?;
+        assert_tensor_eq(grad_a, &expected_grad_a)?;
+        assert_tensor_eq(grad_b, &expected_grad_b)?;
+
+        Ok(())
+    }
+}

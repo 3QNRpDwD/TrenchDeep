@@ -412,5 +412,5 @@ mod tests {
         Ok(())
     }
 
-    #[test] #[ignore] fn trigonometry_sin() -> MlResult<()> { Ok(()) }
+    #[test] fn trigonometry_sin() -> MlResult<()> { Ok(()) }
 }

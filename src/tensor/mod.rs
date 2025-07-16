@@ -39,31 +39,31 @@ mod allocator;
 
 #[macro_export]
 macro_rules! tensor_ops {
+    // Topk, Matmax 등 특수 반환 값을 갖는 연산자
+    ($tensor:expr, Topk, $($field:ident = $value:expr),+) => {{
+        let op = crate::tensor::operators::Topk::new($($value),+);
+        let mut result = crate::tensor::operators::Topk::forward(&op, &[&$tensor]).unwrap();
+        (result.remove(0), result.remove(0))
+    }};
+    ($tensor:expr, Matmax, $($field:ident = $value:expr),+) => {{
+        let op = crate::tensor::operators::Matmax::new($($value),+);
+        let mut result = crate::tensor::operators::Matmax::forward(&op, &[&$tensor]).unwrap();
+        (result.remove(0), result.remove(0))
+    }};
     // 파라미터가 있는 연산자 (e.g., Pow, power = 2.0)
     ($tensor:expr, $op:ident, $($field:ident = $value:expr),+) => {{
         let op = crate::tensor::operators::$op::new($($value),+);
-        op.forward(&[&$tensor]).unwrap().remove(0)
-    }};
-    // Topk, Matmax 등 특수 반환 값을 갖는 연산자
-    ($tensor:expr, Topk, $k:expr, $sorted:expr) => {{
-        let op = crate::tensor::operators::Topk::new(Some(($k, $sorted)));
-        let mut result = op.forward(&[&$tensor]).unwrap();
-        (result.remove(0), result.remove(0))
-    }};
-    ($tensor:expr, Matmax, $dim:expr, $keepdim:expr) => {{
-        let op = crate::tensor::operators::Matmax::new(Some(($dim, $keepdim)));
-        let mut result = op.forward(&[&$tensor]).unwrap();
-        (result.remove(0), result.remove(0))
+        crate::tensor::operators::$op::forward(&op, &[&$tensor]).unwrap().remove(0)
     }};
     // 이항 연산자
     ($tensor:expr, $op:ident, $second_tensor:expr) => {{
         let op = crate::tensor::operators::$op::new();
-        op.forward(&[&$tensor, &$second_tensor]).unwrap().remove(0)
+        crate::tensor::operators::$op::forward(&op, &[&$tensor, &$second_tensor]).unwrap().remove(0)
     }};
     // 단항 연산자
     ($tensor:expr, $op:ident) => {{
         let op = crate::tensor::operators::$op::new();
-        op.forward(&[&$tensor]).unwrap().remove(0)
+        crate::tensor::operators::$op::forward(&op, &[&$tensor]).unwrap().remove(0)
     }};
 }
 
@@ -341,7 +341,7 @@ pub trait AutogradFunction: Function + Send + Sync  + 'static {
 mod tests {
     use crate::MlResult;
     use crate::tensor::{Tensor, TensorBase};
-    use crate::tensor::operators::{Abs, Add, Div, Exp, Log, Matmul, Mul, Neg, Sqrt, Square, Sub, Pow, Function};
+    use crate::tensor::operators::{Abs, Add, Cos, Div, Exp, Function, Log, Matmax, Matmul, Mul, Neg, Pow, Sin, Sqrt, Square, Sub, Sum, Topk, Transpose};
 
     pub fn assert_tensor_eq(tensor: &dyn TensorBase, expected_tensor: &dyn TensorBase) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
@@ -351,7 +351,6 @@ mod tests {
 
     #[test]
     fn tensor() -> MlResult<()> {
-
         let t1 = Tensor::new(vec![vec![1.0, 2.0]]);
         assert_eq!(t1.data(), vec![1.0, 2.0]);
         assert_eq!(t1.shape(), vec![1, 2]);
@@ -364,7 +363,6 @@ mod tests {
         let second = Tensor::new(vec![vec![3.0, 4.0]]);
         let expected = Tensor::new(vec![vec![4.0, 6.0]]);
         let m_add = tensor_ops!(first, Add, second);
-
         assert_tensor_eq(&m_add, &expected)
     }
 
@@ -374,7 +372,6 @@ mod tests {
         let second = Tensor::new(vec![vec![3.0, 4.0]]);
         let expected = Tensor::new(vec![vec![-2.0, -2.0]]);
         let m_sub = tensor_ops!(first, Sub, second);
-
         assert_tensor_eq(&m_sub, &expected)
     }
 
@@ -384,7 +381,6 @@ mod tests {
         let second = Tensor::new(vec![vec![3.0, 4.0]]);
         let expected = Tensor::new(vec![vec![3.0, 8.0]]);
         let m_mul = tensor_ops!(first, Mul, second);
-
         assert_tensor_eq(&m_mul, &expected)
     }
 
@@ -393,7 +389,6 @@ mod tests {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![2.0, 4.0]]);
         let m_div = tensor_ops!(first, Div, second);
-
         assert_tensor_eq(&m_div, &Tensor::new(vec![vec![0.5, 0.5]]))
     }
 
@@ -402,7 +397,6 @@ mod tests {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let second = Tensor::new(vec![vec![3.0], vec![4.0]]);
         let result = tensor_ops!(first, Matmul, second);
-
         assert_eq!(result.data(), vec![11.0]);
     }
 
@@ -456,31 +450,75 @@ mod tests {
     }
 
     #[test]
+    fn test_sum_macro() {
+        let tensor = Tensor::new(vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+        let result = tensor_ops!(tensor, Sum);
+        assert_eq!(result.data(), vec![10.0]);
+        assert_eq!(result.shape(), vec![1,1]);
+    }
+
+    #[test]
+    fn test_sin_macro() {
+        let tensor = Tensor::new(vec![vec![0.0, std::f32::consts::PI / 2.0]]);
+        let result = tensor_ops!(tensor, Sin);
+        assert_eq!(result.data(), vec![0.0, 1.0]);
+    }
+
+    #[test]
+    fn test_cos_macro() {
+        let tensor = Tensor::new(vec![vec![0.0, std::f32::consts::PI]]);
+        let result = tensor_ops!(tensor, Cos);
+        assert_eq!(result.data(), vec![1.0, -1.0]);
+    }
+
+    #[test]
+    fn test_transpose_macro() {
+        let tensor = Tensor::new(vec![vec![1.0, 2.0], vec![3.0, 4.0]]); // shape [2, 2]
+        let result = tensor_ops!(tensor, Transpose, dims = (0, 1));
+        let expected = Tensor::new(vec![vec![1.0, 3.0], vec![2.0, 4.0]]);
+        assert_tensor_eq(&result, &expected).unwrap();
+    }
+
+    #[test]
+    fn test_topk_macro() {
+        let tensor = Tensor::from_vec(vec![1.0, 9.0, 4.0, 6.0], &[1, 4]).unwrap();
+        let (values, indices) = tensor_ops!(tensor, Topk, topk = Some((2, true)));
+        assert_eq!(values.data(), vec![9.0, 6.0]);
+        assert_eq!(indices.data(), vec![1.0, 3.0]);
+    }
+
+    #[test]
+    fn test_matmax_macro() {
+        let tensor = Tensor::from_vec(vec![1.0, 9.0, 4.0, 6.0], &[2, 2]).unwrap();
+        let (values, indices) = tensor_ops!(tensor, Matmax, matmax = Some((Some(1), false)));
+        assert_eq!(values.data(), vec![9.0, 6.0]);
+        assert_eq!(values.shape(), vec![2]);
+        assert_eq!(indices.data(), vec![1.0, 1.0]);
+        assert_eq!(indices.shape(), vec![2]);
+    }
+
+    #[test]
     fn tensor_add_scalar() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let result = scalar_ops!(first, Add, 2.0)?;
-
         assert_tensor_eq(&result, &Tensor::new(vec![vec![3.0, 4.0]]))
     }
     #[test]
     fn tensor_sub_scalar() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let result = scalar_ops!(first, Sub, 2.0)?;
-
         assert_tensor_eq(&result, &Tensor::new(vec![vec![-1.0, 0.0]]))
     }
     #[test]
     fn tensor_mul_scalar() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let result = scalar_ops!(first, Mul , 2.0)?;
-
         assert_tensor_eq(&result, &Tensor::new(vec![vec![2.0, 4.0]]))
     }
     #[test]
     fn tensor_div_scalar() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let result = scalar_ops!(first, Div , 2.0)?;
-
         assert_tensor_eq(&result, &Tensor::new(vec![vec![0.5, 1.0]]))
     }
 
@@ -488,7 +526,6 @@ mod tests {
     fn tensor_scalar_sub() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let result = scalar_ops!(2.0, buS , first)?;
-
         assert_tensor_eq(&result, &Tensor::new(vec![vec![1.0, 0.0]]))
 
     }
@@ -496,7 +533,6 @@ mod tests {
     fn tensor_scalar_div() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
         let result = scalar_ops!(2.0, viD , first)?;
-
         assert_tensor_eq(&result, &Tensor::new(vec![vec![2.0, 1.0]]))
     }
 }

@@ -68,3 +68,38 @@ impl Function for MaxPool {
         Ok(vec![input_grad_tensor])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::nn::Parameter;
+use crate::{MlResult, tensor::{TensorBase, Tensor}, variable};
+    use crate::nn::Variable;
+    use crate::tensor::AutogradFunction;
+    use crate::tensor::operators::{MaxPool, Function};
+    use crate::tensor::operators::tests::assert_tensor_eq;
+
+    #[test]
+    fn tensor_max_pool_operator() -> MlResult<()> {
+        let tensor = Tensor::from_vec((1..=16).map(|x| x as f32).collect(), &[1, 1, 4, 4]).unwrap();
+        let op = MaxPool::new((2, 2), (2, 2), (0, 0));
+        let result = op.forward(&[&tensor])?.remove(0);
+        assert_eq!(result.shape(), vec![1, 1, 2, 2]);
+        assert_eq!(result.data(), vec![6.0, 8.0, 14.0, 16.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_max_pool_backward() -> MlResult<()> {
+        let a = Variable::new(Tensor::from_vec((1..=16).map(|x| x as f32).collect(), &[1, 1, 4, 4])?);
+        let op = MaxPool::new((2, 2), (2, 2), (0, 0));
+        let output = op.apply(&[&a])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let expected_grad = Tensor::from_vec(vec![0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0], &[1, 1, 4, 4])?;
+        assert_tensor_eq(grad_a, &expected_grad)?;
+
+        Ok(())
+    }
+}

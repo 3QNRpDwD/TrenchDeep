@@ -1,3 +1,4 @@
+use tracing::{debug, info};
 use crate::tensor::operators::OPERATOR_STORAGE;
 use super::*;
 
@@ -387,20 +388,22 @@ impl<F: Function + Sync + Send + 'static> AutogradFunction for F {
 
         #[cfg(feature = "enableBackpropagation")]
         {
-            let debug_info = if inputs.len() == 1 {
-                format!("({:?}, {:?}) -> {:?} -> ({:?}, {:?})", 
-                    inputs[0].label(), inputs[0].tensor().data()[0], 
-                    self.type_name(), 
-                    &output.label(), output.tensor().data()[0])
-            } else {
-                let input_str = inputs.iter()
-                    .map(|v| format!("({:?}, {:?})", v.label(), v.tensor().data()[0]))
-                    .collect::<Vec<String>>().join(&format!(" {} ", self.type_name()));
-                format!("{} -> ({:?}, {:?})", 
-                    input_str, 
-                    &output.label(), output.tensor().data()[0])
-            };
-            println!("[AutogradFunction] Applying: {}", debug_info);
+            #[cfg(feature = "debugging")] {
+                let debug_info = if inputs.len() == 1 {
+                    format!("({:?}, {:?}) -> {:?} -> ({:?}, {:?})",
+                            inputs[0].label(), inputs[0].tensor().data()[0],
+                            self.type_name(),
+                            &output.label(), output.tensor().data()[0])
+                } else {
+                    let input_str = inputs.iter()
+                        .map(|v| format!("({:?}, {:?})", v.label(), v.tensor().data()[0]))
+                        .collect::<Vec<String>>().join(&format!(" {} ", self.type_name()));
+                    format!("{} -> ({:?}, {:?})",
+                            input_str,
+                            &output.label(), output.tensor().data()[0])
+                };
+                debug!("[AutogradFunction] Applying: {}", debug_info);
+            }
             let operator: Arc<dyn Function + Send + Sync> = self.clone();
             output.with_grad_fn(operator, inputs);
             return Ok(output)
@@ -421,20 +424,22 @@ impl<F: Function + Sync + Send + 'static> AutogradFunction for F {
         let output = crate::var_with_label!(self.forward(&tensors)?.remove(0).to_id(true)?, label);
         #[cfg(feature = "enableBackpropagation")]
         {
-            let debug_info = if inputs.len() == 1 {
-                format!("({:?}, {:?}) -> {:?} -> ({:?}, {:?})",
-                        inputs[0].label(), inputs[0].tensor().data()[0],
-                        self.type_name(),
-                        &output.label(), output.tensor().data()[0])
-            } else {
-                let input_str = inputs.iter()
-                    .map(|v| format!("({:?}, {:?})", v.label(), v.tensor().data()[0]))
-                    .collect::<Vec<String>>().join(&format!(" {} ", self.type_name()));
-                format!("{} -> ({:?}, {:?})",
-                        input_str,
-                        &output.label(), output.tensor().data()[0])
-            };
-            println!("[AutogradFunction] Applying: {}", debug_info);
+            #[cfg(feature = "debugging")] {
+                let debug_info = if inputs.len() == 1 {
+                    format!("({:?}, {:?}) -> {:?} -> ({:?}, {:?})",
+                            inputs[0].label(), inputs[0].tensor().data()[0],
+                            self.type_name(),
+                            &output.label(), output.tensor().data()[0])
+                } else {
+                    let input_str = inputs.iter()
+                        .map(|v| format!("({:?}, {:?})", v.label(), v.tensor().data()[0]))
+                        .collect::<Vec<String>>().join(&format!(" {} ", self.type_name()));
+                    format!("{} -> ({:?}, {:?})",
+                            input_str,
+                            &output.label(), output.tensor().data()[0])
+                };
+                debug!("[AutogradFunction] Applying: {}", debug_info);
+            }
             let operator: Arc<dyn Function + Send + Sync> = self.clone();
             output.with_grad_fn(operator, inputs);
             return Ok(output)
