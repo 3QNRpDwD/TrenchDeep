@@ -131,8 +131,8 @@ impl std::ops::MulAssign<&Tensor> for Tensor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{MlResult, variable,tensor::{TensorBase, Tensor}};
     use crate::tensor::operators::tests::assert_tensor_eq;
+    use crate::{tensor::{Tensor, TensorBase}, variable, MlResult};
 
     #[test]
     fn test_mul_backward() -> MlResult<()> {

@@ -1,5 +1,3 @@
-use tracing::{debug, info};
-use crate::tensor::operators::OPERATOR_STORAGE;
 use super::*;
 
 #[cfg(feature = "enableBackpropagation")]
@@ -291,7 +289,7 @@ impl ComputationGraph {
     #[cfg(feature = "debugging")]
     #[cfg(feature = "enableBackpropagation")]
     pub(crate) fn backward(&mut self, output_id: HandleId) -> MlResult<()> {
-        use log::{info, debug, trace};
+        use log::{debug, info, trace};
 
         // --- INPUT DEBUGGING ---
         info!("[BACKWARD START] Initiating backpropagation for output_id: {:?}", output_id);
@@ -389,6 +387,7 @@ impl<F: Function + Sync + Send + 'static> AutogradFunction for F {
         #[cfg(feature = "enableBackpropagation")]
         {
             #[cfg(feature = "debugging")] {
+                use tracing::debug;
                 let debug_info = if inputs.len() == 1 {
                     format!("({:?}, {:?}) -> {:?} -> ({:?}, {:?})",
                             inputs[0].label(), inputs[0].tensor().data()[0],

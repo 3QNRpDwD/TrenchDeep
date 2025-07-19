@@ -15,7 +15,7 @@ enableBackpropagation = [] # 역전파 관련 기능들을 활성화 할경우 �
 enableHigherOrderDifferentiation = ["requiresGrad"] # 고계 미분 관련 기능들을 활성화 할경우 사용 (enableBackpropagation 필요)
 enableVisualization = ["enableBackpropagation"] # 시각화 기능을 활성화 할경우 사용 (enableBackpropagation 필요)
 requiresGrad = ["enableBackpropagation"] # 기울기의 중간 저장이 필요할 경우 사용 (enableBackpropagation 필요)
-debugging = [] # 디버깅이 필요할 경우 사용
+#debugging = [] # 디버깅이 필요할 경우 사용
 
 [dependencies]
 rand = "0.9.1"                      #테스트시 초깃값 생성용 랜덤 크레이트

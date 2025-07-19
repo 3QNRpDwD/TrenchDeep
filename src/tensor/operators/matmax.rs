@@ -124,11 +124,11 @@ impl Function for Matmax {
 
 #[cfg(test)]
 mod tests {
-    use crate::tensor::operators::{Function, Matmax};
-    use crate::{tensor_ops, MlResult, variable};
     use crate::nn::Parameter;
-    use crate::tensor::{AutogradFunction, Tensor, TensorBase};
     use crate::tensor::operators::tests::assert_tensor_eq;
+    use crate::tensor::operators::{Function, Matmax};
+    use crate::tensor::{AutogradFunction, Tensor, TensorBase};
+    use crate::{tensor_ops, variable, MlResult};
 
     #[test]
     fn test_max() -> MlResult<()> {

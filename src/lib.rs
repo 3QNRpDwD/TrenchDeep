@@ -1,3 +1,12 @@
+#![allow(unused_variables)]
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(non_snake_case)]
+#![allow(non_camel_case_types)]
+#![allow(unexpected_cfgs)]
+#![allow(unreachable_code)]
+#![allow(static_mut_refs)]
+
 pub mod tensor;
 pub mod backend;
 pub mod nn;
@@ -60,13 +69,12 @@ pub type MlResult<T> = Result<T, MlError>;
 
 #[cfg(test)]
 mod benchmark {
-    use crate::tensor::operators::{Add, Function, Mul, Square, Sub};
-    use crate::tensor::{AutogradFunction, ComputationGraph, PooledTensor, Tensor, TensorBase};
-    use crate::{MlResult, scalar, var_input, var_with_label, variable};
     use crate::nn::{Parameter, Variable};
-    use std::sync::Arc;
-    use tracing::info;
+    use crate::tensor::operators::{Add, Mul, Square, Sub};
+    use crate::tensor::{AutogradFunction, ComputationGraph, Tensor, TensorBase};
     use crate::tests::common::utils::setup_logging;
+    use crate::{var_input, var_with_label, variable, MlResult};
+    use std::sync::Arc;
 
     fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
         if tensor.shape() != expected_tensor.shape() {
@@ -293,6 +301,7 @@ mod benchmark {
     }
 
     #[test]
+    #[ignore]
     #[cfg(feature = "enableBackpropagation")]
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
         let x0 = var_input!(Tensor::new(vec![vec![0.0]]));

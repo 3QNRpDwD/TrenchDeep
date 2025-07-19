@@ -1,6 +1,6 @@
-use crate::define_op;
-use crate::backend::Device;
 use super::*;
+use crate::backend::Device;
+use crate::define_op;
 
 pub mod sigmoid;
 pub mod tanh;

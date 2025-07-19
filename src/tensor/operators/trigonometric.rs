@@ -183,11 +183,11 @@ impl Function for ApproxCos {
 
 #[cfg(test)]
 mod tests {
-    use crate::{MlResult, tensor::{TensorBase, Tensor}, variable};
     use crate::nn::Parameter;
-    use crate::tensor::AutogradFunction;
-    use crate::tensor::operators::{ApproxSin, ApproxCos, Function, Sin, Cos};
     use crate::tensor::operators::tests::assert_tensor_eq;
+    use crate::tensor::operators::{ApproxCos, ApproxSin, Cos, Function, Sin};
+    use crate::tensor::AutogradFunction;
+    use crate::{tensor::{Tensor, TensorBase}, variable, MlResult};
 
     #[test]
     fn tensor_approx_sin_operator() -> MlResult<()> {

@@ -322,10 +322,10 @@ impl Function for Matmul {
 #[cfg(test)]
 mod tests {
     use crate::nn::Parameter;
-use crate::{MlResult, tensor_ops, variable};
-    use crate::tensor::{AutogradFunction, Tensor, TensorBase};
-    use crate::tensor::operators::{Function, Matmul};
     use crate::tensor::operators::tests::assert_tensor_eq;
+    use crate::tensor::operators::{Function, Matmul};
+    use crate::tensor::{AutogradFunction, Tensor, TensorBase};
+    use crate::{tensor_ops, variable, MlResult};
 
     #[test]
     fn test_matmul_2d_2d() -> MlResult<()> {

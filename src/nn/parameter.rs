@@ -1,4 +1,3 @@
-use std::ops::AddAssign;
 use super::*;
 
 impl Parameter for Variable {

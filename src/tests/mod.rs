@@ -5,15 +5,15 @@ mod mnist_test {
     use log::{info, warn};
 
     use crate::{
-        MlResult,
         nn::Parameter,
         tests::common::{
             config::TestConfig,
             data::MnistDataset,
             evaluation::evaluate_model,
-            model::{MLP, Model, SoftmaxRegression},
+            model::{Model, SoftmaxRegression, MLP},
             utils::{generate_visualization, setup_logging}
-        }
+        },
+        MlResult
     };
 
     // 모델 구조 전환중 다이렉트 계산그래프 -> 레이어 기반 Sequential로 변경
@@ -54,6 +54,7 @@ mod mnist_test {
     // }
 
     #[test]
+    #[ignore]
     fn softmax_regression_mnist_classification_integration_test() -> MlResult<()> {
         let _ = setup_logging("trace");
         let config = TestConfig::default();

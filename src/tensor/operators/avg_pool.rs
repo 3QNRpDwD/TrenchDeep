@@ -88,10 +88,10 @@ impl Function for AvgPool {
 #[cfg(test)]
 mod tests {
     use crate::nn::{Parameter, Variable};
-use crate::{MlResult, tensor::{TensorBase, Tensor}, variable};
-    use crate::tensor::AutogradFunction;
-    use crate::tensor::operators::{AvgPool, Function};
     use crate::tensor::operators::tests::assert_tensor_eq;
+    use crate::tensor::operators::{AvgPool, Function};
+    use crate::tensor::AutogradFunction;
+    use crate::{tensor::{Tensor, TensorBase}, MlResult};
 
     #[test]
     fn tensor_avg_pool_operator() -> MlResult<()> {

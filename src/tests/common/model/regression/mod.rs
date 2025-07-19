@@ -1,4 +1,3 @@
-use tracing::error;
 use crate::{
     nn::{
         Layer,
@@ -6,6 +5,7 @@ use crate::{
     },
     tensor::GlobalTensor
 };
+use tracing::error;
 
 use super::*;
 

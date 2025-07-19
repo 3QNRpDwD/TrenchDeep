@@ -191,6 +191,50 @@ impl Tensor {
     pub fn is_empty(&self) -> bool {
         self.data().iter().all(|&d| d == 0.0) || self.data().len() == 0
     }
+
+    pub fn new_with_padding(input: &dyn TensorBase, padding: (usize, usize)) -> MlResult<Tensor> {
+        let (ph, pw) = padding;
+        if ph == 0 && pw == 0 {
+            return Ok(Tensor::from_vec(input.data().to_vec(), input.shape())?);
+        }
+
+        let (n, c, h, w) = (input.shape()[0], input.shape()[1], input.shape()[2], input.shape()[3]);
+        let padded_h = h + 2 * ph;
+        let padded_w = w + 2 * pw;
+        let mut padded_data = vec![0.0; n * c * padded_h * padded_w];
+        let input_data = input.data();
+
+        for n_idx in 0..n {
+            for c_idx in 0..c {
+                for h_idx in 0..h {
+                    for w_idx in 0..w {
+                        let src_idx = n_idx * c * h * w + c_idx * h * w + h_idx * w + w_idx;
+                        let dest_idx = n_idx * c * padded_h * padded_w + c_idx * padded_h * padded_w + (h_idx + ph) * padded_w + (w_idx + pw);
+                        padded_data[dest_idx] = input_data[src_idx];
+                    }
+                }
+            }
+        }
+
+        Tensor::from_vec(padded_data, &[n, c, padded_h, padded_w])
+    }
+
+    pub fn slice(&self, n: usize, c: usize, y: usize, x: usize, height: usize, width: usize) -> MlResult<Tensor> {
+        let (b, ch, h, w) = (self.shape()[0], self.shape()[1], self.shape()[2], self.shape()[3]);
+        if n >= b || c >= ch || y + height > h || x + width > w {
+            return Err(TensorError::InvalidShape { expected: vec![b, ch, h, w], got: vec![n, c, y + height, x + width] }.into());
+        }
+
+        let mut sliced_data = Vec::with_capacity(height * width);
+        for i in 0..height {
+            for j in 0..width {
+                let idx = n * (ch * h * w) + c * (h * w) + (y + i) * w + (x + j);
+                sliced_data.push(self.data()[idx]);
+            }
+        }
+
+        Tensor::from_vec(sliced_data, &[1, 1, height, width])
+    }
 }
 
 #[cfg(feature = "enableVisualization")]

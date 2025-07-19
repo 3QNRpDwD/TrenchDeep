@@ -2,23 +2,23 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 use crate::{
-    define_op,
-    MlResult,
-    scalar,
     backend::{
-        Backend,
-        CpuBackend,
+        Backend
+        ,
         Device
     },
+    define_op,
+    scalar,
     tensor::{
+        operators::Function
+        ,
         HandleId,
-        NODE_ID_GEN,
         PooledTensor,
         Tensor,
-        TensorBase,
-        operators::{Function, OPERATOR_STORAGE}
+        TensorBase
     },
     MlError,
+    MlResult,
     TensorError::InvalidInputCount
 };
 

@@ -154,11 +154,11 @@ impl Function for Sqrt {
 
 #[cfg(test)]
 mod tests {
-    use crate::{MlResult, tensor::{TensorBase, Tensor}, variable};
     use crate::nn::Parameter;
-    use crate::tensor::AutogradFunction;
-    use crate::tensor::operators::{Abs, Function, Exp, Log, Pow, Square, Sqrt};
     use crate::tensor::operators::tests::assert_tensor_eq;
+    use crate::tensor::operators::{Abs, Exp, Function, Log, Pow, Sqrt, Square};
+    use crate::tensor::AutogradFunction;
+    use crate::{tensor::{Tensor, TensorBase}, variable, MlResult};
 
     #[test]
     fn tensor_abs_operator() -> MlResult<()> {

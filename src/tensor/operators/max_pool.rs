@@ -29,7 +29,7 @@ impl Function for MaxPool {
                                 let h_idx = h_start + kh_idx;
                                 let w_idx = w_start + kw_idx;
 
-                                if h_idx >= h && w_idx >= w {
+                                if h_idx >= h || w_idx >= w {
                                     continue;
                                 }
                                 let val = input.get(&[n_idx, c_idx, h_idx, w_idx]).cloned().unwrap_or(f32::NEG_INFINITY);
@@ -48,7 +48,9 @@ impl Function for MaxPool {
         }
 
         let output = PooledTensor::from_vec(output_data, &[n, c, oh, ow])?;
-        Ok(vec![output])
+        let indices = PooledTensor::from_vec(indices_data, &[n, c, oh, ow])?;
+
+        Ok(vec![output, indices])
     }
 
     #[cfg(feature = "enableBackpropagation")]
@@ -72,11 +74,11 @@ impl Function for MaxPool {
 #[cfg(test)]
 mod tests {
     use crate::nn::Parameter;
-use crate::{MlResult, tensor::{TensorBase, Tensor}, variable};
     use crate::nn::Variable;
-    use crate::tensor::AutogradFunction;
-    use crate::tensor::operators::{MaxPool, Function};
     use crate::tensor::operators::tests::assert_tensor_eq;
+    use crate::tensor::operators::{Function, MaxPool};
+    use crate::tensor::AutogradFunction;
+    use crate::{tensor::{Tensor, TensorBase}, MlResult};
 
     #[test]
     fn tensor_max_pool_operator() -> MlResult<()> {

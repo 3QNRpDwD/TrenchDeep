@@ -1,8 +1,9 @@
-use std::any::Any;
-use std::sync::Arc;
-use std::collections::HashMap;
-use std::cell::RefCell;
+#[allow(unused_variables)]
 use super::*;
+use std::any::Any;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 pub mod add;
 pub mod sub;
@@ -106,14 +107,14 @@ define_op!(Matmul);
 define_op!(Sin);
 define_op!(Cos);
 define_op!(Reshape);
-define_op!(Transpose, dims: (i32, i32));
+define_op!(Transpose);
 define_op!(Pow, power: Option<f32>);
 define_op!(Topk, topk: Option<(usize, bool)>);
 define_op!(Matmax, matmax: Option<(Option<i32>, bool)>);
 define_op!(ApproxSin, threshold: f32);
 define_op!(ApproxCos, threshold: f32);
 define_op!(AvgPool, kernel_size: (usize, usize), stride: (usize, usize), padding: (usize, usize));
-define_op!(MaxPool, kernel_size: (usize, usize), stride: (usize, usize), padding: (usize, usize));
+define_op!(MaxPool, kernel_size: (usize, usize), stride: (usize, usize), padding: (usize, usize)); // indices 를 구조체가 들고있는것 보다, 순전파 출력을 반환할때  포함해서 반환하는것이 더 바람직함.
 define_op!(Conv2d, kernel_size: (usize, usize), stride: (usize, usize), padding: (usize, usize));
 
 
@@ -152,9 +153,9 @@ impl Debug for &dyn Function {
 
 #[cfg(test)]
 mod tests {
-    use crate::{scalar, variable, tensor_ops};
-    use crate::tests::common::utils::setup_logging;
     use super::*;
+    use crate::tests::common::utils::setup_logging;
+    use crate::{scalar, variable};
 
     pub fn assert_tensor_eq(tensor: &dyn TensorBase, expected_tensor: &dyn TensorBase) -> MlResult<()> {
         if tensor.data() != expected_tensor.data() && tensor.shape() != expected_tensor.shape() {
@@ -288,7 +289,7 @@ mod tests {
     // Other autograd tests are also ignored for now
     #[test]
     fn wtf() -> MlResult<()> {
-        let mut add = Add::new();
+        let add = Add::new();
 
         let x0 = Arc::new(variable!(vec![vec![1.0]]));
         let x1 = Arc::new(variable!(vec![vec![1.0]]));
@@ -330,8 +331,8 @@ mod tests {
 
     #[test]
     fn wtf2() -> MlResult<()> { // 데이터 32 기울기 64 나오면 됨
-        let mut add = Add::new();
-        let mut square = Square::new();
+        let add = Add::new();
+        let square = Square::new();
 
         let x = Arc::new(variable!(vec![vec![2.0]]));
         let a = square.apply(&[&x])?;
@@ -349,7 +350,7 @@ mod tests {
 
     #[test]
     fn wtf3() -> MlResult<()> { // 기울기 2, 3 나오면 됨
-        let mut add = Add::new();
+        let add = Add::new();
 
         let x = Arc::new(variable!(vec![vec![3.0]]));
         let y = add.apply(&[&x, &x])?; // y = add(x, x)
@@ -372,8 +373,8 @@ mod tests {
 
     #[test]
     fn wtf4() -> MlResult<()> {
-        let mut add = Add::new();
-        let mut square = Square::new();
+        let add = Add::new();
+        let square = Square::new();
 
         let x = Arc::new(variable!(vec![vec![2.0]]));
         let y = Arc::new(variable!(vec![vec![3.0]]));
@@ -392,8 +393,8 @@ mod tests {
 
     #[test]
     fn wtf5() -> MlResult<()> {
-        let mut add = Add::new();
-        let mut mul = Mul::new();
+        let add = Add::new();
+        let mul = Mul::new();
 
         let a = Arc::new(variable!(vec![vec![3.0]]));
         let b = Arc::new(variable!(vec![vec![2.0]]));

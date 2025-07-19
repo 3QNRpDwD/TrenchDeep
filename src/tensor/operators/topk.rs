@@ -102,10 +102,10 @@ impl Function for Topk {
 #[cfg(test)]
 mod tests {
     use crate::nn::Parameter;
-use crate::tensor::operators::{Function, Topk};
-    use crate::{tensor_ops, MlResult, variable};
-    use crate::tensor::{AutogradFunction, Tensor, TensorBase};
     use crate::tensor::operators::tests::assert_tensor_eq;
+    use crate::tensor::operators::{Function, Topk};
+    use crate::tensor::{AutogradFunction, Tensor, TensorBase};
+    use crate::{tensor_ops, variable, MlResult};
 
     #[test]
     fn test_topk() -> MlResult<()> {

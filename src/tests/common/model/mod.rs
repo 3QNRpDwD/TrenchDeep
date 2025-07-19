@@ -19,8 +19,8 @@ pub trait Model {
     fn compute_total_error(&mut self, X: &[&Variable], T: &[&Variable]) -> MlResult<f32>;
 }
 
-use std::sync::Arc;
 use crate::tensor::operators::Function;
+use std::sync::Arc;
 
 pub struct MLP {
     // 활성화 함수를 MLP 구조체의 일부로 만들어 유연성 확보

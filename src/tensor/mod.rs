@@ -1,4 +1,6 @@
 use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
     fmt::{
         Debug,
         Display,
@@ -6,27 +8,20 @@ use std::{
         Result
     },
     sync::{
-        Arc,
-        atomic::Ordering
+        atomic::Ordering,
+        Arc
     },
-    collections::{HashMap, HashSet},
-    cell::RefCell,
 };
 
 use crate::{
     backend::{
         Backend,
-        CpuBackend,
         Device
     },
-    MlResult,
-    MlError,
-    tensor::{
-        operators::{
-            Function,
-        }
-    },
     nn::{Parameter, Variable},
+    tensor::operators::Function,
+    MlError,
+    MlResult,
     TensorError,
 };
 
@@ -339,9 +334,9 @@ pub trait AutogradFunction: Function + Send + Sync  + 'static {
 
 #[cfg(test)]
 mod tests {
-    use crate::MlResult;
+    use crate::tensor::operators::Function;
     use crate::tensor::{Tensor, TensorBase};
-    use crate::tensor::operators::{Abs, Add, Cos, Div, Exp, Function, Log, Matmax, Matmul, Mul, Neg, Pow, Sin, Sqrt, Square, Sub, Sum, Topk, Transpose};
+    use crate::MlResult;
 
     pub fn assert_tensor_eq(tensor: &dyn TensorBase, expected_tensor: &dyn TensorBase) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
@@ -473,8 +468,9 @@ mod tests {
 
     #[test]
     fn test_transpose_macro() {
+        let dims = Tensor::from_vec(vec![0.0,1.0], &[2]).unwrap(); // shape [2]
         let tensor = Tensor::new(vec![vec![1.0, 2.0], vec![3.0, 4.0]]); // shape [2, 2]
-        let result = tensor_ops!(tensor, Transpose, dims = (0, 1));
+        let result = tensor_ops!(tensor, Transpose, dims);
         let expected = Tensor::new(vec![vec![1.0, 3.0], vec![2.0, 4.0]]);
         assert_tensor_eq(&result, &expected).unwrap();
     }

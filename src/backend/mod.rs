@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Display};
 
 pub use cpu::CpuBackend;
 pub use device::{Device, DeviceType};

@@ -13,7 +13,8 @@ impl Function for Reshape {
         let target = targets[0];
         let target_shape = target.shape();
         let target_size: usize = target_shape.iter().product();
-        let new_shape = targets[1].shape();
+        let new_shape_data = targets[1].data();
+        let new_shape: Vec<usize> = new_shape_data.iter().map(|&x| x as usize).collect();
         let new_size: usize = new_shape.iter().product();
 
 
@@ -24,7 +25,7 @@ impl Function for Reshape {
             }));
         }
 
-        Ok(vec![PooledTensor::from_vec(target.data().to_vec(), new_shape).unwrap()])
+        Ok(vec![PooledTensor::from_vec(target.data().to_vec(), &new_shape).unwrap()])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
@@ -32,7 +33,8 @@ impl Function for Reshape {
         let target = targets[0];
         let target_shape = target.shape();
         let target_size: usize = target_shape.iter().product();
-        let new_shape = targets[1].shape();
+        let new_shape_data = targets[1].data();
+        let new_shape: Vec<usize> = new_shape_data.iter().map(|&x| x as usize).collect();
         let new_size: usize = new_shape.iter().product();
 
         if target_size != new_size {
@@ -53,10 +55,10 @@ impl Function for Reshape {
 #[cfg(test)]
 mod tests {
     use crate::nn::Parameter;
-use crate::{MlResult, tensor::{TensorBase, Tensor}, variable};
-    use crate::tensor::AutogradFunction;
-    use crate::tensor::operators::{Reshape, Function};
     use crate::tensor::operators::tests::assert_tensor_eq;
+    use crate::tensor::operators::{Function, Reshape};
+    use crate::tensor::AutogradFunction;
+    use crate::{tensor::{Tensor, TensorBase}, variable, MlResult};
 
     #[test]
     fn tensor_reshape_operator() -> MlResult<()> {

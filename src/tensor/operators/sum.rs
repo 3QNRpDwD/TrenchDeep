@@ -19,13 +19,17 @@ impl Function for Sum {
         Ok(vec![PooledTensor::from_vec(vec![total_sum], &[1,1]).unwrap()])
     }
 
-    #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackpropagation")]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
         if targets.is_empty() {
             return Err(MlError::TensorError(TensorError::EmptyTensor));
         }
 
-        let gt = PooledTensor::from_vec(grad.data().to_vec(), grad.shape()).unwrap();
+        let target_shape = targets[0].shape();
+        let grad_val = grad.data()[0];
+        let grad_vec = vec![grad_val; targets[0].data().len()];
+
+        let gt = PooledTensor::from_vec(grad_vec, target_shape).unwrap();
         Ok(vec![gt.clone(); targets.len()])
     }
     
@@ -37,8 +41,8 @@ impl Function for Sum {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{MlResult, variable,tensor::{TensorBase, Tensor}};
     use crate::tensor::operators::tests::assert_tensor_eq;
+    use crate::{tensor::{Tensor, TensorBase}, variable, MlResult};
 
     #[test]
     fn test_sum_backward() -> MlResult<()> {

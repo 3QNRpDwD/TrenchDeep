@@ -1,15 +1,15 @@
-use std::{
-    fmt::{Debug, Display, Formatter},
-    sync::Arc
-};
 use crate::{
     backend::Backend,
     nn::Parameter,
     tensor::{
+        operators::Function,
         HandleId,
-        Tensor,
-        operators::Function
+        Tensor
     }
+};
+use std::{
+    fmt::{Debug, Display},
+    sync::Arc
 };
 
 

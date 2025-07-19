@@ -36,8 +36,8 @@ impl std::ops::Neg for &dyn TensorBase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{MlResult, variable,tensor::{TensorBase, Tensor}};
     use crate::tensor::operators::tests::assert_tensor_eq;
+    use crate::{tensor::{Tensor, TensorBase}, variable, MlResult};
 
     #[test]
     fn test_neg_backward() -> MlResult<()> {

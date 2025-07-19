@@ -126,8 +126,8 @@ impl std::ops::AddAssign<&Tensor> for Tensor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{variable, MlResult, tensor::{TensorBase, Tensor}};
     use crate::tensor::operators::tests::assert_tensor_eq;
+    use crate::{tensor::{Tensor, TensorBase}, variable, MlResult};
 
     #[test]
     fn test_add_backward() -> MlResult<()> {

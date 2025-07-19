@@ -1,10 +1,10 @@
+use super::*;
+use crate::tensor::TENSOR_ALLOCATOR;
 use crate::tensor::{AutogradFunction, PooledTensor};
 use std::ops::Deref;
-use crate::tensor::TENSOR_ALLOCATOR;
-use super::*;
 
-use std::sync::Arc;
 use crate::tensor::operators::Function;
+use std::sync::Arc;
 
 impl SoftmaxRegression {
     pub fn new(

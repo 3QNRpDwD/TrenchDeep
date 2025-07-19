@@ -112,8 +112,8 @@ impl std::ops::SubAssign<&Tensor> for Tensor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{MlResult, variable,tensor::{TensorBase, Tensor}};
     use crate::tensor::operators::tests::assert_tensor_eq;
+    use crate::{tensor::{Tensor, TensorBase}, variable, MlResult};
 
     #[test]
     fn test_sub_backward() -> MlResult<()> {

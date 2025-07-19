@@ -1,9 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{
-        HashMap,
-        HashSet
-    },
+    collections::HashSet,
     fmt::{
         Debug,
         Formatter
@@ -14,31 +11,31 @@ use std::{
 
 use crate::{
     backend::Backend,
-    MlError,
-    MlResult,
     tensor::{
-        GlobalTensor,
-        HandleId,
         operators::{
             Add,
-            Div,
-            Matmul,
-            Mul,
-            Sub,
             AvgPool,
-            MaxPool,
             Conv2d,
-            Function
+            Div,
+            Function,
+            Matmul,
+            MaxPool,
+            Mul,
+            Sub
         },
+        GlobalTensor,
+        HandleId,
+        PooledTensor,
         Tensor,
         TensorBase,
-        PooledTensor,
         TENSOR_ALLOCATOR
     },
-    TensorError,
     var_act,
     var_bias,
     var_weight,
+    MlError,
+    MlResult,
+    TensorError,
 };
 
 pub mod activation;

@@ -12,10 +12,11 @@ impl MaxPooling {
 impl Layer for MaxPooling {
     #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
-        let output = self.max_pool.forward(&[input.tensor()])?.remove(0);
-        let var_act = var_act!(output.to_id(true)?, self.label());
+        let outputs = self.max_pool.forward(&[input.tensor()])?;
+        let indices = Variable::new(outputs[1].clone().to_id(true)?);
+        let var_act = var_act!(outputs[0].clone().to_id(true)?, self.label());
         let op: Arc<dyn Function + Send + Sync> = self.max_pool.clone();
-        var_act.with_grad_fn(op, &[input]);
+        var_act.with_grad_fn(op, &[input, &indices]);
         Ok(var_act)
     }
 
@@ -69,3 +70,4 @@ impl Layer for AvgPooling {
         &self.label
     }
 }
+

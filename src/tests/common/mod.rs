@@ -1,46 +1,43 @@
 use std::time::Instant;
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use log::{info, warn, error};
+use log::{info, warn};
 use mnist::MnistBuilder;
 use rand::{rng, seq::SliceRandom};
 use serde::{Deserialize, Serialize};
 use time::macros::format_description;
 use tracing_subscriber::{
-    EnvFilter,
     fmt,
     layer::SubscriberExt,
-    util::SubscriberInitExt
+    util::SubscriberInitExt,
+    EnvFilter
 };
 
 use crate::{
-    loss::CrossEntropyLoss,
-    loss::SoftmaxCrossEntropyLoss,
-    MlError,
-    MlResult,
+    loss::CrossEntropyLoss
+    ,
     nn::{
-        activation::Sigmoid,
-        activation::Softmax,
         Layer,
         Linear,
         Parameter,
         Sequential,
         Variable
-    }
-    ,
-    tensor::{
-        
-        ComputationGraph,
-        
-        operators::{Add, Matmul},
-        operators::Function,
-        Tensor,
-        TensorBase
     },
     tensor::GlobalTensor,
-    tests::common::model::{MLP, Model, SoftmaxRegression},
+    tensor::{
+        operators::Function
+
+        ,
+        ComputationGraph,
+        Tensor,
+        TensorBase
+    }
+    ,
+    tests::common::model::{Model, SoftmaxRegression},
     var_input,
-    var_with_label
+    var_with_label,
+    MlError,
+    MlResult
 };
 
 pub(crate) mod data;

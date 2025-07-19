@@ -1,7 +1,7 @@
 use super::*;
 
 #[cfg(feature = "enableVisualization")]
-use crate::tensor::{HandleId, LABEL_COUNTERS, NodeType, VISUALIZATION_GRAPH, VisualizationGraph};
+use crate::tensor::{HandleId, NodeType, VisualizationGraph, LABEL_COUNTERS, VISUALIZATION_GRAPH};
 
 #[cfg(feature = "enableVisualization")]
 impl VisualizationGraph {
