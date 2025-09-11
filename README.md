@@ -418,8 +418,7 @@ For questions, suggestions, or collaboration opportunities, feel free to reach o
 - **Rust Community** for excellent documentation and crates
 - **PyTorch** and **TensorFlow** for deep learning inspiration
 - **Educational Resources**:
-  - ["Deep Learning from Scratch" by Seth Weidman](https://www.oreilly.com/library/view/deep-learning-from/9781492041405/)
-  - [Andrej Karpathy's Neural Networks Course](http://karpathy.github.io/neuralnets/)
+  - ["밑바닥 부터 시작하는 딥러닝 3" by 사이토 고키]([https://www.oreilly.com/library/view/deep-learning-from/9781492041405/](https://www.google.co.kr/books/edition/%EB%B0%91%EB%B0%94%EB%8B%A5%EB%B6%80%ED%84%B0_%EC%8B%9C%EC%9E%91%ED%95%98%EB%8A%94_%EB%94%A5%EB%9F%AC%EB%8B%9D_3/2uQKEAAAQBAJ?hl=ko&gbpv=0))
 - **Open Source Libraries**:
   - `mnist` crate for dataset loading
   - `indicatif` for progress bars
