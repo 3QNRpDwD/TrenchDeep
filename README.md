@@ -273,8 +273,8 @@ enableVisualization = ["enableBackpropagation"]
 ### Usage with Features
 
 ```bash
-# Full functionality
-cargo test --features "enableBackpropagation,enableVisualization"
+# functionality
+cargo test --features enableVisualization
 
 # Minimal build (inference only)
 cargo build --release
