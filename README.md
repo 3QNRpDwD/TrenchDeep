@@ -10,7 +10,7 @@ A **from-scratch deep learning framework** built in Rust for educational purpose
 ## Known Issues
 
 ⚠️ A bug was introduced in [commit `677ebf5`](https://github.com/OWNER/REPO/commit/677ebf5abe7427fb548f766bfa21753b22be30c0).  
-See [Issue #3](https://github.com/OWNER/REPO/issues/123) for details.
+See [Issue #1](https://github.com/OWNER/REPO/issues/123) for details.
 
 Until this bug is resolved, please use the stable version at  
 [commit `d5dc143`](https://github.com/OWNER/REPO/tree/d5dc143a25c6cfb6a8c126aaa553a53eb9b93ce9).
