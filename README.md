@@ -261,6 +261,7 @@ enableBackpropagation = []
 requiresGrad = ["enableBackpropagation"]
 enableHigherOrderDifferentiation = ["requiresGrad"]
 enableVisualization = ["enableBackpropagation"]
+#debugging = []
 ```
 
 ### Feature Descriptions
@@ -292,10 +293,11 @@ cargo build --all-features
 cargo test --features "enableBackpropagation"
 
 # Run specific benchmark tests
-cargo test benchmark --features "enableBackpropagation" -- --nocapture
+test --lib benchmark --features enableBackpropagation
 
-# Run MNIST integration test
-cargo test mnist --features "enableBackpropagation,enableVisualization"
+# Run backward test
+cargo test --package trench-deep --lib tests::mnist_test::softmax_regression_mnist_classification_integration_test --features enableBackpropagation
+
 ```
 
 ### Available Test Functions
@@ -348,6 +350,9 @@ fn main() {
     setup_logging("debug"); // trace, debug, info, warn, error
     // Your code here
 }
+```
+```bash
+carge test --package trench-deep --lib <A "test code" path that reproduces bugs, if not, remove this phrase.> --features debugging
 ```
 
 ### Reporting Bugs
