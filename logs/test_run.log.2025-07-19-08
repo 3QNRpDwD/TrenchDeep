@@ -1,0 +1,131 @@
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(95)    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(723)    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 2, id: HandleId(718)). Grad shape: [1, 1], Grad data: 1.2840254    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 1, id: HandleId(714)). Grad shape: [1, 1], Grad data: 0.25    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(737)    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 1, id: HandleId(56)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(708)). Grad shape: [1, 1], Grad data: 0.5    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 3, id: HandleId(89)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 6, id: HandleId(728)). Grad shape: [1, 1], Grad data: 400.0    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 2, id: HandleId(17)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 9, id: HandleId(734)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 5, id: HandleId(717)). Grad shape: [1, 1], Grad data: 100.0    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(4)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 4, id: HandleId(725)). Grad shape: [1, 1], Grad data: 4.0    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 3, id: HandleId(721)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 8, id: HandleId(732)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 2, id: HandleId(704)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 1, id: HandleId(713)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 7, id: HandleId(730)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(701)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(701)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-19T08:19:25  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-19T08:19:25  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-07-19T08:19:25  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 10, n_val: 10, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.001, epochs: 2, tolerance: 0.0001, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-07-19T08:19:25  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 10, Test: 10)    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(471)    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(476)    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(64)    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(488)    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 1, id: HandleId(21)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 3, id: HandleId(58)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(474)). Grad shape: [1, 1], Grad data: 3.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(474)). Grad shape: [1, 1], Grad data: 3.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 6, id: HandleId(463)). Grad shape: [1, 1], Grad data: 400.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 9, id: HandleId(469)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 5, id: HandleId(457)). Grad shape: [1, 1], Grad data: 100.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(505)    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 4, id: HandleId(461)). Grad shape: [1, 1], Grad data: 4.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 3, id: HandleId(459)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 1, id: HandleId(497)). Grad shape: [1, 1], Grad data: 4.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 8, id: HandleId(467)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 3, id: HandleId(500)). Grad shape: [1, 1], Grad data: 9.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 2, id: HandleId(449)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 1, id: HandleId(455)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 2, id: HandleId(495)). Grad shape: [1, 1], Grad data: 3.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 7, id: HandleId(465)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(447)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(447)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 2, id: HandleId(8)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(528)    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(4)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(545)    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(550)    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(537)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 2, id: HandleId(542)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(537)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(547)). Grad shape: [2, 3], Grad data: 1.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 1, id: HandleId(539)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 2, id: HandleId(519)). Grad shape: [1, 1], Grad data: 6.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(474)). Grad shape: [1, 1], Grad data: 3.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(493)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(474)). Grad shape: [1, 1], Grad data: 3.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(474)). Grad shape: [1, 1], Grad data: 3.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(572)    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(565)). Grad shape: [2, 2], Grad data: 1.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 2, id: HandleId(486)). Grad shape: [1, 1], Grad data: 6.0    
+2025-07-19T08:23:44  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 3, id: HandleId(484)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:33:16  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(316)    
+2025-07-19T08:33:16  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:33:16  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 6, id: HandleId(308)). Grad shape: [1, 1], Grad data: 400.0    
+2025-07-19T08:33:16  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 9, id: HandleId(314)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:33:16  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 5, id: HandleId(302)). Grad shape: [1, 1], Grad data: 100.0    
+2025-07-19T08:33:16  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 4, id: HandleId(306)). Grad shape: [1, 1], Grad data: 4.0    
+2025-07-19T08:33:16  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 3, id: HandleId(304)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-19T08:33:16  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 8, id: HandleId(312)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:33:16  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 2, id: HandleId(294)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-19T08:33:16  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 1, id: HandleId(300)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-19T08:33:16  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 7, id: HandleId(310)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:33:16  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(292)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-19T08:33:16  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(292)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-19T08:33:16  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-19T08:33:16  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(361)    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(255)    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(345)    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 1, id: HandleId(246)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 3, id: HandleId(251)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 2, id: HandleId(242)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(357)    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 6, id: HandleId(336)). Grad shape: [1, 1], Grad data: 400.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(240)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 9, id: HandleId(342)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 5, id: HandleId(330)). Grad shape: [1, 1], Grad data: 100.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(352)). Grad shape: [2, 2], Grad data: 1.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 1, id: HandleId(354)). Grad shape: [2, 2], Grad data: 5.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 4, id: HandleId(334)). Grad shape: [1, 1], Grad data: 4.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 3, id: HandleId(332)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 8, id: HandleId(340)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 2, id: HandleId(321)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 1, id: HandleId(328)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 7, id: HandleId(338)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(316)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(316)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(396)    
+2025-07-19T08:33:26  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    

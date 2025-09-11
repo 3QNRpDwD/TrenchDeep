@@ -1,0 +1,380 @@
+2025-07-16T01:09:56  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(521)    
+2025-07-16T01:09:56  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(557)    
+2025-07-16T01:09:56  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:09:56  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:09:56  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:09:56  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:09:56  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(538)    
+2025-07-16T01:09:56  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:09:56  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:09:56  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(572)    
+2025-07-16T01:09:56  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:09:56  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:10:33  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(479)    
+2025-07-16T01:10:33  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(440)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Init] Identified output node (index: 10, id: HandleId(440))    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Init] Identified output node (index: 10, id: HandleId(479))    
+2025-07-16T01:10:33  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:10:33  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 6, id: HandleId(21)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 10, id: HandleId(479)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Function to process: '"Add"'    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 10, id: HandleId(440)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Add"' returned 2 gradients.    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Function to process: '"Add"'    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 6, id: HandleId(469)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Add"' returned 2 gradients.    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 4, id: HandleId(21)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Function to process: '"Mul"'    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 9, id: HandleId(21)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Mul"' returned 2 gradients.    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 4, id: HandleId(467)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 3, id: HandleId(21)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 8, id: HandleId(21)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 9, id: HandleId(476)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 1, id: HandleId(429)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 7, id: HandleId(465)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 5, id: HandleId(456)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 3, id: HandleId(462)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 2, id: HandleId(2)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 0, id: HandleId(0)    
+2025-07-16T01:10:33  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 8, id: HandleId(473)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 1, id: HandleId(454)    
+2025-07-16T01:10:33  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(465)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Init] Identified output node (index: 10, id: HandleId(465))    
+2025-07-16T01:10:33  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 6, id: HandleId(21)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 7, id: HandleId(471)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 10, id: HandleId(465)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 5, id: HandleId(459)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Function to process: '"Add"'    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 2, id: HandleId(447)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Add"' returned 2 gradients.    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 0, id: HandleId(445)    
+2025-07-16T01:10:33  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 4, id: HandleId(21)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 9, id: HandleId(21)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 3, id: HandleId(21)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 8, id: HandleId(21)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 1, id: HandleId(440)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 7, id: HandleId(497)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 5, id: HandleId(490)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 2, id: HandleId(2)    
+2025-07-16T01:10:33 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 0, id: HandleId(0)    
+2025-07-16T01:10:33  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:11:11  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(161)    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph: [Init] Identified output node (index: 10, id: HandleId(161))    
+2025-07-16T01:11:11  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 10, id: HandleId(161)    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph:   - Function to process: '"Add"'    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Add"' returned 2 gradients.    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 6, id: HandleId(153)    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph:   - Function to process: '"Mul"'    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Mul"' returned 2 gradients.    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 4, id: HandleId(151)    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 9, id: HandleId(159)    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 3, id: HandleId(149)    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 8, id: HandleId(157)    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 1, id: HandleId(145)    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 7, id: HandleId(155)    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 5, id: HandleId(147)    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 2, id: HandleId(139)    
+2025-07-16T01:11:11 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 0, id: HandleId(137)    
+2025-07-16T01:11:11  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:11:16  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(62)    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph: [Init] Identified output node (index: 10, id: HandleId(62))    
+2025-07-16T01:11:16  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 10, id: HandleId(62)    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph:   - Function to process: '"Add"'    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Add"' returned 2 gradients.    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 6, id: HandleId(54)    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph:   - Function to process: '"Mul"'    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Mul"' returned 2 gradients.    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 4, id: HandleId(52)    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 9, id: HandleId(60)    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 3, id: HandleId(50)    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 8, id: HandleId(58)    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 1, id: HandleId(46)    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 7, id: HandleId(56)    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 5, id: HandleId(48)    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 2, id: HandleId(40)    
+2025-07-16T01:11:16 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 0, id: HandleId(38)    
+2025-07-16T01:11:16  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:11:31  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(29)    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph: [Init] Identified output node (index: 10, id: HandleId(29))    
+2025-07-16T01:11:31  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 10, id: HandleId(29)    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph:   - Function to process: '"Add"'    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Add"' returned 2 gradients.    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 6, id: HandleId(21)    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph:   - Function to process: '"Mul"'    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Mul"' returned 2 gradients.    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 4, id: HandleId(19)    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 9, id: HandleId(27)    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 3, id: HandleId(17)    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 8, id: HandleId(25)    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 1, id: HandleId(13)    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 7, id: HandleId(23)    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 5, id: HandleId(15)    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 2, id: HandleId(7)    
+2025-07-16T01:11:31 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 0, id: HandleId(5)    
+2025-07-16T01:11:31  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:13:09  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(407)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Init] Identified output node (index: 10, id: HandleId(407))    
+2025-07-16T01:13:09  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(447)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Init] Identified output node (index: 10, id: HandleId(447))    
+2025-07-16T01:13:09  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:13:09  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 6, id: HandleId(21)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 10, id: HandleId(447)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 10, id: HandleId(407)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Function to process: '"Add"'    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Function to process: '"Add"'    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Add"' returned 2 gradients.    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Add"' returned 2 gradients.    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 6, id: HandleId(439)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 4, id: HandleId(21)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Function to process: '"Mul"'    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Mul"' returned 2 gradients.    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 9, id: HandleId(21)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 4, id: HandleId(437)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 3, id: HandleId(21)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 9, id: HandleId(445)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 8, id: HandleId(21)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 1, id: HandleId(396)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 7, id: HandleId(418)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 3, id: HandleId(435)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 5, id: HandleId(413)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 2, id: HandleId(2)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 0, id: HandleId(0)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:13:09  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 8, id: HandleId(443)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 1, id: HandleId(431)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:13:09  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(418)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Init] Identified output node (index: 10, id: HandleId(418))    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 7, id: HandleId(441)    
+2025-07-16T01:13:09  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 5, id: HandleId(433)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 6, id: HandleId(21)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 2, id: HandleId(425)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 10, id: HandleId(418)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 0, id: HandleId(422)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Function to process: '"Add"'    
+2025-07-16T01:13:09  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Add"' returned 2 gradients.    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 4, id: HandleId(21)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 9, id: HandleId(21)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 3, id: HandleId(21)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 8, id: HandleId(21)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 1, id: HandleId(407)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 7, id: HandleId(464)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 5, id: HandleId(459)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 2, id: HandleId(2)    
+2025-07-16T01:13:09 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 0, id: HandleId(0)    
+2025-07-16T01:13:09  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:13:21  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(29)    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph: [Init] Identified output node (index: 10, id: HandleId(29))    
+2025-07-16T01:13:21  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 10, id: HandleId(29)    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph:   - Function to process: '"Add"'    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Add"' returned 2 gradients.    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 6, id: HandleId(21)    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph:   - Function to process: '"Mul"'    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Mul"' returned 2 gradients.    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 4, id: HandleId(19)    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 9, id: HandleId(27)    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 3, id: HandleId(17)    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 8, id: HandleId(25)    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 1, id: HandleId(13)    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 7, id: HandleId(23)    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 5, id: HandleId(15)    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 2, id: HandleId(7)    
+2025-07-16T01:13:21 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 0, id: HandleId(5)    
+2025-07-16T01:13:21  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:24:35  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(29)    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph: [Init] Identified output node (index: 10, id: HandleId(29))    
+2025-07-16T01:24:35  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 10, id: HandleId(29)    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph:   - Function to process: '"Add"'    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Add"' returned 2 gradients.    
+2025-07-16T01:24:35  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 6, id: HandleId(21)). Grad shape: [1, 1], Grad data: 400.0    
+2025-07-16T01:24:35  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 9, id: HandleId(27)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 6, id: HandleId(21)    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph:   - Function to process: '"Mul"'    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Mul"' returned 2 gradients.    
+2025-07-16T01:24:35  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 5, id: HandleId(15)). Grad shape: [1, 1], Grad data: 100.0    
+2025-07-16T01:24:35  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 4, id: HandleId(19)). Grad shape: [1, 1], Grad data: 4.0    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 4, id: HandleId(19)    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:24:35  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 3, id: HandleId(17)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 9, id: HandleId(27)    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:24:35  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 8, id: HandleId(25)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 3, id: HandleId(17)    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:24:35  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 2, id: HandleId(7)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-16T01:24:35  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 1, id: HandleId(13)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 8, id: HandleId(25)    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:24:35  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 7, id: HandleId(23)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-16T01:24:35  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 0, id: HandleId(5)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 1, id: HandleId(13)    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:24:35  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 0, id: HandleId(5)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 7, id: HandleId(23)    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 5, id: HandleId(15)    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 2, id: HandleId(7)    
+2025-07-16T01:24:35 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 0, id: HandleId(5)    
+2025-07-16T01:24:35  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:26:57  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(8)    
+2025-07-16T01:26:57  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:26:57  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 2, id: HandleId(6)). Grad shape: [1, 1], Grad data: 1.2840254    
+2025-07-16T01:26:57  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 1, id: HandleId(4)). Grad shape: [1, 1], Grad data: 0.25    
+2025-07-16T01:26:57  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 0, id: HandleId(2)). Grad shape: [1, 1], Grad data: 0.5    
+2025-07-16T01:26:57  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:43:03  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(29)    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph: [Init] Identified output node (index: 10, id: HandleId(29))    
+2025-07-16T01:43:03  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 10, id: HandleId(29)    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph:   - Function to process: '"Add"'    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Add"' returned 2 gradients.    
+2025-07-16T01:43:03  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 6, id: HandleId(21)). Grad shape: [1, 1], Grad data: 400.0    
+2025-07-16T01:43:03  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 9, id: HandleId(27)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 6, id: HandleId(21)    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph:   - Function to process: '"Mul"'    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Mul"' returned 2 gradients.    
+2025-07-16T01:43:03  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 5, id: HandleId(15)). Grad shape: [1, 1], Grad data: 100.0    
+2025-07-16T01:43:03  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 4, id: HandleId(19)). Grad shape: [1, 1], Grad data: 4.0    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 4, id: HandleId(19)    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:43:03  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 3, id: HandleId(17)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 9, id: HandleId(27)    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:43:03  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 8, id: HandleId(25)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 3, id: HandleId(17)    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:43:03  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 2, id: HandleId(7)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-16T01:43:03  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 1, id: HandleId(13)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 8, id: HandleId(25)    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph:   - Function to process: '"Sub"'    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Sub"' returned 2 gradients.    
+2025-07-16T01:43:03  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 7, id: HandleId(23)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-16T01:43:03  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 0, id: HandleId(5)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 1, id: HandleId(13)    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph:   - Function to process: '"Square"'    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Square"' returned 1 gradients.    
+2025-07-16T01:43:03  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 0, id: HandleId(5)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 7, id: HandleId(23)    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 5, id: HandleId(15)    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 2, id: HandleId(7)    
+2025-07-16T01:43:03 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 0, id: HandleId(5)    
+2025-07-16T01:43:03  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:43:13  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(29)    
+2025-07-16T01:43:13  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:43:13  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 6, id: HandleId(21)). Grad shape: [1, 1], Grad data: 400.0    
+2025-07-16T01:43:13  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 9, id: HandleId(27)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-16T01:43:13  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 5, id: HandleId(15)). Grad shape: [1, 1], Grad data: 100.0    
+2025-07-16T01:43:13  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 4, id: HandleId(19)). Grad shape: [1, 1], Grad data: 4.0    
+2025-07-16T01:43:13  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 3, id: HandleId(17)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-16T01:43:13  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 8, id: HandleId(25)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-16T01:43:13  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 2, id: HandleId(7)). Grad shape: [1, 1], Grad data: 2.0    
+2025-07-16T01:43:13  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 1, id: HandleId(13)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-16T01:43:13  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 7, id: HandleId(23)). Grad shape: [1, 1], Grad data: 1.0    
+2025-07-16T01:43:13  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 0, id: HandleId(5)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-16T01:43:13  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 0, id: HandleId(5)). Grad shape: [1, 1], Grad data: 0.0    
+2025-07-16T01:43:13  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:44:41  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(8)    
+2025-07-16T01:44:41  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:44:41  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 2, id: HandleId(6)). Grad shape: [1, 1], Grad data: 1.2840254    
+2025-07-16T01:44:41  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 1, id: HandleId(4)). Grad shape: [1, 1], Grad data: 0.25    
+2025-07-16T01:44:41  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] Accumulated gradient for input node (idx: 0, id: HandleId(2)). Grad shape: [1, 1], Grad data: 0.5    
+2025-07-16T01:44:41  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:47:59  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(8)    
+2025-07-16T01:47:59  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:47:59  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] (idx: 2, id: HandleId(6)). Grad shape: [1, 1], Grad data: 1.2840254    
+2025-07-16T01:47:59  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] (idx: 1, id: HandleId(4)). Grad shape: [1, 1], Grad data: 0.25    
+2025-07-16T01:47:59  INFO trench_deep::tensor::graph: [GRAD ACCUMULATION] (idx: 0, id: HandleId(2)). Grad shape: [1, 1], Grad data: 0.5    
+2025-07-16T01:47:59  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    
+2025-07-16T01:53:31  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(8)    
+2025-07-16T01:53:31  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.    
+2025-07-16T01:53:31  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 2, id: HandleId(6)). Grad shape: [1, 1], Grad data: 1.2840254    
+2025-07-16T01:53:31  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 1, id: HandleId(4)). Grad shape: [1, 1], Grad data: 0.25    
+2025-07-16T01:53:31  INFO trench_deep::tensor::graph: [GRAD ACC] (idx: 0, id: HandleId(2)). Grad shape: [1, 1], Grad data: 0.5    
+2025-07-16T01:53:31  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.    

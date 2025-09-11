@@ -237,34 +237,17 @@ impl Ord for Tensor {
 
 
 pub trait TensorBase {
-    fn new(_data: Vec<Vec<f32>>) -> Self where Self: Sized {
-        unimplemented!(" TensorBase::new() is not implemented ")
-    }
-
-    fn from_vec(_data: Vec<f32>, _shape: &[usize]) -> MlResult<Self> where Self: Sized {
-        unimplemented!(" TensorBase::from_vec() is not implemented ")
-    }
-
-    fn as_ptr(&self) -> *const GlobalTensor<f32> {
-        unimplemented!(" TensorBase::tensor_ptr() is not implemented ")
-    }
-
-    fn as_mut(&self) -> *mut GlobalTensor<f32> {
-        unimplemented!(" TensorBase::tensor_mut() is not implemented ")
-    }
-
+    fn new(_data: Vec<Vec<f32>>) -> Self where Self: Sized { unimplemented!(" TensorBase::new() is not implemented ") }
+    fn from_vec(_data: Vec<f32>, _shape: &[usize]) -> MlResult<Self> where Self: Sized { unimplemented!(" TensorBase::from_vec() is not implemented ") }
+    fn as_ptr(&self) -> *const GlobalTensor<f32> { unimplemented!(" TensorBase::tensor_ptr() is not implemented ") }
+    fn as_mut(&self) -> *mut GlobalTensor<f32> { unimplemented!(" TensorBase::tensor_mut() is not implemented ") }
     fn shape(&self) -> &[usize] {
         unimplemented!(" TensorBase::shape() is not implemented ")
     }
-
     fn data(&self) -> &[f32] {
         unimplemented!(" TensorBase::data() is not implemented ")
     }
-
-    fn get(&self, _indices: &[usize]) -> Option<&f32> {
-        unimplemented!(" TensorBase::get() is not implemented ")
-    }
-
+    fn get(&self, _indices: &[usize]) -> Option<&f32> { unimplemented!(" TensorBase::get() is not implemented ") }
     fn index(&self, indices: &[usize]) -> Option<usize> {
         if indices.len() != self.shape().len() {
             return None;

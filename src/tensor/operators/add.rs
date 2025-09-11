@@ -8,7 +8,6 @@ impl Function for Add {
         let second_shape = second_target.shape();
 
         if first_shape.len() == 2 && second_shape.len() == 1 && first_shape[1] == second_shape[0] {
-            // Special case for matrix + vector broadcasting
             let (batch_size, features) = (first_shape[0], first_shape[1]);
             let mut data = vec![0.0; first_target.data().len()];
 
