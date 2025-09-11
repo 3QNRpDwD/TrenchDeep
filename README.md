@@ -304,7 +304,7 @@ cargo test --features "enableBackpropagation"
 # Run specific benchmark tests
 test --lib benchmark --features enableBackpropagation
 
-# Run backward test
+# Run MNIST integration test
 cargo test --package trench-deep --lib tests::mnist_test::softmax_regression_mnist_classification_integration_test --features enableBackpropagation
 
 ```
