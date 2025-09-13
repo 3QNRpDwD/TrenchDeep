@@ -1,0 +1,1013 @@
+2025-06-18T09:17:52  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T09:17:52  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T09:17:52  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T09:17:53  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T09:17:53  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T09:17:53  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T09:17:53  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T09:17:53  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T09:17:53  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T09:17:53  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T09:17:53  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T09:17:53  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T09:18:23  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T09:18:23  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T09:18:23  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T09:18:24  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T09:18:24  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T09:18:24  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T09:18:24  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T09:18:24  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T09:18:24  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T09:18:24  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T09:18:24  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T09:18:24  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T09:22:18  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T09:22:18  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T09:22:18  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T09:22:18  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:18  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:19  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:20  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 종료    
+2025-06-18T09:22:21  INFO trench_deep::tests::common::model::regression::softmax: 역전파 시작    
+2025-06-18T09:40:18  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T09:40:18  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T09:40:18  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T09:40:18  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T09:40:18  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T09:40:18  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T09:40:18  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T09:40:18  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T09:40:18  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T09:40:18  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T09:40:18  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T09:40:18  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T09:41:23  INFO trench_deep::tests::common::model::regression::softmax: 🏁 Total training time: 65.03s. Final average loss: 0.061066    
+2025-06-18T09:41:23  INFO trench_deep::tests::mnist_test: Model training finished.    
+2025-06-18T09:41:23  INFO trench_deep::tests::common::evaluation: Starting model evaluation on 1000 test samples...    
+2025-06-18T09:41:23  INFO trench_deep::tests::common::evaluation: ✅ Evaluation complete: Accuracy = 80.90%    
+2025-06-18T09:41:23  INFO trench_deep::tests::mnist_test: 🎉 Target accuracy achieved! (80.90% > 80.00%)    
+2025-06-18T09:45:15  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T09:45:15  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T09:45:15  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T09:45:15  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T09:45:15  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T09:45:15  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T09:45:15  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T09:45:15  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T09:45:15  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T09:45:15  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T09:45:15  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T09:45:15  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T09:46:14  INFO trench_deep::tests::common::model::regression::softmax: 🏁 Total training time: 59.36s. Final average loss: 0.059942    
+2025-06-18T09:46:14  INFO trench_deep::tests::mnist_test: Model training finished.    
+2025-06-18T09:46:14  INFO trench_deep::tests::common::evaluation: Starting model evaluation on 1000 test samples...    
+2025-06-18T09:46:14  INFO trench_deep::tests::common::evaluation: ✅ Evaluation complete: Accuracy = 80.20%    
+2025-06-18T09:46:14  INFO trench_deep::tests::mnist_test: 🎉 Target accuracy achieved! (80.20% > 80.00%)    
+2025-06-18T09:46:56  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T09:46:56  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T09:46:56  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T09:46:56  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T09:46:57  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T09:46:57  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T09:46:57  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T09:46:57  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T09:46:57  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T09:46:57  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T09:46:57  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T09:46:57  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T09:48:46  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T09:48:46  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T09:48:46  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T09:48:46  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T09:48:46  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T09:48:46  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T09:48:46  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-18T09:48:46  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-18T09:48:46  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T09:48:46  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-18T09:48:46  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T09:48:46  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-18T09:49:39  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T09:49:39  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T09:49:39  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T09:49:39  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T09:49:39  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T09:49:39  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T09:49:39  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 30(Hidden) -> 10(Output)    
+2025-06-18T09:49:39  INFO trench_deep::tests::common::utils: Activation Functions: Sigmoid (Hidden), Softmax (Output)    
+2025-06-18T09:49:39  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T09:49:39  INFO trench_deep::tests::common::utils: Starting model training...    
+2025-06-18T09:49:39  INFO trench_deep::tests::common::utils: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T09:49:39  INFO trench_deep::tests::common::model::mlp: Initial error calculation...    
+2025-06-18T09:50:17  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T09:50:17  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.01, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T09:50:17  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T09:50:17  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T09:50:17  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T09:50:17  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T09:50:17  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 30(Hidden) -> 10(Output)    
+2025-06-18T09:50:17  INFO trench_deep::tests::common::utils: Activation Functions: Sigmoid (Hidden), Softmax (Output)    
+2025-06-18T09:50:17  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T09:50:17  INFO trench_deep::tests::common::utils: Starting model training...    
+2025-06-18T09:50:17  INFO trench_deep::tests::common::utils: Training Parameters: LR=0.01, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T09:50:17  INFO trench_deep::tests::common::model::mlp: Initial error calculation...    
+2025-06-18T09:52:28  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T09:52:28  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.005, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T09:52:28  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-18T09:52:28  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T09:52:28  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T09:52:28  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T09:52:28  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 30(Hidden) -> 10(Output)    
+2025-06-18T09:52:28  INFO trench_deep::tests::common::utils: Activation Functions: Sigmoid (Hidden), Softmax (Output)    
+2025-06-18T09:52:28  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T09:52:28  INFO trench_deep::tests::common::utils: Starting model training...    
+2025-06-18T09:52:28  INFO trench_deep::tests::common::utils: Training Parameters: LR=0.005, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T09:52:28  INFO trench_deep::tests::common::model::mlp: Initial error calculation...    
+2025-06-18T09:55:07  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-18T09:55:07  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 5000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.001, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-18T09:55:07  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 5000, Test: 1000)    
+2025-06-18T09:55:07  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-18T09:55:07  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-18T09:55:07  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-18T09:55:07  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 30(Hidden) -> 10(Output)    
+2025-06-18T09:55:07  INFO trench_deep::tests::common::utils: Activation Functions: Sigmoid (Hidden), Softmax (Output)    
+2025-06-18T09:55:07  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-18T09:55:07  INFO trench_deep::tests::common::utils: Starting model training...    
+2025-06-18T09:55:07  INFO trench_deep::tests::common::utils: Training Parameters: LR=0.001, Max Epochs=10, Tolerance=0.00001    
+2025-06-18T09:55:07  INFO trench_deep::tests::common::model::mlp: Initial error calculation...    

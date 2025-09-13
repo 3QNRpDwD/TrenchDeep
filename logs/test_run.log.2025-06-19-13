@@ -1,0 +1,63 @@
+2025-06-19T13:21:07  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-19T13:21:07  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.07, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-19T13:21:07  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-19T13:21:07  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-19T13:21:07  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-19T13:21:07  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-19T13:21:08  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-19T13:21:08  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-19T13:21:08  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-19T13:21:08  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-19T13:21:08  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.07, Max Epochs=10, Tolerance=0.00001    
+2025-06-19T13:21:08  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-19T13:22:07  INFO trench_deep::tests::common::model::regression::softmax: 🏁 Total training time: 59.10s. Final average loss: 0.024483    
+2025-06-19T13:22:07  INFO trench_deep::tests::mnist_test: Model training finished.    
+2025-06-19T13:22:07  INFO trench_deep::tests::common::evaluation: Starting model evaluation on 1000 test samples...    
+2025-06-19T13:22:07  INFO trench_deep::tests::common::evaluation: ✅ Evaluation complete: Accuracy = 85.40%    
+2025-06-19T13:22:07  INFO trench_deep::tests::mnist_test: 🎉 Target accuracy achieved! (85.40% > 80.00%)    
+2025-06-19T13:23:49  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-19T13:23:49  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.07, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-19T13:23:49  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-19T13:23:49  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-19T13:23:49  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-19T13:23:49  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-19T13:23:49  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-19T13:23:49  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-19T13:23:49  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-19T13:23:49  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-19T13:23:49  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.07, Max Epochs=10, Tolerance=0.00001    
+2025-06-19T13:23:49  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-19T13:24:48  INFO trench_deep::tests::common::model::regression::softmax: 🏁 Total training time: 58.79s. Final average loss: 0.025380    
+2025-06-19T13:24:48  INFO trench_deep::tests::mnist_test: Model training finished.    
+2025-06-19T13:24:48  INFO trench_deep::tests::common::evaluation: Starting model evaluation on 1000 test samples...    
+2025-06-19T13:24:48  INFO trench_deep::tests::common::evaluation: ✅ Evaluation complete: Accuracy = 86.00%    
+2025-06-19T13:24:48  INFO trench_deep::tests::mnist_test: 🎉 Target accuracy achieved! (86.00% > 80.00%)    
+2025-06-19T13:25:58  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-19T13:25:58  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.07, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-19T13:25:58  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-19T13:25:59  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-19T13:25:59  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-19T13:25:59  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-19T13:25:59  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-19T13:25:59  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-19T13:25:59  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-19T13:25:59  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-19T13:25:59  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.07, Max Epochs=10, Tolerance=0.00001    
+2025-06-19T13:25:59  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-19T13:26:10  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===    
+2025-06-19T13:26:10  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 1000, n_val: 1000, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.07, epochs: 10, tolerance: 1e-5, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }    
+2025-06-19T13:26:10  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 1000, Test: 1000)    
+2025-06-19T13:26:11  INFO trench_deep::tests::common::data: Converting data to model input format...    
+2025-06-19T13:26:11  INFO trench_deep::tests::common::data: Shuffling training data...    
+2025-06-19T13:26:11  INFO trench_deep::tests::common::data: Data preparation complete.    
+2025-06-19T13:26:11  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)    
+2025-06-19T13:26:11  INFO trench_deep::tests::common::utils: Activation Functions: Softmax (Output)    
+2025-06-19T13:26:11  INFO trench_deep::tests::common::utils: MLP model created successfully.    
+2025-06-19T13:26:11  INFO trench_deep::tests::mnist_test: Starting model training...    
+2025-06-19T13:26:11  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.07, Max Epochs=10, Tolerance=0.00001    
+2025-06-19T13:26:11  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...    
+2025-06-19T13:27:10  INFO trench_deep::tests::common::model::regression::softmax: 🏁 Total training time: 59.11s. Final average loss: 0.024793    
+2025-06-19T13:27:10  INFO trench_deep::tests::mnist_test: Model training finished.    
+2025-06-19T13:27:10  INFO trench_deep::tests::common::evaluation: Starting model evaluation on 1000 test samples...    
+2025-06-19T13:27:10  INFO trench_deep::tests::common::evaluation: ✅ Evaluation complete: Accuracy = 85.50%    
+2025-06-19T13:27:10  INFO trench_deep::tests::mnist_test: 🎉 Target accuracy achieved! (85.50% > 80.00%)    
