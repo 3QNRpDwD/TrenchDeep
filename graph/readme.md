@@ -143,39 +143,6 @@ done
 echo "Conversion complete!"
 ```
 
-## 🔬 Analysis and Insights
-
-### Optimization Functions
-The **Goldstein-Price** and **Rosenbrock** visualizations reveal:
-- **Computational Complexity**: Number of operations required
-- **Gradient Flow**: How derivatives propagate through the graph
-- **Bottlenecks**: Operations that might slow down computation
-- **Memory Usage**: Intermediate values that need storage
-
-### Neural Network Architecture  
-The **two-layer network** graphs show:
-- **Forward Pass**: Data flow from input to output
-- **Parameter Count**: Number of weights and biases
-- **Activation Patterns**: Where non-linearities are applied
-- **Loss Computation**: How error is calculated
-
-## 🎓 Educational Use Cases
-
-### For Students
-- **Understanding AD**: See how automatic differentiation builds computation graphs
-- **Architecture Visualization**: Understand neural network structure
-- **Optimization Insight**: Visualize complex mathematical functions
-
-### For Researchers  
-- **Debugging**: Identify issues in model architecture
-- **Performance Analysis**: Spot computational bottlenecks
-- **Algorithm Comparison**: Visualize different optimization landscapes
-
-### For Developers
-- **Code Verification**: Ensure operations are connected correctly
-- **Memory Profiling**: Understand intermediate value storage
-- **Optimization**: Identify redundant computations
-
 ## 🚀 Advanced Usage
 
 ### Custom Styling
