@@ -15,7 +15,6 @@ See [Issue #3](https://github.com/OWNER/REPO/issues/3) for details.
 Until this bug is resolved, please use the stable version at  
 [commit `d5dc143`](https://github.com/3QNRpDwD/TrenchDeep/tree/d5dc143a25c6cfb6a8c126aaa553a53eb9b93ce9).
 
-
 ## 📖 Table of Contents
 
 - [About](#about)
@@ -24,6 +23,7 @@ Until this bug is resolved, please use the stable version at
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Usage Examples](#usage-examples)
+- [Computation Graph Visualization](#computation-graph-visualization)
 - [API Reference](#api-reference)
 - [Configuration Features](#configuration-features)
 - [Testing](#testing)
@@ -85,6 +85,9 @@ TrenchDeep/
 │   ├── optimizer/         # Optimization algorithms
 │   └── tests/             # Integration tests
 │       └── common/        # Test utilities and models
+├── graph/                 # Generated visualization files
+│   ├── *.dot             # DOT format graphs
+│   └── *.svg             # SVG rendered graphs
 ├── Cargo.toml             # Project configuration
 └── README.md              # This file
 ```
@@ -259,6 +262,218 @@ fn mnist_classification() -> MlResult<()> {
 }
 ```
 
+## 🎨 Computation Graph Visualization
+
+TrenchDeep provides powerful visualization capabilities to help understand and debug neural networks and optimization functions. The framework can export computation graphs to DOT format, which can then be converted to various image formats.
+
+### 📊 Available Visualizations
+
+The repository includes several example computation graphs:
+
+#### 1. **Optimization Functions**
+- **`graph/rosenbrock.dot`**: Rosenbrock function (classic optimization benchmark)
+- **`graph/goldstein.dot`**: Goldstein-Price function (multimodal test function)
+
+#### 2. **Neural Networks** 
+- **`graph/twolayer.dot`**: Two-layer neural network with sigmoid activations
+- **`graph/twolayer_refactored.svg`**: Refactored two-layer network (pre-rendered SVG)
+
+### 🎭 Node Types and Color Scheme
+
+The visualization uses a modern, color-coded design system:
+
+| Node Type | Shape | Color | Description |
+|-----------|-------|-------|-------------|
+| **Input** | House | 🟢 Green (`#10B981`) | Input data/variables |
+| **Function** | Hexagon | 🔵 Blue (`#3B82F6`) | Mathematical operations |
+| **Variable** | Ellipse | 🟡 Amber (`#F59E0B`) | Intermediate values |
+| **Output** | Inverted House | 🔴 Red (`#EF4444`) | Final outputs |
+| **Weight** | Diamond | 🟣 Purple (`#8B5CF6`) | Learnable parameters |
+| **Bias** | Circle | 🟠 Orange (`#F97316`) | Bias terms |
+| **Loss** | Octagon | 🔴 Pink (`#EC4899`) | Loss functions |
+| **Activation** | Double Circle | 🔵 Cyan (`#06B6D4`) | Activation functions |
+
+### 🔧 Generating Visualization Files
+
+#### Enable Visualization Features
+
+```bash
+# Build with visualization support
+cargo build --features enableVisualization
+
+# Run tests with visualization
+cargo test --features enableVisualization
+```
+
+#### Programmatic Graph Export
+
+```rust
+use trench_deep::{
+    tensor::{graph::ComputationGraph, visualization::GraphViz},
+    MlResult
+};
+
+#[cfg(feature = "enableVisualization")]
+fn export_computation_graph() -> MlResult<()> {
+    // ... build your computation graph ...
+    
+    // Export to DOT format
+    let graph_viz = GraphViz::new();
+    let dot_content = graph_viz.export_to_dot(&ComputationGraph::current())?;
+    
+    // Save to file
+    std::fs::write("my_graph.dot", dot_content)?;
+    
+    Ok(())
+}
+```
+
+### 🖼️ Converting DOT Files to Images
+
+#### Prerequisites for Image Conversion
+
+Install Graphviz on your system:
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install graphviz
+
+# macOS (with Homebrew)
+brew install graphviz
+
+# Windows (with Chocolatey)
+choco install graphviz
+
+# Fedora/CentOS
+sudo dnf install graphviz
+```
+
+#### Conversion Commands
+
+```bash
+# Convert to PNG (high quality, good for documentation)
+dot -Tpng graph/rosenbrock.dot -o rosenbrock.png
+
+# Convert to SVG (vector format, scalable)
+dot -Tsvg graph/twolayer.dot -o twolayer.svg
+
+# Convert to PDF (print-ready)
+dot -Tpdf graph/goldstein.dot -o goldstein.pdf
+
+# Convert to JPG (smaller file size)
+dot -Tjpg graph/twolayer.dot -o twolayer.jpg
+
+# High-resolution PNG with DPI setting
+dot -Tpng -Gdpi=300 graph/goldstein.dot -o goldstein_hires.png
+```
+
+#### Batch Conversion Script
+
+Create a script to convert all DOT files at once:
+
+```bash
+#!/bin/bash
+# convert_graphs.sh
+
+# Create output directory
+mkdir -p images
+
+# Convert all .dot files to PNG
+for dotfile in graph/*.dot; do
+    filename=$(basename "$dotfile" .dot)
+    echo "Converting $filename..."
+    dot -Tpng -Gdpi=200 "$dotfile" -o "images/${filename}.png"
+done
+
+echo "All graphs converted to images/ directory"
+```
+
+Make it executable and run:
+
+```bash
+chmod +x convert_graphs.sh
+./convert_graphs.sh
+```
+
+### 🎯 Visualization Best Practices
+
+#### For Educational Purposes
+- Use **PNG** format for crisp documentation images
+- Set DPI to 200-300 for high-quality prints
+- **SVG** format for interactive web documentation
+
+#### For Publications
+- **PDF** format for academic papers
+- **EPS** format for LaTeX documents
+- High DPI PNG (300+) for conference presentations
+
+#### Example Output Formats
+
+```bash
+# Academic paper quality
+dot -Tpdf -Gsize="8,6" -Gdpi=300 graph/rosenbrock.dot -o paper_figure.pdf
+
+# Web documentation
+dot -Tsvg -Gsize="10,8" graph/twolayer.dot -o web_diagram.svg
+
+# Presentation slide
+dot -Tpng -Gdpi=150 -Gsize="12,9" graph/goldstein.dot -o slide.png
+```
+
+### 📈 Understanding the Generated Graphs
+
+#### Rosenbrock Function Visualization
+The Rosenbrock function graph shows:
+- Two input variables (x, y)
+- Squared terms and their combinations  
+- The classic "banana-shaped" valley optimization landscape
+
+#### Two-Layer Neural Network
+The neural network graph displays:
+- Input layer with data flow
+- Weight matrices (diamonds) and biases (circles)
+- Matrix multiplication operations
+- Sigmoid activation functions (double circles)
+- Output layer with loss computation
+
+#### Goldstein-Price Function  
+Complex multimodal function showing:
+- Multiple local minima structure
+- Polynomial term combinations
+- Nested mathematical operations
+
+### 🔍 Debugging with Visualizations
+
+#### Common Debugging Patterns
+
+```rust
+#[cfg(feature = "enableVisualization")]
+fn debug_gradient_flow() -> MlResult<()> {
+    // 1. Build your model
+    let model = create_model()?;
+    
+    // 2. Forward pass
+    let output = model.forward(&input)?;
+    let loss = loss_function.apply(&[&output, &target])?;
+    
+    // 3. Export BEFORE backward pass
+    export_graph("forward_pass.dot")?;
+    
+    // 4. Backward pass
+    loss.backward()?;
+    
+    // 5. Export AFTER backward pass (shows gradients)
+    export_graph("with_gradients.dot")?;
+    
+    Ok(())
+}
+```
+
+This workflow helps identify:
+- **Gradient vanishing/exploding**: Long chains of small/large values
+- **Dead neurons**: Missing connections or zero gradients  
+- **Architecture issues**: Unexpected graph topology
+
 ## 🛠️ Configuration Features
 
 TrenchDeep uses Cargo features for modular compilation:
@@ -283,8 +498,8 @@ enableVisualization = ["enableBackpropagation"]
 ### Usage with Features
 
 ```bash
-# functionality
-cargo test --features enableVisualization
+# Full functionality with visualization
+cargo test --features "enableVisualization"
 
 # Minimal build (inference only)
 cargo build --release
@@ -302,11 +517,10 @@ cargo build --all-features
 cargo test --features "enableBackpropagation"
 
 # Run specific benchmark tests
-test --lib benchmark --features enableBackpropagation
+cargo test --lib benchmark --features enableBackpropagation
 
 # Run MNIST integration test
 cargo test --package trench-deep --lib tests::mnist_test::softmax_regression_mnist_classification_integration_test --features enableBackpropagation
-
 ```
 
 ### Available Test Functions
@@ -360,8 +574,9 @@ fn main() {
     // Your code here
 }
 ```
+
 ```bash
-carge test --package trench-deep --lib <A "test code" path that reproduces bugs, if not, remove this phrase.> --features debugging
+cargo test --package trench-deep --lib <test_path> --features debugging
 ```
 
 ### Reporting Bugs
@@ -432,11 +647,12 @@ For questions, suggestions, or collaboration opportunities, feel free to reach o
 - **Rust Community** for excellent documentation and crates
 - **PyTorch** and **TensorFlow** for deep learning inspiration
 - **Educational Resources**:
-  - ["밑바닥 부터 시작하는 딥러닝 3" by 사이토 고키]([https://www.oreilly.com/library/view/deep-learning-from/9781492041405/](https://www.google.co.kr/books/edition/%EB%B0%91%EB%B0%94%EB%8B%A5%EB%B6%80%ED%84%B0_%EC%8B%9C%EC%9E%91%ED%95%98%EB%8A%94_%EB%94%A5%EB%9F%AC%EB%8B%9D_3/2uQKEAAAQBAJ?hl=ko&gbpv=0))
+  - ["밑바닥 부터 시작하는 딥러닝 3" by 사이토 고키](https://www.google.co.kr/books/edition/%EB%B0%91%EB%B0%94%EB%8B%A5%EB%B6%80%ED%84%B0_%EC%8B%9C%EC%9E%91%ED%95%98%EB%8A%94_%EB%94%A5%EB%9F%AC%EB%8B%9D_3/2uQKEAAAQBAJ?hl=ko&gbpv=0)
 - **Open Source Libraries**:
   - `mnist` crate for dataset loading
   - `indicatif` for progress bars
   - `serde` for serialization
+- **Graphviz** for powerful graph visualization capabilities
 
 ---
 
