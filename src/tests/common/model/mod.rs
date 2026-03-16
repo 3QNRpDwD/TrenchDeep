@@ -18,7 +18,7 @@ pub trait Model {
     fn compute_total_error(&mut self, X: &[&Variable], T: &[&Variable]) -> MlResult<f32>;
     fn evaluate_model(&mut self, x_test: &[&Variable], t_test: &[&Variable]) -> MlResult<f32> {
         let n_val = x_test.len();
-        info!("Starting model evaluation on {} test samples...", n_val);
+        // info!("Starting model evaluation on {} test samples...", n_val);
 
         let mut correct_predictions = 0;
         for i in 0..n_val {
@@ -53,7 +53,7 @@ pub trait Model {
         }
 
         let accuracy = correct_predictions as f32 / n_val as f32 * 100.0;
-        info!("✅ Evaluation complete: Accuracy = {:.2}%", accuracy);
+        // info!("✅ Evaluation complete: Accuracy = {:.2}%", accuracy);
 
         Ok(accuracy)
     }
