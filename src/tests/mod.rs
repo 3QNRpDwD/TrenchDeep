@@ -11,7 +11,6 @@ mod mnist_test {
             common::{
                 config::TestConfig,
                 data::{MnistDataset},
-                evaluation::evaluate_model,
                 utils::{generate_visualization, setup_logging},
                 model::{Model, SoftmaxRegression, MLP}
             }
@@ -38,7 +37,7 @@ mod mnist_test {
             config.tolerance,
         )?;
 
-        let accuracy = evaluate_model(&mut mlp, &dataset.x_test(), &dataset.t_test())?;
+        let accuracy = mlp.evaluate_model(&dataset.x_train(), &dataset.t_train())?;
 
         if accuracy > config.required_accuracy {
             info!("🎉 Target accuracy achieved! ({:.2}% > {:.2}%)",accuracy, config.required_accuracy);
@@ -76,9 +75,9 @@ mod mnist_test {
 
         info!("Model training finished.");
 
-        let accuracy = evaluate_model(&mut model, &dataset.x_test(), &dataset.t_test())?;
+        let accuracy = model.evaluate_model(&dataset.x_train(), &dataset.t_train())?;
         if accuracy > config.required_accuracy {
-            info!("🎉 Target accuracy achieved! ({:.2}% > {:.2}%)",accuracy, config.required_accuracy);
+            info!("🎉 Target accuracy achieved! ({:.2}% > {:.2}%)", accuracy, config.required_accuracy);
             model.save(&config.model_save_path)?;
         } else {
             warn!("⚠️ Target accuracy NOT met. (Actual: {:.2}%, Required: {:.2}%).",accuracy, config.required_accuracy);

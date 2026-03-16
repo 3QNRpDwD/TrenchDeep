@@ -21,9 +21,15 @@ pub fn evaluate_model(mlp: &mut dyn Model, x_test: &[&Variable], t_test: &[&Vari
             .unwrap_or(0);
 
         // 실제 레이블(one-hot)에서 정답 클래스의 인덱스를 찾습니다.
+        // let true_class = true_label_tensor.tensor().data()
+        //     .iter()
+        //     .position(|&r| r == 1.0)
+        //     .unwrap_or(0);
         let true_class = true_label_tensor.tensor().data()
             .iter()
-            .position(|&r| r == 1.0)
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(index, _)| index)
             .unwrap_or(0);
 
         if predicted_class == true_class {
