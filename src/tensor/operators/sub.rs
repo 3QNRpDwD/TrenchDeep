@@ -120,13 +120,13 @@ impl std::ops::Sub<&dyn TensorBase> for &dyn TensorBase {
 impl std::ops::SubAssign<Tensor> for Tensor {
     fn sub_assign(&mut self, other: Tensor) {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().assign_forward(&[self, &other], self.id()).unwrap().remove(0));
     }
 }
 
 impl std::ops::SubAssign<&Tensor> for Tensor {
     fn sub_assign(&mut self, other: &Tensor) {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().assign_forward(&[self, other], self.id()).unwrap().remove(0));
     }
 }

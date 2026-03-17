@@ -6,7 +6,6 @@ mod parameter;
 
 use crate::{register_operator, var_act, var_bias, var_weight, backend::Backend, MlResult, TensorError, tensor::{
     operators::{Add, Div, Matmul, Mul, Sub},
-    TENSOR_STORAGE,
     operators::Function,
     GlobalFunction,
     GlobalTensor,
@@ -131,6 +130,14 @@ pub trait Parameter: Debug {
                 Err(MlError::StringError("계산 그래프가 생성되지 않았습니다.".to_string()))
             }
         })
+    }
+
+    /// Performs backpropagation and then automatically resets the computation graph
+    /// to release memory for all intermediate tensors.
+    fn backward_and_clear(&self) -> MlResult<()> {
+        self.backward()?;
+        crate::tensor::ComputationGraph::reset_graph();
+        Ok(())
     }
 }
 

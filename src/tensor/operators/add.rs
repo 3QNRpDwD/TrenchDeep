@@ -134,12 +134,12 @@ impl std::ops::Add<&dyn TensorBase> for &dyn TensorBase {
 impl std::ops::AddAssign<Tensor> for Tensor {
     fn add_assign(&mut self, other: Tensor) {
         Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().assign_forward(&[self, &other], self.id()).unwrap().remove(0));
     }
 }
 
 impl std::ops::AddAssign<&Tensor> for Tensor {
     fn add_assign(&mut self, other: &Tensor) {
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().assign_forward(&[self, other], self.id()).unwrap().remove(0));
     }
 }

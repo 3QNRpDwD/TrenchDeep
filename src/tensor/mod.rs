@@ -122,15 +122,60 @@ pub struct GlobalFunction {
     func_id: NodeId,
 }
 
-#[derive(Clone)]
-pub struct Tensor (NodeId);
+#[derive(Debug)]
+pub struct TensorHandle {
+    id: NodeId,
+    label: String,
+}
+
+impl Drop for TensorHandle {
+    fn drop(&mut self) {
+        let id = self.id;
+        let label = self.label.clone();
+        TENSOR_STORAGE.with_borrow_mut(|storage| {
+            if storage.remove(&id).is_some() {
+                tracing::trace!("🔥 [Tensor Release] ID: {:?}, Label: '{}' - Memory freed.", id, label);
+            }
+        });
+    }
+}
+
+pub struct Tensor (Arc<TensorHandle>);
+
+impl Clone for Tensor {
+    fn clone(&self) -> Self {
+        let new_ref = Self(self.0.clone());
+        let rc = Arc::strong_count(&self.0);
+        tracing::trace!("✨ [Tensor Clone] ID: {:?}, Label: '{}', New RC: {}", self.id(), self.0.label, rc);
+        new_ref
+    }
+}
 // 기존의 텐서는 직접 variable 에 소유되는 구조로, 메모리 관리와 정적계산그래프 구현이 불가능하기 때문에 실제 텐서는 전역으로 관리하며 기존의 텐서는 아이디를 통해서 관리하도록 변경함.
 
 impl Tensor {
+    pub fn new_with_id(id: NodeId) -> Self {
+        let label = format!("tensor_{:?}", id);
+        tracing::trace!("🆕 [Tensor Create] ID: {:?}, Label: '{}'", id, label);
+        Self(Arc::new(TensorHandle { id, label }))
+    }
+
+    pub fn new_with_label(id: NodeId, label: &str) -> Self {
+        tracing::trace!("🆕 [Tensor Create] ID: {:?}, Label: '{}'", id, label);
+        Self(Arc::new(TensorHandle { id, label: label.to_string() }))
+    }
+
+    pub fn id(&self) -> NodeId {
+        self.0.id
+    }
+
     pub fn replace(&self, other_tensor: GlobalTensor<f32>) {
         TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage.insert(self.0, other_tensor)
+            storage.insert(self.id(), other_tensor)
         });
+    }
+
+    pub fn is_unique(&self) -> bool {
+        Arc::strong_count(&self.0) == 1
     }
 }
 
@@ -257,11 +302,11 @@ impl ExecutionContext {
     pub fn add_tensor(&mut self, tensor: GlobalTensor<f32>) -> Tensor {
         let node_id = self.node_id_generator.next();
         self.tensor_storage.insert(node_id, tensor);
-        Tensor(node_id)
+        Tensor::new_with_id(node_id)
     }
 
     pub fn get_tensor_data(&self, tensor: &Tensor) -> Option<&GlobalTensor<f32>> {
-        self.tensor_storage.get(&tensor.0)
+        self.tensor_storage.get(&tensor.id())
     }
 
     // ... 기타 필요한 헬퍼 메서드들 ...
