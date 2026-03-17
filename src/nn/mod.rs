@@ -1,32 +1,48 @@
+use std::{
+    cell::RefCell,
+    collections::HashSet,
+    fmt::{
+        Debug,
+        Formatter
+    },
+    ops::Deref,
+    sync::Arc
+};
+
+use crate::{
+    backend::Backend,
+    tensor::{
+        operators::{
+            Add,
+            AvgPool,
+            Conv2d,
+            Div,
+            Function,
+            Matmul,
+            MaxPool,
+            Mul,
+            Sub
+        },
+        GlobalTensor,
+        HandleId,
+        PooledTensor,
+        Tensor,
+        TensorBase,
+        TENSOR_ALLOCATOR
+    },
+    var_act,
+    var_bias,
+    var_weight,
+    MlError,
+    MlResult,
+    TensorError,
+};
+
 pub mod activation;
 pub mod conv;
 pub mod pooling;
 pub mod linear;
 mod parameter;
-
-use crate::{register_operator, var_act, var_bias, var_weight, var_loss, backend::Backend, MlResult, TensorError, tensor::{
-    operators::{Add, Div, Matmul, Mul, Sub},
-    operators::Function,
-    GlobalFunction,
-    GlobalTensor,
-    HandleId,
-    Tensor,
-    TensorBase
-}, MlError};
-use std::{
-    cell::RefCell,
-    fmt::{
-        Formatter,
-        Debug
-    },
-    ops::Deref,
-    collections::{
-        HashMap,
-        HashSet
-    },
-    sync::Arc
-};
-use crate::tensor::PooledTensor;
 
 #[macro_export]
 macro_rules! variable {
@@ -64,26 +80,26 @@ pub trait Layer: Debug {
 
 pub trait Parameter: Debug {
     fn new(tensor: Tensor) -> Self where Self: Sized;
-    
+
     fn node_id(&self) -> HandleId;
-    
+
     fn add_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
-        Add::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
+        Add::new().assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 
     fn sub_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
-        Sub::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
+        Sub::new().assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 
     fn mul_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
-        Mul::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
+        Mul::new().assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 
     fn div_tensor(&self, other_tensor: &dyn TensorBase) -> MlResult<()> {
-        Div::new()?.assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
+        Div::new().assign_forward(&[self.tensor(), other_tensor], self.node_id())?;
         Ok(())
     }
 
@@ -128,7 +144,7 @@ pub trait Parameter: Debug {
             }
         })
     }
-    
+
     fn tpye_name(&self) -> String {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown").replace("<f32>", "")
     }
@@ -141,19 +157,26 @@ pub struct Variable {
     #[cfg(all(feature = "enableVisualization"))]
     node_type: crate::tensor::NodeType,
     tensor: Tensor,
-    requires_grad: RefCell<bool>,
     grad: Tensor,
+    requires_grad: RefCell<bool>,
+    is_persistent: RefCell<bool>,
+}
+
+impl Variable {
+    pub fn is_persistent(&self) -> bool {
+        *self.is_persistent.borrow()
+    }
 }
 
 impl Debug for Variable {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut ds = f.debug_struct("Variable");
         ds
-            .field("tensor", &self.tensor)
-            .field("requires_grad", &self.requires_grad);
+            .field("tensor", &self.tensor.id())
+            .field("requires_grad", &self.requires_grad.take());
         #[cfg(feature = "enableBackpropagation")]
         {
-            ds.field("grad", &self.grad);
+            ds.field("grad", &self.grad.id());
         }
         ds.finish()
     }
@@ -163,26 +186,28 @@ pub struct Linear    {
     label: String,
     weight: Variable,
     bias: Variable,
-    matmul: GlobalFunction,
-    add: GlobalFunction
+    matmul: Arc<Matmul>,
+    add: Arc<Add>
 }
 
-#[derive(Debug)]
-pub struct Conv      {
+#[derive(Clone, Debug)]
+pub struct Conv {
     label: String,
-    inputs: HashSet<HandleId>,
-    outputs: HashMap<HandleId, HandleId>,
     weight: Variable,
-    bias: Variable
+    bias: Option<Variable>,
+    conv2d: Arc<Conv2d>,
 }
 
 #[derive(Debug)]
-pub struct Pooling  {
+pub struct MaxPooling  {
     label: String,
-    inputs: HashSet<HandleId>,
-    outputs: HashMap<HandleId, HandleId>,
-    weight: Arc<dyn Parameter>,
-    bias: Arc<dyn Parameter>,
+    max_pool: Arc<MaxPool>,
+}
+
+#[derive(Debug)]
+pub struct AvgPooling  {
+    label: String,
+    avg_pool: Arc<AvgPool>,
 }
 
 pub struct Sequential {

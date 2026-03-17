@@ -1,17 +1,6 @@
 use super::*;
 
 impl Function for Mul {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Mul)
-    }
-    
-    /// Multiplies two tensors element-wise
-    ///
-    /// # Arguments
-    /// * `other` - The tensor to multiply the current tensor by
-    ///
-    /// # Returns
-    /// A new tensor with the result of the element-wise multiplication
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let shape1 = targets[0].shape();
         let shape2 = targets[1].shape();
@@ -26,7 +15,7 @@ impl Function for Mul {
                 .map(|&x| x * scalar_value)
                 .collect::<Vec<f32>>();
 
-            Ok(vec![PooledTensor::from_vec(result, shape1)?])
+            Ok(vec![PooledTensor::from_vec(result, shape1).unwrap()])
         } else {
             // 기존 코드 유지
             match targets[0].chk_shape(targets[1]) {
@@ -34,7 +23,7 @@ impl Function for Mul {
                 _ => Ok(vec![PooledTensor::from_vec(
                     self.backend().multiply(targets[0].data(), targets[1].data()),
                     shape1
-                )?])
+                ).unwrap()])
             }
         }
     }
@@ -53,7 +42,7 @@ impl Function for Mul {
                 .map(|&x| x * scalar_value)
                 .collect::<Vec<f32>>();
 
-            Ok(vec![Tensor::with_id(result, shape1, node_id)?])
+            Ok(vec![Tensor::with_id(result, shape1, node_id).unwrap()])
         } else {
             // 기존 코드 유지
             match targets[0].chk_shape(targets[1]) {
@@ -62,7 +51,7 @@ impl Function for Mul {
                     self.backend().multiply(targets[0].data(), targets[1].data()),
                     shape1,
                     node_id
-                )?])
+                ).unwrap()])
             }
         }
     }
@@ -80,24 +69,12 @@ impl Function for Mul {
     fn node_id(&self) -> &HandleId { &self.node_id }
 }
 
-
-/// Multiply trait implementation for owned tensors
-///
-/// # Arguments
-/// * `other` - The tensor to multiply with self
-///
-/// # Returns
-/// A new tensor containing the element-wise product (Hadamard product)
-///
-/// # Note
-/// * This performs element-wise multiplication, not matrix multiplication
-/// * For matrix multiplication, use `matmul()` instead
 impl std::ops::Mul<Tensor> for Tensor {
     type Output = PooledTensor;
 
     fn mul(self, other: Tensor) -> Self::Output {
-        Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().forward(&[&self, &other]).unwrap().remove(0))
+        let op = Mul::new();
+        op.forward(&[&self, &other]).unwrap().remove(0)
     }
 }
 
@@ -105,8 +82,8 @@ impl std::ops::Mul<&Tensor> for Tensor {
     type Output = PooledTensor;
 
     fn mul(self, other: &Tensor) -> Self::Output {
-        Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().forward(&[&self, other]).unwrap().remove(0))
+        let op = Mul::new();
+        op.forward(&[&self, other]).unwrap().remove(0)
     }
 }
 
@@ -114,8 +91,8 @@ impl std::ops::Mul<&Tensor> for &Tensor {
     type Output = PooledTensor;
 
     fn mul(self, other: &Tensor) -> Self::Output {
-        Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().forward(&[self, other]).unwrap().remove(0))
+        let op = Mul::new();
+        op.forward(&[self, other]).unwrap().remove(0)
     }
 }
 
@@ -123,8 +100,8 @@ impl std::ops::Mul<&dyn TensorBase> for &dyn TensorBase {
     type Output = PooledTensor;
 
     fn mul(self, other: &dyn TensorBase) -> Self::Output {
-        Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().forward(&[self, other]).unwrap().remove(0))
+        let op = Mul::new();
+        op.forward(&[self, other]).unwrap().remove(0)
     }
 }
 
@@ -132,22 +109,48 @@ impl std::ops::Mul<Tensor> for &Tensor {
     type Output = PooledTensor;
 
     fn mul(self, other: Tensor) -> Self::Output {
-        Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().forward(&[self, &other]).unwrap().remove(0))
+        let op = Mul::new();
+        op.forward(&[self, &other]).unwrap().remove(0)
     }
 }
 
-/// MulAssign trait implementation for Tensor
 impl std::ops::MulAssign<Tensor> for Tensor {
     fn mul_assign(&mut self, other: Tensor) {
-        Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
+        let op = Mul::new();
+        op.assign_forward(&[self, &other], self.0).unwrap();
     }
 }
 
 impl std::ops::MulAssign<&Tensor> for Tensor {
     fn mul_assign(&mut self, other: &Tensor) {
-        Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
+        let op = Mul::new();
+        op.assign_forward(&[self, other], self.0).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tensor::operators::tests::assert_tensor_eq;
+    use crate::{tensor::{Tensor, TensorBase}, variable, MlResult};
+
+    #[test]
+    fn test_mul_backward() -> MlResult<()> {
+        let a = variable!(vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+        let b = variable!(vec![vec![5.0, 6.0], vec![7.0, 8.0]]);
+        let op = Mul::new();
+        let output = op.apply(&[&a, &b])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let grad_b = b.grad();
+
+        let expected_grad_a = Tensor::from_vec(vec![5.0, 6.0, 7.0, 8.0], &[2, 2])?;
+        let expected_grad_b = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], &[2, 2])?;
+        assert_tensor_eq(grad_a, &expected_grad_a)?;
+        assert_tensor_eq(grad_b, &expected_grad_b)?;
+
+        Ok(())
     }
 }

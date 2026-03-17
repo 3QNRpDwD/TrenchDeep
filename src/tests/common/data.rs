@@ -41,7 +41,7 @@ impl MnistDataset {
 
         info!("Converting data to model input format...");
         // 셔플을 위해 mut로 변경
-        let (mut x_train, mut t_train) = Self::convert_to_variable_dataset(&mnist_data.trn_img, &mnist_data.trn_lbl, n_train as usize, n_features, n_classes)?;
+        let (x_train, t_train) = Self::convert_to_variable_dataset(&mnist_data.trn_img, &mnist_data.trn_lbl, n_train as usize, n_features, n_classes)?;
         let (x_test, t_test) = Self::convert_to_variable_dataset(&mnist_data.tst_img, &mnist_data.tst_lbl, n_val as usize, n_features, n_classes)?;
 
         info!("Data preparation complete.");

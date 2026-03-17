@@ -1,9 +1,11 @@
+use super::*;
+use crate::backend::Device;
+use crate::define_op;
+
 pub mod sigmoid;
 pub mod tanh;
 pub mod relu;
 pub mod softmax;
-
-use super::*;
 
 pub trait Activation: Layer {}
 
@@ -12,50 +14,30 @@ impl Activation for SigmoidLayer {}
 impl Activation for ReLULayer {}
 impl Activation for TanhLayer {}
 
-#[derive(Debug, Clone)]
-pub struct Sigmoid { 
-    backend: Arc<dyn Backend>, node_id: HandleId
-}
+define_op!(Sigmoid);
+define_op!(Tanh);
+define_op!(ReLU);
+define_op!(Softmax);
 
 #[derive(Debug, Clone)]
 pub struct SigmoidLayer {
     label: String,
-    cache: HashMap<HandleId, HandleId>,
-    operator: GlobalFunction
-}
-
-#[derive(Debug, Clone)]
-pub struct Tanh    { 
-    backend: Arc<dyn Backend>, node_id: HandleId
+    operator: Arc<Sigmoid>
 }
 
 #[derive(Debug, Clone)]
 pub struct TanhLayer {
     label: String,
-    cache: HashMap<HandleId, HandleId>,
-    operator: GlobalFunction
-}
-
-#[derive(Debug, Clone)]
-pub struct ReLU { 
-    backend: Arc<dyn Backend>, node_id: HandleId
+    operator: Arc<Tanh>
 }
 
 #[derive(Debug, Clone)]
 pub struct ReLULayer {
     label: String,
-    cache: HashMap<HandleId, HandleId>,
-    operator: GlobalFunction
+    operator: Arc<ReLU>
 }
-
-#[derive(Debug, Clone)]
-pub struct Softmax { 
-    backend: Arc<dyn Backend>, node_id: HandleId
-}
-
 #[derive(Debug, Clone)]
 pub struct SoftmaxLayer {
     label: String,
-    cache: HashMap<HandleId, HandleId>,
-    operator: GlobalFunction
+    operator: Arc<Softmax>
 }

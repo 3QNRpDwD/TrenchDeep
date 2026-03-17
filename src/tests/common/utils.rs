@@ -1,10 +1,10 @@
 use super::*;
 
-pub fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
+pub fn setup_logging(debug_level: &str) -> tracing_appender::non_blocking::WorkerGuard {
     let file_appender = tracing_appender::rolling::hourly("logs", "test_run.log");
     let (non_blocking_appender, guard) = tracing_appender::non_blocking(file_appender);
     let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("debug"));
+        .unwrap_or_else(|_| EnvFilter::new(debug_level));
     let time_format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
     let file_layer = fmt::layer()
         .with_writer(non_blocking_appender)
@@ -31,31 +31,23 @@ pub fn argmax(data: &[f32]) -> Option<usize> {
 
 
 
-impl MLP {
-    pub fn build_model(n_input: usize, n_hidden : usize, n_output: usize) -> MlResult<MLP> {
-        let hidden_activation = Sigmoid::new()?;
-        let output_activation = Softmax::new()?;
-        let loss_function = CrossEntropyLoss::new()?;
-        let layer = Sequential::new();
-
-        info!("Network Structure: {}(Input) -> {}(Hidden) -> {}(Output)", n_input, n_hidden, n_output);
-        info!("Activation Functions: {} (Hidden), {} (Output)", hidden_activation.name(), output_activation.name());
-
-        let mlp = MLP::new(&[n_input, n_hidden, n_output], layer, loss_function);
-        info!("MLP model created successfully.");
-        Ok(mlp)
-    }
-
-    //모델의 학습이 더이상 진행되지 않는 상황에서 파라미터를 조정해봤으나, 유의미한 영향이 있지않았음.
-    // 오히려 학습률이 비정상적으로 작아지는등 모습을 보임.
-    // 따라서 레이어를 하나 더 추가했으나,이도 유의미한 결과를 내지 못하고있는것으로 보임. 마지막 방법으로, 옵티마이저를 적응형으로 변경하는 방안을 고려. 그 이후에도 해결되지 않는다면...
-}
+// impl MLP {
+//     pub fn build_model(n_input: usize, n_hidden : usize, n_output: usize) -> MlResult<MLP> {
+//         let mlp = MLP::new(&[n_input, n_hidden, n_output], SoftmaxCrossEntropyLoss::new()?);
+//         info!("Network Structure: {}(Input) -> {}(Hidden) -> {}(Output)", n_input, n_hidden, n_output);
+//         info!("MLP model created successfully.");
+//         Ok(mlp)
+//     }
+// 
+//     //모델의 학습이 더이상 진행되지 않는 상황에서 파라미터를 조정해봤으나, 유의미한 영향이 있지않았음.
+//     // 오히려 학습률이 비정상적으로 작아지는등 모습을 보임.
+//     // 따라서 레이어를 하나 더 추가했으나,이도 유의미한 결과를 내지 못하고있는것으로 보임. 마지막 방법으로, 옵티마이저를 적응형으로 변경하는 방안을 고려. 그 이후에도 해결되지 않는다면...
+// }
 
 impl SoftmaxRegression {
     pub fn build_model(n_input: usize, n_output: usize) -> MlResult<SoftmaxRegression> {
-        let loss_function = SoftmaxCrossEntropyLoss::new()?;
+        let sr = SoftmaxRegression::new(&[n_input, n_output], CrossEntropyLoss::new());
         info!("Network Structure: {}(Input) -> {}(Output)", n_input, n_output);
-        let sr = SoftmaxRegression::new(&[n_input, n_output], loss_function);
         info!("MLP model created successfully.");
         Ok(sr)
     }

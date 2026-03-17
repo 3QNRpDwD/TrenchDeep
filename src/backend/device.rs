@@ -45,12 +45,12 @@ impl DeviceManager {
     }
 
     pub fn global() -> &'static DeviceManager {
-        #[warn(static_mut_refs)]
         unsafe {
             INIT.call_once(|| {
                 GLOBAL_DEVICE_MANAGER = Some(DeviceManager::new());
 
                 // Initialize default device
+                #[warn(static_mut_refs)]
                 let _manager = GLOBAL_DEVICE_MANAGER.as_ref().unwrap();
 
                 // Select default device based on priority and availability
@@ -63,6 +63,7 @@ impl DeviceManager {
                 DEFAULT_DEVICE = Some(Mutex::new(device_type));
                 println!("Default device set to: {:?}", device_type);
             });
+            #[warn(static_mut_refs)]
             GLOBAL_DEVICE_MANAGER.as_ref().unwrap()
         }
     }

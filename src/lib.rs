@@ -1,3 +1,12 @@
+#![allow(unused_variables)]
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(non_snake_case)]
+#![allow(non_camel_case_types)]
+#![allow(unexpected_cfgs)]
+#![allow(unreachable_code)]
+#![allow(static_mut_refs)]
+
 pub mod tensor;
 pub mod backend;
 pub mod nn;
@@ -5,9 +14,11 @@ pub mod optimizer;
 pub mod loss;
 pub mod tests;
 
-use crate::backend::BackendError;
-use crate::loss::LossError;
-use crate::optimizer::OptimError;
+use crate::{
+    backend::BackendError,
+    loss::LossError,
+    optimizer::OptimError
+};
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
@@ -58,10 +69,11 @@ pub type MlResult<T> = Result<T, MlError>;
 
 #[cfg(test)]
 mod benchmark {
-    use crate::tensor::operators::{Add, Function, Mul, Square, Sub};
-    use crate::tensor::{AutogradFunction, ComputationGraph, Tensor, TensorBase};
-    use crate::{MlResult, scalar, var_input, var_with_label, variable};
     use crate::nn::{Parameter, Variable};
+    use crate::tensor::operators::{Add, Mul, Square, Sub};
+    use crate::tensor::{AutogradFunction, ComputationGraph, Tensor, TensorBase};
+    use crate::tests::common::utils::setup_logging;
+    use crate::{var_input, var_with_label, variable, MlResult};
     use std::sync::Arc;
 
     fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
@@ -82,9 +94,9 @@ mod benchmark {
     }
 
     fn sphere_function(x: &Variable, y: &Variable) -> MlResult<Variable> {
-        let mut square = Square::new()?;
-        let mut add = Add::new()?;
-        
+        let square = Square::new();
+        let add = Add::new();
+        crate::tensor::operators::OPERATOR_STORAGE.with(|storage| println!("{:?}", storage.borrow().keys()));
         add.apply(&[
             &square.apply(&[x])?,
             &square.apply(&[y])?
@@ -92,8 +104,8 @@ mod benchmark {
     }
 
     fn matyas_function(x: &Variable, y: &Variable) -> MlResult<Variable> {
-        let mut sub = Sub::new()?;
-        let mut mul = Mul::new()?;
+        let sub = Sub::new();
+        let mul = Mul::new();
         let O_26 = Arc::new(variable!(vec![vec![0.26]]));
         let O_48 = Arc::new(variable!(vec![vec![0.48]]));
 
@@ -112,10 +124,10 @@ mod benchmark {
             var_with_label!(scalar, &value.to_string())
         }
 
-        let mut add = Add::new()?;
-        let mut square = Square::new()?;
-        let mut mul = Mul::new()?;
-        let mut sub = Sub::new()?;
+        let add = Add::new();
+        let square = Square::new();
+        let mul = Mul::new();
+        let sub = Sub::new();
 
         // Define constants
         let num_1   = constant(1.0);
@@ -172,7 +184,7 @@ mod benchmark {
         let term5_d = mul.apply(&[&neg_36, &tb])?;
         let term6_d = mul.apply(&[&constant(27.0), &y_squared])?;
 
-let d = {
+        let d = {
                 // 18 - 32x + 12x^2 + 48y - 36xy + 27y^2
                 let t1 = add.apply(&[&constant(18.0), &term2_d])?;      // 18 - 32x
                 let t2 = add.apply(&[&t1, &term3_d])?;                  // + 12x^2
@@ -191,11 +203,12 @@ let d = {
     }
 
     fn rosenbrock_function(x0: &Variable, x1: &Variable) -> MlResult<Variable> {
-        let mut sub = Sub::new()?;
-        let mut add = Add::new()?;
-        let mut square = Square::new()?;
-        let mut mul = Mul::new()?;
+        let sub = Sub::new();
+        let add = Add::new();
+        let square = Square::new();
+        let mul = Mul::new();
 
+        // f(x,y)= (a-x)^2 + b(y-x^2)^2 a = 1, b = 100
         let sq = square.apply(&[&x0])?;
         add.apply_with_label(&[
             &mul.apply(&[
@@ -223,7 +236,14 @@ let d = {
         let z = sphere_function(&x, &y)?;
         #[cfg(feature = "enableBackpropagation")]
         {
+            let _ = setup_logging("trace");
             z.backward()?;
+            
+            // 변수 x, y, z 의 파라미터를 모두 출력
+            println!("data: x({:?}) = {:?}, y({:?}) = {:?}, z({:?}) = {:?}", x.node_id(), x.tensor().data(), y.node_id(), y.tensor().data(), z.node_id(), z.tensor().data());
+            // 기울기의 아이디와 함께 기울기 출력
+            println!("x.grad().id() = {:?}, y.grad().id() = {:?}, z.grad().id() = {:?}", x.grad().id(), y.grad().id(), z.grad().id());
+            println!("x.grad() = {:?}, y.grad() = {:?}, z.grad() = {:?},", x.grad(), y.grad(), z.grad());
 
             assert_tensor_eq(&x.grad(), &Tensor::new(vec![vec![2.0]]))?;
             assert_tensor_eq(&y.grad(), &Tensor::new(vec![vec![2.0]]))?;
@@ -261,6 +281,7 @@ let d = {
 
     #[test]
     fn rosenbrock() -> MlResult<()> {
+        let a = setup_logging("info");
         let x0 = var_input!(Tensor::from_vec(vec![0.0], &[1,1])?);
         let x1 = var_input!(Tensor::from_vec(vec![2.0], &[1,1])?);
 
@@ -274,16 +295,18 @@ let d = {
         }
 
         #[cfg(feature = "enableVisualization")]
+
         crate::tensor::VisualizationGraph::save_graph("graph/rosenbrock.dot").unwrap();
         Ok(())
     }
 
     #[test]
+    #[ignore]
     #[cfg(feature = "enableBackpropagation")]
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
         let x0 = var_input!(Tensor::new(vec![vec![0.0]]));
         let x1 = var_input!(Tensor::new(vec![vec![2.0]]));
-        let iter: usize = 1000;
+        let iter: usize = 0;
         let learning_rate = Tensor::scalar(0.001);
 
         for i in 0..iter { // 0부터

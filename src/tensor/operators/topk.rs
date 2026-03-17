@@ -1,22 +1,6 @@
 use super::*;
 
 impl Function for Topk {
-    fn new() -> MlResult<GlobalFunction> {
-        OPERATOR_STORAGE.with(|ops| {
-            let my = "Topk";
-            let mut ops = ops.borrow_mut();
-            match ops.contains_key(my) {
-                true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
-                false => {
-                    ops.insert(
-                        String::from(my),
-                        Box::new(Topk { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), topk: None })
-                    );
-                    Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
-                }
-            }
-        })
-    }
     /// Returns the k largest elements of the tensor along the last dimension.
     ///
     /// # Arguments
@@ -85,7 +69,28 @@ impl Function for Topk {
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<PooledTensor>> {
-        todo!()
+        let input = targets[0];
+        let output = self.forward(targets)?;
+        let indices = &output[1];
+
+        let mut grad_input_data = vec![0.0; input.data().len()];
+        let last_dim = input.shape().len() - 1;
+        let slice_size = input.shape()[last_dim];
+        let num_slices: usize = input.shape()[..last_dim].iter().product();
+
+        for slice_idx in 0..num_slices {
+            let grad_slice_start = slice_idx * self.topk.unwrap().0;
+            let input_slice_start = slice_idx * slice_size;
+
+            for i in 0..self.topk.unwrap().0 {
+                let grad_idx = grad_slice_start + i;
+                let original_idx = indices.data()[grad_idx] as usize;
+                let input_idx = input_slice_start + original_idx;
+                grad_input_data[input_idx] = grad.data()[grad_idx];
+            }
+        }
+
+        Ok(vec![PooledTensor::from_vec(grad_input_data, input.shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -96,32 +101,47 @@ impl Function for Topk {
 
 #[cfg(test)]
 mod tests {
+    use crate::nn::Parameter;
+    use crate::tensor::operators::tests::assert_tensor_eq;
     use crate::tensor::operators::{Function, Topk};
-    use crate::tensor::{Tensor, TensorBase};
-    use crate::{tensor_ops, MlResult};
+    use crate::tensor::{AutogradFunction, Tensor, TensorBase};
+    use crate::{tensor_ops, variable, MlResult};
 
     #[test]
     fn test_topk() -> MlResult<()> {
         // Test 1: Basic 1D tensor
-        // let buffer = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
-        // let (values, indices) = tensor_ops!(buffer, Topk, 3, true);
-        // assert_eq!(values.data(), &[5.0, 4.0, 3.0]);
-        // assert_eq!(indices.data(), &[4.0, 1.0, 2.0]);
-        // 
-        // // Test 2: 2D tensor
-        // let buffer = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0, 2.0, 3.0, 1.0, 4.0, 5.0], &[2, 5], )?;
-        // let (values, indices) = tensor_ops!(buffer, Topk, 2, true);
-        // assert_eq!(values.shape(), &[2, 2]);
-        // assert_eq!(values.data(), &[5.0, 4.0, 5.0, 4.0]);
-        // assert_eq!(indices.data(), &[4.0, 1.0, 4.0, 3.0]);
-        // 
-        // // Test 3: Unsorted output
-        // let buffer = Tensor::<f32>::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
-        // let (values, indices) = tensor_ops!(buffer, Topk ,3, false);
-        // assert_eq!(values.data(), &[4.0, 3.0, 5.0]);
-        // assert_eq!(indices.data(), &[1.0, 2.0, 4.0]);
+        let buffer = Tensor::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
+        let (values, indices) = tensor_ops!(buffer, Topk, Topk = Some((3, true)));
+        assert_eq!(values.data(), &[5.0, 4.0, 3.0]);
+        assert_eq!(indices.data(), &[4.0, 1.0, 2.0]);
         
-        todo!("Implement tests for Topk operator"); // Placeholder for actual test implementation
+        // Test 2: 2D tensor
+        let buffer = Tensor::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0, 2.0, 3.0, 1.0, 4.0, 5.0], &[2, 5], )?;
+        let (values, indices) = tensor_ops!(buffer, Topk, Topk = Some((2, true)));
+        assert_eq!(values.shape(), &[2, 2]);
+        assert_eq!(values.data(), &[5.0, 4.0, 5.0, 4.0]);
+        assert_eq!(indices.data(), &[4.0, 1.0, 4.0, 3.0]);
+        
+        // Test 3: Unsorted output
+        let buffer = Tensor::from_vec(vec![1.0, 4.0, 3.0, 2.0, 5.0], &[5])?;
+        let (values, indices) = tensor_ops!(buffer, Topk, Topk = Some((3, false)));
+        assert_eq!(values.data(), &[4.0, 3.0, 5.0]);
+        assert_eq!(indices.data(), &[1.0, 2.0, 4.0]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_topk_backward() -> MlResult<()> {
+        let a = variable!(vec![vec![1.0, 2.0, 5.0], vec![4.0, 3.0, 1.0]]);
+        let op = Topk::new(Some((2, true)));
+        let output = op.apply(&[&a])?;
+
+        output.backward()?;
+
+        let grad_a = a.grad();
+        let expected_grad = Tensor::from_vec(vec![0.0, 1.0, 1.0, 1.0, 1.0, 0.0], &[2, 3])?;
+        assert_tensor_eq(grad_a, &expected_grad)?;
 
         Ok(())
     }

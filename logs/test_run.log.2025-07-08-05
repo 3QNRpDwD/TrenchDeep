@@ -1,0 +1,158 @@
+running 1 test
+2025-07-08T05:26:13  INFO trench_deep::tests::mnist_test: === Starting MLP MNIST Classification Test with Config ===
+2025-07-08T05:26:13  INFO trench_deep::tests::mnist_test: TestConfig { n_train: 10, n_val: 10, n_features: 784, n_classes: 10, n_hidden_1: 128, n_hidden_2: 30, learning_rate: 0.001, epochs: 2, tolerance: 0.0001, required_accuracy: 80.0, model_save_path: "model_parameters.json", visualization_path: "graph/twolayer_refactored.svg" }
+2025-07-08T05:26:13  INFO trench_deep::tests::common::data: Loading MNIST dataset... (Train: 10, Test: 10)
+2025-07-08T05:26:13  INFO trench_deep::tests::common::data: Converting data to model input format...
+2025-07-08T05:26:13  INFO trench_deep::tests::common::data: Data preparation complete.
+2025-07-08T05:26:13  INFO trench_deep::tests::common::model::regression::softmax: SoftmaxRegression::new() - layer_parms: [10, 784], [10, 1]
+2025-07-08T05:26:13  INFO trench_deep::tests::common::utils: Network Structure: 784(Input) -> 10(Output)
+2025-07-08T05:26:13  INFO trench_deep::tests::common::utils: MLP model created successfully.
+2025-07-08T05:26:13  INFO trench_deep::tests::mnist_test: Starting model training...
+2025-07-08T05:26:13  INFO trench_deep::tests::mnist_test: Training Parameters: LR=0.001, Max Epochs=2, Tolerance=0.0001
+2025-07-08T05:26:13  INFO trench_deep::tests::mnist_test: Training model with 10 training samples...
+2025-07-08T05:26:13  INFO trench_deep::tests::common::model::regression::softmax: Initial error calculation...
+2025-07-08T05:26:13  INFO trench_deep::tests::common::model::regression::softmax: [784, 1]
+⠁ [00:00:00] [                                                                        ] 0/2 Epochs (0s) | Initial loss: 0.244198 | Avg Acc:      0% | Duration: 840.00µs2025-07-08T05:26:14  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(91)
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph: [Init] Clearing all existing gradients before backpropagation.
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Init] Identified output node (index: 8, id: HandleId(91))
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph: [Init] Setting initial gradient for output node 8. Shape: [1, 1], Size: 1. Value: 1.0
+2025-07-08T05:26:14  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 8, id: HandleId(91)
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph:   - Function to process: '"CrossEntropyLoss"'
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Operator Inputs: Calling op.backward for '"CrossEntropyLoss"' with:
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_tensor[0]: data=0.057115402
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_tensor[1]: data=1.0
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_grad: data=1.0
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"CrossEntropyLoss"' returned 2 gradients.
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - output_grads[0]: data=-1.7508411
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - output_grads[1]: data=0.28626814
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Accumulating gradient for input node (idx: 6, id: HandleId(94)). Grad shape: [10, 1]
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Accumulating gradient for input node (idx: 7, id: HandleId(6)). Grad shape: [10, 1]
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Clearing gradient for current node 8 after propagation.
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 6, id: HandleId(94)
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph:   - Function to process: '"Softmax"'
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Operator Inputs: Calling op.backward for '"Softmax"' with:
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_tensor[0]: data=-0.4683062
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_tensor[1]: data=0.057115402
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_grad: data=-1.7508411
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Softmax"' returned 1 gradients.
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - output_grads[0]: data=-0.09428845
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Accumulating gradient for input node (idx: 4, id: HandleId(90)). Grad shape: [10, 1]
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Clearing gradient for current node 6 after propagation.
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 4, id: HandleId(90)
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph:   - Function to process: '"Add"'
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Operator Inputs: Calling op.backward for '"Add"' with:
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_tensor[0]: data=-0.4683062
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_tensor[1]: data=0.0
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_grad: data=-0.09428845
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Add"' returned 2 gradients.
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - output_grads[0]: data=-0.09428845
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - output_grads[1]: data=-0.09428845
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Accumulating gradient for input node (idx: 2, id: HandleId(89)). Grad shape: [10, 1]
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Accumulating gradient for input node (idx: 3, id: HandleId(82)). Grad shape: [10, 1]
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Clearing gradient for current node 4 after propagation.
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 2, id: HandleId(89)
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph:   - Function to process: '"Matmul"'
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Operator Inputs: Calling op.backward for '"Matmul"' with:
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_tensor[0]: data=-0.012286633
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_tensor[1]: data=0.0
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_grad: data=-0.09428845
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Matmul"' returned 2 gradients.
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - output_grads[0]: data=0.0
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - output_grads[1]: data=0.002101719
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Accumulating gradient for input node (idx: 0, id: HandleId(81)). Grad shape: [10, 784]
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Accumulating gradient for input node (idx: 1, id: HandleId(4)). Grad shape: [784, 1]
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Clearing gradient for current node 2 after propagation.
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 7, id: HandleId(6)
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   -> Skipping node 7: It's a leaf node (no function).
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 5, id: HandleId(94)
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   -> Skipping node 5: It's a leaf node (no function).
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 3, id: HandleId(82)
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   -> Skipping node 3: It's a leaf node (no function).
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 1, id: HandleId(4)
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   -> Skipping node 1: It's a leaf node (no function).
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 0, id: HandleId(81)
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   -> Skipping node 0: It's a leaf node (no function).
+2025-07-08T05:26:14  INFO trench_deep::tensor::graph: [BACKWARD END] Backpropagation finished successfully.
+⠁ [00:00:00] [                                                                        ] 0/2 Epochs (0s) | Initial loss: 0.244198 | Avg Acc:      0% | Duration: 840.00µs
+  > Epoch   1/2   [ ███████                                                                   ] 1/10 Batches (6s) | FW: 690.68ms | BW: 20.07ms | GN: 1.02e0| UR: 5.52e-42025-07-08T05:26:14  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(91)
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph: [Init] Clearing all existing gradients before backpropagation.
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Init] Identified output node (index: 7, id: HandleId(91))
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph: [Init] Setting initial gradient for output node 7. Shape: [1, 1], Size: 1. Value: 1.0
+2025-07-08T05:26:14  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 7, id: HandleId(91)
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph:   - Function to process: '"CrossEntropyLoss"'
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Operator Inputs: Calling op.backward for '"CrossEntropyLoss"' with:
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_tensor[0]: data=0.103788234
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_tensor[1]: data=0.0
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_grad: data=1.0
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"CrossEntropyLoss"' returned 2 gradients.
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - output_grads[0]: data=-0.0
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - output_grads[1]: data=0.22654025
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Accumulating gradient for input node (idx: 5, id: HandleId(94)). Grad shape: [10, 1]
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Accumulating gradient for input node (idx: 6, id: HandleId(34)). Grad shape: [10, 1]
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Clearing gradient for current node 7 after propagation.
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 5, id: HandleId(94)
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph:   - Function to process: '"Softmax"'
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Operator Inputs: Calling op.backward for '"Softmax"' with:
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_tensor[0]: data=-0.0
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_tensor[1]: data=-0.0
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - input_grad: data=0.0
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Softmax"' returned 1 gradients.
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:     - output_grads[0]: data=0.0
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Accumulating gradient for input node (idx: 5, id: HandleId(94)). Grad shape: [10, 1]
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   - Clearing gradient for current node 5 after propagation.
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 4, id: HandleId(94)
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   -> Skipping node 4: Gradient is empty (no back-propagation path).
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 2, id: HandleId(6)
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   -> Skipping node 2: Gradient is empty (no back-propagation path).
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 6, id: HandleId(34)
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   -> Skipping node 6: It's a leaf node (no function).
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 3, id: HandleId(82)
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   -> Skipping node 3: It's a leaf node (no function).
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 1, id: HandleId(32)
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   -> Skipping node 1: It's a leaf node (no function).
+2025-07-08T05:26:14 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 0, id: HandleId(81)
+2025-07-08T05:26:14 TRACE trench_deep::tensor::graph:   -> Skipping node 0: It's a leaf node (no function).
+⠁ [00:00:00] [                                                                        ] 0/2 Epochs (0s) | Initial loss: 0.244198 | Avg Acc:      0% | Duration: 840.00µs
+  > Epoch   1/2   [ ██████████████                                                            ] 2/10 Batches (6s) | FW: 737.79ms | BW: 11.29ms | GN: 1.02e0| UR: 5.52e-42025-07-08T05:26:15  INFO trench_deep::tensor::graph: [BACKWARD START] Initiating backpropagation for output_id: HandleId(91)
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph: [Init] Clearing all existing gradients before backpropagation.
+2025-07-08T05:26:15 DEBUG trench_deep::tensor::graph: [Init] Identified output node (index: 7, id: HandleId(91))
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph: [Init] Setting initial gradient for output node 7. Shape: [1, 1], Size: 1. Value: 1.0
+2025-07-08T05:26:15  INFO trench_deep::tensor::graph: [MAIN LOOP] Starting reverse-order traversal of nodes.
+2025-07-08T05:26:15 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 7, id: HandleId(91)
+2025-07-08T05:26:15 DEBUG trench_deep::tensor::graph:   - Function to process: '"CrossEntropyLoss"'
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:   - Operator Inputs: Calling op.backward for '"CrossEntropyLoss"' with:
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:     - input_tensor[0]: data=0.10117569
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:     - input_tensor[1]: data=0.0
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:     - input_grad: data=1.0
+2025-07-08T05:26:15 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"CrossEntropyLoss"' returned 2 gradients.
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:     - output_grads[0]: data=0.22908969
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:     - output_grads[1]: data=0.22908969
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:   - Accumulating gradient for input node (idx: 5, id: HandleId(94)). Grad shape: [10, 1]
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:   - Accumulating gradient for input node (idx: 6, id: HandleId(22)). Grad shape: [10, 1]
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:   - Clearing gradient for current node 7 after propagation.
+2025-07-08T05:26:15 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 5, id: HandleId(94)
+2025-07-08T05:26:15 DEBUG trench_deep::tensor::graph:   - Function to process: '"Softmax"'
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:   - Operator Inputs: Calling op.backward for '"Softmax"' with:
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:     - input_tensor[0]: data=0.22908969
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:     - input_tensor[1]: data=0.22908969
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:     - input_grad: data=0.22908969
+2025-07-08T05:26:15 DEBUG trench_deep::tensor::graph:   - Operator Outputs: op.backward for '"Softmax"' returned 1 gradients.
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:     - output_grads[0]: data=-0.07054813
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:   - Accumulating gradient for input node (idx: 5, id: HandleId(94)). Grad shape: [10, 1]
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:   - Clearing gradient for current node 5 after propagation.
+2025-07-08T05:26:15 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 4, id: HandleId(94)
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:   -> Skipping node 4: Gradient is empty (no back-propagation path).
+2025-07-08T05:26:15 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 2, id: HandleId(34)
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:   -> Skipping node 2: Gradient is empty (no back-propagation path).
+2025-07-08T05:26:15 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 6, id: HandleId(22)
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:   -> Skipping node 6: It's a leaf node (no function).
+2025-07-08T05:26:15 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 3, id: HandleId(82)
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:   -> Skipping node 3: It's a leaf node (no function).
+2025-07-08T05:26:15 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 1, id: HandleId(20)
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:   -> Skipping node 1: It's a leaf node (no function).
+2025-07-08T05:26:15 DEBUG trench_deep::tensor::graph: [Node Processing] Current node_idx: 0, id: HandleId(81)
+2025-07-08T05:26:15 TRACE trench_deep::tensor::graph:   -> Skipping node 0: It's a leaf node (no function).
+⠁ [00:00:00] [                                                                        ] 0/2 Epochs (0s) | Initial loss: 0.244198 | Avg Acc:      0% | Duration: 840.00µs
+  > Epoch   1/2   [ █████████████████████                                                     ] 3/10 Batches (5s) | FW: 611.68ms | BW: 10.87ms | GN: 1.02e0| UR: 5.52e-4

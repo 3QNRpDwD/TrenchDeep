@@ -2,17 +2,15 @@ use super::*;
 
 impl Parameter for Variable {
     fn new(tensor: Tensor) -> Self {
-        #[cfg(feature = "enableVisualization")]
-        let label = crate::tensor::creation::LabelGenerator::generate_label(&tensor, None);
-
         Variable {
             #[cfg(feature = "enableVisualization")]
-            label,
+            label: crate::tensor::creation::LabelGenerator::generate_label(&tensor, None),
             #[cfg(feature = "enableVisualization")]
             node_type: crate::tensor::NodeType::Variable,
             grad: tensor.zeros_like(),
             tensor,
-            requires_grad: cfg!(feature = "requiresGrad").into()
+            requires_grad: RefCell::new(false),
+            is_persistent: RefCell::new(false),
         }
     }
 
@@ -24,12 +22,11 @@ impl Parameter for Variable {
         &self.tensor
     }
     fn is_retain_grad(&self) -> bool {
-        *self.requires_grad.borrow().deref()
+        *self.requires_grad.borrow()
     }
 
     fn retain_grad(&self) {
         self.requires_grad.replace(true);
-        self.grad.replace(GlobalTensor::zeros(self.tensor.shape()))
     }
 
     fn grad(&self) -> &Tensor {
@@ -41,8 +38,8 @@ impl Parameter for Variable {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn set_grad(&self, grad: GlobalTensor<f32>) {
-        self.grad.replace(grad);
+    fn set_grad(&self, grad_data: GlobalTensor<f32>) {
+        self.grad.replace(grad_data);
     }
 
     #[cfg(feature = "enableVisualization")]
@@ -64,24 +61,17 @@ impl Parameter for Variable {
     ///
     #[cfg(feature = "enableBackpropagation")]
     fn clear_grad(&self) {
-        if self.grad().is_empty() && !self.is_retain_grad() {
-            // TENSOR_STORAGE.with_borrow_mut(|storage| {
-            //     storage.remove(&self.grad().id()) // 만약 스토리지가 분리되면 그냥 그래프를 초기화하면 되기 때문에 성능이 더욱 향상될듯함
-            // });
-            // 기존에 Variable 이 텐서를 소유하던 구조에서 기울기를 지우던 로직을 그대로 사용해서
-            // 텐서 스토리지에 있던 기울기가 사라지지 않고 그대로 남아있던 문제가 있었음.
-            // 따라서 해당 부분을 지우는 로직을 추가함.
-            // 하지만 현재는 텐서 스토리지와 분리되어있지 않아, 게산그래프에서 추가되는 모든 텐서가 텐서 스토리지에 등록되어,
-            // 성능이 저하되는 문제가 있음. 따라서 텐서 스토리지와 계산그래프 전용 텐서 스토리지를 만들어서 완전히 분리하던가,
-            // 배치별로 다른 스토리지를 만들어서 관리하도록 하던가하는 방법으로 최적화 해야할듯함.
-            // 최종적으로 정적 계산그래프로 전환한다면 더욱 성능향상이 기대됨.
-            self.grad.replace(GlobalTensor::zeros(self.tensor.shape()));
+        if !self.is_retain_grad() {
+            TENSOR_ALLOCATOR.with_borrow_mut(|allocator| {
+                if let Some(grad_tensor) = allocator.get_tensor_mut(&self.grad.id()) {
+                    grad_tensor.data.fill(0.0);
+                }
+            });
         }
     }
 
     #[cfg(feature = "enableBackpropagation")]
     fn accumulate_grad(&self, new_grad: Tensor) -> MlResult<()> {
-        // 차원 검증 추가
         if self.grad.shape() != new_grad.shape() {
             return Err(TensorError::InvalidShape {
                 expected: self.grad.shape().to_vec(),
@@ -104,65 +94,49 @@ impl Parameter for Variable {
 impl Variable {
     /// 사용자 정의 라벨로 변수 생성
     pub fn with_label(tensor: Tensor, label_hint: &str) -> Self {
-        let label = "unlabeled".to_string();
-        let retains_grad = cfg!(feature = "requiresGrad");
+        let mut var = Variable::new(tensor);
+        var.is_persistent = RefCell:: new(false);
 
         #[cfg(feature = "enableVisualization")]
         {
             use crate::tensor::NodeType;
-            let label = crate::tensor::creation::LabelGenerator::generate_label(&tensor, Some(label_hint));
-            let node_type = if label.contains("input") {
+            let label = crate::tensor::creation::LabelGenerator::generate_label(&var.tensor, Some(label_hint));
+            var.label = label;
+            var.node_type = if var.label.contains("input") {
                 NodeType::Input
-            } else if label.contains("weight") {
+            } else if var.label.contains("weight") {
                 NodeType::Weight
-            } else if label.contains("bias") {
+            } else if var.label.contains("bias") {
                 NodeType::Bias
-            } else if label.contains("output") {
+            } else if var.label.contains("output") {
                 NodeType::Output
-            } else if label.contains("act") {
+            } else if var.label.contains("act") {
                 NodeType::Activation
-            } else if label.contains("loss") {
+            } else if var.label.contains("loss") {
                 NodeType::Loss
             } else {
                 NodeType::Variable
             };
-
-            return Variable {
-                #[cfg(feature = "enableVisualization")]
-                label,
-                #[cfg(feature = "enableVisualization")]
-                node_type: crate::tensor::NodeType::Variable,
-                grad: tensor.zeros_like(),
-                tensor,
-                requires_grad: cfg!(feature = "requiresGrad").into()
-            }
         }
+        var
+    }
 
-        Variable {
-            #[cfg(feature = "enableVisualization")]
-            label,
-            #[cfg(feature = "enableVisualization")]
-            node_type: crate::tensor::NodeType::Variable,
-            grad: tensor.zeros_like(),
-            tensor,
-            requires_grad: cfg!(feature = "requiresGrad").into()
-        }
+    pub fn new_persistent(tensor: Tensor, label_hint: &str) -> Self {
+        let mut var = Self::with_label(tensor, label_hint);
+        var.is_persistent = RefCell::new(true);
+        var
     }
 
     /// 특정 용도에 맞는 변수 생성자들
     #[cfg(feature = "enableVisualization")]
-    pub fn new_input(tensor: Tensor) -> Self {
-        Self::with_label(tensor, "input")
-    }
+    pub fn new_input(tensor: Tensor) -> Self { Self::new_persistent(tensor, "input") }
 
     #[cfg(feature = "enableVisualization")]
-    pub fn new_weight(tensor: Tensor) -> Self {
-        Self::with_label(tensor, "weight")
-    }
+    pub fn new_weight(tensor: Tensor) -> Self { Self::new_persistent(tensor, "weight") }
 
     #[cfg(feature = "enableVisualization")]
     pub fn new_bias(tensor: Tensor) -> Self {
-        Self::with_label(tensor, "bias")
+        Self::new_persistent(tensor, "bias")
     }
 
     #[cfg(feature = "enableVisualization")]
@@ -232,7 +206,7 @@ macro_rules! var_input {
 
             #[cfg(not(feature = "enableVisualization"))]
             {
-                crate::nn::Variable::new($tensor)
+                crate::nn::Variable::new_persistent($tensor, "input")
             }
         }
     };
@@ -283,7 +257,7 @@ macro_rules! var_weight {
 
             #[cfg(not(feature = "enableVisualization"))]
             {
-                crate::nn::Variable::new($tensor)
+                crate::nn::Variable::new_persistent($tensor, "weight")
             }
         }
     };
@@ -300,7 +274,7 @@ macro_rules! var_bias {
 
             #[cfg(not(feature = "enableVisualization"))]
             {
-                crate::nn::Variable::new($tensor)
+                crate::nn::Variable::new_persistent($tensor, "bias")
             }
         }
     };

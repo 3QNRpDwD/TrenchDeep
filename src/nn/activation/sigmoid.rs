@@ -1,12 +1,10 @@
-use crate::tensor::TENSOR_ALLOCATOR;
 use super::*;
 
 impl SigmoidLayer {
     pub fn new(label: &str) -> Self {
         Self {
             label: label.to_string(),
-            cache: HashMap::new(),
-            operator: Sigmoid::new().unwrap(),
+            operator: Sigmoid::new(),
         }
     }
 }
@@ -15,8 +13,9 @@ impl Layer for SigmoidLayer {
     #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let output = self.operator.forward(&[input.tensor()])?.remove(0);
-        let var_act = var_act!(output.to_id(false)?, self.label());
-        var_act.with_grad_fn(self.operator.name(), &[&input]);
+        let var_act = var_act!(output.to_id(true)?, self.label());
+        let op: Arc<dyn Function + Send + Sync> = self.operator.clone();
+        var_act.with_grad_fn(op, &[input]);
         Ok(var_act)
     }
 
@@ -31,10 +30,6 @@ impl Layer for SigmoidLayer {
 }
 
 impl Function for Sigmoid {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Sigmoid)
-    }
-    
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let x = targets[0];
         let ones = vec![1.0f32; x.data().len()];

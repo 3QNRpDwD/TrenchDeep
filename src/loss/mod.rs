@@ -1,12 +1,29 @@
-mod display;
-mod function;
-
-use crate::tensor::operators::{Function, Matmax, Sub};
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
-use crate::backend::{Backend, CpuBackend, Device};
-use crate::{register_operator, scalar, MlResult};
-use crate::tensor::{PooledTensor, GlobalFunction, HandleId, Tensor, TensorBase, NODE_ID_GEN, OPERATOR_STORAGE, GlobalTensor};
+
+use crate::{
+    backend::{
+        Backend
+        ,
+        Device
+    },
+    define_op,
+    scalar,
+    tensor::{
+        operators::Function
+        ,
+        HandleId,
+        PooledTensor,
+        Tensor,
+        TensorBase
+    },
+    MlError,
+    MlResult,
+    TensorError::InvalidInputCount
+};
+
+mod display;
+mod function;
 
 const EPSILON: f32 = 1e-15;
 
@@ -22,34 +39,14 @@ pub enum LossError {
     },
 }
 
-pub struct MeanSquaredError {
-    backend: Arc<dyn Backend>, node_id: HandleId,
-}
-
-pub struct MeanAbsoluteError {
-    backend: Arc<dyn Backend>, node_id: HandleId,
-}
-
-pub struct HuberLoss {
-    backend: Arc<dyn Backend>, node_id: HandleId, delta: f32,
-}
-
-pub struct BinaryCrossEntropyLoss {
-    backend: Arc<dyn Backend>, node_id: HandleId,
-}
-
-pub struct CrossEntropyLoss {
-    backend: Arc<dyn Backend>, node_id: HandleId,
-}
-
-pub struct SoftmaxCrossEntropyLoss {
-    backend: Arc<dyn Backend>, node_id: HandleId,
-}
+define_op!(MeanSquaredError);
+define_op!(MeanAbsoluteError);
+define_op!(HuberLoss, delta: f32);
+define_op!(BinaryCrossEntropyLoss);
+define_op!(CrossEntropyLoss);
+define_op!(SoftmaxCrossEntropyLoss);
 
 pub trait Loss: Function {
-    fn new() -> MlResult<GlobalFunction> where Self: Sized {
-        <Self as Function>::new()
-    }
     fn loss(&self, predict: Tensor, target: Tensor) -> MlResult<f32> {
         Ok(*<Self as Function>::forward(&self, &[&predict, &target])?.remove(0).data().first().unwrap())
     }

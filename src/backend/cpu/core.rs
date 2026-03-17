@@ -16,7 +16,7 @@ impl CpuCore {
     }
 
     pub fn calc_device_flops(&self) -> f64 {
-        let mut matmul = Matmul::new().unwrap();
+        let matmul = Matmul::new();
         // Create two large tensors for benchmarking
         let size = 1024;
         let elements = size * size;

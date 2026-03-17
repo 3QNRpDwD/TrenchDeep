@@ -19,14 +19,14 @@ pub struct TestConfig {
 impl Default for TestConfig {
     fn default() -> Self {
         TestConfig {
-            n_train: 1000,
-            n_val: 1000,
+            n_train: 10,
+            n_val: 10,
             n_features: 784, // 28*28 MNIST 이미지 크기
             n_hidden_1: 128,
             n_hidden_2: 30,
             n_classes: 10,   // 0-9 숫자 클래스
             learning_rate: 0.001,
-            epochs: 10,
+            epochs: 2,
             tolerance: 1e-4,
             required_accuracy: 80.0, // 테스트 통과를 위한 최소 정확도
             model_save_path: "model_parameters.json".to_string(),

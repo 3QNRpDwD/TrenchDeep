@@ -1,14 +1,19 @@
-use crate::nn::Layer;
 use super::*;
+use crate::tensor::TENSOR_ALLOCATOR;
+use crate::tensor::{AutogradFunction, PooledTensor};
+use std::ops::Deref;
+
+use crate::tensor::operators::Function;
+use std::sync::Arc;
 
 impl SoftmaxRegression {
     pub fn new(
         layer_parms: &[usize],
-        loss_function: GlobalFunction,
+        loss_function: Arc<CrossEntropyLoss>,
     ) -> Self {
         let layer = Sequential::new()
-            .add_layer(Linear::new(layer_parms[0], layer_parms[1], "linea layer").unwrap());
-            // .add_layer(SoftmaxLayer::new("softmax layer"));
+            .add_layer(Linear::new(layer_parms[0], layer_parms[1], "linea layer").unwrap())
+            .add_layer(crate::nn::activation::SoftmaxLayer::new("softmax layer"));
         
         info!("SoftmaxRegression::new() - layer_parms: {:?}, {:?}", layer.params()[0].tensor().shape(), layer.params()[1].tensor().shape());
         Self { layer, loss_function }
@@ -65,15 +70,16 @@ impl Model for SoftmaxRegression {
             combined_train_data.shuffle(&mut rng);
 
             for (x, t) in combined_train_data.into_iter() {
-                ComputationGraph::reset_graph();
                 // --- 2. 순전파 시간 측정 ---
                 let forward_start = Instant::now();
 
                 let y = self.apply(x)?;
-                // let loss_var = self.loss_function.apply_with_label(&[&y, &t], "loss")?;
+                #[cfg(feature = "enableVisualization")]
+                crate::tensor::VisualizationGraph::render_to_svg(format!("graph/softmax_regression_{}_{:?}_{:?}.svg", epoch, (x.node_id(), x.node_type()), (t.node_id(), t.node_type()))).unwrap();
+                let loss_var = self.loss_function.apply(&[&y, &t])?;
 
                 let forward_duration = forward_start.elapsed();
-                let y_pred_idx = utils::argmax(y.tensor().data()); // 예측값의 argmax
+                let y_pred_idx = utils::argmax(loss_var.tensor().data()); // 예측값의 argmax
                 let t_true_idx = utils::argmax(t.tensor().data()); // 실제 정답의 argmax
                 if let (Some(pred_idx), Some(true_idx)) = (y_pred_idx, t_true_idx) {
                     if pred_idx == true_idx {
@@ -81,11 +87,11 @@ impl Model for SoftmaxRegression {
                     }
                     total_samples += 1;
                 }
-                total_loss += y.tensor().data()[0];
+                total_loss += loss_var.tensor().data()[0];
 
                 // --- 3. 역전파 시간 측정 ---
                 let backward_start = Instant::now();
-                y.backward()?;
+                loss_var.backward()?;
                 let backward_duration = backward_start.elapsed();
                 let param = self.layer.params();
                 let grad_norm = param[0].grad().data().iter().map(|&x| x * x).sum::<f32>().sqrt();
@@ -101,8 +107,8 @@ impl Model for SoftmaxRegression {
                 let update_norm = param[0].grad().data().iter().map(|&g| (learning_rate * g).powi(2)).sum::<f32>().sqrt();
                 let weight_norm = param[0].tensor().data().iter().map(|&w| w * w).sum::<f32>().sqrt();
                 let update_ratio = if weight_norm > 1e-6 { update_norm / weight_norm } else { 0.0 };
-
                 self.zero_grad()?;
+                ComputationGraph::reset_graph();
 
                 // ... batch_log_message 포맷팅 수정
                 let batch_log_message = format!(

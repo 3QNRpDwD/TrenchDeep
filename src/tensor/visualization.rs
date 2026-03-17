@@ -1,8 +1,7 @@
 use super::*;
 
-use std::collections::{HashMap, HashSet};
 #[cfg(feature = "enableVisualization")]
-use crate::tensor::{LABEL_COUNTERS, HandleId, NodeType, VISUALIZATION_GRAPH, VisualizationGraph};
+use crate::tensor::{HandleId, NodeType, VisualizationGraph, LABEL_COUNTERS, VISUALIZATION_GRAPH};
 
 #[cfg(feature = "enableVisualization")]
 impl VisualizationGraph {

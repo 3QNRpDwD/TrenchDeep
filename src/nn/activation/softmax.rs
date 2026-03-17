@@ -1,12 +1,12 @@
 use crate::tensor::TENSOR_ALLOCATOR;
+
 use super::*;
 
 impl SoftmaxLayer {
     pub fn new(label: &str) -> Self {
         Self {
             label: label.to_string(),
-            cache: HashMap::new(),
-            operator: Softmax::new().unwrap(),
+            operator: Softmax::new()
         }
     }
 }
@@ -15,8 +15,9 @@ impl Layer for SoftmaxLayer {
     #[cfg(feature = "enableBackpropagation")]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let output = self.operator.forward(&[input.tensor()])?.remove(0);
-        let var_act = var_act!(output.to_id(false)?, self.label());
-        var_act.with_grad_fn(self.operator.name(), &[&input]);
+        let var_act = var_act!(output.to_id(true)?, self.label());
+        let op: Arc<dyn Function + Send + Sync> = self.operator.clone();
+        var_act.with_grad_fn(op, &[input]);
         Ok(var_act)
     }
 
@@ -33,13 +34,9 @@ impl Layer for SoftmaxLayer {
 }
 
 impl Function for Softmax {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Softmax)
-    }
-
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<PooledTensor>> {
         let input = targets[0];
-        let input_data = input.data();
+        let input_data = input.data().to_vec();
         let max_val = input_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
         let exp_values: Vec<f32> = input_data.iter().map(|&x| (x - max_val).exp()).collect();
         let sum_of_exps: f32 = exp_values.iter().sum();

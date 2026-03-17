@@ -1,4 +1,3 @@
-use crate::tensor::TENSOR_ALLOCATOR;
 use super::*;
 
 impl Linear {
@@ -23,8 +22,8 @@ impl Linear {
             label: label.to_string(),
             weight: var_weight!(weight_tensor),
             bias: var_bias!(bias_tensor),
-            matmul: Matmul::new()?,
-            add: Add::new()?,
+            matmul: Matmul::new(),
+            add: Add::new(),
         })
     }
 }
@@ -36,24 +35,23 @@ impl Layer for Linear {
             self.matmul
                 .forward(&[self.weight.tensor(), input.tensor()])?
                 .remove(0)
-                .to_id(false)?);
+                .to_id(true)?);
         let output = Variable::new(
             self.add
                 .forward(&[x.tensor(), self.bias.tensor()])?
                 .remove(0)
-                .to_id(false)?);
+                .to_id(true)?);
 
-        x.with_grad_fn(self.matmul.name(), &[&self.weight, &input]); // 입출력에 대한 계산그래프 구성을 재설계 해야함
-        output.with_grad_fn(self.add.name(), &[&x, &self.bias]);
+        let matmul: Arc<dyn Function + Send + Sync> = self.matmul.clone();
+        let add: Arc<dyn Function + Send + Sync> = self.add.clone();
+        x.with_grad_fn(matmul, &[&self.weight, &input]); // 입출력에 대한 계산그래프 구성을 재설계 해야함
+        output.with_grad_fn(add, &[&x, &self.bias]);
         Ok(output)
     }
 
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
-        let weight_tensor = self.weight.tensor();
-        let bias_tensor = self.bias.tensor();
-
-        let x = self.matmul.forward(&[weight_tensor, input])?.remove(0);
-        let output = self.add.forward(&[&x, bias_tensor])?.remove(0);
+        let x = self.matmul.forward(&[self.weight.tensor(), input])?.remove(0);
+        let output = self.add.forward(&[&x, self.bias.tensor()])?.remove(0);
 
         Ok(TENSOR_ALLOCATOR.with_borrow(|alloc| alloc.get_tensor_ref(&output.id()).cloned().unwrap()))
     }
