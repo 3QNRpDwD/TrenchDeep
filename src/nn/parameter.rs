@@ -36,6 +36,10 @@ impl Parameter for Variable {
         &self.grad
     }
 
+    fn mut_grad(&mut self) -> &mut Tensor {
+        &mut self.grad
+    }
+
     #[cfg(feature = "enableBackpropagation")]
     fn set_grad(&self, grad: GlobalTensor<f32>) {
         self.grad.replace(grad);

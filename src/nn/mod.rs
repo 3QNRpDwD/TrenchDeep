@@ -94,6 +94,8 @@ pub trait Parameter: Debug {
 
     fn grad(&self) -> &Tensor;
 
+    fn mut_grad(&mut self) -> &mut Tensor;
+
     #[cfg(feature = "enableBackpropagation")]
     fn set_grad(&self, grad: GlobalTensor<f32>);
 
