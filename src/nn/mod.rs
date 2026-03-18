@@ -3,6 +3,7 @@ pub mod conv;
 pub mod pooling;
 pub mod linear;
 mod parameter;
+mod checkpoint;
 
 use crate::{register_operator, var_act, var_bias, var_weight, backend::Backend, MlResult, TensorError, tensor::{
     operators::{Add, Div, Matmul, Mul, Sub},
@@ -143,7 +144,6 @@ pub trait Parameter: Debug {
 
 #[derive(Clone)]
 pub struct Variable {
-    #[cfg(all(feature = "enableVisualization"))]
     label: String,
     #[cfg(all(feature = "enableVisualization"))]
     node_type: crate::tensor::NodeType,
