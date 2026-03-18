@@ -126,15 +126,21 @@ pub struct GlobalFunction {
 pub struct TensorHandle {
     id: NodeId,
     label: String,
+    owns_data: bool,
 }
 
 impl Drop for TensorHandle {
     fn drop(&mut self) {
+        if !self.owns_data {
+            return;
+        }
         let id = self.id;
         let label = self.label.clone();
         TENSOR_STORAGE.with_borrow_mut(|storage| {
             if storage.remove(&id).is_some() {
-                tracing::trace!("🔥 [Tensor Release] ID: {:?}, Label: '{}' - Memory freed.", id, label);
+                if id.0 % 100 == 0 {
+                    tracing::trace!("🔥 [Tensor Release] ID: {:?}, Label: '{}' - Memory freed.", id, label);
+                }
             }
         });
     }
@@ -146,7 +152,9 @@ impl Clone for Tensor {
     fn clone(&self) -> Self {
         let new_ref = Self(self.0.clone());
         let rc = Arc::strong_count(&self.0);
-        tracing::trace!("✨ [Tensor Clone] ID: {:?}, Label: '{}', New RC: {}", self.id(), self.0.label, rc);
+        if self.id().0 % 100 == 0 {
+            tracing::trace!("✨ [Tensor Clone] ID: {:?}, Label: '{}', New RC: {}", self.id(), self.0.label, rc);
+        }
         new_ref
     }
 }
@@ -155,13 +163,22 @@ impl Clone for Tensor {
 impl Tensor {
     pub fn new_with_id(id: NodeId) -> Self {
         let label = format!("tensor_{:?}", id);
-        tracing::trace!("🆕 [Tensor Create] ID: {:?}, Label: '{}'", id, label);
-        Self(Arc::new(TensorHandle { id, label }))
+        if id.0 % 100 == 0 {
+            tracing::trace!("🆕 [Tensor Create] ID: {:?}, Label: '{}'", id, label);
+        }
+        Self(Arc::new(TensorHandle { id, label, owns_data: true }))
     }
 
     pub fn new_with_label(id: NodeId, label: &str) -> Self {
-        tracing::trace!("🆕 [Tensor Create] ID: {:?}, Label: '{}'", id, label);
-        Self(Arc::new(TensorHandle { id, label: label.to_string() }))
+        if id.0 % 100 == 0 {
+            tracing::trace!("🆕 [Tensor Create] ID: {:?}, Label: '{}'", id, label);
+        }
+        Self(Arc::new(TensorHandle { id, label: label.to_string(), owns_data: true }))
+    }
+
+    pub fn new_ref(id: NodeId) -> Self {
+        let label = format!("tensor_ref_{:?}", id);
+        Self(Arc::new(TensorHandle { id, label, owns_data: false }))
     }
 
     pub fn id(&self) -> NodeId {

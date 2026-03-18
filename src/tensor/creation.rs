@@ -182,7 +182,7 @@ impl GlobalTensor<f32> {
             storage.insert(node_id, self)
         });
 
-        Ok(Tensor::new_with_id(node_id))
+        Ok(Tensor::new_ref(node_id))
     }
     
     pub fn new_empty() -> GlobalTensor<f32> { 
@@ -204,7 +204,7 @@ impl Tensor {
             storage.insert(node_id, GlobalTensor { data, shape: shape.to_vec() })
         });
 
-        Ok(Tensor::new_with_id(node_id))
+        Ok(Tensor::new_ref(node_id))
     }
     
     pub fn to_id(self) -> NodeId {

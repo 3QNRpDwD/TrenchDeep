@@ -1,5 +1,4 @@
 use crate::nn::Layer;
-use crate::tests::common::evaluation::evaluate_model;
 use super::*;
 
 impl SoftmaxRegression {
