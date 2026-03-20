@@ -26,14 +26,13 @@ pub mod visualization;
 
 use crate::{MlError, MlResult, register_operator, tensor::operators::Function, TensorError};
 use crate::nn::{Parameter, Variable};
-use crate::tensor:: {operators::Pow};
 
 #[macro_export]
 macro_rules! tensor_ops {
     ($tensor:expr, Pow, $exponent:expr) => {{
-        let mut op = Pow::new().unwrap();
-        op.power = Some($exponent);
-        op.forward(&[&$tensor]).unwrap().remove(0)
+        let op = crate::tensor::operators::Pow::new().unwrap();
+        let power_t = Tensor::scalar($exponent);
+        op.forward(&[&$tensor, &power_t]).unwrap().remove(0)
     }};
 
     ($tensor:expr, $op:ident, $second_tensor:expr) => {
@@ -45,16 +44,22 @@ macro_rules! tensor_ops {
     };
 
     ($tensor:expr, Topk, $k:expr, $sorted:expr) => {{
-        let mut op = Topk::new().unwrap();
-        op.topk = Some(($k, $sorted));
-        let mut result = op.forward(&[&$tensor]).unwrap();
+        let op = crate::tensor::operators::Topk::new().unwrap();
+        let k_t = Tensor::scalar($k as f32);
+        let sorted_t = Tensor::scalar(if $sorted { 1.0 } else { 0.0 });
+        let mut result = op.forward(&[&$tensor, &k_t, &sorted_t]).unwrap();
         (result.remove(0), result.remove(0))
     }};
 
     ($tensor:expr, Matmax, $dim:expr, $keepdim:expr) => {{
-        let mut op = Matmax::new().unwrap();
-        op.matmax = Some(($dim, $keepdim));
-        let mut result = op.forward(&[&$tensor]).unwrap();
+        let op = crate::tensor::operators::Matmax::new().unwrap();
+        let dim_val: Option<i32> = $dim;
+        let dim_t = match dim_val {
+            Some(d) => Tensor::scalar(d as f32),
+            None => Tensor::scalar(f32::NAN),
+        };
+        let keepdim_t = Tensor::scalar(if $keepdim { 1.0 } else { 0.0 });
+        let mut result = op.forward(&[&$tensor, &dim_t, &keepdim_t]).unwrap();
         (result.remove(0), result.remove(0))
     }};
 }
@@ -561,10 +566,9 @@ mod tests {
 
     #[test]
     fn test_pow_macro() {
-        todo!(" Pow macro test is not implemented yet. It requires a Pow operator implementation."); // 전역으로 선언된 pow 구조체의 내부 power 필드에 접근할수 있는 방법이 필요함
-        // let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
-        // let result = tensor_ops!(tensor, Pow, 2.0);
-        // assert_eq!(result.data(), vec![4.0, 9.0]);
+        let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
+        let result = tensor_ops!(tensor, Pow, 2.0);
+        assert_eq!(result.data(), vec![4.0, 9.0]);
     }
 
     #[test]

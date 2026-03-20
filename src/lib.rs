@@ -62,7 +62,6 @@ mod benchmark {
     use crate::tensor::{AutogradFunction, ComputationGraph, Tensor, TensorBase};
     use crate::{MlResult, scalar, var_input, var_with_label, variable};
     use crate::nn::{Parameter, Variable};
-    use std::sync::Arc;
 
     fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
         if tensor.shape() != expected_tensor.shape() {
@@ -94,8 +93,8 @@ mod benchmark {
     fn matyas_function(x: &Variable, y: &Variable) -> MlResult<Variable> {
         let mut sub = Sub::new()?;
         let mut mul = Mul::new()?;
-        let O_26 = Arc::new(variable!(vec![vec![0.26]]));
-        let O_48 = Arc::new(variable!(vec![vec![0.48]]));
+        let O_26 = variable!(vec![vec![0.26]]);
+        let O_48 = variable!(vec![vec![0.48]]);
 
         let sphere = sphere_function(x, y)?;
         let t = mul.apply(&[x, y])?;

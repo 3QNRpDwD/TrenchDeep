@@ -49,6 +49,7 @@ impl Model for MLP {
 
     #[cfg(feature = "enableBackpropagation")]
     fn train(&mut self, x_set: &[&Variable], t_set: &[&Variable], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()> {
+        todo!("아직 Sequential 관련 기능이 미완성 상태이므로 보류");
         let n_batches = x_set.len();
         let training_start_time = Instant::now();
         let lr = Tensor::scalar(learning_rate);

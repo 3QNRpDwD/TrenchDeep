@@ -60,7 +60,7 @@ impl Parameter for Variable {
     ///
     #[cfg(feature = "enableBackpropagation")]
     fn clear_grad(&self) {
-        if self.grad().is_empty() && !self.is_retain_grad() {
+        if !self.grad().is_empty() && !self.is_retain_grad() {
             // TENSOR_STORAGE.with_borrow_mut(|storage| {
             //     storage.remove(&self.grad().id()) // 만약 스토리지가 분리되면 그냥 그래프를 초기화하면 되기 때문에 성능이 더욱 향상될듯함
             // });

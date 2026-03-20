@@ -82,10 +82,10 @@ define_op!(Matmul);
 define_op!(Sin);  // 일반적인 사인 함수입니다.
 define_op!(Cos);  // 일반적인 코사인 함수입니다.d
 define_op!(Reshape);
-define_op!(Transpose, dims: (i32, i32));
-define_op!(Pow, power: Option<f32>);
-define_op!(Topk, topk: Option<(usize, bool)>);
-define_op!(Matmax, matmax: Option<(Option<i32>, bool)>);
+define_op!(Transpose);
+define_op!(Pow);
+define_op!(Topk);
+define_op!(Matmax);
 define_op!(ApproxSin, threshold: f32);  // 테일러급수를 사용한 사인 함수 입니다.
 define_op!(ApproxCos, threshold: f32);  // 테일러급수를 사용한 코사인 함수 입니다
 
@@ -310,7 +310,7 @@ mod tests {
         let mut square = Square::new()?;
         let mut exp = Exp::new()?;
 
-        let x = Arc::new(variable!(vec![vec![0.5]]));
+        let x = variable!(vec![vec![0.5]]);
         let a = square.apply(&[&x])?;
         let b = exp   .apply(&[&a])?;
         let y = square.apply(&[&b])?;
@@ -337,8 +337,8 @@ mod tests {
     fn wtf() -> MlResult<()> {
         let mut add = Add::new()?;
 
-        let x0 = Arc::new(variable!(vec![vec![1.0]]));
-        let x1 = Arc::new(variable!(vec![vec![1.0]]));
+        let x0 = variable!(vec![vec![1.0]]);
+        let x1 = variable!(vec![vec![1.0]]);
         let t = add.apply(&[&x0, &x1])?; // t = x0 + x1 = 2
         let y = add.apply(&[&x0, &t])?; // y = x0 + t = 3
 
@@ -380,7 +380,7 @@ mod tests {
         let mut add = Add::new()?;
         let mut square = Square::new()?;
 
-        let x = Arc::new(variable!(vec![vec![2.0]]));
+        let x = variable!(vec![vec![2.0]]);
         let a = square.apply(&[&x])?;
         let y = add.apply(&[&square.apply(&[&a])?, &square.apply(&[&a])?])?;
         assert_eq!(y.tensor().data(), Tensor::new(vec![vec![32.0]]).data());
@@ -398,7 +398,7 @@ mod tests {
     fn wtf3() -> MlResult<()> { // 기울기 2, 3 나오면 됨
         let mut add = Add::new()?;
 
-        let x = Arc::new(variable!(vec![vec![3.0]]));
+        let x = variable!(vec![vec![3.0]]);
         let y = add.apply(&[&x, &x])?; // y = add(x, x)
         #[cfg(feature = "enableBackpropagation")]
         {
@@ -410,6 +410,8 @@ mod tests {
 
             let t = add.apply(&[&x, &x])?;
             let y = add.apply(&[&t, &x])?; // y = add(add(x, x), x)
+            
+            
             #[cfg(feature = "enableBackpropagation")]
             y.backward()?;
             assert_eq!(x.grad(), &Tensor::new(vec![vec![3.0]]));
@@ -422,8 +424,8 @@ mod tests {
         let mut add = Add::new()?;
         let mut square = Square::new()?;
 
-        let x = Arc::new(variable!(vec![vec![2.0]]));
-        let y = Arc::new(variable!(vec![vec![3.0]]));
+        let x = variable!(vec![vec![2.0]]);
+        let y = variable!(vec![vec![3.0]]);
         let z = add.apply(&[&square.apply(&[&x])?, &square.apply(&[&y])?])?; // z = add(square(x), square(y))
         assert_eq!(z.tensor().data(), Tensor::new(vec![vec![13.0]]).data());
 
@@ -442,9 +444,9 @@ mod tests {
         let mut add = Add::new()?;
         let mut mul = Mul::new()?;
 
-        let a = Arc::new(variable!(vec![vec![3.0]]));
-        let b = Arc::new(variable!(vec![vec![2.0]]));
-        let c = Arc::new(variable!(vec![vec![1.0]]));
+        let a = variable!(vec![vec![3.0]]);
+        let b = variable!(vec![vec![2.0]]);
+        let c = variable!(vec![vec![1.0]]);
 
         let y = add.apply(&[&mul.apply(&[&a, &b])?, &c])?;
 
@@ -461,29 +463,28 @@ mod tests {
 
     #[test]
     fn wtf6() -> MlResult<()> {
-        // let mut pow = Pow::new()?;
-        // pow.power = Some(3.0);
+        let mut pow = Pow::new()?;
+        // pow.power = Some(3.0); // No longer needed
         
-        todo!("Pow operator test is not implemented yet"); // Placeholder for actual test implementation
+        let x = variable!(vec![vec![2.0]]);
+        let p = variable!(vec![vec![3.0]]);
+        let y = pow.apply(&[&x, &p])?; // y = x^3
         
-        // let x = Arc::new(variable!(vec![vec![2.0]]));
-        // let y = pow.apply(&[&x])?; // y = x^3
-        // 
-        // #[cfg(feature = "enableBackpropagation")]
-        // {
-        //     y.backward()?; // dy/dx = 3x^2
-        // 
-        //     assert_eq!(y.tensor(), &Tensor::new(vec![vec![8.0]]));
-        //     assert_eq!(x.grad(), Some(Tensor::new(vec![vec![12.0]])));
-        // }
-        // Ok(())
+        #[cfg(feature = "enableBackpropagation")]
+        {
+            y.backward()?; // dy/dx = 3x^2
+        
+            assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![8.0]]))?;
+            assert_tensor_eq(x.grad(), &Tensor::new(vec![vec![12.0]]))?;
+        }
+        Ok(())
     }
 
     #[test]
     fn trigonometry_sin() -> MlResult<()> {
         let mut sin = Sin::new()?;
 
-        let x = Arc::new(variable!(vec![vec![std::f32::consts::PI / 4.0]])); // 45도 (45 * 4 = 180)
+        let x = variable!(vec![vec![std::f32::consts::PI / 4.0]]); // 45도 (45 * 4 = 180)
         let y = sin.apply(&[&x])?;
 
         #[cfg(feature = "enableBackpropagation")]

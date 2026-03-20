@@ -144,8 +144,9 @@ pub trait Parameter: Debug {
 
 #[derive(Clone)]
 pub struct Variable {
-    label: String,
     #[cfg(all(feature = "enableVisualization"))]
+    label: String,
+#[cfg(all(feature = "enableVisualization"))]
     node_type: crate::tensor::NodeType,
     tensor: Tensor,
     requires_grad: RefCell<bool>,
