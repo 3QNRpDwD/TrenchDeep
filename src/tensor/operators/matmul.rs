@@ -32,7 +32,7 @@ impl Function for Matmul {
             (1, 1) => {
                 match target_0.chk_shape(target_1) {
                     Err(e) => return Err(e),
-                    _ => GlobalTensor::from_vec(vec![target_0_data.iter().zip(target_1_data.iter()).map(|(&a, &b)| a * b).sum::<f32>()], &vec![])?
+                    _ => GlobalTensor::from_vec(vec![target_0_data.iter().zip(target_1_data.iter()).map(|(&a, &b)| a * b).sum::<f32>()], &[])?
                 }
             }
 
@@ -428,7 +428,7 @@ mod tests {
         let b = Tensor::from_vec(vec![4.0, 5.0, 6.0], &[3])?;
         let c = tensor_ops!(a, Matmul, b);
 
-        assert_eq!(c.shape(), &[1,1]); // scalar output
+        assert_eq!(c.shape(), &[]); // scalar output
         assert_eq!(c.data(), &[32.0]); // 1*4 + 2*5 + 3*6 = 32
         Ok(())
     }
