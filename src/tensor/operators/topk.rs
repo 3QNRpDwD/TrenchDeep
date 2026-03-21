@@ -100,7 +100,7 @@ impl Function for Topk {
         Ok(vec![GlobalTensor::from_vec(values, &new_shape)?, GlobalTensor::from_vec(indices, &new_shape)?])
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         todo!()
     }

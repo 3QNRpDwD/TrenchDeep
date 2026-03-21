@@ -3,14 +3,14 @@ pub mod mlp;
 pub mod regression;
 
 pub trait Model {
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn train(&mut self, x_set: &[&Variable], t_set: &[&Variable], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()>;
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn apply(&mut self, x: &Variable) -> MlResult<Variable>;
     fn predict(&mut self, test_data: &Tensor) -> MlResult<GlobalTensor<f32>>;
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()>;
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn zero_grad(&mut self) -> MlResult<()>;
     fn save(&self, path: &str) -> MlResult<()>;
     fn load(&mut self, path: &str) -> MlResult<()>;

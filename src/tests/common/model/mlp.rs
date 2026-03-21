@@ -47,7 +47,7 @@ impl MLP {
 
 impl Model for MLP {
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn train(&mut self, x_set: &[&Variable], t_set: &[&Variable], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()> {
         todo!("아직 Sequential 관련 기능이 미완성 상태이므로 보류");
         let n_batches = x_set.len();
@@ -182,7 +182,7 @@ impl Model for MLP {
         Ok(())
     }
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn apply(&mut self, x: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
         let mut add = Add::new()?;
@@ -199,8 +199,8 @@ impl Model for MLP {
     }
 
     fn predict(&mut self, x: &Tensor) -> MlResult<GlobalTensor<f32>> {
-        let mut matmul = Matmul::new()?;
-        let mut add = Add::new()?;
+        let matmul = Matmul::new()?;
+        let add = Add::new()?;
 
         let uh1_pre = matmul.forward(&[self.w1.tensor(), x])?.remove(0);
         let uh1 = add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0);
@@ -213,7 +213,7 @@ impl Model for MLP {
         Ok(ah2)
     }
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()> {
         self.w1.sub_tensor(self.w1.grad() as &dyn TensorBase * lr)?;
         self.w2.sub_tensor(self.w2.grad() as &dyn TensorBase * lr)?;
@@ -222,7 +222,7 @@ impl Model for MLP {
         Ok(())
     }
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn zero_grad(&mut self) -> MlResult<()> {
         self.w1.clear_grad();
         self.w2.clear_grad();

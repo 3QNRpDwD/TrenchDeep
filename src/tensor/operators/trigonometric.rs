@@ -17,7 +17,7 @@ impl Function for Sin {
     /// 사인 함수의 기울기를 계산합니다.
     /// 반환되는 기울기 텐서는 입력 텐서와 동일한 모양을 가집니다.
     /// 각 요소는 입력 텐서의 해당 요소의 코사인 값과 다음 계층의 기울기 값의 곱입니다.
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let gradient = grad.data().iter()
             .zip(targets[0].data().iter())
@@ -30,7 +30,7 @@ impl Function for Sin {
     /// 연산에 사용되는 백엔드 객체의 참조를 반환
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
@@ -51,7 +51,7 @@ impl Function for Cos {
     /// 코사인 함수의 기울기를 계산합니다.
     /// 반환되는 기울기 텐서는 입력 텐서와 동일한 모양을 가집니다.
     /// 각 요소는 입력 텐서의 해당 요소의 음수 사인 값과 다음 계층의 기울기 값의 곱입니다.
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let gradient = grad.data().iter()
             .zip(targets[0].data().iter())
@@ -64,7 +64,7 @@ impl Function for Cos {
     /// 연산에 사용되는 백엔드 객체의 참조를 반환
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
@@ -123,7 +123,7 @@ impl Function for ApproxSin {
         Ok(vec![GlobalTensor::from_vec(result, x.shape())?])
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         // The derivative of sin(x) is cos(x)
         // We can use the ApproxCos implementation for this
@@ -147,7 +147,7 @@ impl Function for ApproxSin {
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
@@ -204,7 +204,7 @@ impl Function for ApproxCos {
         Ok(vec![GlobalTensor::from_vec(result, x.shape())?])
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         // The derivative of cos(x) is -sin(x)
         // We can use the ApproxSin implementation for this

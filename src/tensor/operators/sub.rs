@@ -49,7 +49,7 @@ impl Function for Sub {
         }
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let gt = GlobalTensor {data: grad.data().to_vec(), shape: grad.shape().to_vec() };
         Ok(vec![gt, GlobalTensor::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?])

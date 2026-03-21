@@ -73,7 +73,7 @@ impl Function for Softmax {
     }
 
     /// Softmax 함수의 역전파(gradient)를 계산합니다.
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let softmax_output = targets[0];
         let upstream_grad = grad;

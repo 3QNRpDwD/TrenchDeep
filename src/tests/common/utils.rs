@@ -8,11 +8,11 @@ pub fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
     let time_format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
     let file_layer = fmt::layer()
         .with_writer(non_blocking_appender)
-        .with_timer(tracing_subscriber::fmt::time::UtcTime::new(time_format))
+        .with_timer(fmt::time::UtcTime::new(time_format))
         .with_ansi(false);
     let stdout_layer = fmt::layer()
         .with_writer(std::io::stdout)
-        .with_timer(tracing_subscriber::fmt::time::UtcTime::new(time_format));
+        .with_timer(fmt::time::UtcTime::new(time_format));
     let _ = tracing_subscriber::registry()
         .with(filter)
         .with(file_layer)

@@ -72,7 +72,7 @@ impl Function for Sigmoid {
         )
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let input_x = targets[0];
         // σ'(x) = σ(x) * (1 - σ(x))

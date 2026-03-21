@@ -23,7 +23,7 @@ impl Function for Sum {
         Ok(vec![GlobalTensor::from_vec(vec![total_sum], &[1,1])?])
     }
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         if targets.is_empty() {
             return Err(MlError::TensorError(TensorError::EmptyTensor));

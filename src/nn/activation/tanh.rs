@@ -84,7 +84,7 @@ impl Function for Tanh {
         ])
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let tanh_output = targets[0];
         let ones = vec![1.0f32; tanh_output.data().len()];

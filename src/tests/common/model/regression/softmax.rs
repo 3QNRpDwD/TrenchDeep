@@ -31,7 +31,7 @@ impl SoftmaxRegression {
 
 
 impl Model for SoftmaxRegression {
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn train(&mut self, x_set: &[&Variable], t_set: &[&Variable], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()> {
         // [FIX 4] n_batches → n_samples: 실제로 샘플 1개씩 처리하는 SGD 구조이므로 명칭 수정
         let n_samples = x_set.len();
@@ -194,7 +194,7 @@ impl Model for SoftmaxRegression {
         Ok(())
     }
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn apply(&mut self, x: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
         let mut add = Add::new()?;
@@ -205,8 +205,8 @@ impl Model for SoftmaxRegression {
     }
 
     fn predict(&mut self, x: &Tensor) -> MlResult<GlobalTensor<f32>> {
-        let mut matmul = Matmul::new()?;
-        let mut add = Add::new()?;
+        let matmul = Matmul::new()?;
+        let add = Add::new()?;
 
         // 1) 은닉층: u_h = W1 * x + b1
         let uh1_pre = matmul.forward(&[self.w1.tensor(), x])?.remove(0);
@@ -216,14 +216,14 @@ impl Model for SoftmaxRegression {
         Ok(ah1)
     }
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()> {
         self.w1.sub_tensor(self.w1.grad() as &dyn TensorBase * lr)?;
         self.b1.sub_tensor(self.b1.grad() as &dyn TensorBase * lr)?;
         Ok(())
     }
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn zero_grad(&mut self) -> MlResult<()> {
         self.w1.clear_grad();
         self.b1.clear_grad();
@@ -246,8 +246,8 @@ impl Model for SoftmaxRegression {
         let mut total_loss = 0.0;
         for m in 0..X.len() {
             let logit_tensor = {
-                let mut matmul = Matmul::new()?;
-                let mut add = Add::new()?;
+                let matmul = Matmul::new()?;
+                let  add = Add::new()?;
                 let uh1_pre = matmul.forward(&[self.w1.tensor(), X[m].tensor()])?.remove(0);
                 add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0)
             };

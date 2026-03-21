@@ -31,7 +31,7 @@ impl Function for Reshape {
         Ok(vec![GlobalTensor::from_vec(target.data().to_vec(), new_shape)?])
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let target = targets[0];
         let target_shape = target.shape();

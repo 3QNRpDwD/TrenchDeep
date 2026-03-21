@@ -220,7 +220,7 @@ let d = {
         let x = var_input!(Tensor::new(vec![vec![1.0]]));
         let y = var_input!(Tensor::new(vec![vec![1.0]]));
         let z = sphere_function(&x, &y)?;
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         {
             z.backward()?;
 
@@ -235,7 +235,7 @@ let d = {
         let x = var_input!(Tensor::new(vec![vec![1.0]]));
         let y = var_input!(Tensor::new(vec![vec![1.0]]));
         let z = matyas_function(&x, &y)?;
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         z.backward()?;
         Ok(())
     }
@@ -245,7 +245,7 @@ let d = {
         let x = var_input!(Tensor::from_vec(vec![1.0], &[1,1])?);
         let y = var_input!(Tensor::from_vec(vec![1.0], &[1,1])?);
         let z = goldstein_price_function(&x, &y)?;
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         {
             z.backward()?;
 
@@ -264,7 +264,7 @@ let d = {
         let x1 = var_input!(Tensor::from_vec(vec![2.0], &[1,1])?);
 
         let y = rosenbrock_function(&x0, &x1)?;
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         {
             y.backward()?;
 
@@ -278,7 +278,7 @@ let d = {
     }
 
     #[test]
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
         let x0 = var_input!(Tensor::new(vec![vec![0.0]]));
         let x1 = var_input!(Tensor::new(vec![vec![2.0]]));

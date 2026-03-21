@@ -165,7 +165,7 @@ impl Function for Matmul {
         Ok(vec![buffer])
     }
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let target_0 = targets[0];
         let target_1 = targets[1];
@@ -392,7 +392,7 @@ mod tests {
     #[test]
     fn test_matmul_invalid_shapes() -> MlResult<()> {
         // Test incompatible shapes
-        let mut matmul = Matmul::new()?;
+        let matmul = Matmul::new()?;
         let a = Tensor::from_vec(vec![1.0, 2.0, 3.0], &[3])?;
         let b = Tensor::from_vec(vec![4.0, 5.0], &[2])?;
 
@@ -472,7 +472,7 @@ mod tests {
 
     #[test]
     fn test_matmul_empty() -> MlResult<()> {
-        let mut matmul = Matmul::new()?;
+        let matmul = Matmul::new()?;
         // Case 9: Empty Matrix Multiplication
         let a = Tensor::from_vec(vec![], &[0, 2])?;
         let b = Tensor::from_vec(vec![], &[2, 0])?;

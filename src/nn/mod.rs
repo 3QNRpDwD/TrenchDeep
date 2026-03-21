@@ -71,7 +71,7 @@ pub trait Layer: Debug {
 pub trait Parameter: Debug {
     fn new(tensor: Tensor) -> Self where Self: Sized;
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn node_id(&self) -> NodeId;
 
     fn add_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
@@ -101,7 +101,7 @@ pub trait Parameter: Debug {
 
     fn grad(&self) -> &Tensor;
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn set_grad(&self, grad: GlobalTensor<f32>);
 
     #[cfg(feature = "enableVisualization")]
@@ -114,10 +114,10 @@ pub trait Parameter: Debug {
     #[cfg(feature = "enableVisualization")]
     fn node_type(&self) -> &crate::tensor::NodeType;
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn clear_grad(&self);
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn accumulate_grad(&self, new_grad: Tensor) -> MlResult<()>;
 
     fn backward(&self) -> MlResult<()> {
@@ -159,7 +159,7 @@ impl Debug for Variable {
         ds
             .field("tensor", &self.tensor)
             .field("requires_grad", &self.requires_grad);
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         {
             ds.field("grad", &self.grad);
         }

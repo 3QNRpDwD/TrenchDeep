@@ -67,7 +67,7 @@ impl Function for Mul {
         }
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         Ok(vec![
             self.forward(&[grad, targets[1]])?.remove(0),

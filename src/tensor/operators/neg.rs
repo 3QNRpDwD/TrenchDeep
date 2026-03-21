@@ -12,7 +12,7 @@ impl Function for Neg {
         Ok(vec![GlobalTensor::from_vec(targets[0].data().iter().map(|&x| -x).collect(), targets[0].shape())?])
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         Ok(vec![GlobalTensor::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?])
     }

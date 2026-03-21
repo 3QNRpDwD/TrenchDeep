@@ -36,7 +36,7 @@ impl Parameter for Variable {
         &self.grad
     }
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn set_grad(&self, grad: GlobalTensor<f32>) {
         self.grad.replace(grad);
     }
@@ -58,7 +58,7 @@ impl Parameter for Variable {
     }
 
     ///
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn clear_grad(&self) {
             // TENSOR_STORAGE.with_borrow_mut(|storage| {
             //     storage.remove(&self.grad().id()) // 만약 스토리지가 분리되면 그냥 그래프를 초기화하면 되기 때문에 성능이 더욱 향상될듯함
@@ -75,7 +75,7 @@ impl Parameter for Variable {
         }
     }
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn accumulate_grad(&self, new_grad: Tensor) -> MlResult<()> {
         // 차원 검증 추가
         if self.grad.shape() != new_grad.shape() {
@@ -127,7 +127,7 @@ impl Variable {
                 #[cfg(feature = "enableVisualization")]
                 label,
                 #[cfg(feature = "enableVisualization")]
-                node_type: crate::tensor::NodeType::Variable,
+                node_type: NodeType::Variable,
                 grad: tensor.zeros_like(),
                 tensor,
                 requires_grad: cfg!(feature = "requiresGrad").into()
@@ -204,7 +204,7 @@ impl Variable {
     }
 }
 
-#[cfg(feature = "enableBackpropagation")]
+#[cfg(feature = "enableBackward")]
 impl PartialEq for &Variable {
     fn eq(&self, other: &&Variable) -> bool {
         self.tensor == other.tensor &&

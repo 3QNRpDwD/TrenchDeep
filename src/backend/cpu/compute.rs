@@ -267,10 +267,10 @@ mod tests {
 
         let exp_result = compute.exp(&a);
         assert!((exp_result[0] - 1.0).abs() < 1e-6);
-        assert!((exp_result[1] - 2.718_281_7).abs() < 1e-6);
+        assert!((exp_result[1] - std::f32::consts::E).abs() < 1e-6);
         assert!((exp_result[2] - 7.389_056).abs() < 1e-6);
 
-        let log_input = vec![1.0, 2.718_281_7, 7.389_056];
+        let log_input = vec![1.0, std::f32::consts::E, 7.389_056];
         let log_result = compute.log(&log_input);
         assert!((log_result[0] - 0.0).abs() < 1e-6);
         assert!((log_result[1] - 1.0).abs() < 1e-6);

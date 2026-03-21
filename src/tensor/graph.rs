@@ -1,7 +1,6 @@
-use tracing::info;
 use super::*;
 
-#[cfg(feature = "enableBackpropagation")]
+#[cfg(feature = "enableBackward")]
 impl Variable {
     pub fn tpye_name(&self) -> String {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown").replace("<f32>", "")
@@ -37,7 +36,7 @@ impl Variable {
     }
 }
 
-#[cfg(feature = "enableBackpropagation")]
+#[cfg(feature = "enableBackward")]
 impl ComputationGraph {
 
     pub fn new() -> Self {
@@ -179,7 +178,7 @@ impl ComputationGraph {
         self.is_sorted = true;
     }
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     pub(crate) fn backward(&mut self, output_id: NodeId) -> MlResult<()> {
         for node in &self.nodes {
             node.variable.clear_grad();
@@ -275,7 +274,7 @@ impl AutogradFunction for GlobalFunction {
             .collect::<Vec<&dyn TensorBase>>();
         let output = Variable::new(self.forward(&tensors)?.remove(0).to_id()?);
 
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         {
             output.clone().with_grad_fn(self.name(), inputs);
             return Ok(output)
@@ -294,7 +293,7 @@ impl AutogradFunction for GlobalFunction {
             .map(|&var| var.tensor() as &dyn TensorBase)
             .collect::<Vec<&dyn TensorBase>>();
         let output = crate::var_with_label!(self.forward(&tensors)?.remove(0).to_id()?, label);
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         {
             output.clone().with_grad_fn(self.name(), inputs);
             return Ok(output)

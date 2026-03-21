@@ -106,7 +106,7 @@ pub trait Function {
         unimplemented!("{} Forward pass is not implemented", self.type_name())
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         unimplemented!("{} Backward pass is not implemented", self.type_name())
     }
@@ -292,7 +292,7 @@ mod tests {
         print_forward(&x, &a, &b, &y);
         assert_tensor_eq(&y, &Tensor::new(vec![vec![1.6487213]]))?;
 
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         {
             let dy = scalar!(1.0);                              // dy = 1
             let db = square.backward(&[&b], &dy)?.remove(0);   // dy/db = dy/dy * 2b
@@ -319,7 +319,7 @@ mod tests {
         print_forward(x.tensor(), a.tensor(), b.tensor(), y.tensor());
 
 
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         {
             y.backward()?;
             let dy = y.grad();                              // dy = 1
@@ -342,7 +342,7 @@ mod tests {
         let t = add.apply(&[&x0, &x1])?; // t = x0 + x1 = 2
         let y = add.apply(&[&x0, &t])?; // y = x0 + t = 3
 
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         {
             y.backward()?;
 
@@ -385,7 +385,7 @@ mod tests {
         let y = add.apply(&[&square.apply(&[&a])?, &square.apply(&[&a])?])?;
         assert_eq!(y.tensor().data(), Tensor::new(vec![vec![32.0]]).data());
 
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         {
             y.backward()?;
 
@@ -400,7 +400,7 @@ mod tests {
 
         let x = variable!(vec![vec![3.0]]);
         let y = add.apply(&[&x, &x])?; // y = add(x, x)
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         {
             y.backward()?;
             assert_eq!(x.grad(), &Tensor::new(vec![vec![2.0]]));
@@ -412,7 +412,7 @@ mod tests {
             let y = add.apply(&[&t, &x])?; // y = add(add(x, x), x)
             
             
-            #[cfg(feature = "enableBackpropagation")]
+            #[cfg(feature = "enableBackward")]
             y.backward()?;
             assert_eq!(x.grad(), &Tensor::new(vec![vec![3.0]]));
         }
@@ -429,7 +429,7 @@ mod tests {
         let z = add.apply(&[&square.apply(&[&x])?, &square.apply(&[&y])?])?; // z = add(square(x), square(y))
         assert_eq!(z.tensor().data(), Tensor::new(vec![vec![13.0]]).data());
 
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         {
             z.backward()?;
 
@@ -450,7 +450,7 @@ mod tests {
 
         let y = add.apply(&[&mul.apply(&[&a, &b])?, &c])?;
 
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         {
             y.backward()?;
 
@@ -470,7 +470,7 @@ mod tests {
         let p = variable!(vec![vec![3.0]]);
         let y = pow.apply(&[&x, &p])?; // y = x^3
         
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         {
             y.backward()?; // dy/dx = 3x^2
         
@@ -487,7 +487,7 @@ mod tests {
         let x = variable!(vec![vec![std::f32::consts::PI / 4.0]]); // 45도 (45 * 4 = 180)
         let y = sin.apply(&[&x])?;
 
-        #[cfg(feature = "enableBackpropagation")]
+        #[cfg(feature = "enableBackward")]
         {
             y.backward()?;
 

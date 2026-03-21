@@ -1,6 +1,6 @@
 use super::*;
 
-#[cfg(feature = "enableBackpropagation")]
+#[cfg(feature = "enableBackward")]
 impl Debug for ComputationGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut ds = f.debug_struct("ComputationGraph");
@@ -14,7 +14,7 @@ impl Debug for ComputationGraph {
     }
 }
 
-#[cfg(feature = "enableBackpropagation")]
+#[cfg(feature = "enableBackward")]
 impl Debug for ComputationNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut ds = f.debug_struct("ComputationNode");

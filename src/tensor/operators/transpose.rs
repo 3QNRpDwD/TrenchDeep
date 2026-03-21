@@ -85,7 +85,7 @@ impl Function for Transpose {
         Ok(vec![GlobalTensor::from_vec(result, &new_shape)?])
     }
 
-    #[cfg(feature = "enableBackpropagation")]
+    #[cfg(feature = "enableBackward")]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let input = grad; // Gradient of the output is the input to backward
         // The targets array contains [input_tensor, d0_tensor, d1_tensor] from the forward pass

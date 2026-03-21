@@ -24,7 +24,7 @@ impl Function for MeanSquaredError {
         Ok(vec![scalar!(squared_error / n)])
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
@@ -76,7 +76,7 @@ impl Function for MeanAbsoluteError {
         Ok(vec![scalar!(abs_error / n)])
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
@@ -151,7 +151,7 @@ impl Function for HuberLoss {
         Ok(vec![scalar!(huber_error / n)])
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
@@ -211,7 +211,7 @@ impl Function for BinaryCrossEntropyLoss {
         Ok(vec![scalar!(bce_loss / n)])
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let pred = targets[0];
         let target = targets[1];
@@ -309,7 +309,7 @@ impl Function for CrossEntropyLoss {
         Ok(vec![scalar!(cce_loss / batch_size)])
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, inputs: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         // 1. 입력 유효성 검사 강화
         let (pred, target) = match inputs {
@@ -405,7 +405,7 @@ impl Function for SoftmaxCrossEntropyLoss {
         Ok(vec![scalar!(loss / batch_size)])
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     /// 역전파를 계산합니다.
     /// 로짓에 대한 그래디언트는 (p - t) 형태로 매우 안정적입니다.
     fn backward(&self, inputs: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {

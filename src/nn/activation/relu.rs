@@ -70,7 +70,7 @@ impl Function for ReLU {
         Ok(vec![GlobalTensor::from_vec(result, x[0].shape())?])
     }
 
-    #[cfg(all(feature = "enableBackpropagation"))]
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, target: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let relu_output = target[0];
 
