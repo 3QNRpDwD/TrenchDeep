@@ -10,7 +10,7 @@ impl Parameter for Variable {
             label,
             #[cfg(feature = "enableVisualization")]
             node_type: crate::tensor::NodeType::Variable,
-            grad: tensor.zeros_like(),
+            grad: RefCell::new(Some(tensor.zeros_like())),
             tensor,
             requires_grad: cfg!(feature = "requiresGrad").into()
         }
@@ -29,11 +29,11 @@ impl Parameter for Variable {
 
     fn retain_grad(&self) {
         self.requires_grad.replace(true);
-        self.grad.replace(GlobalTensor::zeros(self.tensor.shape()))
+        self.grad.replace(None);
     }
 
-    fn grad(&self) -> &Tensor {
-        &self.grad
+    fn grad(&self) -> &Option<Tensor> {
+        self.grad
     }
 
     #[cfg(feature = "enableBackpropagation")]
@@ -60,7 +60,6 @@ impl Parameter for Variable {
     ///
     #[cfg(feature = "enableBackpropagation")]
     fn clear_grad(&self) {
-        if self.grad().is_empty() && !self.is_retain_grad() {
             // TENSOR_STORAGE.with_borrow_mut(|storage| {
             //     storage.remove(&self.grad().id()) // 만약 스토리지가 분리되면 그냥 그래프를 초기화하면 되기 때문에 성능이 더욱 향상될듯함
             // });
@@ -71,7 +70,8 @@ impl Parameter for Variable {
             // 성능이 저하되는 문제가 있음. 따라서 텐서 스토리지와 계산그래프 전용 텐서 스토리지를 만들어서 완전히 분리하던가,
             // 배치별로 다른 스토리지를 만들어서 관리하도록 하던가하는 방법으로 최적화 해야할듯함.
             // 최종적으로 정적 계산그래프로 전환한다면 더욱 성능향상이 기대됨.
-            self.grad.replace(GlobalTensor::zeros(self.tensor.shape()));
+        if !self.grad().is_empty() || !self.is_retain_grad() {
+            self.grad.replace(None);
         }
     }
 

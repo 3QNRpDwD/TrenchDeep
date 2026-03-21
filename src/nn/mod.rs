@@ -99,7 +99,7 @@ pub trait Parameter: Debug {
 
     fn retain_grad(&self);
 
-    fn grad(&self) -> &Tensor;
+    fn grad(&self) -> &Option<Tensor>;
 
     #[cfg(feature = "enableBackpropagation")]
     fn set_grad(&self, grad: GlobalTensor<f32>);
@@ -142,7 +142,7 @@ pub struct Variable {
     node_type: crate::tensor::NodeType,
     tensor: Tensor,
     requires_grad: RefCell<bool>,
-    grad: Tensor,
+    grad: RefCell<Option<Tensor>>,
 }
 
 impl Debug for Variable {
