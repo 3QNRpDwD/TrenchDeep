@@ -220,7 +220,9 @@ impl ComputationGraph {
                 input_node.variable.accumulate_grad(grad.to_id()?)?;
             }
             
-            var.clear_grad();
+            if !var.is_retain_grad() {
+                var.clear_grad();
+            }
         }
         Ok(())
     }
