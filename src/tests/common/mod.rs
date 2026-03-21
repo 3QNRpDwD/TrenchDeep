@@ -1,5 +1,4 @@
 pub(crate) mod data;
-pub(crate) mod evaluation;
 pub(crate) mod utils;
 pub(crate) mod config;
 pub mod model;

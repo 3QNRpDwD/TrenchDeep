@@ -3,10 +3,10 @@ pub mod conv;
 pub mod pooling;
 pub mod linear;
 mod parameter;
+mod checkpoint;
 
 use crate::{register_operator, var_act, var_bias, var_weight, backend::Backend, MlResult, TensorError, tensor::{
     operators::{Add, Div, Matmul, Mul, Sub},
-    TENSOR_STORAGE,
     operators::Function,
     GlobalFunction,
     GlobalTensor,
@@ -99,7 +99,7 @@ pub trait Parameter: Debug {
 
     fn retain_grad(&self);
 
-    fn grad(&self) -> &Option<Tensor>;
+    fn grad(&self) -> &Tensor;
 
     #[cfg(feature = "enableBackpropagation")]
     fn set_grad(&self, grad: GlobalTensor<f32>);
@@ -132,17 +132,25 @@ pub trait Parameter: Debug {
             }
         })
     }
+
+    /// Performs backpropagation and then automatically resets the computation graph
+    /// to release memory for all intermediate tensors.
+    fn backward_and_clear(&self) -> MlResult<()> {
+        self.backward()?;
+        crate::tensor::ComputationGraph::reset_graph();
+        Ok(())
+    }
 }
 
 #[derive(Clone)]
 pub struct Variable {
     #[cfg(all(feature = "enableVisualization"))]
     label: String,
-    #[cfg(all(feature = "enableVisualization"))]
+#[cfg(all(feature = "enableVisualization"))]
     node_type: crate::tensor::NodeType,
     tensor: Tensor,
     requires_grad: RefCell<bool>,
-    grad: RefCell<Option<Tensor>>,
+    grad: Tensor,
 }
 
 impl Debug for Variable {

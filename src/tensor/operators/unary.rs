@@ -76,45 +76,43 @@ impl Function for Log {
 
 impl Function for Pow {
     fn new() -> MlResult<GlobalFunction> {
-        OPERATOR_STORAGE.with(|ops| {
-            let my = "Pow";
-            let mut ops = ops.borrow_mut();
-            match ops.contains_key(my) {
-                true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
-                false => {
-                    ops.insert(
-                        String::from(my),
-                        Box::new(Pow { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), power: None })
-                    );
-                    Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
-                }
-            }
-        })
+        register_operator!(Pow)
     }
     
     /// Raises each element in the tensor to a power
     ///
     /// # Arguments
-    /// * `power` - The power to raise each element to
+    /// * `targets[0]` - Input tensor
+    /// * `targets[1]` - Exponent (Scalar Tensor)
     ///
     /// # Returns
     /// A new tensor with each element being tensor_element ^ power
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
-        Ok(vec![GlobalTensor::from_vec(self.backend().pow(targets[0].data(), self.power.unwrap()), targets[0].shape())?])
+        let power = if targets.len() > 1 {
+            targets[1].data()[0]
+        } else {
+             return Err(MlError::TensorError(TensorError::InvalidOperation {
+                op: "pow",
+                reason: "exponent must be provided".to_string(),
+            }));
+        };
+        Ok(vec![GlobalTensor::from_vec(self.backend().pow(targets[0].data(), power), targets[0].shape())?])
     }
 
     #[cfg(all(feature = "enableBackpropagation"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        let power = self.power.unwrap();
+        let power = targets[1].data()[0];
         let target = targets[0];
         let forwarded = GlobalTensor::from_vec(self.backend().pow(target.data(), power - 1.0), target.shape())?; // x ** (c - 1)
-        let result = GlobalTensor::from_vec(
-            forwarded
+        
+        let result_data: Vec<f32> = forwarded
                 .data()
                 .iter()
-                .map(|&x| power * x)
-                .collect(), target.shape())?; // c * x ** (c - 1)
-        Ok(vec![&result as &dyn TensorBase * grad]) // c * x ** (c -1) * gy
+                .zip(grad.data().iter())
+                .map(|(&x, &g)| power * x * g)
+                .collect();
+                
+        Ok(vec![GlobalTensor::from_vec(result_data, target.shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

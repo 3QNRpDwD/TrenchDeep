@@ -3,24 +3,11 @@ use super::*;
 
 impl Function for Transpose {
     fn new() -> MlResult<GlobalFunction> {
-        OPERATOR_STORAGE.with(|ops| {
-            let my = "Transpose";
-            let mut ops = ops.borrow_mut();
-            match ops.contains_key(my) {
-                true => Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id())),
-                false => {
-                    ops.insert(
-                        String::from(my),
-                        Box::new(Transpose { backend: Arc::new(CpuBackend::new()?), node_id: NODE_ID_GEN.next(), dims: (0, 0) })
-                    );
-                    Ok(GlobalFunction::new(String::from(my), *ops.get(my).unwrap().node_id()))
-                }
-            }
-        })
+        register_operator!(Transpose)
     }
     
-    fn forward(&self, input: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
-        let input = input[0];
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+        let input = targets[0];
         let rank = input.shape().len();
         if rank < 2 {
             return Err(MlError::TensorError(TensorError::InvalidOperation {
@@ -29,9 +16,28 @@ impl Function for Transpose {
             }));
         }
 
-        // Convert negative dimensions to positive
-        let d0 = if self.dims.0 < 0 { rank as i32 + self.dims.0 } else { self.dims.0 } as usize;
-        let d1 = if self.dims.1 < 0 { rank as i32 + self.dims.1 } else { self.dims.1 } as usize;
+        // Parse d0
+        let d0_val = if targets.len() > 1 {
+            targets[1].data()[0]
+        } else {
+             return Err(MlError::TensorError(TensorError::InvalidOperation {
+                op: "transpose",
+                reason: "d0 must be provided".to_string(),
+            }));
+        };
+
+        // Parse d1
+        let d1_val = if targets.len() > 2 {
+            targets[2].data()[0]
+        } else {
+             return Err(MlError::TensorError(TensorError::InvalidOperation {
+                op: "transpose",
+                reason: "d1 must be provided".to_string(),
+            }));
+        };
+
+        let d0 = if d0_val < 0.0 { (rank as i32 + d0_val as i32) as usize } else { d0_val as usize };
+        let d1 = if d1_val < 0.0 { (rank as i32 + d1_val as i32) as usize } else { d1_val as usize };
 
         if d0 >= rank || d1 >= rank {
             return Err(MlError::TensorError(TensorError::InvalidAxis {
@@ -80,8 +86,11 @@ impl Function for Transpose {
     }
 
     #[cfg(feature = "enableBackpropagation")]
-    fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        let input = grad;
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+        let input = grad; // Gradient of the output is the input to backward
+        // The targets array contains [input_tensor, d0_tensor, d1_tensor] from the forward pass
+        // We need d0 and d1 to reverse the transpose (which is just transposing again with same dims)
+        
         let rank = input.shape().len();
         if rank < 2 {
             return Err(MlError::TensorError(TensorError::InvalidOperation {
@@ -90,9 +99,29 @@ impl Function for Transpose {
             }));
         }
 
-        // Convert negative dimensions to positive
-        let d0 = if self.dims.0 < 0 { rank as i32 + self.dims.0 } else { self.dims.0 } as usize;
-        let d1 = if self.dims.1 < 0 { rank as i32 + self.dims.1 } else { self.dims.1 } as usize;
+         // Parse d0
+        let d0_val = if targets.len() > 1 {
+            targets[1].data()[0]
+        } else {
+             // Should not happen if forward succeeded and graph saved inputs
+             return Err(MlError::TensorError(TensorError::InvalidOperation {
+                op: "transpose",
+                reason: "d0 must be provided in backward".to_string(),
+            }));
+        };
+
+        // Parse d1
+        let d1_val = if targets.len() > 2 {
+            targets[2].data()[0]
+        } else {
+             return Err(MlError::TensorError(TensorError::InvalidOperation {
+                op: "transpose",
+                reason: "d1 must be provided in backward".to_string(),
+            }));
+        };
+
+        let d0 = if d0_val < 0.0 { (rank as i32 + d0_val as i32) as usize } else { d0_val as usize };
+        let d1 = if d1_val < 0.0 { (rank as i32 + d1_val as i32) as usize } else { d1_val as usize };
 
         if d0 >= rank || d1 >= rank {
             return Err(MlError::TensorError(TensorError::InvalidAxis {
@@ -143,4 +172,26 @@ impl Function for Transpose {
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
     fn node_id(&self) -> &NodeId { &self.node_id }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tensor::operators::{Function, Transpose};
+    use crate::tensor::{Tensor, TensorBase};
+    use crate::MlResult;
+
+    #[test]
+    fn test_transpose() -> MlResult<()> {
+        let input = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], &[2, 2])?;
+        let d0 = Tensor::scalar(0.0);
+        let d1 = Tensor::scalar(1.0);
+        
+        let op = Transpose::new().unwrap();
+        let result = op.forward(&[&input, &d0, &d1])?;
+        let result_tensor = &result[0];
+
+        assert_eq!(result_tensor.shape(), &[2, 2]);
+        assert_eq!(result_tensor.data(), &[1.0, 3.0, 2.0, 4.0]);
+        Ok(())
+    }
 }

@@ -127,14 +127,17 @@ impl ComputationGraph {
 
     pub fn reset_graph() {
         COMPUTATION_GRAPH.with(|graph| { 
-            graph.lock().unwrap().clear();
+            let mut g = graph.lock().unwrap();
+            g.clear();
         });
         #[cfg(feature = "enableVisualization")]
         {
             VISUALIZATION_GRAPH.with(|viz_graph| {
                 viz_graph.borrow_mut().clear();
             });
+            // 시각화 라벨 카운터도 리셋하여 다음 그래프 생성 시 레이블이 깨끗하게 시작되도록 함
         }
+        // tracing::debug!("Computation graph and visualization state have been reset.");
     }
 
     pub(crate) fn ensure_topological_sort(&mut self) {
@@ -217,7 +220,9 @@ impl ComputationGraph {
                 input_node.variable.accumulate_grad(grad.to_id()?)?;
             }
             
-            var.clear_grad();
+            if !var.is_retain_grad() {
+                var.clear_grad();
+            }
         }
         Ok(())
     }

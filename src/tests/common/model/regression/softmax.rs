@@ -1,5 +1,4 @@
 use crate::nn::Layer;
-use crate::tests::common::evaluation::evaluate_model;
 use super::*;
 
 impl SoftmaxRegression {
@@ -128,10 +127,6 @@ impl Model for SoftmaxRegression {
 
                 self.update(&lr)?;
 
-                // [FIX 3] grad_norm / update_ratio: w1 단일 레이어만이 아닌
-                // w1, b1을 모두 포함한 전체 파라미터 기준으로 계산.
-                // ⚠️ 사용자 확인 필요: w2, b2 등 추가 레이어가 있다면
-                //    동일한 방식으로 해당 파라미터들도 아래 계산에 포함해야 합니다.
                 let grad_sq_sum = self.w1.grad().data().iter().map(|&g| g * g).sum::<f32>()
                     + self.b1.grad().data().iter().map(|&g| g * g).sum::<f32>();
                 let grad_norm = grad_sq_sum.sqrt();
@@ -164,12 +159,12 @@ impl Model for SoftmaxRegression {
             // [FIX 5] avg_loss 분모를 n_samples(전체)가 아닌 total_loss_count(실제 처리)로 계산
             let avg_loss = if total_loss_count > 0 { total_loss / total_loss_count as f32 } else { 0.0 };
             let epoch_duration = epoch_start_time.elapsed();
-            // let epoch_accuracy = if total_samples > 0 {
-            //     (total_correct as f32 / total_samples as f32) * 100.0
-            // } else {
-            //     0.0
-            // };
-            let epoch_accuracy = evaluate_model(self, &x_set, &t_set)?;
+            let epoch_accuracy = if total_samples > 0 {
+                (total_correct as f32 / total_samples as f32) * 100.0
+            } else {
+                0.0
+            };
+            // let epoch_accuracy = evaluate_model(self, &x_set, &t_set)?;
 
             let log_message = format!(
                 "AL: {:.6} | LC: {:+.6} | AC: {:>6.2}% | Duration: {:.2?}",

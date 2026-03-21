@@ -141,13 +141,13 @@ impl std::ops::Mul<Tensor> for &Tensor {
 impl std::ops::MulAssign<Tensor> for Tensor {
     fn mul_assign(&mut self, other: Tensor) {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().assign_forward(&[self, &other], self.id()).unwrap().remove(0));
     }
 }
 
 impl std::ops::MulAssign<&Tensor> for Tensor {
     fn mul_assign(&mut self, other: &Tensor) {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().assign_forward(&[self, other], self.id()).unwrap().remove(0));
     }
 }

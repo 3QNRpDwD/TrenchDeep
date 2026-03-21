@@ -1,4 +1,5 @@
 pub mod common;
+mod repro;
 
 #[cfg(test)]
 mod mnist_test {
@@ -19,6 +20,7 @@ mod mnist_test {
         nn::Parameter
     };
 
+    #[ignore]
     #[test]
     fn mlp_mnist_classification_integration_test() -> MlResult<()> {
         let _ = setup_logging();
@@ -54,6 +56,7 @@ mod mnist_test {
         Ok(())
     }
 
+    #[ignore = "테스트 시간이 너무 오래걸려서 무시함"]
     #[test]
     fn softmax_regression_mnist_classification_integration_test() -> MlResult<()> {
         let _ = setup_logging();

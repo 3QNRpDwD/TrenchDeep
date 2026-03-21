@@ -79,7 +79,7 @@ impl TensorBase for Tensor {
         TENSOR_STORAGE.with_borrow_mut(|storage| {
             storage.insert(node_id, GlobalTensor { data, shape })
         });
-        Tensor(node_id)
+        Tensor::new_with_id(node_id)
     }
 
     fn from_vec(data: Vec<f32>, shape: &[usize]) -> MlResult<Tensor> {
@@ -96,12 +96,12 @@ impl TensorBase for Tensor {
             storage.insert(node_id, GlobalTensor { data, shape: shape.to_vec() })
         });
 
-        Ok(Tensor(node_id))
+        Ok(Tensor::new_with_id(node_id))
     }
 
     fn as_ptr(&self) -> *const GlobalTensor<f32> {
         TENSOR_STORAGE.with(|storage| {
-            storage.borrow().get(&self.0).map(|gt| gt as *const GlobalTensor<f32>).unwrap()
+            storage.borrow().get(&self.id()).map(|gt| gt as *const GlobalTensor<f32>).unwrap()
         })
     }
     
@@ -166,7 +166,7 @@ impl GlobalTensor<f32> {
             storage.insert(node_id, self)
         });
 
-        Ok(Tensor(node_id))
+        Ok(Tensor::new_with_id(node_id))
     }
 
     pub fn with_id(self, node_id: NodeId) -> MlResult<Tensor> {
@@ -182,7 +182,7 @@ impl GlobalTensor<f32> {
             storage.insert(node_id, self)
         });
 
-        Ok(Tensor(node_id))
+        Ok(Tensor::new_ref(node_id))
     }
     
     pub fn new_empty() -> GlobalTensor<f32> { 
@@ -204,15 +204,11 @@ impl Tensor {
             storage.insert(node_id, GlobalTensor { data, shape: shape.to_vec() })
         });
 
-        Ok(Tensor(node_id))
+        Ok(Tensor::new_ref(node_id))
     }
     
     pub fn to_id(self) -> NodeId {
-        self.0
-    }
-
-    pub fn id(&self) -> NodeId {
-        self.0
+        self.id()
     }
 
     pub fn new_empty() -> Tensor {
@@ -220,7 +216,7 @@ impl Tensor {
         TENSOR_STORAGE.with_borrow_mut(|storage| {
             storage.insert(node_id, GlobalTensor { data: vec![], shape: vec![] })
         });
-        Tensor(node_id)
+        Tensor::new_with_id(node_id)
     }
     
     pub fn is_empty(&self) -> bool {

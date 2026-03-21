@@ -26,14 +26,13 @@ pub mod visualization;
 
 use crate::{MlError, MlResult, register_operator, tensor::operators::Function, TensorError};
 use crate::nn::{Parameter, Variable};
-use crate::tensor:: {operators::Pow};
 
 #[macro_export]
 macro_rules! tensor_ops {
     ($tensor:expr, Pow, $exponent:expr) => {{
-        let mut op = Pow::new().unwrap();
-        op.power = Some($exponent);
-        op.forward(&[&$tensor]).unwrap().remove(0)
+        let op = crate::tensor::operators::Pow::new().unwrap();
+        let power_t = Tensor::scalar($exponent);
+        op.forward(&[&$tensor, &power_t]).unwrap().remove(0)
     }};
 
     ($tensor:expr, $op:ident, $second_tensor:expr) => {
@@ -45,16 +44,22 @@ macro_rules! tensor_ops {
     };
 
     ($tensor:expr, Topk, $k:expr, $sorted:expr) => {{
-        let mut op = Topk::new().unwrap();
-        op.topk = Some(($k, $sorted));
-        let mut result = op.forward(&[&$tensor]).unwrap();
+        let op = crate::tensor::operators::Topk::new().unwrap();
+        let k_t = Tensor::scalar($k as f32);
+        let sorted_t = Tensor::scalar(if $sorted { 1.0 } else { 0.0 });
+        let mut result = op.forward(&[&$tensor, &k_t, &sorted_t]).unwrap();
         (result.remove(0), result.remove(0))
     }};
 
     ($tensor:expr, Matmax, $dim:expr, $keepdim:expr) => {{
-        let mut op = Matmax::new().unwrap();
-        op.matmax = Some(($dim, $keepdim));
-        let mut result = op.forward(&[&$tensor]).unwrap();
+        let op = crate::tensor::operators::Matmax::new().unwrap();
+        let dim_val: Option<i32> = $dim;
+        let dim_t = match dim_val {
+            Some(d) => Tensor::scalar(d as f32),
+            None => Tensor::scalar(f32::NAN),
+        };
+        let keepdim_t = Tensor::scalar(if $keepdim { 1.0 } else { 0.0 });
+        let mut result = op.forward(&[&$tensor, &dim_t, &keepdim_t]).unwrap();
         (result.remove(0), result.remove(0))
     }};
 }
@@ -122,15 +127,77 @@ pub struct GlobalFunction {
     func_id: NodeId,
 }
 
-#[derive(Clone)]
-pub struct Tensor (NodeId);
+#[derive(Debug)]
+pub struct TensorHandle {
+    id: NodeId,
+    label: String,
+    owns_data: bool,
+}
+
+impl Drop for TensorHandle {
+    fn drop(&mut self) {
+        if !self.owns_data {
+            return;
+        }
+        let id = self.id;
+        let label = self.label.clone();
+        TENSOR_STORAGE.with_borrow_mut(|storage| {
+            if storage.remove(&id).is_some() {
+                if id.0 % 100 == 0 {
+                    tracing::trace!("🔥 [Tensor Release] ID: {:?}, Label: '{}' - Memory freed.", id, label);
+                }
+            }
+        });
+    }
+}
+
+pub struct Tensor (Arc<TensorHandle>);
+
+impl Clone for Tensor {
+    fn clone(&self) -> Self {
+        let new_ref = Self(self.0.clone());
+        let rc = Arc::strong_count(&self.0);
+        if self.id().0 % 100 == 0 {
+            tracing::trace!("✨ [Tensor Clone] ID: {:?}, Label: '{}', New RC: {}", self.id(), self.0.label, rc);
+        }
+        new_ref
+    }
+}
 // 기존의 텐서는 직접 variable 에 소유되는 구조로, 메모리 관리와 정적계산그래프 구현이 불가능하기 때문에 실제 텐서는 전역으로 관리하며 기존의 텐서는 아이디를 통해서 관리하도록 변경함.
 
 impl Tensor {
+    pub fn new_with_id(id: NodeId) -> Self {
+        let label = format!("tensor_{:?}", id);
+        if id.0 % 100 == 0 {
+            tracing::trace!("🆕 [Tensor Create] ID: {:?}, Label: '{}'", id, label);
+        }
+        Self(Arc::new(TensorHandle { id, label, owns_data: true }))
+    }
+
+    pub fn new_with_label(id: NodeId, label: &str) -> Self {
+        if id.0 % 100 == 0 {
+            tracing::trace!("🆕 [Tensor Create] ID: {:?}, Label: '{}'", id, label);
+        }
+        Self(Arc::new(TensorHandle { id, label: label.to_string(), owns_data: true }))
+    }
+
+    pub fn new_ref(id: NodeId) -> Self {
+        let label = format!("tensor_ref_{:?}", id);
+        Self(Arc::new(TensorHandle { id, label, owns_data: false }))
+    }
+
+    pub fn id(&self) -> NodeId {
+        self.0.id
+    }
+
     pub fn replace(&self, other_tensor: GlobalTensor<f32>) {
         TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage.insert(self.0, other_tensor)
+            storage.insert(self.id(), other_tensor)
         });
+    }
+
+    pub fn is_unique(&self) -> bool {
+        Arc::strong_count(&self.0) == 1
     }
 }
 
@@ -257,11 +324,11 @@ impl ExecutionContext {
     pub fn add_tensor(&mut self, tensor: GlobalTensor<f32>) -> Tensor {
         let node_id = self.node_id_generator.next();
         self.tensor_storage.insert(node_id, tensor);
-        Tensor(node_id)
+        Tensor::new_with_id(node_id)
     }
 
     pub fn get_tensor_data(&self, tensor: &Tensor) -> Option<&GlobalTensor<f32>> {
-        self.tensor_storage.get(&tensor.0)
+        self.tensor_storage.get(&tensor.id())
     }
 
     // ... 기타 필요한 헬퍼 메서드들 ...
@@ -499,10 +566,9 @@ mod tests {
 
     #[test]
     fn test_pow_macro() {
-        todo!(" Pow macro test is not implemented yet. It requires a Pow operator implementation."); // 전역으로 선언된 pow 구조체의 내부 power 필드에 접근할수 있는 방법이 필요함
-        // let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
-        // let result = tensor_ops!(tensor, Pow, 2.0);
-        // assert_eq!(result.data(), vec![4.0, 9.0]);
+        let tensor = Tensor::new(vec![vec![2.0, 3.0]]);
+        let result = tensor_ops!(tensor, Pow, 2.0);
+        assert_eq!(result.data(), vec![4.0, 9.0]);
     }
 
     #[test]

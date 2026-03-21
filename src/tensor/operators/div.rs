@@ -89,13 +89,13 @@ impl std::ops::Div<Tensor> for &Tensor {
 impl std::ops::DivAssign<Tensor> for Tensor {
     fn div_assign(&mut self, other: Tensor) {
         Div::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().assign_forward(&[self, &other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().assign_forward(&[self, &other], self.id()).unwrap().remove(0));
     }
 }
 
 impl std::ops::DivAssign<&Tensor> for Tensor {
     fn div_assign(&mut self, other: &Tensor) {
         Div::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().assign_forward(&[self, other], self.0).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().assign_forward(&[self, other], self.id()).unwrap().remove(0));
     }
 }

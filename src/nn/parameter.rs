@@ -10,7 +10,7 @@ impl Parameter for Variable {
             label,
             #[cfg(feature = "enableVisualization")]
             node_type: crate::tensor::NodeType::Variable,
-            grad: RefCell::new(Some(tensor.zeros_like())),
+            grad: tensor.zeros_like(),
             tensor,
             requires_grad: cfg!(feature = "requiresGrad").into()
         }
@@ -29,11 +29,11 @@ impl Parameter for Variable {
 
     fn retain_grad(&self) {
         self.requires_grad.replace(true);
-        self.grad.replace(None);
+        self.grad.replace(GlobalTensor::zeros(self.tensor.shape()))
     }
 
-    fn grad(&self) -> &Option<Tensor> {
-        self.grad
+    fn grad(&self) -> &Tensor {
+        &self.grad
     }
 
     #[cfg(feature = "enableBackpropagation")]
@@ -71,7 +71,7 @@ impl Parameter for Variable {
             // 배치별로 다른 스토리지를 만들어서 관리하도록 하던가하는 방법으로 최적화 해야할듯함.
             // 최종적으로 정적 계산그래프로 전환한다면 더욱 성능향상이 기대됨.
         if !self.grad().is_empty() || !self.is_retain_grad() {
-            self.grad.replace(None);
+            self.grad.replace(GlobalTensor::zeros(self.tensor.shape()));
         }
     }
 
