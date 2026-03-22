@@ -9,6 +9,7 @@ mod reproduction_test {
     use std::sync::Arc;
 
     #[test]
+    #[cfg(all(feature = "enableBackward"))]
     fn test_graph_reset_drops_variable_data() -> MlResult<()> {
         let _ = crate::tests::common::utils::setup_logging();
 
@@ -50,6 +51,7 @@ mod reproduction_test {
     }
 
     #[test]
+    
     fn test_tensor_with_id_destruction() -> MlResult<()> {
         let _ = crate::tests::common::utils::setup_logging();
 

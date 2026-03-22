@@ -15,7 +15,6 @@ use crate::{register_operator, var_act, var_bias, var_weight, backend::Backend, 
     TensorBase
 }, MlError};
 use std::{
-    cell::RefCell,
     fmt::{
         Formatter,
         Debug
@@ -27,8 +26,6 @@ use std::{
     },
     sync::Arc
 };
-use std::cell::Cell;
-use crate::tensor::COMPUTATION_GRAPH;
 
 #[macro_export]
 macro_rules! variable {
@@ -56,6 +53,7 @@ macro_rules! variable {
 }
 
 pub trait Layer: Debug {
+    #[cfg(all(feature = "enableBackward"))]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable>;
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>>;
     fn params(&self) -> Vec<&dyn Parameter>;
@@ -71,33 +69,11 @@ pub trait Layer: Debug {
 
 pub trait Parameter: Debug {
     fn new(tensor: Tensor) -> Self where Self: Sized;
-
-    #[cfg(feature = "enableBackward")]
+    
     fn node_id(&self) -> NodeId;
-
-    fn add_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
-        Add::new()?.assign_forward(&[self.tensor(), &other_tensor], self.node_id())?;
-        Ok(())
-    }
-
-    fn sub_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
-        Sub::new()?.assign_forward(&[self.tensor(), &other_tensor], self.node_id())?;
-        Ok(())
-    }
-
-    fn mul_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
-        Mul::new()?.assign_forward(&[self.tensor(), &other_tensor], self.node_id())?;
-        Ok(())
-    }
-
-    fn div_tensor(&self, other_tensor: GlobalTensor<f32>) -> MlResult<()> {
-        Div::new()?.assign_forward(&[self.tensor(), &other_tensor], self.node_id())?;
-        Ok(())
-    }
 
     fn tensor(&self) -> &Tensor;
     fn is_retain_grad(&self) -> bool;
-
     fn retain_grad(&self);
 
     fn grad(&self) -> &Tensor;
@@ -118,16 +94,18 @@ pub trait Parameter: Debug {
     #[cfg(feature = "enableBackward")]
     fn clear_grad(&self);
 
-    // 추가: O(1) dirty 조회
+    // TENSOR_STORAGE의 GlobalTensor.dirty 플래그를 조회 (O(1))
     // backward 루프에서 grad.is_empty() O(n) 스캔 대신 사용
+    // 모든 Variable 클론이 동일한 STORAGE 항목을 공유하므로 원본 Variable에서도 정확히 동작
     #[cfg(feature = "enableBackward")]
     fn is_grad_dirty(&self) -> bool;
     
     #[cfg(feature = "enableBackward")]
     fn accumulate_grad(&self, new_grad: Tensor) -> MlResult<()>;
 
+    #[cfg(all(feature = "enableBackward"))]
     fn backward(&self) -> MlResult<()> {
-        COMPUTATION_GRAPH.with(|graph| {
+        crate::tensor::COMPUTATION_GRAPH.with(|graph| {
             let mut graph = graph.lock().unwrap();
 
             if graph.node_map.contains_key(&self.node_id()) {
@@ -141,6 +119,7 @@ pub trait Parameter: Debug {
 
     /// Performs backpropagation and then automatically resets the computation graph
     /// to release memory for all intermediate tensors.
+    #[cfg(all(feature = "enableBackward"))]
     fn backward_and_clear(&self) -> MlResult<()> {
         self.backward()?;
         crate::tensor::ComputationGraph::reset_graph();
@@ -166,15 +145,8 @@ pub struct Variable {
     #[cfg(feature = "enableVisualization")]
     node_type: crate::tensor::NodeType,
     tensor: Tensor,
-    requires_grad: Cell<bool>,
+    requires_grad: std::cell::Cell<bool>,
     grad: Tensor,
-    // 추가 필드
-    // grad에 실제 값이 기록됐는지 추적하는 O(1) 플래그.
-    // Cell<bool>: Copy 타입 → Variable의 Clone derive 그대로 동작.
-    // RefCell 불필요 — 대여 추적 없이 내부 가변성만 필요.
-    // #[cfg] 로 enableBackward 외 빌드에서는 0바이트.
-    #[cfg(feature = "enableBackward")]
-    grad_dirty: Cell<bool>,
 }
 
 impl Debug for Variable {
@@ -242,6 +214,7 @@ impl Sequential {
 }
 
 impl Layer for Sequential {
+    #[cfg(all(feature = "enableBackward"))]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let mut current_output= variable!(vec![0.0], input.tensor().shape(), &input.label);
         for layer in &mut self.layers {

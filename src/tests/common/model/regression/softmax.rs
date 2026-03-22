@@ -204,7 +204,7 @@ impl Model for SoftmaxRegression {
         add.apply(&[&uh1_pre, &self.b1])
     }
 
-    fn predict(&mut self, x: &Tensor) -> MlResult<GlobalTensor<f32>> {
+    fn predict(&mut self, x: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         let matmul = Matmul::new()?;
         let add = Add::new()?;
 
@@ -218,8 +218,8 @@ impl Model for SoftmaxRegression {
 
     #[cfg(feature = "enableBackward")]
     fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()> {
-        self.w1.sub_tensor(self.w1.grad() as &dyn TensorBase * lr)?;
-        self.b1.sub_tensor(self.b1.grad() as &dyn TensorBase * lr)?;
+        self.w1 -= self.w1.grad() as &dyn TensorBase * lr;
+        self.b1 -= self.b1.grad() as &dyn TensorBase * lr;
         Ok(())
     }
 

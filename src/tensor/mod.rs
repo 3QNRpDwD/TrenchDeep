@@ -109,6 +109,7 @@ macro_rules! scalar  {
 pub struct GlobalTensor<Type> {
     pub data: Vec<Type>,
     pub shape: Vec<usize>,
+    pub dirty: bool,
 }
 
 // pub struct Variable {
@@ -156,9 +157,8 @@ pub struct Tensor (Arc<TensorHandle>);
 impl Clone for Tensor {
     fn clone(&self) -> Self {
         let new_ref = Self(self.0.clone());
-        let rc = Arc::strong_count(&self.0);
         if self.id().0 % 100 == 0 {
-            tracing::trace!("✨ [Tensor Clone] ID: {:?}, Label: '{}', New RC: {}", self.id(), self.0.label, rc);
+            tracing::trace!("✨ [Tensor Clone] ID: {:?}, Label: '{}', New RC: {}", self.id(), self.0.label, Arc::strong_count(&self.0));
         }
         new_ref
     }
@@ -264,7 +264,9 @@ impl NodeIdGenerator {
 
 pub(crate) struct ComputationNode {
     id: NodeId,
-    variable: Variable,
+    tensor: Tensor,
+    grad: Tensor,
+    requires_grad: bool,
     function: Option<String>,
     inputs: Vec<NodeId>,
     is_leaf: bool,
@@ -302,6 +304,7 @@ pub enum NodeType {
 }
 
 pub struct ExecutionContext {
+    #[cfg(all(feature = "enableBackward"))]
     pub graph: ComputationGraph,
     pub tensor_storage: HashMap<NodeId, GlobalTensor<f32>>,
     pub node_id_generator: NodeIdGenerator, // NodeId 생성기도 컨텍스트에 포함
@@ -313,6 +316,7 @@ pub struct ExecutionContext {
 impl ExecutionContext {
     pub fn new() -> Self {
         Self {
+            #[cfg(all(feature = "enableBackward"))]
             graph: ComputationGraph::new(),
             tensor_storage: HashMap::new(),
             node_id_generator: NodeIdGenerator::new(),
@@ -349,15 +353,39 @@ thread_local! {
 }
 
 
+// TensorBase를 구현하는 모든 타입 간 비교 (data + shape 기반, dirty 등 메타데이터 무시)
+impl PartialEq for dyn TensorBase {
+    fn eq(&self, other: &Self) -> bool {
+        self.data() == other.data() && self.shape() == other.shape()
+    }
+}
+
 impl PartialEq for Tensor {
     fn eq(&self, other: &Self) -> bool {
         self.data() == other.data() && self.shape() == other.shape()
     }
 }
 
-impl Eq for Tensor {
-    // Todo: 구현 필요
+impl PartialEq<GlobalTensor<f32>> for Tensor {
+    fn eq(&self, other: &GlobalTensor<f32>) -> bool {
+        self.data() == other.data() && self.shape() == other.shape()
+    }
 }
+
+impl PartialEq<Tensor> for GlobalTensor<f32> {
+    fn eq(&self, other: &Tensor) -> bool {
+        self.data() == other.data() && self.shape() == other.shape()
+    }
+}
+
+impl PartialEq for GlobalTensor<f32> {
+    fn eq(&self, other: &Self) -> bool {
+        self.data() == other.data() && self.shape() == other.shape()
+    }
+}
+
+impl Eq for Tensor {}
+impl Eq for GlobalTensor<f32> {}
 
 impl PartialOrd for Tensor {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -440,6 +468,10 @@ pub trait TensorBase {
 
     fn scalar(scalar: f32) -> Self where Self: Sized {
         Self::new(vec![vec![scalar]])
+    }
+
+    fn is_empty(&self) -> bool {
+        self.data().iter().all(|&d| d == 0.0) || self.data().len() == 0
     }
 }
 

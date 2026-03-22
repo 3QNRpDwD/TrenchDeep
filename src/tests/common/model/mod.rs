@@ -7,7 +7,7 @@ pub trait Model {
     fn train(&mut self, x_set: &[&Variable], t_set: &[&Variable], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()>;
     #[cfg(feature = "enableBackward")]
     fn apply(&mut self, x: &Variable) -> MlResult<Variable>;
-    fn predict(&mut self, test_data: &Tensor) -> MlResult<GlobalTensor<f32>>;
+    fn predict(&mut self, test_data: &dyn TensorBase) -> MlResult<GlobalTensor<f32>>;
     #[cfg(feature = "enableBackward")]
     fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()>;
     #[cfg(feature = "enableBackward")]

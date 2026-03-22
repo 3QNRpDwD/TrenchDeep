@@ -12,6 +12,7 @@ impl ReLULayer {
 }
 
 impl Layer for ReLULayer {
+    #[cfg(all(feature = "enableBackward"))]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let output = self.operator.forward(&[input.tensor()])?.remove(0);
         let applied = match self.inputs.contains(&input.node_id()) {

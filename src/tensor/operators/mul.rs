@@ -1,4 +1,6 @@
 use super::*;
+use crate::nn::Variable;
+use crate::tensor::AutogradFunction;
 
 impl Function for Mul {
     fn new() -> MlResult<GlobalFunction> {
@@ -97,7 +99,7 @@ impl std::ops::Mul<Tensor> for Tensor {
 
     fn mul(self, other: Tensor) -> Self::Output {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().forward(&[&self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[&self, &other]).unwrap().remove(0))
     }
 }
 
@@ -106,7 +108,7 @@ impl std::ops::Mul<&Tensor> for Tensor {
 
     fn mul(self, other: &Tensor) -> Self::Output {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().forward(&[&self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[&self, other]).unwrap().remove(0))
     }
 }
 
@@ -115,7 +117,7 @@ impl std::ops::Mul<&Tensor> for &Tensor {
 
     fn mul(self, other: &Tensor) -> Self::Output {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().forward(&[self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -124,7 +126,7 @@ impl std::ops::Mul<&dyn TensorBase> for &dyn TensorBase {
 
     fn mul(self, other: &dyn TensorBase) -> Self::Output {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().forward(&[self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -133,7 +135,7 @@ impl std::ops::Mul<Tensor> for &Tensor {
 
     fn mul(self, other: Tensor) -> Self::Output {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().forward(&[self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[self, &other]).unwrap().remove(0))
     }
 }
 
@@ -141,13 +143,42 @@ impl std::ops::Mul<Tensor> for &Tensor {
 impl std::ops::MulAssign<Tensor> for Tensor {
     fn mul_assign(&mut self, other: Tensor) {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().assign_forward(&[self, &other], self.id()).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().assign_forward(&[self, &other], self.id()).unwrap().remove(0));
     }
 }
 
 impl std::ops::MulAssign<&Tensor> for Tensor {
     fn mul_assign(&mut self, other: &Tensor) {
         Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Mul").unwrap().assign_forward(&[self, other], self.id()).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().assign_forward(&[self, other], self.id()).unwrap().remove(0));
+    }
+}
+
+// Variable operator overloading (graph-tracked)
+impl std::ops::Mul<&Variable> for &Variable {
+    type Output = Variable;
+    fn mul(self, other: &Variable) -> Variable {
+        Mul::new().unwrap().apply(&[self, other]).unwrap()
+    }
+}
+
+impl std::ops::Mul<&Variable> for Variable {
+    type Output = Variable;
+    fn mul(self, other: &Variable) -> Variable {
+        Mul::new().unwrap().apply(&[&self, other]).unwrap()
+    }
+}
+
+impl std::ops::Mul<Variable> for &Variable {
+    type Output = Variable;
+    fn mul(self, other: Variable) -> Variable {
+        Mul::new().unwrap().apply(&[self, &other]).unwrap()
+    }
+}
+
+impl std::ops::Mul<Variable> for Variable {
+    type Output = Variable;
+    fn mul(self, other: Variable) -> Variable {
+        Mul::new().unwrap().apply(&[&self, &other]).unwrap()
     }
 }

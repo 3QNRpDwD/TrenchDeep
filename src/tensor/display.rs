@@ -20,7 +20,9 @@ impl Debug for ComputationNode {
         let mut ds = f.debug_struct("ComputationNode");
         ds
             .field("id", &self.id)
-            .field("variable", &self.variable)
+            .field("tensor", &self.tensor)
+            .field("grad", &self.grad)
+            .field("requires_grad", &self.requires_grad)
             .field("function", &self.function.as_ref().unwrap())
             .field("inputs", &self.inputs)
             .field("is_leaf", &self.is_leaf)

@@ -198,7 +198,7 @@ impl Model for MLP {
         Ok(ah2)
     }
 
-    fn predict(&mut self, x: &Tensor) -> MlResult<GlobalTensor<f32>> {
+    fn predict(&mut self, x: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         let matmul = Matmul::new()?;
         let add = Add::new()?;
 
@@ -215,10 +215,10 @@ impl Model for MLP {
 
     #[cfg(feature = "enableBackward")]
     fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()> {
-        self.w1.sub_tensor(self.w1.grad() as &dyn TensorBase * lr)?;
-        self.w2.sub_tensor(self.w2.grad() as &dyn TensorBase * lr)?;
-        self.b1.sub_tensor(self.b1.grad() as &dyn TensorBase * lr)?;
-        self.b2.sub_tensor(self.b2.grad() as &dyn TensorBase * lr)?;
+        self.w1 -= self.w1.grad() as &dyn TensorBase * lr;
+        self.w2 -= self.w2.grad() as &dyn TensorBase * lr;
+        self.b1 -= self.b1.grad() as &dyn TensorBase * lr;
+        self.b2 -= self.b2.grad() as &dyn TensorBase * lr;
         Ok(())
     }
 

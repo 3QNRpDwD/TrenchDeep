@@ -1,4 +1,6 @@
 use super::*;
+use crate::nn::Variable;
+use crate::tensor::AutogradFunction;
 
 impl Function for Neg {
     fn new() -> MlResult<GlobalFunction> {
@@ -26,7 +28,7 @@ impl std::ops::Neg for Tensor {
     type Output = GlobalTensor<f32>;
 
     fn neg(self) -> Self::Output {
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Neg").unwrap().forward(&[&self]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Neg").unwrap().forward(&[&self]).unwrap().remove(0))
     }
 }
 
@@ -34,6 +36,21 @@ impl std::ops::Neg for &dyn TensorBase {
     type Output = GlobalTensor<f32>;
 
     fn neg(self) -> Self::Output {
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Neg").unwrap().forward(&[self]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Neg").unwrap().forward(&[self]).unwrap().remove(0))
+    }
+}
+
+// Variable operator overloading (graph-tracked)
+impl std::ops::Neg for &Variable {
+    type Output = Variable;
+    fn neg(self) -> Variable {
+        Neg::new().unwrap().apply(&[self]).unwrap()
+    }
+}
+
+impl std::ops::Neg for Variable {
+    type Output = Variable;
+    fn neg(self) -> Variable {
+        Neg::new().unwrap().apply(&[&self]).unwrap()
     }
 }

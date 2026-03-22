@@ -1,6 +1,7 @@
 use super::*;
 
 impl Layer for Pooling {
+    #[cfg(all(feature = "enableBackward"))]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         todo!()
     }

@@ -34,6 +34,7 @@ impl Linear {
 
 
 impl Layer for Linear {
+    #[cfg(all(feature = "enableBackward"))]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
         let mut add = Add::new()?;

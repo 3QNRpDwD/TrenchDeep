@@ -29,8 +29,7 @@ impl Function for Sin {
 
     /// 연산에 사용되는 백엔드 객체의 참조를 반환
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
-
-    #[cfg(all(feature = "enableBackward"))]
+    
     fn node_id(&self) -> &NodeId { &self.node_id }
 }
 

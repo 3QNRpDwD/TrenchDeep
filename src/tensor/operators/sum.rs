@@ -29,7 +29,7 @@ impl Function for Sum {
             return Err(MlError::TensorError(TensorError::EmptyTensor));
         }
 
-        let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec() };
+        let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec(), dirty: false };
         Ok(vec![gt.clone(); targets.len()])
     }
     

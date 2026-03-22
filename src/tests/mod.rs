@@ -22,6 +22,7 @@ mod mnist_test {
 
     #[ignore]
     #[test]
+    #[cfg(all(feature = "enableBackward"))]
     fn mlp_mnist_classification_integration_test() -> MlResult<()> {
         let _ = setup_logging();
         let config = TestConfig::default();
@@ -58,6 +59,7 @@ mod mnist_test {
 
     #[ignore = "테스트 시간이 너무 오래걸려서 무시함"]
     #[test]
+    #[cfg(all(feature = "enableBackward"))]
     fn softmax_regression_mnist_classification_integration_test() -> MlResult<()> {
         let _ = setup_logging();
         let config = TestConfig::default();

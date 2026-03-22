@@ -1,4 +1,6 @@
 use super::*;
+use crate::nn::Variable;
+use crate::tensor::AutogradFunction;
 
 impl Function for Sub {
     fn new() -> MlResult<GlobalFunction> {
@@ -51,7 +53,7 @@ impl Function for Sub {
 
     #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        let gt = GlobalTensor {data: grad.data().to_vec(), shape: grad.shape().to_vec() };
+        let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec(), dirty: false };
         Ok(vec![gt, GlobalTensor::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?])
     }
 
@@ -76,7 +78,7 @@ impl std::ops::Sub<Tensor> for Tensor {
 
     fn sub(self, other: Tensor) -> Self::Output {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().forward(&[&self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[&self, &other]).unwrap().remove(0))
     }
 }
 
@@ -85,7 +87,7 @@ impl std::ops::Sub<&Tensor> for Tensor {
 
     fn sub(self, other: &Tensor) -> Self::Output {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().forward(&[&self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[&self, other]).unwrap().remove(0))
     }
 }
 
@@ -94,7 +96,7 @@ impl std::ops::Sub<&Tensor> for &Tensor {
 
     fn sub(self, other: &Tensor) -> Self::Output {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().forward(&[self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -103,7 +105,7 @@ impl std::ops::Sub<Tensor> for &Tensor {
 
     fn sub(self, other: Tensor) -> Self::Output {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().forward(&[self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[self, &other]).unwrap().remove(0))
     }
 }
 
@@ -111,8 +113,8 @@ impl std::ops::Sub<&dyn TensorBase> for &dyn TensorBase {
     type Output = GlobalTensor<f32>;
 
     fn sub(self, other: &dyn TensorBase) -> Self::Output {
-        Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().forward(&[self, other]).unwrap().remove(0))
+        Sub::new().unwrap();
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -120,13 +122,42 @@ impl std::ops::Sub<&dyn TensorBase> for &dyn TensorBase {
 impl std::ops::SubAssign<Tensor> for Tensor {
     fn sub_assign(&mut self, other: Tensor) {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().assign_forward(&[self, &other], self.id()).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().assign_forward(&[self, &other], self.id()).unwrap().remove(0));
     }
 }
 
 impl std::ops::SubAssign<&Tensor> for Tensor {
     fn sub_assign(&mut self, other: &Tensor) {
         Sub::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Sub").unwrap().assign_forward(&[self, other], self.id()).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().assign_forward(&[self, other], self.id()).unwrap().remove(0));
+    }
+}
+
+// Variable operator overloading (graph-tracked)
+impl std::ops::Sub<&Variable> for &Variable {
+    type Output = Variable;
+    fn sub(self, other: &Variable) -> Variable {
+        Sub::new().unwrap().apply(&[self, other]).unwrap()
+    }
+}
+
+impl std::ops::Sub<&Variable> for Variable {
+    type Output = Variable;
+    fn sub(self, other: &Variable) -> Variable {
+        Sub::new().unwrap().apply(&[&self, other]).unwrap()
+    }
+}
+
+impl std::ops::Sub<Variable> for &Variable {
+    type Output = Variable;
+    fn sub(self, other: Variable) -> Variable {
+        Sub::new().unwrap().apply(&[self, &other]).unwrap()
+    }
+}
+
+impl std::ops::Sub<Variable> for Variable {
+    type Output = Variable;
+    fn sub(self, other: Variable) -> Variable {
+        Sub::new().unwrap().apply(&[&self, &other]).unwrap()
     }
 }

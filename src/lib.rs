@@ -280,8 +280,8 @@ let d = {
     #[test]
     #[cfg(feature = "enableBackward")]
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
-        let x0 = var_input!(Tensor::new(vec![vec![0.0]]));
-        let x1 = var_input!(Tensor::new(vec![vec![2.0]]));
+        let mut x0 = var_input!(Tensor::new(vec![vec![0.0]]));
+        let mut x1 = var_input!(Tensor::new(vec![vec![2.0]]));
         let iter: usize = 1000;
         let learning_rate = Tensor::scalar(0.001);
 
@@ -300,8 +300,8 @@ let d = {
             // }
             
             //파라미터 갱신
-            x0.sub_tensor(x0.grad() * &learning_rate)?;
-            x1.sub_tensor( x1.grad() * &learning_rate)?;
+            x0 -= x0.grad() * &learning_rate;
+            x1 -= x1.grad() * &learning_rate;
         }
         Ok(())
     }

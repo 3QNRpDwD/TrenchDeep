@@ -4,7 +4,7 @@ impl TensorBase for GlobalTensor<f32> {
     fn new(data: Vec<Vec<f32>>) -> Self {
         let shape = vec![data.len(), data[0].len()];
         let data: Vec<f32> = data.into_iter().flatten().collect();
-        GlobalTensor { data, shape }
+        GlobalTensor { data, shape, dirty: false }
     }
 
     fn from_vec(data: Vec<f32>, shape: &[usize]) -> MlResult<Self> {
@@ -16,7 +16,7 @@ impl TensorBase for GlobalTensor<f32> {
             }));
         }
 
-        Ok(GlobalTensor { data, shape: shape.to_vec() })
+        Ok(GlobalTensor { data, shape: shape.to_vec(), dirty: false })
     }
 
     fn as_ptr(&self) -> *const GlobalTensor<f32> {
@@ -77,7 +77,7 @@ impl TensorBase for Tensor {
 
         let node_id = NODE_ID_GEN.next();
         TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage.insert(node_id, GlobalTensor { data, shape })
+            storage.insert(node_id, GlobalTensor { data, shape, dirty: false })
         });
         Tensor::new_with_id(node_id)
     }
@@ -93,7 +93,7 @@ impl TensorBase for Tensor {
 
         let node_id = NODE_ID_GEN.next();
         TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage.insert(node_id, GlobalTensor { data, shape: shape.to_vec() })
+            storage.insert(node_id, GlobalTensor { data, shape: shape.to_vec(), dirty: false })
         });
 
         Ok(Tensor::new_with_id(node_id))
@@ -185,8 +185,8 @@ impl GlobalTensor<f32> {
         Ok(Tensor::new_ref(node_id))
     }
     
-    pub fn new_empty() -> GlobalTensor<f32> { 
-        GlobalTensor { data: vec![], shape: vec![] }
+    pub fn new_empty() -> GlobalTensor<f32> {
+        GlobalTensor { data: vec![], shape: vec![], dirty: false }
     }
 }
 
@@ -201,7 +201,7 @@ impl Tensor {
         }
 
         TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage.insert(node_id, GlobalTensor { data, shape: shape.to_vec() })
+            storage.insert(node_id, GlobalTensor { data, shape: shape.to_vec(), dirty: false })
         });
 
         Ok(Tensor::new_ref(node_id))
@@ -214,7 +214,7 @@ impl Tensor {
     pub fn new_empty() -> Tensor {
         let node_id = NODE_ID_GEN.next();
         TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage.insert(node_id, GlobalTensor { data: vec![], shape: vec![] })
+            storage.insert(node_id, GlobalTensor { data: vec![], shape: vec![], dirty: false })
         });
         Tensor::new_with_id(node_id)
     }

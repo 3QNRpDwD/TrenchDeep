@@ -1,4 +1,18 @@
 use super::*;
+use crate::tensor::GlobalTensor;
+
+// Variable in-place operator overloading (no graph registration, for parameter updates)
+impl std::ops::SubAssign<GlobalTensor<f32>> for Variable {
+    fn sub_assign(&mut self, rhs: GlobalTensor<f32>) {
+        Sub::new().unwrap().assign_forward(&[self.tensor(), &rhs], self.node_id()).unwrap();
+    }
+}
+
+impl std::ops::AddAssign<GlobalTensor<f32>> for Variable {
+    fn add_assign(&mut self, rhs: GlobalTensor<f32>) {
+        Add::new().unwrap().assign_forward(&[self.tensor(), &rhs], self.node_id()).unwrap();
+    }
+}
 
 impl Parameter for Variable {
     fn new(tensor: Tensor) -> Self {
@@ -16,11 +30,9 @@ impl Parameter for Variable {
             //   zeros_like(): shape 크기만큼 Vec<f32> 힙 할당 + TENSOR_STORAGE insert
             //   new_empty() : data=[], shape=[] — capacity=0, 힙 할당 없음
             grad: Tensor::new_empty(),
-            #[cfg(feature = "enableBackward")]
-            grad_dirty: std::cell::Cell::new(false),
         }
     }
-
+    
     fn node_id(&self) -> NodeId {
         self.tensor.id()
     }
@@ -52,8 +64,10 @@ impl Parameter for Variable {
         // 출력 노드의 grad를 1.0으로 주입할 때 사용.
         // replace()는 TENSOR_STORAGE의 기존 항목을 덮어쓰므로 힙 할당 1회.
         // (backward 시작마다 출력 노드 1개에만 호출됨)
+        // dirty 플래그도 GlobalTensor에 포함되어 있으므로 replace 시 함께 전달.
+        let mut grad = grad;
+        grad.dirty = true;
         self.grad.replace(grad);
-        self.grad_dirty.set(true);
     }
 
     #[cfg(feature = "enableVisualization")]
@@ -83,20 +97,28 @@ impl Parameter for Variable {
         //
         // dirty=true인 경우: accumulate_grad 또는 set_grad가 실제 값을 기록함
         //   → 버퍼를 in-place 제로화하고 재사용 준비
-        if !self.grad_dirty.get() {
-            return;
-        }
+        //
+        // dirty 플래그는 GlobalTensor 안에 저장되므로 모든 Variable 클론이
+        // 동일한 상태를 공유한다.
         crate::tensor::TENSOR_STORAGE.with_borrow_mut(|storage| {
             if let Some(gt) = storage.get_mut(&self.grad.id()) {
+                if !gt.dirty {
+                    return;
+                }
                 gt.data.iter_mut().for_each(|x| *x = 0.0);
+                gt.dirty = false;
             }
         });
-        self.grad_dirty.set(false);
     }
 
     #[cfg(feature = "enableBackward")]
     fn is_grad_dirty(&self) -> bool {
-        self.grad_dirty.get()
+        crate::tensor::TENSOR_STORAGE.with(|storage| {
+            storage.borrow()
+                .get(&self.grad.id())
+                .map(|gt| gt.dirty)
+                .unwrap_or(false)
+        })
     }
     
     #[cfg(feature = "enableBackward")]
@@ -117,10 +139,13 @@ impl Parameter for Variable {
             // ── 첫 번째 기록: 버퍼 할당 ─────────────────────────────────────
             // 이후 에폭에서는 이 경로를 타지 않는다.
             // (clear_grad는 버퍼를 해제하지 않고 0으로만 채우기 때문)
-            self.grad.replace(GlobalTensor::from_vec(
+            // dirty=true를 GlobalTensor에 포함하여 replace.
+            let mut buf = GlobalTensor::from_vec(
                 new_grad.data().to_vec(),
                 new_grad.shape(),
-            )?);
+            )?;
+            buf.dirty = true;
+            self.grad.replace(buf);
         } else {
             // ── 이후 기록: in-place 덧셈 ────────────────────────────────────
             if self.grad.shape() != new_grad.shape() {
@@ -139,12 +164,11 @@ impl Parameter for Variable {
                     gt.data.iter_mut()
                         .zip(new_data.iter())
                         .for_each(|(d, &v)| *d += v);
+                    gt.dirty = true;
                 }
             });
         }
-        self.grad_dirty.set(true);
         Ok(())
-
     }
 }
 
@@ -182,8 +206,6 @@ impl Variable {
                 grad: tensor.zeros_like(),
                 tensor,
                 requires_grad: cfg!(feature = "requiresGrad").into(),
-                #[cfg(feature = "enableBackward")]
-                grad_dirty: Cell::new(false),
             }
         }
 
@@ -195,8 +217,6 @@ impl Variable {
             grad: tensor.zeros_like(),
             tensor,
             requires_grad: cfg!(feature = "requiresGrad").into(),
-            #[cfg(feature = "enableBackward")]
-            grad_dirty: Cell::new(false),
         }
     }
 

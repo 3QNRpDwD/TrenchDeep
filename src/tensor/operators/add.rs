@@ -1,4 +1,6 @@
 use super::*;
+use crate::nn::Variable;
+use crate::tensor::AutogradFunction;
 
 impl Function for Add {
     fn new() -> MlResult<GlobalFunction> {
@@ -66,7 +68,7 @@ impl Function for Add {
 
     #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec() };
+        let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec(), dirty: false };
         Ok(vec![gt.clone(), gt])
     }
 
@@ -90,7 +92,7 @@ impl std::ops::Add<Tensor> for Tensor {
 
     fn add(self, other: Tensor) -> Self::Output {
         Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().forward(&[&self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().forward(&[&self, &other]).unwrap().remove(0))
     }
 }
 
@@ -99,7 +101,7 @@ impl std::ops::Add<&Tensor> for Tensor {
 
     fn add(self, other: &Tensor) -> Self::Output {
         Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().forward(&[&self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().forward(&[&self, other]).unwrap().remove(0))
     }
 }
 
@@ -108,7 +110,7 @@ impl std::ops::Add<&Tensor> for &Tensor {
 
     fn add(self, other: &Tensor) -> Self::Output {
         Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().forward(&[self, other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -117,7 +119,7 @@ impl std::ops::Add<Tensor> for &Tensor {
 
     fn add(self, other: Tensor) -> Self::Output {
         Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().forward(&[self, &other]).unwrap().remove(0))
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().forward(&[self, &other]).unwrap().remove(0))
     }
 }
 
@@ -125,8 +127,8 @@ impl std::ops::Add<&dyn TensorBase> for &dyn TensorBase {
     type Output = GlobalTensor<f32>;
 
     fn add(self, other: &dyn TensorBase) -> Self::Output {
-        Mul::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().forward(&[self, other]).unwrap().remove(0))
+        Add::new().unwrap();
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().forward(&[self, other]).unwrap().remove(0))
     }
 }
 
@@ -134,12 +136,41 @@ impl std::ops::Add<&dyn TensorBase> for &dyn TensorBase {
 impl std::ops::AddAssign<Tensor> for Tensor {
     fn add_assign(&mut self, other: Tensor) {
         Add::new().unwrap();
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().assign_forward(&[self, &other], self.id()).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().assign_forward(&[self, &other], self.id()).unwrap().remove(0));
     }
 }
 
 impl std::ops::AddAssign<&Tensor> for Tensor {
     fn add_assign(&mut self, other: &Tensor) {
-        OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Add").unwrap().assign_forward(&[self, other], self.id()).unwrap().remove(0));
+        OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().assign_forward(&[self, other], self.id()).unwrap().remove(0));
+    }
+}
+
+// Variable operator overloading (graph-tracked)
+impl std::ops::Add<&Variable> for &Variable {
+    type Output = Variable;
+    fn add(self, other: &Variable) -> Variable {
+        Add::new().unwrap().apply(&[self, other]).unwrap()
+    }
+}
+
+impl std::ops::Add<&Variable> for Variable {
+    type Output = Variable;
+    fn add(self, other: &Variable) -> Variable {
+        Add::new().unwrap().apply(&[&self, other]).unwrap()
+    }
+}
+
+impl std::ops::Add<Variable> for &Variable {
+    type Output = Variable;
+    fn add(self, other: Variable) -> Variable {
+        Add::new().unwrap().apply(&[self, &other]).unwrap()
+    }
+}
+
+impl std::ops::Add<Variable> for Variable {
+    type Output = Variable;
+    fn add(self, other: Variable) -> Variable {
+        Add::new().unwrap().apply(&[&self, &other]).unwrap()
     }
 }
