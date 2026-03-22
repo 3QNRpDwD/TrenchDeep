@@ -148,6 +148,22 @@ mod benchmark {
         mul.apply_with_label(&[&first_part, &second_part], "output")
     }
 
+    fn goldstein_price_function_v2(x: &Variable, y: &Variable) -> MlResult<Variable> {
+        let c = |v: f32| variable!(vec![vec![v]]);
+        let mut s = Square::new()?;
+        let (x2, y2, xy) = (s.apply(&[x])?, s.apply(&[y])?, x * y);
+
+        let f1 = &c(1.0) + &(&s.apply(&[&(x + y + &c(1.0))])? * &(
+            &c(19.0) - &(x * &c(14.0)) + &(&x2 * &c(3.0)) - &(y * &c(14.0)) + &(&xy * &c(6.0)) + &(&y2 * &c(3.0))
+        ));
+
+        let f2 = &c(30.0) + &(&s.apply(&[&(&(x * &c(2.0)) - &(y * &c(3.0)))])? * &(
+            &c(18.0) - &(x * &c(32.0)) + &(&x2 * &c(12.0)) + &(y * &c(48.0)) - &(&xy * &c(36.0)) + &(&y2 * &c(27.0))
+        ));
+
+        Ok(f1 * f2)
+    }
+
     fn rosenbrock_function(x0: &Variable, x1: &Variable) -> MlResult<Variable> {
         let mut square = Square::new()?;
         let mut add = Add::new()?;
@@ -199,6 +215,21 @@ mod benchmark {
 
         #[cfg(feature = "enableVisualization")]
         crate::tensor::VisualizationGraph::save_graph("graph/goldstein.dot").unwrap();
+        Ok(())
+    }
+
+    #[test]
+    fn goldstein_v2() -> MlResult<()> {
+        let x = var_input!(Tensor::from_vec(vec![1.0], &[1, 1])?);
+        let y = var_input!(Tensor::from_vec(vec![1.0], &[1, 1])?);
+        let z = goldstein_price_function_v2(&x, &y)?;
+        #[cfg(feature = "enableBackward")]
+        {
+            z.backward()?;
+
+            assert_tensor_eq(x.grad(), &Tensor::new(vec![vec![-5376.0]]))?;
+            assert_tensor_eq(y.grad(), &Tensor::new(vec![vec![8064.0]]))?;
+        }
         Ok(())
     }
 
