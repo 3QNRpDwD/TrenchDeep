@@ -3,7 +3,7 @@ use super::*;
 impl Parameter for Variable {
     fn new(tensor: Tensor) -> Self {
         #[cfg(feature = "enableVisualization")]
-        let label = crate::tensor::creation::LabelGenerator::generate_label(&tensor, None);
+        let label = Arc::new(crate::tensor::creation::LabelGenerator::generate_label(&tensor, None))    ;
 
         Variable {
             #[cfg(feature = "enableVisualization")]
@@ -58,7 +58,7 @@ impl Parameter for Variable {
 
     #[cfg(feature = "enableVisualization")]
     fn set_label(&mut self, new_label: &str) {
-        self.label = crate::tensor::creation::LabelGenerator::get_unique_label(new_label);
+        self.label = Arc::new(crate::tensor::creation::LabelGenerator::get_unique_label(new_label));
     }
 
     /// 현재 라벨 반환
@@ -75,16 +75,6 @@ impl Parameter for Variable {
     ///
     #[cfg(feature = "enableBackward")]
     fn clear_grad(&self) {
-            // TENSOR_STORAGE.with_borrow_mut(|storage| {
-            //     storage.remove(&self.grad().id()) // 만약 스토리지가 분리되면 그냥 그래프를 초기화하면 되기 때문에 성능이 더욱 향상될듯함
-            // });
-            // 기존에 Variable 이 텐서를 소유하던 구조에서 기울기를 지우던 로직을 그대로 사용해서
-            // 텐서 스토리지에 있던 기울기가 사라지지 않고 그대로 남아있던 문제가 있었음.
-            // 따라서 해당 부분을 지우는 로직을 추가함.
-            // 하지만 현재는 텐서 스토리지와 분리되어있지 않아, 게산그래프에서 추가되는 모든 텐서가 텐서 스토리지에 등록되어,
-            // 성능이 저하되는 문제가 있음. 따라서 텐서 스토리지와 계산그래프 전용 텐서 스토리지를 만들어서 완전히 분리하던가,
-            // 배치별로 다른 스토리지를 만들어서 관리하도록 하던가하는 방법으로 최적화 해야할듯함.
-            // 최종적으로 정적 계산그래프로 전환한다면 더욱 성능향상이 기대됨.
         // dirty 플래그로 불필요한 작업을 완전히 건너뜀
         //
         // dirty=false인 두 가지 경우:
@@ -161,13 +151,13 @@ impl Parameter for Variable {
 impl Variable {
     /// 사용자 정의 라벨로 변수 생성
     pub fn with_label(tensor: Tensor, label_hint: &str) -> Self {
-        let label = "unlabeled".to_string();
+        let label = Arc::new("unlabeled".to_string());
         let retains_grad = cfg!(feature = "requiresGrad");
 
         #[cfg(feature = "enableVisualization")]
         {
             use crate::tensor::NodeType;
-            let label = crate::tensor::creation::LabelGenerator::generate_label(&tensor, Some(label_hint));
+            let label = Arc::new(crate::tensor::creation::LabelGenerator::generate_label(&tensor, Some(label_hint)));
             let node_type = if label.contains("input") {
                 NodeType::Input
             } else if label.contains("weight") {
@@ -188,7 +178,7 @@ impl Variable {
                 #[cfg(feature = "enableVisualization")]
                 label,
                 #[cfg(feature = "enableVisualization")]
-                node_type: NodeType::Variable,
+                node_type,
                 grad: tensor.zeros_like(),
                 tensor,
                 requires_grad: cfg!(feature = "requiresGrad").into(),

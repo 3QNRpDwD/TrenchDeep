@@ -162,7 +162,7 @@ pub trait Parameter: Debug {
 #[derive(Clone)]
 pub struct Variable {
     #[cfg(feature = "enableVisualization")]
-    label: String,
+    label: Arc<String>,
     #[cfg(feature = "enableVisualization")]
     node_type: crate::tensor::NodeType,
     tensor: Tensor,
