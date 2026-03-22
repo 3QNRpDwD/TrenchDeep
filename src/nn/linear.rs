@@ -37,12 +37,11 @@ impl Layer for Linear {
     #[cfg(all(feature = "enableBackward"))]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
-        let mut add = Add::new()?;
         let in_id = input.node_id();
 
-        // 2. y = xW + b 연산을 수행합니다.
+        // y = xW + b
         let x = matmul.apply(&[input, &self.weight])?;
-        let output = add.apply(&[&x, &self.bias])?;
+        let output = &x + &self.bias;
 
         // 3. 입/출력 노드 ID를 캐시에 저장합니다.
         self.inputs.insert(in_id);

@@ -185,14 +185,13 @@ impl Model for MLP {
     #[cfg(feature = "enableBackward")]
     fn apply(&mut self, x: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
-        let mut add = Add::new()?;
 
         let uh1_pre = matmul.apply(&[&self.w1, x])?;
-        let uh1 = add.apply(&[&uh1_pre, &self.b1])?;
+        let uh1 = &uh1_pre + &self.b1;
         let ah1 = self.layer.apply(&uh1)?;
 
         let uh2_pre = matmul.apply(&[&self.w2, &ah1])?;
-        let uh2 = add.apply(&[&uh2_pre, &self.b2])?;
+        let uh2 = &uh2_pre + &self.b2;
         let ah2 = self.layer.apply(&uh2)?;
 
         Ok(ah2)

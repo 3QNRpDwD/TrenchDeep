@@ -197,11 +197,9 @@ impl Model for SoftmaxRegression {
     #[cfg(feature = "enableBackward")]
     fn apply(&mut self, x: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
-        let mut add = Add::new()?;
 
-        // 1) 첫 번째 은닉층
         let uh1_pre = matmul.apply(&[&self.w1, x])?;
-        add.apply(&[&uh1_pre, &self.b1])
+        Ok(&uh1_pre + &self.b1)
     }
 
     fn predict(&mut self, x: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {

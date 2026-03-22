@@ -335,12 +335,10 @@ mod tests {
 
     #[test]
     fn wtf() -> MlResult<()> {
-        let mut add = Add::new()?;
-
         let x0 = variable!(vec![vec![1.0]]);
         let x1 = variable!(vec![vec![1.0]]);
-        let t = add.apply(&[&x0, &x1])?; // t = x0 + x1 = 2
-        let y = add.apply(&[&x0, &t])?; // y = x0 + t = 3
+        let t = &x0 + &x1; // t = x0 + x1 = 2
+        let y = &x0 + &t;  // y = x0 + t = 3
 
         #[cfg(feature = "enableBackward")]
         {
@@ -377,12 +375,11 @@ mod tests {
 
     #[test]
     fn wtf2() -> MlResult<()> { // 데이터 32 기울기 64 나오면 됨
-        let mut add = Add::new()?;
         let mut square = Square::new()?;
 
         let x = variable!(vec![vec![2.0]]);
         let a = square.apply(&[&x])?;
-        let y = add.apply(&[&square.apply(&[&a])?, &square.apply(&[&a])?])?;
+        let y = &square.apply(&[&a])? + &square.apply(&[&a])?;
         assert_eq!(y.tensor().data(), Tensor::new(vec![vec![32.0]]).data());
 
         #[cfg(feature = "enableBackward")]
@@ -396,10 +393,8 @@ mod tests {
 
     #[test]
     fn wtf3() -> MlResult<()> { // 기울기 2, 3 나오면 됨
-        let mut add = Add::new()?;
-
         let x = variable!(vec![vec![3.0]]);
-        let y = add.apply(&[&x, &x])?; // y = add(x, x)
+        let y = &x + &x; // y = x + x
         #[cfg(feature = "enableBackward")]
         {
             y.backward()?;
@@ -408,8 +403,8 @@ mod tests {
             x.clear_grad();
             y.clear_grad();
 
-            let t = add.apply(&[&x, &x])?;
-            let y = add.apply(&[&t, &x])?; // y = add(add(x, x), x)
+            let t = &x + &x;
+            let y = &t + &x; // y = (x + x) + x
             
             
             #[cfg(feature = "enableBackward")]
@@ -421,12 +416,11 @@ mod tests {
 
     #[test]
     fn wtf4() -> MlResult<()> {
-        let mut add = Add::new()?;
         let mut square = Square::new()?;
 
         let x = variable!(vec![vec![2.0]]);
         let y = variable!(vec![vec![3.0]]);
-        let z = add.apply(&[&square.apply(&[&x])?, &square.apply(&[&y])?])?; // z = add(square(x), square(y))
+        let z = &square.apply(&[&x])? + &square.apply(&[&y])?; // z = square(x) + square(y)
         assert_eq!(z.tensor().data(), Tensor::new(vec![vec![13.0]]).data());
 
         #[cfg(feature = "enableBackward")]
@@ -441,14 +435,11 @@ mod tests {
 
     #[test]
     fn wtf5() -> MlResult<()> {
-        let mut add = Add::new()?;
-        let mut mul = Mul::new()?;
-
         let a = variable!(vec![vec![3.0]]);
         let b = variable!(vec![vec![2.0]]);
         let c = variable!(vec![vec![1.0]]);
 
-        let y = add.apply(&[&mul.apply(&[&a, &b])?, &c])?;
+        let y = &(&a * &b) + &c; // y = a * b + c
 
         #[cfg(feature = "enableBackward")]
         {
