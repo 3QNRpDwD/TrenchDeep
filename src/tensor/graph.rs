@@ -180,51 +180,133 @@ impl ComputationGraph {
 
     #[cfg(feature = "enableBackward")]
     pub(crate) fn backward(&mut self, output_id: NodeId) -> MlResult<()> {
+        // ── 1. 전체 그래디언트 초기화 ────────────────────────────────────────
+        // lear_grad()는 dirty=false이면 즉시 반환(no-op)하므로,
+        // new_empty() 상태의 노드들에 대한 불필요한 TENSOR_STORAGE 조회가 없다.
         for node in &self.nodes {
             node.variable.clear_grad();
         }
-        // Set output node's gradient to 1.0
+
+        // ── 2. 출력 노드 그래디언트 주입 ────────────────────────────────────
         let output_idx = *self.node_map.get(&output_id)
             .ok_or_else(|| MlError::StringError("Output node not found".to_string()))?;
         let output_var = &self.nodes[output_idx].variable;
-        if output_var.grad().is_empty() {
-            let grad = GlobalTensor::from_vec(
-                vec![1.0; output_var.tensor().shape().iter().product()],
-                output_var.tensor().shape()
-            )?;
-            output_var.set_grad(grad);
-        }
 
-        // 위상 정렬된 순서의 역순으로 순회
+        // 원래 코드: if output_var.grad().is_empty() { ... }
+        //   → clear_grad() 직후 data는 0으로 채워져 있어 is_empty()가 false를
+        //     반환할 수 있음 (원소가 모두 0이어도 len > 0이면 false)
+        //   → 조건 분기 자체가 불안정
+        //
+        // 변경 후: 조건 없이 항상 set_grad()
+        //   → clear_grad()가 dirty=false로 리셋했으므로 항상 새로 주입이 맞다.
+        //   → 출력 노드는 backward당 1개, 오버헤드 무시 가능.
+        let ones = GlobalTensor::from_vec(
+            vec![1.0; output_var.tensor().shape().iter().product()],
+            output_var.tensor().shape()
+        )?;
+        output_var.set_grad(ones); // dirty = true
+
+        // ── 3. 역전파 루프 ───────────────────────────────────────────────────
         for &node_idx in self.topo_order.iter().rev() {
             let node = &self.nodes[node_idx];
             let var = &node.variable;
+
+            // 원래 코드: grad.is_empty() — 원소 전체 순회 O(n)
+            //   data.iter().all(|&d| d == 0.0)
+            //
+            // 변경 후: !var.is_grad_dirty() — Cell<bool> 읽기 O(1)
+            //   set_grad()와 accumulate_grad() 호출 시 true
+            //   clear_grad() 호출 시 false
+            //   → 출력 노드에서 도달하지 못한 노드는 dirty=false로 자동 스킵
+            if node.function.is_none() || !var.is_grad_dirty() {
+                continue;
+            }
+
             let grad = var.grad();
-            if node.function.is_none() || grad.is_empty() { continue; }
             let function = node.function.as_ref().unwrap();
+
             let input_tensors: Vec<&dyn TensorBase> = node.inputs
                 .iter()
                 .map(|&input_id| {
                     let input_idx = self.node_map[&input_id];
                     self.nodes[input_idx].variable.tensor() as &dyn TensorBase
                 })
-                .collect::<Vec<&dyn TensorBase>>();
+                .collect();
 
-            let input_grads = OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut(function).unwrap().backward(&input_tensors, grad)
-                .map_err(|e| MlError::StringError(format!("Failed to compute backward for function {:?}: {}", function, e))))?;
+            let input_grads = OPERATOR_STORAGE.with(|ops| {
+                ops.borrow_mut()
+                    .get_mut(function)
+                    .unwrap()
+                    .backward(&input_tensors, grad)
+                    .map_err(|e| MlError::StringError(
+                        format!("Failed to compute backward for function {:?}: {}", function, e)
+                    ))
+            })?;
 
             for (input_id, grad) in node.inputs.iter().zip(input_grads) {
                 let input_idx = self.node_map[input_id];
                 let input_node = &self.nodes[input_idx];
+                // accumulate_grad: 첫 호출이면 버퍼 할당, 이후 in-place 덧셈
+                // dirty = true 로 설정됨
                 input_node.variable.accumulate_grad(grad.to_id()?)?;
             }
-            
+
+            // retain_grad=false인 중간 노드는 backward 직후 grad 버퍼를 제로화.
+            // 버퍼는 해제하지 않으므로 다음 backward에서 재사용된다.
             if !var.is_retain_grad() {
-                var.clear_grad();
+                var.clear_grad(); // dirty = false
             }
         }
         Ok(())
     }
+    
+    // #[cfg(feature = "enableBackward")]
+    // pub(crate) fn backward(&mut self, output_id: NodeId) -> MlResult<()> {
+    //     for node in &self.nodes {
+    //         node.variable.clear_grad();
+    //     }
+    //     // Set output node's gradient to 1.0
+    //     let output_idx = *self.node_map.get(&output_id)
+    //         .ok_or_else(|| MlError::StringError("Output node not found".to_string()))?;
+    //     let output_var = &self.nodes[output_idx].variable;
+    //     if output_var.grad().is_empty() {
+    //         let grad = GlobalTensor::from_vec(
+    //             vec![1.0; output_var.tensor().shape().iter().product()],
+    //             output_var.tensor().shape()
+    //         )?;
+    //         output_var.set_grad(grad);
+    //     }
+    // 
+    //     // 위상 정렬된 순서의 역순으로 순회
+    //     for &node_idx in self.topo_order.iter().rev() {
+    //         let node = &self.nodes[node_idx];
+    //         let var = &node.variable;
+    //         let grad = var.grad();
+    //         if node.function.is_none() || grad.is_empty() { continue; }
+    //         let function = node.function.as_ref().unwrap();
+    //         let input_tensors: Vec<&dyn TensorBase> = node.inputs
+    //             .iter()
+    //             .map(|&input_id| {
+    //                 let input_idx = self.node_map[&input_id];
+    //                 self.nodes[input_idx].variable.tensor() as &dyn TensorBase
+    //             })
+    //             .collect::<Vec<&dyn TensorBase>>();
+    // 
+    //         let input_grads = OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut(function).unwrap().backward(&input_tensors, grad)
+    //             .map_err(|e| MlError::StringError(format!("Failed to compute backward for function {:?}: {}", function, e))))?;
+    // 
+    //         for (input_id, grad) in node.inputs.iter().zip(input_grads) {
+    //             let input_idx = self.node_map[input_id];
+    //             let input_node = &self.nodes[input_idx];
+    //             input_node.variable.accumulate_grad(grad.to_id()?)?;
+    //         }
+    //         
+    //         if !var.is_retain_grad() {
+    //             var.clear_grad();
+    //         }
+    //     }
+    //     Ok(())
+    // }
 
     pub fn clear(&mut self) {
         self.nodes.clear();

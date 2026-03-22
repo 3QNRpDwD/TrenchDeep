@@ -27,6 +27,7 @@ use std::{
     },
     sync::Arc
 };
+use std::cell::Cell;
 use crate::tensor::COMPUTATION_GRAPH;
 
 #[macro_export]
@@ -117,6 +118,11 @@ pub trait Parameter: Debug {
     #[cfg(feature = "enableBackward")]
     fn clear_grad(&self);
 
+    // 추가: O(1) dirty 조회
+    // backward 루프에서 grad.is_empty() O(n) 스캔 대신 사용
+    #[cfg(feature = "enableBackward")]
+    fn is_grad_dirty(&self) -> bool;
+    
     #[cfg(feature = "enableBackward")]
     fn accumulate_grad(&self, new_grad: Tensor) -> MlResult<()>;
 
@@ -142,15 +148,33 @@ pub trait Parameter: Debug {
     }
 }
 
+// #[derive(Clone)]
+// pub struct Variable {
+//     #[cfg(all(feature = "enableVisualization"))]
+//     label: String,
+// #[cfg(all(feature = "enableVisualization"))]
+//     node_type: crate::tensor::NodeType,
+//     tensor: Tensor,
+//     requires_grad: RefCell<bool>,
+//     grad: Tensor,
+// }
+
 #[derive(Clone)]
 pub struct Variable {
-    #[cfg(all(feature = "enableVisualization"))]
+    #[cfg(feature = "enableVisualization")]
     label: String,
-#[cfg(all(feature = "enableVisualization"))]
+    #[cfg(feature = "enableVisualization")]
     node_type: crate::tensor::NodeType,
     tensor: Tensor,
-    requires_grad: RefCell<bool>,
+    requires_grad: Cell<bool>,
     grad: Tensor,
+    // 추가 필드
+    // grad에 실제 값이 기록됐는지 추적하는 O(1) 플래그.
+    // Cell<bool>: Copy 타입 → Variable의 Clone derive 그대로 동작.
+    // RefCell 불필요 — 대여 추적 없이 내부 가변성만 필요.
+    // #[cfg] 로 enableBackward 외 빌드에서는 0바이트.
+    #[cfg(feature = "enableBackward")]
+    grad_dirty: Cell<bool>,
 }
 
 impl Debug for Variable {

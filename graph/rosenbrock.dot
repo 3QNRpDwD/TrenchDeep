@@ -11,25 +11,25 @@ pad=0.5;
 node [fontname="SF Pro Display, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial", fontsize=11, margin=0.1];
 edge [fontname="SF Pro Display, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial", fontsize=9, color="#6B7280", penwidth=1.5];
 
-    "NodeId(100)" [label="scalar_3", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
-    "Mul_718abc3b2dfbbe64" [label="Mul", shape=hexagon, style="filled", fillcolor="#3B82F6", fontcolor="white"];
-    "NodeId(67)" [label="scalar", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
-    "NodeId(145)" [label="scalar_7", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
-    "Square_c1f776a88a0cda4f" [label="Square", shape=hexagon, style="filled", fillcolor="#3B82F6", fontcolor="white"];
-    "Square_ef1b27201efa6d43" [label="Square", shape=hexagon, style="filled", fillcolor="#3B82F6", fontcolor="white"];
-    "NodeId(157)" [label="scalar_8", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
-    "Add_e616030c2726dbd9" [label="Add", shape=hexagon, style="filled", fillcolor="#3B82F6", fontcolor="white"];
-    "NodeId(14)" [label="input_2", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
-    "Sub_248ef32d63fe518a" [label="Sub", shape=hexagon, style="filled", fillcolor="#3B82F6", fontcolor="white"];
-    "Sub_d40a473fd2710c88" [label="Sub", shape=hexagon, style="filled", fillcolor="#3B82F6", fontcolor="white"];
-    "Square_ba6daf62d25f6ef1" [label="Square", shape=hexagon, style="filled", fillcolor="#3B82F6", fontcolor="white"];
-    "NodeId(12)" [label="input", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
-    "NodeId(164)" [label="output", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
-    "NodeId(108)" [label="scalar_4", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
-    "NodeId(97)" [label="scalar_2", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
-    "NodeId(134)" [label="scalar_6", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
-    "NodeId(124)" [label="scalar_5", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
-    { rank=same; "NodeId(12)"; "NodeId(97)"; "NodeId(134)"; "NodeId(14)"; }
+    "NodeId(160)" [label="scalar_8", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
+    "NodeId(135)" [label="scalar_7", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
+    "NodeId(32)" [label="scalar", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
+    "NodeId(23)" [label="input_2", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
+    "Sub_954b1df71a5abd59" [label="Sub", shape=hexagon, style="filled", fillcolor="#3B82F6", fontcolor="white"];
+    "NodeId(56)" [label="scalar_2", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
+    "Square_b136ae5b0867f43c" [label="Square", shape=hexagon, style="filled", fillcolor="#3B82F6", fontcolor="white"];
+    "NodeId(130)" [label="scalar_6", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
+    "NodeId(86)" [label="scalar_3", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
+    "NodeId(110)" [label="scalar_4", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
+    "Mul_c5f8021c4caa06d6" [label="Mul", shape=hexagon, style="filled", fillcolor="#3B82F6", fontcolor="white"];
+    "Add_959f82b11dae8aed" [label="Add", shape=hexagon, style="filled", fillcolor="#3B82F6", fontcolor="white"];
+    "NodeId(17)" [label="input", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
+    "Square_c2d0d984d3280e4e" [label="Square", shape=hexagon, style="filled", fillcolor="#3B82F6", fontcolor="white"];
+    "Sub_c0e702cd97b47e8e" [label="Sub", shape=hexagon, style="filled", fillcolor="#3B82F6", fontcolor="white"];
+    "Square_8fc7c691c23756c6" [label="Square", shape=hexagon, style="filled", fillcolor="#3B82F6", fontcolor="white"];
+    "NodeId(172)" [label="output", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
+    "NodeId(120)" [label="scalar_5", shape=ellipse, style="filled", fillcolor="#F59E0B", fontcolor="white"];
+    { rank=same; "NodeId(56)"; "NodeId(130)"; "NodeId(17)"; "NodeId(23)"; }
 
     // 범례 - 모던 스타일
     subgraph cluster_legend {
@@ -65,22 +65,22 @@ edge [fontname="SF Pro Display, -apple-system, BlinkMacSystemFont, Segoe UI, Rob
         legend_weight -> legend_bias -> legend_loss -> legend_activation [style=invis];
     }
 
-    "NodeId(12)" -> "Square_c1f776a88a0cda4f" [style=solid, color="#2E86AB", penwidth=2];
-    "Square_c1f776a88a0cda4f" -> "NodeId(67)" [style=solid, color="#2E86AB", penwidth=2];
-    "NodeId(14)" -> "Sub_248ef32d63fe518a" [style=solid, color="#2E86AB", penwidth=2];
-    "NodeId(67)" -> "Sub_248ef32d63fe518a" [style=solid, color="#2E86AB", penwidth=2];
-    "Sub_248ef32d63fe518a" -> "NodeId(100)" [style=solid, color="#2E86AB", penwidth=2];
-    "NodeId(100)" -> "Square_ba6daf62d25f6ef1" [style=solid, color="#2E86AB", penwidth=2];
-    "Square_ba6daf62d25f6ef1" -> "NodeId(108)" [style=solid, color="#2E86AB", penwidth=2];
-    "NodeId(97)" -> "Mul_718abc3b2dfbbe64" [style=solid, color="#2E86AB", penwidth=2];
-    "NodeId(108)" -> "Mul_718abc3b2dfbbe64" [style=solid, color="#2E86AB", penwidth=2];
-    "Mul_718abc3b2dfbbe64" -> "NodeId(124)" [style=solid, color="#2E86AB", penwidth=2];
-    "NodeId(134)" -> "Sub_d40a473fd2710c88" [style=solid, color="#2E86AB", penwidth=2];
-    "NodeId(12)" -> "Sub_d40a473fd2710c88" [style=solid, color="#2E86AB", penwidth=2];
-    "Sub_d40a473fd2710c88" -> "NodeId(145)" [style=solid, color="#2E86AB", penwidth=2];
-    "NodeId(145)" -> "Square_ef1b27201efa6d43" [style=solid, color="#2E86AB", penwidth=2];
-    "Square_ef1b27201efa6d43" -> "NodeId(157)" [style=solid, color="#2E86AB", penwidth=2];
-    "NodeId(124)" -> "Add_e616030c2726dbd9" [style=solid, color="#2E86AB", penwidth=2];
-    "NodeId(157)" -> "Add_e616030c2726dbd9" [style=solid, color="#2E86AB", penwidth=2];
-    "Add_e616030c2726dbd9" -> "NodeId(164)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(17)" -> "Square_8fc7c691c23756c6" [style=solid, color="#2E86AB", penwidth=2];
+    "Square_8fc7c691c23756c6" -> "NodeId(32)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(23)" -> "Sub_c0e702cd97b47e8e" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(32)" -> "Sub_c0e702cd97b47e8e" [style=solid, color="#2E86AB", penwidth=2];
+    "Sub_c0e702cd97b47e8e" -> "NodeId(86)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(86)" -> "Square_b136ae5b0867f43c" [style=solid, color="#2E86AB", penwidth=2];
+    "Square_b136ae5b0867f43c" -> "NodeId(110)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(56)" -> "Mul_c5f8021c4caa06d6" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(110)" -> "Mul_c5f8021c4caa06d6" [style=solid, color="#2E86AB", penwidth=2];
+    "Mul_c5f8021c4caa06d6" -> "NodeId(120)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(130)" -> "Sub_954b1df71a5abd59" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(17)" -> "Sub_954b1df71a5abd59" [style=solid, color="#2E86AB", penwidth=2];
+    "Sub_954b1df71a5abd59" -> "NodeId(135)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(135)" -> "Square_c2d0d984d3280e4e" [style=solid, color="#2E86AB", penwidth=2];
+    "Square_c2d0d984d3280e4e" -> "NodeId(160)" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(120)" -> "Add_959f82b11dae8aed" [style=solid, color="#2E86AB", penwidth=2];
+    "NodeId(160)" -> "Add_959f82b11dae8aed" [style=solid, color="#2E86AB", penwidth=2];
+    "Add_959f82b11dae8aed" -> "NodeId(172)" [style=solid, color="#2E86AB", penwidth=2];
 }
