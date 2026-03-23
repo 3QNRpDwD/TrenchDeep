@@ -54,8 +54,8 @@ impl Model for LogisticRegression {
     fn apply(&mut self, x: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
         // x [1, n_input] × w1 [n_input, n_output] = [1, n_output]
-        let uh1_pre = matmul.apply(&[x, &self.w1])?;
-        Ok(&uh1_pre + &self.b1)
+        let linear_out = &matmul.apply(&[x, &self.w1])? + &self.b1;
+        self.activation.apply(&[&linear_out])
     }
 
     fn predict(&mut self, x: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
@@ -84,13 +84,14 @@ impl Model for LogisticRegression {
     fn compute_total_error(&mut self, x_set: &[&Variable], t_set: &[&Variable]) -> MlResult<f32> {
         let mut total_loss = 0.0;
         for m in 0..x_set.len() {
-            let logit_tensor = {
+            let output_tensor = {
                 let matmul = Matmul::new()?;
                 let add = Add::new()?;
                 let uh1_pre = matmul.forward(&[x_set[m].tensor(), self.w1.tensor()])?.remove(0);
-                add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0)
+                let uh1 = add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0);
+                self.activation.forward(&[&uh1])?.remove(0)
             };
-            let loss = self.loss_function.forward(&[&logit_tensor, t_set[m].tensor()])?.remove(0);
+            let loss = self.loss_function.forward(&[&output_tensor, t_set[m].tensor()])?.remove(0);
             total_loss += loss.data()[0];
         }
         Ok(total_loss / x_set.len() as f32)

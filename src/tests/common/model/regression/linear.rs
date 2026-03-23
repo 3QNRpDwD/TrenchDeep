@@ -54,8 +54,8 @@ impl Model for LinearRegression {
     fn apply(&mut self, x: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
         // x [1, n_input] × w1 [n_input, n_output] = [1, n_output]
-        let uh1_pre = matmul.apply(&[x, &self.w1])?;
-        Ok(&uh1_pre + &self.b1)
+        let linear_out = &matmul.apply(&[x, &self.w1])? + &self.b1;
+        self.activation.apply(&[&linear_out])
     }
 
     fn predict(&mut self, x: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
