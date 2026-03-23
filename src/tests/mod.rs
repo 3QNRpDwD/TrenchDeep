@@ -17,7 +17,8 @@ mod mnist_test {
             }
         },
         tensor::TENSOR_STORAGE,
-        nn::Parameter
+        nn::Parameter,
+        optimizer::{Optimizer, SGD},
     };
 
     #[ignore]
@@ -31,12 +32,17 @@ mod mnist_test {
 
         let dataset = MnistDataset::load_and_prepare_data(config.n_train, config.n_val, config.n_features, config.n_classes)?;
         let mut mlp = MLP::build_model(config.n_features, config.n_hidden_2, config.n_classes)?;
-        
+        let mut opt = SGD::new(config.learning_rate);
+        opt.register(&mlp.w1);
+        opt.register(&mlp.w2);
+        opt.register(&mlp.b1);
+        opt.register(&mlp.b2);
+
         mlp.train(
             &dataset.x_train(),
             &dataset.t_train(),
             config.epochs,
-            config.learning_rate,
+            &mut opt,
             config.tolerance,
         )?;
 
@@ -73,7 +79,12 @@ mod mnist_test {
         info!("Training Parameters: LR={}, Max Epochs={}, Tolerance={}", config.learning_rate, config.epochs, config.tolerance);
 
         #[cfg(feature = "enableBackward")]
-        model.train(&dataset.x_train(), &dataset.t_train(), config.epochs, config.learning_rate, config.tolerance)?;
+        {
+            let mut opt = SGD::new(config.learning_rate);
+            opt.register(&model.w1);
+            opt.register(&model.b1);
+            model.train(&dataset.x_train(), &dataset.t_train(), config.epochs, &mut opt, config.tolerance)?;
+        }
         if !cfg!(feature = "enableBackward") {
             warn!("Feature: disableBackpropagation");
         }

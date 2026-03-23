@@ -48,10 +48,11 @@ impl MLP {
 impl Model for MLP {
 
     #[cfg(feature = "enableBackward")]
-    fn train(&mut self, x_set: &[&Variable], t_set: &[&Variable], epochs: usize, learning_rate: f32, tolerance: f32) -> MlResult<()> {
+    fn train(&mut self, x_set: &[&Variable], t_set: &[&Variable], epochs: usize, optimizer: &mut dyn crate::optimizer::Optimizer, tolerance: f32) -> MlResult<()> {
         todo!("아직 Sequential 관련 기능이 미완성 상태이므로 보류");
         let n_batches = x_set.len();
         let training_start_time = Instant::now();
+        let learning_rate = optimizer.lr();
         let lr = Tensor::scalar(learning_rate);
         let multi_bar = MultiProgress::new();
         let epoch_bar = multi_bar.add(ProgressBar::new(epochs as u64));
@@ -125,12 +126,12 @@ impl Model for MLP {
                     return Err(MlError::StringError("During training, numerical instability occurs".to_string()));
                 }
 
-                self.update(&lr)?;
+                optimizer.step()?;
                 let update_norm = self.w1.grad().data().iter().map(|&g| (learning_rate * g).powi(2)).sum::<f32>().sqrt();
                 let weight_norm = self.w1.tensor().data().iter().map(|&w| w * w).sum::<f32>().sqrt();
                 let update_ratio = if weight_norm > 1e-6 { update_norm / weight_norm } else { 0.0 };
 
-                self.zero_grad()?;
+                optimizer.zero_grad()?;
 
                 // ... batch_log_message 포맷팅 수정
                 let batch_log_message = format!(
@@ -210,24 +211,6 @@ impl Model for MLP {
         let ah2 = self.layer.predict(&uh2)?;
 
         Ok(ah2)
-    }
-
-    #[cfg(feature = "enableBackward")]
-    fn update(&mut self, lr: &dyn TensorBase) -> MlResult<()> {
-        self.w1 -= self.w1.grad() as &dyn TensorBase * lr;
-        self.w2 -= self.w2.grad() as &dyn TensorBase * lr;
-        self.b1 -= self.b1.grad() as &dyn TensorBase * lr;
-        self.b2 -= self.b2.grad() as &dyn TensorBase * lr;
-        Ok(())
-    }
-
-    #[cfg(feature = "enableBackward")]
-    fn zero_grad(&mut self) -> MlResult<()> {
-        self.w1.clear_grad();
-        self.w2.clear_grad();
-        self.b1.clear_grad();
-        self.b2.clear_grad();
-        Ok(())
     }
 
     fn save(&self, path: &str) -> MlResult<()> {

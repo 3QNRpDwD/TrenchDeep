@@ -1,10 +1,20 @@
-use std::fmt::{Debug, Display, Formatter};
-use std::sync::Arc;
-use crate::backend::Backend;
-use crate::nn::Parameter;
-use crate::tensor::{NodeId, Tensor};
-use crate::tensor::operators::Function;
+pub mod sgd;
+pub mod momentum;
+pub mod adagrad;
+pub mod rmsprop;
+pub mod adam;
+pub mod adamw;
 
+pub use sgd::SGD;
+pub use momentum::Momentum;
+pub use adagrad::AdaGrad;
+pub use rmsprop::RMSProp;
+pub use adam::Adam;
+pub use adamw::AdamW;
+
+use crate::MlResult;
+use crate::nn::Parameter;
+use crate::tensor::{NodeId, TENSOR_STORAGE};
 
 #[derive(thiserror::Error, Debug)]
 pub enum OptimError {
@@ -12,68 +22,55 @@ pub enum OptimError {
     GradientError(String),
 }
 
-pub struct BGD { backend: Arc<dyn Backend>, node_id: NodeId }
+/// 모든 옵티마이저가 구현해야 하는 공통 인터페이스.
+///
+/// # 사용 예시
+/// ```no_run
+/// let mut opt = SGD::new(0.01);
+/// opt.register(&model.w1);
+/// opt.register(&model.b1);
+///
+/// // 학습 루프
+/// loss.backward()?;
+/// opt.step()?;
+/// opt.zero_grad()?;
+/// ```
+pub trait Optimizer {
+    /// 파라미터를 옵티마이저에 등록한다.
+    /// register 시점의 weight shape로 내부 상태(velocity, moment 등) 버퍼를 초기화한다.
+    fn register(&mut self, param: &dyn Parameter);
 
-pub struct SGD { backend: Arc<dyn Backend>, node_id: NodeId }
+    /// 등록된 모든 파라미터에 대해 1 스텝 업데이트를 수행한다.
+    fn step(&mut self) -> MlResult<()>;
 
-pub struct  MiniBGD { backend: Arc<dyn Backend>, node_id: NodeId }
+    /// 등록된 모든 파라미터의 그래디언트를 0으로 초기화한다.
+    fn zero_grad(&self) -> MlResult<()>;
 
-pub struct Momentum { backend: Arc<dyn Backend>, node_id: NodeId }
-
-pub struct NAG { backend: Arc<dyn Backend>, node_id: NodeId }
-
-pub struct AdaGrad { backend: Arc<dyn Backend>, node_id: NodeId }
-
-pub struct AdaDelta { backend: Arc<dyn Backend>, node_id: NodeId }
-
-pub struct RMSProp { backend: Arc<dyn Backend>, node_id: NodeId }
-
-pub struct Adam { backend: Arc<dyn Backend>, node_id: NodeId }
-
-pub struct AdamW { backend: Arc<dyn Backend>, node_id: NodeId }
-
-pub trait Optimizer<T: Debug + Clone> {
-    fn step(&self);
-    fn zero_grad(&self);
-    fn get_params(&self);
-    fn add_params(&self, parm: &dyn Parameter, grad: Option<Tensor>);
-    fn get_lr(&self);
-    fn set_lr(&self, ln: f32);
+    fn lr(&self) -> f32;
+    fn set_lr(&mut self, lr: f32);
 }
 
-impl Function for BGD {}
-impl Function for SGD {}
-impl Function for MiniBGD {}
-impl Function for Momentum {}
-impl Function for NAG {}
-impl Function for AdaGrad {}
-impl Function for AdaDelta {}
-impl Function for RMSProp {}
-impl Function for Adam {}
-impl Function for AdamW {}
+/// 등록된 grad NodeId 목록의 그래디언트를 일괄 초기화한다.
+/// 모든 옵티마이저의 zero_grad 구현에서 공유한다.
+pub(crate) fn clear_grads(grad_ids: &[NodeId]) {
+    TENSOR_STORAGE.with_borrow_mut(|storage| {
+        for &id in grad_ids {
+            if let Some(g) = storage.get_mut(&id) {
+                if g.dirty {
+                    g.data.iter_mut().for_each(|x| *x = 0.0);
+                    g.dirty = false;
+                }
+            }
+        }
+    });
+}
 
-impl Optimizer<f32> for BGD {
-    fn step(&self) {
-        todo!()
-    }
-
-    fn zero_grad(&self) {
-        todo!()
-    }
-
-    fn get_params(&self) {
-        todo!()
-    }
-
-    fn add_params(&self, parm: &dyn Parameter, grad: Option<Tensor>) {
-        todo!()
-    }
-
-    fn get_lr(&self) {
-        todo!()
-    }
-
-    fn set_lr(&self, ln: f32) {
-        todo!()
-    }
+/// 등록된 grad NodeId 목록의 grad 데이터를 일괄 스냅샷으로 가져온다 (clone).
+/// step() 내부에서 read/write borrow 충돌을 방지하기 위해 사용한다.
+pub(crate) fn snapshot_grads(grad_ids: &[NodeId]) -> Vec<Vec<f32>> {
+    grad_ids.iter().map(|id| {
+        TENSOR_STORAGE.with_borrow(|storage| {
+            storage.get(id).map(|g| g.data.clone()).unwrap_or_default()
+        })
+    }).collect()
 }

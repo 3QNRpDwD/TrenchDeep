@@ -3,6 +3,7 @@ pub mod backend;
 pub mod nn;
 pub mod optimizer;
 pub mod loss;
+pub mod trainer;
 pub mod tests;
 
 use crate::backend::BackendError;
