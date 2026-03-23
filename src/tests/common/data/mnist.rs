@@ -1,4 +1,46 @@
-use super::*;
+use mnist::MnistBuilder;
+use log::info;
+use crate::{
+    MlResult,
+    nn::{Variable, Parameter},
+    var_input, var_with_label,
+    tensor::{Tensor, TensorBase},
+};
+
+#[derive(Debug)]
+pub struct MnistConfig {
+    pub n_train: u32,
+    pub n_val: u32,
+    pub n_features: usize,
+    pub n_classes: usize,
+    pub n_hidden_1: usize,
+    pub n_hidden_2: usize,
+    pub learning_rate: f32,
+    pub epochs: usize,
+    pub tolerance: f32,
+    pub required_accuracy: f32,
+    pub model_save_path: String,
+    pub visualization_path: String,
+}
+
+impl Default for MnistConfig {
+    fn default() -> Self {
+        MnistConfig {
+            n_train: 1000,
+            n_val: 1000,
+            n_features: 784,
+            n_classes: 10,
+            n_hidden_1: 128,
+            n_hidden_2: 30,
+            learning_rate: 0.02,
+            epochs: 100,
+            tolerance: 1e-5,
+            required_accuracy: 80.0,
+            model_save_path: "model_parameters.json".to_string(),
+            visualization_path: "graph/test_model.svg".to_string(),
+        }
+    }
+}
 
 pub struct MnistDataset {
     pub x_train: Vec<Variable>,
@@ -16,22 +58,23 @@ impl MnistDataset {
             t_test: Vec::new(),
         }
     }
-    
+
     pub fn x_train(&self) -> Vec<&Variable> {
-        self.x_train.iter().collect::<Vec<_>>()
+        self.x_train.iter().collect()
     }
-    
-    pub fn t_train(&self) -> Vec<&Variable>{
-        self.t_train.iter().collect::<Vec<_>>()
+
+    pub fn t_train(&self) -> Vec<&Variable> {
+        self.t_train.iter().collect()
     }
-    
+
     pub fn x_test(&self) -> Vec<&Variable> {
-        self.x_test.iter().collect::<Vec<_>>()
+        self.x_test.iter().collect()
     }
-    
+
     pub fn t_test(&self) -> Vec<&Variable> {
-        self.t_test.iter().collect::<Vec<_>>()
+        self.t_test.iter().collect()
     }
+
     pub fn load_and_prepare_data(
         n_train: u32,
         n_val: u32,
@@ -46,7 +89,6 @@ impl MnistDataset {
             .finalize();
 
         info!("Converting data to model input format...");
-        // 셔플을 위해 mut로 변경
         let (x_train, t_train) = Self::convert_to_variable_dataset(&mnist_data.trn_img, &mnist_data.trn_lbl, n_train as usize, n_features, n_classes)?;
         let (x_test, t_test) = Self::convert_to_variable_dataset(&mnist_data.tst_img, &mnist_data.tst_lbl, n_val as usize, n_features, n_classes)?;
 

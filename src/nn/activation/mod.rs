@@ -2,6 +2,7 @@ pub mod sigmoid;
 pub mod tanh;
 pub mod relu;
 pub mod softmax;
+pub mod identity;
 
 use super::*;
 
@@ -49,6 +50,17 @@ pub struct Softmax {
 
 #[derive(Debug, Clone)]
 pub struct SoftmaxLayer {
+    label: String,
+    operator: GlobalFunction
+}
+
+#[derive(Debug, Clone)]
+pub struct Identity {
+    backend: Arc<dyn Backend>, node_id: NodeId
+}
+
+#[derive(Debug, Clone)]
+pub struct IdentityLayer {
     label: String,
     operator: GlobalFunction
 }

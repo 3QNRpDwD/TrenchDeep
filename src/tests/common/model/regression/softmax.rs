@@ -1,7 +1,19 @@
-use crate::nn::Layer;
 use super::*;
+use log::info;
 
 impl SoftmaxRegression {
+    pub fn build_model(n_input: usize, n_output: usize) -> MlResult<SoftmaxRegression> {
+        let activation = Softmax::new()?;
+        let loss_function = SoftmaxCrossEntropyLoss::new()?;
+
+        info!("Network Structure: {}(Input) -> {}(Output)", n_input, n_output);
+        info!("Activation Functions: {} (Output)", activation.name());
+
+        let sr = SoftmaxRegression::new(&[n_input, n_output], activation, loss_function);
+        info!("softmax regression model created successfully.");
+        Ok(sr)
+    }
+
     pub fn new(
         layer_parms: &[usize],
         activation: GlobalFunction,
@@ -68,19 +80,19 @@ impl Model for SoftmaxRegression {
         todo!()
     }
 
-    fn compute_total_error(&mut self, X: &[&Variable], T: &[&Variable]) -> MlResult<f32> {
+    fn compute_total_error(&mut self, x_set: &[&Variable], t_set: &[&Variable]) -> MlResult<f32> {
         let mut total_loss = 0.0;
-        for m in 0..X.len() {
+        for m in 0..x_set.len() {
             let logit_tensor = {
                 let matmul = Matmul::new()?;
                 let add = Add::new()?;
-                let uh1_pre = matmul.forward(&[X[m].tensor(), self.w1.tensor()])?.remove(0);
+                let uh1_pre = matmul.forward(&[x_set[m].tensor(), self.w1.tensor()])?.remove(0);
                 add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0)
             };
-            let loss = self.loss_function.forward(&[&logit_tensor, T[m].tensor()])?.remove(0);
+            let loss = self.loss_function.forward(&[&logit_tensor, t_set[m].tensor()])?.remove(0);
             total_loss += loss.data()[0];
         }
-        Ok(total_loss / X.len() as f32)
+        Ok(total_loss / x_set.len() as f32)
     }
 }
 

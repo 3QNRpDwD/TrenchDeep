@@ -1,6 +1,20 @@
 use super::*;
+use log::info;
 
 impl MLP {
+    pub fn build_model(n_input: usize, n_hidden: usize, n_output: usize) -> MlResult<MLP> {
+        let loss_function = CrossEntropyLoss::new()?;
+        info!("Network Structure: {}(Input) -> {}(Hidden) -> {}(Output)", n_input, n_hidden, n_output);
+        let mlp = MLP::new(
+            &[n_input, n_hidden, n_output],
+            Box::new(crate::nn::activation::SigmoidLayer::new("hidden_act")),
+            Box::new(crate::nn::activation::SoftmaxLayer::new("output_act")),
+            loss_function,
+        )?;
+        info!("MLP model created successfully.");
+        Ok(mlp)
+    }
+
     pub fn new(
         layer_params: &[usize], // [n_input, n_hidden, n_output]
         hidden_act: Box<dyn Layer>,
@@ -48,14 +62,14 @@ impl Model for MLP {
         todo!()
     }
 
-    fn compute_total_error(&mut self, X: &[&Variable], T: &[&Variable]) -> MlResult<f32> {
+    fn compute_total_error(&mut self, x_set: &[&Variable], t_set: &[&Variable]) -> MlResult<f32> {
         let mut total_loss = 0.0;
-        for m in 0..X.len() {
-            let y = self.predict(X[m].tensor())?;
-            let loss = self.loss_function.forward(&[&y, T[m].tensor()])?.remove(0);
+        for m in 0..x_set.len() {
+            let y = self.predict(x_set[m].tensor())?;
+            let loss = self.loss_function.forward(&[&y, t_set[m].tensor()])?.remove(0);
             total_loss += loss.data()[0];
         }
-        Ok(total_loss / X.len() as f32)
+        Ok(total_loss / x_set.len() as f32)
     }
 }
 

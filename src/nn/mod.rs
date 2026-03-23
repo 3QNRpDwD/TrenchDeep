@@ -22,6 +22,7 @@ use std::{
     },
     sync::Arc
 };
+use crate::nn::activation::Softmax;
 
 #[macro_export]
 macro_rules! variable {
@@ -46,6 +47,42 @@ macro_rules! variable {
             }
         }
     };
+}
+
+pub trait Model: Debug {
+    #[cfg(feature = "enableBackward")]
+    fn train(&mut self, x_set: &[&Variable], t_set: &[&Variable], epochs: usize, optimizer: &mut dyn crate::optimizer::Optimizer, tolerance: f32) -> MlResult<()>;
+    #[cfg(feature = "enableBackward")]
+    fn apply(&mut self, x: &Variable) -> MlResult<Variable>;
+    fn predict(&mut self, test_data: &dyn TensorBase) -> MlResult<GlobalTensor<f32>>;
+    fn save(&self, path: &str) -> MlResult<()>;
+    fn load(&mut self, path: &str) -> MlResult<()>;
+    fn get_loss(&self) -> f32;
+    fn compute_total_error(&mut self, x_set: &[&Variable], t_set: &[&Variable]) -> MlResult<f32>;
+    fn evaluate_model(&mut self, x_test: &[&Variable], t_test: &[&Variable]) -> MlResult<f32> {
+        let n_val = x_test.len();
+        let mut correct_predictions = 0;
+        for i in 0..n_val {
+            let y = self.predict(x_test[i].tensor())?;
+            let predicted_class = y.data()
+                .iter()
+                .enumerate()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(index, _)| index)
+                .unwrap_or(0);
+            let true_class = t_test[i].tensor().data()
+                .iter()
+                .enumerate()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(index, _)| index)
+                .unwrap_or(0);
+            if predicted_class == true_class {
+                correct_predictions += 1;
+            }
+        }
+        let accuracy = correct_predictions as f32 / n_val as f32 * 100.0;
+        Ok(accuracy)
+    }
 }
 
 pub trait Layer: Debug {
@@ -142,11 +179,12 @@ impl Debug for Variable {
         ds.finish()
     }
 }
+
 #[derive(Debug)]
 pub struct Linear {
     label: String,
     weight: Variable,
-    bias: Variable
+    bias: Variable,
 }
 
 #[derive(Debug)]
