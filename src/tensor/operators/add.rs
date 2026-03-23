@@ -67,7 +67,24 @@ impl Function for Add {
     }
 
     #[cfg(all(feature = "enableBackward"))]
-    fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+        let first_shape = targets[0].shape();
+        let second_shape = targets[1].shape();
+
+        // Broadcasting 케이스: [M, N] + [N] → bias grad는 batch 차원으로 합산
+        if first_shape.len() == 2 && second_shape.len() == 1 && first_shape[1] == second_shape[0] {
+            let (batch_size, features) = (first_shape[0], first_shape[1]);
+            let grad_data = grad.data();
+            let matrix_grad = GlobalTensor::from_vec(grad_data.to_vec(), first_shape)?;
+            let mut bias_grad = vec![0.0f32; features];
+            for i in 0..batch_size {
+                for j in 0..features {
+                    bias_grad[j] += grad_data[i * features + j];
+                }
+            }
+            return Ok(vec![matrix_grad, GlobalTensor::from_vec(bias_grad, second_shape)?]);
+        }
+
         let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec(), dirty: false };
         Ok(vec![gt.clone(), gt])
     }

@@ -70,11 +70,11 @@ impl MnistDataset {
 
         for i in 0..num_items {
             let image_slice = &normalized_images[i * num_features..(i + 1) * num_features];
-            let x = var_input!(Tensor::from_vec(image_slice.to_vec(), &[num_features, 1])?);
+            let x = var_input!(Tensor::from_vec(image_slice.to_vec(), &[1, num_features])?);
             x_set.push(x);
 
             let label_slice = &f32_labels[i * num_classes..(i + 1) * num_classes];
-            let t = var_with_label!(Tensor::from_vec(label_slice.to_vec(), &[num_classes, 1])?, "target");
+            let t = var_with_label!(Tensor::from_vec(label_slice.to_vec(), &[1, num_classes])?, "target");
             t_set.push(t);
         }
 

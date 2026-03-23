@@ -33,10 +33,6 @@ mod mnist_test {
         let dataset = MnistDataset::load_and_prepare_data(config.n_train, config.n_val, config.n_features, config.n_classes)?;
         let mut mlp = MLP::build_model(config.n_features, config.n_hidden_2, config.n_classes)?;
         let mut opt = SGD::new(config.learning_rate);
-        opt.register(&mlp.w1);
-        opt.register(&mlp.w2);
-        opt.register(&mlp.b1);
-        opt.register(&mlp.b2);
 
         mlp.train(
             &dataset.x_train(),
@@ -63,7 +59,7 @@ mod mnist_test {
         Ok(())
     }
 
-    #[ignore = "테스트 시간이 너무 오래걸려서 무시함"]
+    // #[ignore = "테스트 시간이 너무 오래걸려서 무시함"]
     #[test]
     #[cfg(all(feature = "enableBackward"))]
     fn softmax_regression_mnist_classification_integration_test() -> MlResult<()> {

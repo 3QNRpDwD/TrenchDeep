@@ -1,4 +1,3 @@
-use crate::tensor::AutogradFunction;
 use super::*;
 
 impl Linear {
@@ -26,8 +25,6 @@ impl Linear {
             label: label.to_string(),
             weight: var_weight!(weight_tensor),
             bias: var_bias!(bias_tensor),
-            inputs: HashSet::new(),
-            outputs: HashMap::new(),
         })
     }
 }
@@ -37,17 +34,9 @@ impl Layer for Linear {
     #[cfg(all(feature = "enableBackward"))]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
-        let in_id = input.node_id();
-
         // y = xW + b
         let x = matmul.apply(&[input, &self.weight])?;
-        let output = &x + &self.bias;
-
-        // 3. 입/출력 노드 ID를 캐시에 저장합니다.
-        self.inputs.insert(in_id);
-        self.outputs.insert(in_id, output.node_id());
-
-        Ok(output)
+        Ok(&x + &self.bias)
     }
     
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
@@ -66,23 +55,6 @@ impl Layer for Linear {
     /// 이 레이어가 소유한 모든 파라미터(가중치, 편향)의 참조를 반환합니다.
     fn params(&self) -> Vec<&dyn Parameter> {
         vec![&self.weight, &self.bias]
-    }
-
-    fn inputs_cache(&self) -> &HashSet<NodeId> {
-        &self.inputs
-    }
-
-    fn outputs_cache(&self) -> &HashMap<NodeId, NodeId> {
-        &self.outputs
-    }
-
-
-    fn inputs_cache_mut(&mut self) -> &mut HashSet<NodeId> {
-        &mut self.inputs
-    }
-
-    fn outputs_cache_mut(&mut self) -> &mut HashMap<NodeId, NodeId> {
-        &mut self.outputs
     }
 
     fn label(&self) -> &str {

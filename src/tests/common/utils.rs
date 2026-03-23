@@ -32,23 +32,18 @@ pub fn argmax(data: &[f32]) -> Option<usize> {
 
 
 impl MLP {
-    pub fn build_model(n_input: usize, n_hidden : usize, n_output: usize) -> MlResult<MLP> {
-        let hidden_activation = Sigmoid::new()?;
-        let output_activation = Softmax::new()?;
+    pub fn build_model(n_input: usize, n_hidden: usize, n_output: usize) -> MlResult<MLP> {
         let loss_function = CrossEntropyLoss::new()?;
-        let layer = Sequential::new();
-
         info!("Network Structure: {}(Input) -> {}(Hidden) -> {}(Output)", n_input, n_hidden, n_output);
-        info!("Activation Functions: {} (Hidden), {} (Output)", hidden_activation.name(), output_activation.name());
-
-        let mlp = MLP::new(&[n_input, n_hidden, n_output], layer, loss_function);
+        let mlp = MLP::new(
+            &[n_input, n_hidden, n_output],
+            Box::new(crate::nn::activation::SigmoidLayer::new("hidden_act")),
+            Box::new(crate::nn::activation::SoftmaxLayer::new("output_act")),
+            loss_function,
+        )?;
         info!("MLP model created successfully.");
         Ok(mlp)
     }
-
-    //모델의 학습이 더이상 진행되지 않는 상황에서 파라미터를 조정해봤으나, 유의미한 영향이 있지않았음.
-    // 오히려 학습률이 비정상적으로 작아지는등 모습을 보임.
-    // 따라서 레이어를 하나 더 추가했으나,이도 유의미한 결과를 내지 못하고있는것으로 보임. 마지막 방법으로, 옵티마이저를 적응형으로 변경하는 방안을 고려. 그 이후에도 해결되지 않는다면...
 }
 
 impl SoftmaxRegression {
@@ -60,7 +55,7 @@ impl SoftmaxRegression {
         info!("Activation Functions: {} (Output)", activation.name());
 
         let sr = SoftmaxRegression::new(&[n_input, n_output], activation, loss_function);
-        info!("MLP model created successfully.");
+        info!("softmax regression model created successfully.");
         Ok(sr)
     }
 

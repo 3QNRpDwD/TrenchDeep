@@ -17,46 +17,38 @@ pub struct Sigmoid {
 #[derive(Debug, Clone)]
 pub struct SigmoidLayer {
     label: String,
-    inputs: HashSet<NodeId>,
-    outputs: HashMap<NodeId, NodeId>,
     operator: GlobalFunction
 }
 
 #[derive(Debug, Clone)]
-pub struct Tanh    { 
+pub struct Tanh {
     backend: Arc<dyn Backend>, node_id: NodeId
 }
 
 #[derive(Debug, Clone)]
 pub struct TanhLayer {
     label: String,
-    inputs: HashSet<NodeId>,
-    outputs: HashMap<NodeId, NodeId>,
     operator: GlobalFunction
 }
 
 #[derive(Debug, Clone)]
-pub struct ReLU { 
+pub struct ReLU {
     backend: Arc<dyn Backend>, node_id: NodeId
 }
 
 #[derive(Debug, Clone)]
 pub struct ReLULayer {
     label: String,
-    inputs: HashSet<NodeId>,
-    outputs: HashMap<NodeId, NodeId>, 
     operator: GlobalFunction
 }
 
 #[derive(Debug, Clone)]
-pub struct Softmax { 
+pub struct Softmax {
     backend: Arc<dyn Backend>, node_id: NodeId
 }
 
 #[derive(Debug, Clone)]
 pub struct SoftmaxLayer {
     label: String,
-    inputs: HashSet<NodeId>,
-    outputs: HashMap<NodeId, NodeId>,
     operator: GlobalFunction
 }

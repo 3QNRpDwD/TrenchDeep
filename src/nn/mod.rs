@@ -5,24 +5,20 @@ pub mod linear;
 mod parameter;
 mod checkpoint;
 
-use crate::{register_operator, var_act, var_bias, var_weight, backend::Backend, MlResult, TensorError, tensor::{
-    operators::{Add, Div, Matmul, Mul, Sub},
+use crate::{register_operator, var_bias, var_weight, backend::Backend, MlResult, tensor::{
+    operators::{Add, Matmul, Sub},
     operators::Function,
     GlobalFunction,
     GlobalTensor,
     NodeId,
     Tensor,
-    TensorBase
-}, MlError};
+    TensorBase,
+    AutogradFunction,
+}, MlError, TensorError};
 use std::{
     fmt::{
         Formatter,
         Debug
-    },
-    ops::Deref,
-    collections::{
-        HashMap,
-        HashSet
     },
     sync::Arc
 };
@@ -57,10 +53,6 @@ pub trait Layer: Debug {
     fn apply(&mut self, input: &Variable) -> MlResult<Variable>;
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>>;
     fn params(&self) -> Vec<&dyn Parameter>;
-    fn inputs_cache(&self) -> &HashSet<NodeId>;
-    fn outputs_cache(&self) -> &HashMap<NodeId, NodeId>;
-    fn inputs_cache_mut(&mut self) -> &mut HashSet<NodeId>;
-    fn outputs_cache_mut(&mut self) -> &mut HashMap<NodeId, NodeId>;
     fn type_name(&self) -> &str {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
     } // 레이어를 구현하는 구조체의 이름을 반환
@@ -69,40 +61,29 @@ pub trait Layer: Debug {
 
 pub trait Parameter: Debug {
     fn new(tensor: Tensor) -> Self where Self: Sized;
-    
     fn node_id(&self) -> NodeId;
-
     fn tensor(&self) -> &Tensor;
     fn is_retain_grad(&self) -> bool;
     fn retain_grad(&self);
-
     fn grad(&self) -> &Tensor;
-
     #[cfg(feature = "enableBackward")]
     fn set_grad(&self, grad: GlobalTensor<f32>);
-
     #[cfg(feature = "enableVisualization")]
     fn set_label(&mut self, new_label: &str);
-
     /// 현재 라벨 반환
     #[cfg(feature = "enableVisualization")]
     fn label(&self) -> &str;
-
     #[cfg(feature = "enableVisualization")]
     fn node_type(&self) -> &crate::tensor::NodeType;
-
     #[cfg(feature = "enableBackward")]
     fn clear_grad(&self);
-
     // TENSOR_STORAGE의 GlobalTensor.dirty 플래그를 조회 (O(1))
     // backward 루프에서 grad.is_empty() O(n) 스캔 대신 사용
     // 모든 Variable 클론이 동일한 STORAGE 항목을 공유하므로 원본 Variable에서도 정확히 동작
     #[cfg(feature = "enableBackward")]
     fn is_grad_dirty(&self) -> bool;
-    
     #[cfg(feature = "enableBackward")]
     fn accumulate_grad(&self, new_grad: Tensor) -> MlResult<()>;
-
     #[cfg(all(feature = "enableBackward"))]
     fn backward(&self) -> MlResult<()> {
         crate::tensor::COMPUTATION_GRAPH.with(|graph| {
@@ -116,7 +97,6 @@ pub trait Parameter: Debug {
             }
         })
     }
-
     /// Performs backpropagation and then automatically resets the computation graph
     /// to release memory for all intermediate tensors.
     #[cfg(all(feature = "enableBackward"))]
@@ -163,28 +143,22 @@ impl Debug for Variable {
     }
 }
 #[derive(Debug)]
-pub struct Linear    {
+pub struct Linear {
     label: String,
-    inputs: HashSet<NodeId>,
-    outputs: HashMap<NodeId, NodeId>,
     weight: Variable,
     bias: Variable
 }
 
 #[derive(Debug)]
-pub struct Conv      {
+pub struct Conv {
     label: String,
-    inputs: HashSet<NodeId>,
-    outputs: HashMap<NodeId, NodeId>,
     weight: Variable,
     bias: Variable
 }
 
 #[derive(Debug)]
-pub struct Pooling  {
+pub struct Pooling {
     label: String,
-    inputs: HashSet<NodeId>,
-    outputs: HashMap<NodeId, NodeId>,
     weight: Arc<dyn Parameter>,
     bias: Arc<dyn Parameter>,
 }
@@ -192,16 +166,15 @@ pub struct Pooling  {
 pub struct Sequential {
     label: String,
     layers: Vec<Box<dyn Layer>>, // Box<dyn Layer>를 사용하여 다양한 종류의 레이어를 하나의 Vec에 저장
-    params: HashSet<NodeId>
 }
 
 impl Sequential {
     pub fn new() -> Self {
-        Self { label: "Sequential".to_string(), layers: vec![], params: HashSet::new() }
+        Self { label: "Sequential".to_string(), layers: vec![] }
     }
 
     pub fn from(layers: Vec<Box<dyn Layer>>) -> Self {
-        Self { label: "Sequential".to_string(), layers, params: HashSet::new() }
+        Self { label: "Sequential".to_string(), layers }
     }
 
     pub fn push(&mut self, layer: Box<dyn Layer>) {
@@ -216,11 +189,15 @@ impl Sequential {
 impl Layer for Sequential {
     #[cfg(all(feature = "enableBackward"))]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
-        let mut current_output= variable!(vec![0.0], input.tensor().shape(), &input.label);
-        for layer in &mut self.layers {
-            current_output = layer.apply(&current_output)?
-        };
-        Ok(current_output)
+        if self.layers.is_empty() {
+            return Err(MlError::StringError("Sequential has no layers".to_string()));
+        }
+        let mut iter = self.layers.iter_mut();
+        let mut current = iter.next().unwrap().apply(input)?;
+        for layer in iter {
+            current = layer.apply(&current)?;
+        }
+        Ok(current)
     }
 
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
@@ -241,22 +218,6 @@ impl Layer for Sequential {
         self.layers.iter().flat_map(|layer| layer.params()).collect()
     }
 
-    fn inputs_cache(&self) -> &HashSet<NodeId> {
-        todo!()
-    }
-
-    fn outputs_cache(&self) -> &HashMap<NodeId, NodeId> {
-        todo!()
-    }
-
-    fn inputs_cache_mut(&mut self) -> &mut HashSet<NodeId> {
-        todo!()
-    }
-
-    fn outputs_cache_mut(&mut self) -> &mut HashMap<NodeId, NodeId> {
-        todo!()
-    }
-
     fn label(&self) -> &str { &self.label }
 }
 
@@ -266,7 +227,6 @@ impl Debug for Sequential {
         ds
             .field("label", &self.label)
             .field("layers", &self.layers)
-            .field("params", &self.params)
             .finish()
     }
 }

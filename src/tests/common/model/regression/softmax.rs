@@ -10,18 +10,18 @@ impl SoftmaxRegression {
         let n_input = layer_parms[0];
         let n_output = layer_parms[1];
         // He 초기화 또는 Xavier 초기화와 같은 더 나은 가중치 초기화 방법을 고려할 수 있음
-        let w1_data: Vec<f32> = (0..n_output * n_input)
-            .map(|_| (rand::random::<f32>() - 0.5) * 0.5) // 0을 중심으로 분포
+        let w1_data: Vec<f32> = (0..n_input * n_output)
+            .map(|_| (rand::random::<f32>() - 0.5) * 0.5)
             .collect();
         let w1 = var_with_label!(
-            Tensor::from_vec(w1_data, &[n_output, n_input]).unwrap(),
+            Tensor::from_vec(w1_data, &[n_input, n_output]).unwrap(),
             "weight_1"
         );
 
-        // bias 항들 초기화
-        let b1_data: Vec<f32> = vec![0.0; n_output]; // 0으로 초기화하는 것이 일반적
+        // bias: [n_output] — Add의 broadcasting으로 [1, n_output] + [n_output] 지원
+        let b1_data: Vec<f32> = vec![0.0; n_output];
         let b1 = var_with_label!(
-            Tensor::from_vec(b1_data, &[n_output, 1]).unwrap(),
+            Tensor::from_vec(b1_data, &[n_output]).unwrap(),
             "bias_1"
         );
 
@@ -40,8 +40,8 @@ impl Model for SoftmaxRegression {
     #[cfg(feature = "enableBackward")]
     fn apply(&mut self, x: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
-
-        let uh1_pre = matmul.apply(&[&self.w1, x])?;
+        // x [1, n_input] × w1 [n_input, n_output] = [1, n_output]
+        let uh1_pre = matmul.apply(&[x, &self.w1])?;
         Ok(&uh1_pre + &self.b1)
     }
 
@@ -49,8 +49,7 @@ impl Model for SoftmaxRegression {
         let matmul = Matmul::new()?;
         let add = Add::new()?;
 
-        // 1) 은닉층: u_h = W1 * x + b1
-        let uh1_pre = matmul.forward(&[self.w1.tensor(), x])?.remove(0);
+        let uh1_pre = matmul.forward(&[x, self.w1.tensor()])?.remove(0);
         let uh1 = add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0);
         let ah1 = self.activation.forward(&[&uh1])?.remove(0);
 
@@ -74,12 +73,10 @@ impl Model for SoftmaxRegression {
         for m in 0..X.len() {
             let logit_tensor = {
                 let matmul = Matmul::new()?;
-                let  add = Add::new()?;
-                let uh1_pre = matmul.forward(&[self.w1.tensor(), X[m].tensor()])?.remove(0);
+                let add = Add::new()?;
+                let uh1_pre = matmul.forward(&[X[m].tensor(), self.w1.tensor()])?.remove(0);
                 add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0)
             };
-
-            // logit을 사용해 손실을 계산합니다.
             let loss = self.loss_function.forward(&[&logit_tensor, T[m].tensor()])?.remove(0);
             total_loss += loss.data()[0];
         }

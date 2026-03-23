@@ -30,7 +30,7 @@ impl Default for TestConfig {
             tolerance: 1e-5,
             required_accuracy: 80.0, // 테스트 통과를 위한 최소 정확도
             model_save_path: "model_parameters.json".to_string(),
-            visualization_path: "graph/twolayer_refactored.svg".to_string(),
+            visualization_path: "graph/test_model.svg".to_string(),
         }
     }
 }
