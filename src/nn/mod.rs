@@ -49,7 +49,7 @@ macro_rules! variable {
     };
 }
 
-pub trait Model: Debug {
+pub trait Model {
     #[cfg(feature = "enableBackward")]
     fn train(&mut self, x_set: &[&Variable], t_set: &[&Variable], epochs: usize, optimizer: &mut dyn crate::optimizer::Optimizer, tolerance: f32) -> MlResult<()>;
     #[cfg(feature = "enableBackward")]
@@ -190,15 +190,27 @@ pub struct Linear {
 #[derive(Debug)]
 pub struct Conv {
     label: String,
-    weight: Variable,
-    bias: Variable
+    weight: Variable,           // [C_out, C_in, kH, kW]
+    bias: Variable,             // [C_out]
+    pub in_channels: usize,
+    pub out_channels: usize,
+    pub kernel_size: (usize, usize),
+    pub stride: (usize, usize),
+    pub padding: (usize, usize),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PoolingMode {
+    Max,
+    Average,
 }
 
 #[derive(Debug)]
 pub struct Pooling {
     label: String,
-    weight: Arc<dyn Parameter>,
-    bias: Arc<dyn Parameter>,
+    pub kernel_size: (usize, usize),
+    pub stride: (usize, usize),
+    pub mode: PoolingMode,
 }
 
 pub struct Sequential {
@@ -207,12 +219,12 @@ pub struct Sequential {
 }
 
 impl Sequential {
-    pub fn new() -> Self {
-        Self { label: "Sequential".to_string(), layers: vec![] }
+    pub fn new(label: &str) -> Self {
+        Self { label: label.to_string(), layers: vec![] }
     }
 
-    pub fn from(layers: Vec<Box<dyn Layer>>) -> Self {
-        Self { label: "Sequential".to_string(), layers }
+    pub fn from(layers: Vec<Box<dyn Layer>>, label: &str) -> Self {
+        Self { label: label.to_string(), layers }
     }
 
     pub fn push(&mut self, layer: Box<dyn Layer>) {

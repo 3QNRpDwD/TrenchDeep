@@ -13,6 +13,9 @@ pub mod sum;
 pub mod trigonometric;
 pub mod reshape;
 pub mod transpose;
+pub mod concat;
+pub mod conv2d;
+pub mod pool2d;
 
 macro_rules! define_op {
     // 기본 구조체 (매개변수 없음)
@@ -88,6 +91,10 @@ define_op!(Topk);
 define_op!(Matmax);
 define_op!(ApproxSin, threshold: f32);  // 테일러급수를 사용한 사인 함수 입니다.
 define_op!(ApproxCos, threshold: f32);  // 테일러급수를 사용한 코사인 함수 입니다
+define_op!(Concat);
+define_op!(Conv2d);
+define_op!(MaxPool2d);
+define_op!(AvgPool2d);
 
 pub trait Function {
     fn new() -> MlResult<GlobalFunction> where Self: Sized {

@@ -1,6 +1,7 @@
 use super::*;
 pub mod mlp;
 pub mod regression;
+mod diffusion;
 
 pub use crate::nn::Model;
 

@@ -3,6 +3,7 @@ pub mod tanh;
 pub mod relu;
 pub mod softmax;
 pub mod identity;
+mod silu;
 
 use super::*;
 
@@ -61,6 +62,17 @@ pub struct Identity {
 
 #[derive(Debug, Clone)]
 pub struct IdentityLayer {
+    label: String,
+    operator: GlobalFunction
+}
+
+#[derive(Debug, Clone)]
+pub struct SiLU {
+    backend: Arc<dyn Backend>, node_id: NodeId
+}
+
+#[derive(Debug, Clone)]
+pub struct SiLULayer {
     label: String,
     operator: GlobalFunction
 }

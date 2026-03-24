@@ -26,7 +26,7 @@ impl MLP {
             hidden_act,
             Box::new(crate::nn::Linear::new(layer_params[1], layer_params[2], "linear2")?),
             output_act,
-        ]);
+        ], "MLP");
         Ok(Self { layer, loss_function })
     }
 }

@@ -1,0 +1,79 @@
+use super::*;
+
+impl SiLULayer {
+    pub fn new(label: &str) -> Self {
+        Self {
+            label: label.to_string(),
+            operator: SiLU::new().unwrap(),
+        }
+    }
+}
+
+impl Layer for SiLULayer {
+    #[cfg(all(feature = "enableBackward"))]
+    fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
+        self.operator.apply(&[input])
+    }
+
+    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+        Ok(self.operator.forward(&[input])?.remove(0))
+    }
+
+    fn params(&self) -> Vec<&dyn Parameter> {
+        vec![]
+    }
+
+    fn label(&self) -> &str {
+        &self.label
+    }
+}
+
+impl Function for SiLU {
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(SiLU)
+    }
+
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+        let x = targets[0];
+        let ones = vec![1.0f32; x.data().len()];
+        // σ(x) = 1 / (1 + exp(-x))
+        let neg_x: Vec<f32> = x.data().iter().map(|&v| -v).collect();
+        let sigmoid = self.backend.div(&ones, &self.backend.add(&ones, &self.backend.exp(&neg_x)));
+        // SiLU(x) = x * σ(x)
+        Ok(vec![
+            GlobalTensor::from_vec(
+                self.backend.multiply(x.data(), &sigmoid),
+                x.shape()
+            )?
+        ])
+    }
+
+    #[cfg(all(feature = "enableBackward"))]
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+        let x = targets[0];
+        let ones = vec![1.0f32; x.data().len()];
+        // σ(x) = 1 / (1 + exp(-x))
+        let neg_x: Vec<f32> = x.data().iter().map(|&v| -v).collect();
+        let sigmoid = self.backend.div(&ones, &self.backend.add(&ones, &self.backend.exp(&neg_x)));
+        // σ'(x) = σ(x) * (1 - σ(x))
+        let sigmoid_deriv = self.backend.multiply(&sigmoid, &self.backend.sub(&ones, &sigmoid));
+        // ∂SiLU/∂x = σ(x) + x * σ'(x)
+        let derivative = self.backend.add(
+            &sigmoid,
+            &self.backend.multiply(x.data(), &sigmoid_deriv)
+        );
+        // ∂L/∂x = grad * ∂SiLU/∂x
+        Ok(vec![
+            GlobalTensor::from_vec(
+                self.backend.multiply(grad.data(), &derivative),
+                grad.shape()
+            )?
+        ])
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> {
+        &self.backend
+    }
+
+    fn node_id(&self) -> &NodeId { &self.node_id }
+}

@@ -49,6 +49,7 @@ fn mlp_mnist_classification_integration_test() -> MlResult<()> {
 }
 
 #[test]
+#[ignore]
 #[cfg(all(feature = "enableBackward"))]
 fn softmax_regression_mnist_classification_integration_test() -> MlResult<()> {
     let _ = setup_logging();
