@@ -1,7 +1,7 @@
 use super::*;
 use crate::tensor::operators::Conv2d;
 
-impl Conv {
+impl Conv2DLayer {
     /// 새로운 Conv 레이어를 생성합니다.
     ///
     /// # Arguments
@@ -54,7 +54,7 @@ impl Conv {
     }
 }
 
-impl Layer for Conv {
+impl Layer for Conv2DLayer {
     #[cfg(all(feature = "enableBackward"))]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         // 스칼라 하이퍼파라미터를 Variable로 래핑 (그래프에 leaf로 등록되지만 grad 불필요)
@@ -85,5 +85,42 @@ impl Layer for Conv {
 
     fn label(&self) -> &str {
         &self.label
+    }
+
+    fn save_state(&self) -> LayerState {
+        let w = self.weight.tensor();
+        let b = self.bias.tensor();
+        LayerState {
+            layer_type: "Conv2DLayer".to_string(),
+            label: self.label.clone(),
+            config: serde_json::json!({
+                "in_channels":  self.in_channels,
+                "out_channels": self.out_channels,
+                "kernel_h": self.kernel_size.0, "kernel_w": self.kernel_size.1,
+                "stride_h": self.stride.0,      "stride_w": self.stride.1,
+                "pad_h":    self.padding.0,     "pad_w":    self.padding.1,
+            }),
+            params: vec![
+                ParamState { name: "weight".to_string(), shape: w.shape().to_vec(), data: w.data().to_vec(), blob_offset: None, blob_length: None },
+                ParamState { name: "bias".to_string(),   shape: b.shape().to_vec(), data: b.data().to_vec(), blob_offset: None, blob_length: None },
+            ],
+        }
+    }
+
+    fn load_state(&mut self, state: &LayerState) -> MlResult<()> {
+        if state.layer_type != "Conv2DLayer" {
+            return Err(MlError::StringError(format!(
+                "레이어 타입 불일치: 파일='{}', 현재='Conv2DLayer'", state.layer_type
+            )));
+        }
+        let w = crate::nn::checkpoint::find_param(&state.params, "weight")?;
+        crate::nn::checkpoint::validate_shape(w, self.weight.tensor().shape())?;
+        self.weight.tensor().replace(GlobalTensor::from_vec(w.data.clone(), &w.shape)?);
+
+        let b = crate::nn::checkpoint::find_param(&state.params, "bias")?;
+        crate::nn::checkpoint::validate_shape(b, self.bias.tensor().shape())?;
+        self.bias.tensor().replace(GlobalTensor::from_vec(b.data.clone(), &b.shape)?);
+
+        Ok(())
     }
 }

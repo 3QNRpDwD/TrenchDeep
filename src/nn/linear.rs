@@ -60,4 +60,38 @@ impl Layer for Linear {
     fn label(&self) -> &str {
         &self.label
     }
+
+    fn save_state(&self) -> LayerState {
+        let w = self.weight.tensor();
+        let b = self.bias.tensor();
+        LayerState {
+            layer_type: "Linear".to_string(),
+            label: self.label.clone(),
+            config: serde_json::json!({
+                "in_features":  w.shape()[0],
+                "out_features": w.shape()[1],
+            }),
+            params: vec![
+                ParamState { name: "weight".to_string(), shape: w.shape().to_vec(), data: w.data().to_vec(), blob_offset: None, blob_length: None },
+                ParamState { name: "bias".to_string(),   shape: b.shape().to_vec(), data: b.data().to_vec(), blob_offset: None, blob_length: None },
+            ],
+        }
+    }
+
+    fn load_state(&mut self, state: &LayerState) -> MlResult<()> {
+        if state.layer_type != "Linear" {
+            return Err(MlError::StringError(format!(
+                "레이어 타입 불일치: 파일='{}', 현재='Linear'", state.layer_type
+            )));
+        }
+        let w = crate::nn::checkpoint::find_param(&state.params, "weight")?;
+        crate::nn::checkpoint::validate_shape(w, self.weight.tensor().shape())?;
+        self.weight.tensor().replace(GlobalTensor::from_vec(w.data.clone(), &w.shape)?);
+
+        let b = crate::nn::checkpoint::find_param(&state.params, "bias")?;
+        crate::nn::checkpoint::validate_shape(b, self.bias.tensor().shape())?;
+        self.bias.tensor().replace(GlobalTensor::from_vec(b.data.clone(), &b.shape)?);
+
+        Ok(())
+    }
 }

@@ -483,6 +483,18 @@ pub trait AutogradFunction: Function {
     fn apply_with_label(&mut self, inputs: &[&Variable], label: &str) -> MlResult<Variable> {
         unimplemented!(" AutogradFunction::apply_with_label() not implemented for this type")
     }
+
+    /// forward가 보조 텐서(saved tensors)를 함께 반환하는 연산자용 apply.
+    ///
+    /// forward()[0]  → 최종 출력 Variable (반환값)
+    /// forward()[1..]→ backward에 필요한 보조 텐서 (x_hat, mean, var 등)
+    ///
+    /// with_grad_fn 호출 시 inputs 뒤에 saved tensors를 이어붙여 등록하므로,
+    /// backward의 targets 슬라이스에서 해당 위치로 그대로 읽을 수 있다.
+    fn apply_with_saved(&mut self, inputs: &[&Variable]) -> MlResult<Variable> {
+        // enableBackward 미활성 시 일반 apply와 동일하게 동작
+        self.apply(inputs)
+    }
 }
 
 #[cfg(test)]

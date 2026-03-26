@@ -28,7 +28,7 @@ impl ComputationGraph {
     pub fn new() -> Self {
         Self {
             nodes: Vec::new(),
-            node_map: std::collections::HashMap::new(),
+            node_map: HashMap::new(),
             adjacency_list: Vec::new(),
             reverse_adjacency: Vec::new(),
             topo_order: Vec::new(),
@@ -344,5 +344,40 @@ impl AutogradFunction for GlobalFunction {
         }
 
         Ok(output)
+    }
+
+    /// forward()[0] 을 출력으로, forward()[1..] 을 saved tensors로 처리.
+    ///
+    /// with_grad_fn에 넘기는 inputs = 원래 inputs + saved tensors 이므로
+    /// backward(targets, grad) 호출 시 targets 슬라이스가
+    /// [원래 inputs..., saved tensors...] 순서로 구성된다.
+    fn apply_with_saved(&mut self, inputs: &[&Variable]) -> MlResult<Variable> {
+        let tensors: Vec<&dyn TensorBase> = inputs
+            .iter()
+            .map(|&var| var.tensor() as &dyn TensorBase)
+            .collect();
+
+        let mut outputs = self.forward(&tensors)?;
+
+        // forward()[0] = 최종 출력
+        let primary = Variable::new(outputs.remove(0).to_id()?);
+
+        #[cfg(feature = "enableBackward")]
+        {
+            // forward()[1..] = saved tensors → Variable로 변환 후 그래프에 등록
+            let saved: Vec<Variable> = outputs
+                .into_iter()
+                .map(|gt| Variable::new(gt.to_id().unwrap()))
+                .collect();
+
+            // [원래 inputs..., saved tensors...] 로 확장해서 with_grad_fn 호출
+            let mut extended: Vec<&Variable> = inputs.to_vec();
+            extended.extend(saved.iter());
+
+            primary.with_grad_fn(self.name(), &extended);
+            return Ok(primary);
+        }
+
+        Ok(primary)
     }
 }

@@ -1,9 +1,11 @@
 pub mod activation;
-pub mod conv;
+pub mod conv2d;
 pub mod pooling;
 pub mod linear;
+pub mod group_norm;
 mod parameter;
-mod checkpoint;
+pub mod checkpoint;
+mod reshape;
 
 use crate::{register_operator, var_bias, var_weight, backend::Backend, MlResult, tensor::{
     operators::{Add, Matmul, Sub},
@@ -23,6 +25,7 @@ use std::{
     sync::Arc
 };
 use crate::nn::activation::Softmax;
+pub use checkpoint::{LayerState, ModelState, ParamState};
 
 #[macro_export]
 macro_rules! variable {
@@ -94,6 +97,23 @@ pub trait Layer: Debug {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
     } // 레이어를 구현하는 구조체의 이름을 반환
     fn label(&self) -> &str;    // 유저가 설정한 레이어의 이름을 반환
+
+    /// 현재 레이어의 파라미터를 LayerState로 직렬화.
+    /// 학습 파라미터가 없는 레이어(활성화 함수, Pooling 등)는 기본 구현을 사용.
+    fn save_state(&self) -> LayerState {
+        LayerState {
+            layer_type: self.type_name().to_string(),
+            label: self.label().to_string(),
+            config: serde_json::Value::Null,
+            params: vec![],
+        }
+    }
+
+    /// LayerState에서 파라미터를 복원.
+    /// 학습 파라미터가 없는 레이어는 기본 구현(no-op)을 사용.
+    fn load_state(&mut self, _state: &LayerState) -> MlResult<()> {
+        Ok(())
+    }
 }
 
 pub trait Parameter: Debug {
@@ -188,7 +208,7 @@ pub struct Linear {
 }
 
 #[derive(Debug)]
-pub struct Conv {
+pub struct Conv2DLayer {
     label: String,
     weight: Variable,           // [C_out, C_in, kH, kW]
     bias: Variable,             // [C_out]
@@ -213,6 +233,18 @@ pub struct Pooling {
     pub mode: PoolingMode,
 }
 
+/// Group Normalization 레이어
+/// 학습 파라미터: γ (scale) [C], β (bias) [C]
+#[derive(Debug)]
+pub struct GroupNormLayer {
+    label:        String,
+    pub gamma:    Variable,   // [C]  — 초기값 1
+    pub beta:     Variable,   // [C]  — 초기값 0
+    pub num_groups:   usize,
+    pub num_channels: usize,
+    pub eps:      f32,
+}
+
 pub struct Sequential {
     label: String,
     layers: Vec<Box<dyn Layer>>, // Box<dyn Layer>를 사용하여 다양한 종류의 레이어를 하나의 Vec에 저장
@@ -233,6 +265,42 @@ impl Sequential {
     
     pub fn remove(&mut self, index: usize) -> Box<dyn Layer> {
         self.layers.remove(index)
+    }
+
+    /// 레이어들의 파라미터를 파일로 저장 (확장자에 따라 JSON/binary 자동 선택).
+    ///
+    /// # 예시
+    /// ```no_run
+    /// net.save("checkpoints/model.json")?;  // JSON 포맷
+    /// net.save("checkpoints/model.tdw")?;   // binary 포맷
+    /// ```
+    pub fn save(&self, path: &str) -> MlResult<()> {
+        let state = ModelState::new(
+            self.layers.iter().map(|l| l.save_state()).collect()
+        );
+        state.save(path)
+    }
+
+    /// 파일에서 파라미터를 로드. 레이블이 일치하는 레이어에 덮어씀.
+    /// 레이블이 없는 레이어는 경고를 출력하고 건너뜀 (부분 로드 지원).
+    ///
+    /// # 예시
+    /// ```no_run
+    /// net.load("checkpoints/model.json")?;
+    /// ```
+    pub fn load(&mut self, path: &str) -> MlResult<()> {
+        let state = ModelState::load(path)?;
+        for layer in &mut self.layers {
+            let label = layer.label().to_string();
+            match state.layers.iter().find(|s| s.label == label) {
+                Some(ls) => layer.load_state(ls)?,
+                None => tracing::warn!(
+                    "[Checkpoint] 레이어 '{}' 를 '{}' 에서 찾지 못함, 건너뜀",
+                    label, path
+                ),
+            }
+        }
+        Ok(())
     }
 }
 
@@ -269,6 +337,43 @@ impl Layer for Sequential {
     }
 
     fn label(&self) -> &str { &self.label }
+
+    fn save_state(&self) -> LayerState {
+        let sub_layers: Vec<LayerState> = self.layers.iter()
+            .map(|l| l.save_state())
+            .collect();
+        LayerState {
+            layer_type: "Sequential".to_string(),
+            label: self.label.clone(),
+            config: serde_json::json!({ "sub_layers": sub_layers }),
+            params: vec![],
+        }
+    }
+
+    fn load_state(&mut self, state: &LayerState) -> MlResult<()> {
+        if state.layer_type != "Sequential" {
+            return Err(MlError::StringError(format!(
+                "레이어 타입 불일치: 파일='{}', 현재='Sequential'", state.layer_type
+            )));
+        }
+        let sub_layers: Vec<LayerState> = serde_json::from_value(
+            state.config["sub_layers"].clone()
+        ).map_err(|e| MlError::StringError(
+            format!("Sequential 하위 레이어 파싱 실패: {}", e)
+        ))?;
+
+        for layer in &mut self.layers {
+            let label = layer.label().to_string();
+            match sub_layers.iter().find(|s| s.label == label) {
+                Some(ls) => layer.load_state(ls)?,
+                None => tracing::warn!(
+                    "[Checkpoint] Sequential 하위 레이어 '{}' 를 체크포인트에서 찾지 못함, 건너뜀",
+                    label
+                ),
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Debug for Sequential {

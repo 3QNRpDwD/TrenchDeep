@@ -27,6 +27,7 @@ use crate::tensor::TensorBase;
 ///
 /// # 구현 예시
 /// ```no_run
+///
 /// impl TrainableModel for SoftmaxRegression {
 ///     fn forward_loss(&mut self, x: &Variable, t: &Variable) -> MlResult<(Variable, Variable)> {
 ///         let y = self.apply(x)?;

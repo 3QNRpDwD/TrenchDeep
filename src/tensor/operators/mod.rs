@@ -16,6 +16,7 @@ pub mod transpose;
 pub mod concat;
 pub mod conv2d;
 pub mod pool2d;
+pub mod group_norm;
 
 macro_rules! define_op {
     // 기본 구조체 (매개변수 없음)
@@ -95,6 +96,7 @@ define_op!(Concat);
 define_op!(Conv2d);
 define_op!(MaxPool2d);
 define_op!(AvgPool2d);
+define_op!(GroupNorm);
 
 pub trait Function {
     fn new() -> MlResult<GlobalFunction> where Self: Sized {

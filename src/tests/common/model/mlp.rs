@@ -51,11 +51,11 @@ impl Model for MLP {
     }
 
     fn save(&self, path: &str) -> MlResult<()> {
-        todo!()
+        self.layer.save(path)
     }
 
     fn load(&mut self, path: &str) -> MlResult<()> {
-        todo!()
+        self.layer.load(path)
     }
 
     fn get_loss(&self) -> f32 {

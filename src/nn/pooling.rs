@@ -50,10 +50,11 @@ impl Layer for Pooling {
 
         match self.mode {
             PoolingMode::Max => {
-                // MaxPool2d::forward는 [Y, mask] 두 개를 반환.
-                // autograd apply는 첫 번째 출력만 Variable로 래핑.
+                // forward()[0]=Y, forward()[1]=mask
+                // apply_with_saved: mask를 saved tensor로 보존 →
+                // backward targets = [input, kH, kW, sh, sw, mask]
                 let mut op = MaxPool2d::new()?;
-                op.apply(&[input, &kh, &kw, &sh, &sw])
+                op.apply_with_saved(&[input, &kh, &kw, &sh, &sw])
             }
             PoolingMode::Average => {
                 let mut op = AvgPool2d::new()?;
@@ -86,4 +87,18 @@ impl Layer for Pooling {
     fn label(&self) -> &str {
         &self.label
     }
+
+    fn save_state(&self) -> LayerState {
+        LayerState {
+            layer_type: "Pooling".to_string(),
+            label: self.label.clone(),
+            config: serde_json::json!({
+                "mode":     if self.mode == PoolingMode::Max { "max" } else { "avg" },
+                "kernel_h": self.kernel_size.0, "kernel_w": self.kernel_size.1,
+                "stride_h": self.stride.0,      "stride_w": self.stride.1,
+            }),
+            params: vec![],
+        }
+    }
+    // load_state: 파라미터 없으므로 기본 구현(no-op) 사용
 }

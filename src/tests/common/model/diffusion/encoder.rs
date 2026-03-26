@@ -2,6 +2,8 @@ use crate::nn::Parameter;
 use crate::tensor::AutogradFunction;
 use super::*;
 
+pub const MAX_PERIOD: f32 = 10000.0;
+
 pub struct Encoder;
 
 #[derive(Debug)]
@@ -11,11 +13,11 @@ pub struct SinusoidalPE {
 }
 
 impl SinusoidalPE {
-    pub fn new(dim: usize, max_period: f32, label: &str) -> MlResult<Self> {
+    pub fn new(dim: usize, label: &str) -> MlResult<Self> {
         // max_period = 보통 10000
         let half_dim = dim / 2;
         let data: Vec<f32> = (0..half_dim)
-            .map(|i| (max_period).powf(2.0 * i as f32 / dim as f32).recip())
+            .map(|i| (MAX_PERIOD).powf(2.0 * i as f32 / dim as f32).recip())
             .collect();
         Ok(SinusoidalPE { inv_freq: Variable::new(Tensor::from_vec(data, &[1, half_dim])?), label: label.to_string() })
     }

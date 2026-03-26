@@ -19,9 +19,9 @@ impl TimeEmbeddingMLP {
             layer_params[1], layer_params[2],
         );
         let mlp = Sequential::from(vec![
-            Box::new(SinusoidalPE::new(layer_params[0], max_period, "SinusoidalPE(t)")?),
+            Box::new(SinusoidalPE::new(layer_params[0], "SinusoidalPE(t)")?),
             Box::new(Linear::new(layer_params[0], layer_params[1], "Linear(d_model, d_hidden)(t_emb)")?),
-            Box::new(SiLULayer::new("SiLU(t_emb)")),
+            Box::new(SiLULayer::new("SiLU(t_emb)")?),
             Box::new(Linear::new(layer_params[1], layer_params[2], "Linear(d_hidden, C)(t_emb)")?),
         ], "TimeEmbeddingMLP",);
 

@@ -1,11 +1,11 @@
 use super::*;
 
 impl SiLULayer {
-    pub fn new(label: &str) -> Self {
-        Self {
+    pub fn new(label: &str) -> MlResult<Self> {
+        Ok(Self {
             label: label.to_string(),
-            operator: SiLU::new().unwrap(),
-        }
+            operator: SiLU::new()?,
+        })
     }
 }
 
