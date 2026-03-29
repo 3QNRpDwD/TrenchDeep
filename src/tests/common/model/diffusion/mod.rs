@@ -17,9 +17,13 @@ pub(crate) use crate::{
 pub(crate) use self::decoder::Decoder;
 pub(crate) use self::encoder::{Encoder, SinusoidalPE};
 
-struct DiffusionModel {
+struct Diffusion {
     encoder: Encoder,
     decoder: Decoder,
     scheduler: MLP,
     loss: CrossEntropyLoss,
+}
+
+struct StableDiffusion {
+    
 }

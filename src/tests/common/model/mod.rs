@@ -26,6 +26,8 @@ pub(crate) use crate::{
 pub mod mlp;
 pub mod regression;
 mod diffusion;
+mod transfomer;
+mod classification;
 
 pub struct MLP {
     pub layer: Sequential,

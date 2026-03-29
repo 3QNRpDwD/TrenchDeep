@@ -104,7 +104,7 @@ impl TrainingCheckpoint {
             ))
     }
 
-    /// JSON 파일에서 체크포인트를 로드한다.
+    /// JSON 파일에서 체크포인트를 로드.
     pub fn load(path: &str) -> MlResult<Self> {
         let json = std::fs::read_to_string(path)
             .map_err(|e| MlError::StringError(
@@ -116,7 +116,7 @@ impl TrainingCheckpoint {
             ))
     }
 
-    /// 체크포인트 파일이 존재하는지 확인한다.
+    /// 체크포인트 파일이 존재하는지 확인.
     pub fn exists(path: &str) -> bool {
         std::path::Path::new(path).exists()
     }
