@@ -1,11 +1,4 @@
-use mnist::MnistBuilder;
-use log::info;
-use crate::{
-    MlResult,
-    nn::{Variable, Parameter},
-    var_input, var_with_label,
-    tensor::{Tensor, TensorBase},
-};
+use super::*;
 
 #[derive(Debug)]
 pub struct MnistConfig {

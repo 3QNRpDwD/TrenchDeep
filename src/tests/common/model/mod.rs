@@ -1,9 +1,31 @@
-use super::*;
+pub(crate) use super::*; // info, MlResult (from common/mod.rs)
+
+// ── model 하위 모듈 공통 import ──────────────────────────────────────────────
+pub(crate) use crate::{
+    loss::{CrossEntropyLoss, SoftmaxCrossEntropyLoss},
+    nn::{
+        activation::{Sigmoid, Softmax},
+        Layer,
+        Linear,
+        Model,
+        Parameter,
+        Sequential,
+        Variable,
+    },
+    tensor::{
+        AutogradFunction,
+        GlobalFunction,
+        GlobalTensor,
+        operators::{Add, Function, Matmul},
+        Tensor,
+        TensorBase,
+    },
+    var_with_label,
+};
+
 pub mod mlp;
 pub mod regression;
 mod diffusion;
-
-pub use crate::nn::Model;
 
 pub struct MLP {
     pub layer: Sequential,

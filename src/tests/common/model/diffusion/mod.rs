@@ -1,49 +1,21 @@
+pub(crate) mod encoder;
+pub(crate) mod decoder;
 mod unet;
-mod encoder;
-mod decoder;
 mod scheduler;
 mod embedding;
 
-use std::fmt::{Debug, Formatter};
-use log::info;
+pub(crate) use super::*; // info, MlResult, Layer, Linear, Sequential, ... (from model/mod.rs)
 
-use crate::{
-    loss::CrossEntropyLoss,
-    nn::{
-        Variable,
-        Parameter,
-        activation::SiLULayer,
-        Layer,
-        Linear,
-        Model,
-        Sequential
-    },
-    tests::{
-        common::{
-            model::{
-                diffusion::{
-                    decoder::Decoder,
-                    encoder::{
-                        Encoder,
-                        SinusoidalPE
-                    }
-                },
-                MLP
-            }
-        }
-    },
-    optimizer::Optimizer,
-    variable,
-    MlResult,
-    tensor::{
-        GlobalFunction,
-        GlobalTensor,
-        Tensor,
-        TensorBase,
-        operators::{Cos, Function, Matmul, Sin, Concat}
-    }
+// diffusion 하위 모듈 전용 import
+pub(crate) use std::fmt::Debug;
+pub(crate) use crate::{
+    nn::{Conv2DLayer, GroupNormLayer, activation::SiLULayer},
+    tensor::operators::{Concat, Cos, Sin},
 };
 
+// diffusion 내부 서브모듈 re-export (하위 파일에서 super:: 로 접근 가능)
+pub(crate) use self::decoder::Decoder;
+pub(crate) use self::encoder::{Encoder, SinusoidalPE};
 
 struct DiffusionModel {
     encoder: Encoder,

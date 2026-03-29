@@ -1,5 +1,4 @@
 use super::*;
-use log::info;
 
 impl SoftmaxRegression {
     pub fn build_model(n_input: usize, n_output: usize) -> MlResult<SoftmaxRegression> {
@@ -114,8 +113,8 @@ impl crate::trainer::TrainableModel for SoftmaxRegression {
 
     fn predict_raw(
         &mut self,
-        x: &dyn crate::tensor::TensorBase,
-    ) -> MlResult<crate::tensor::GlobalTensor<f32>> {
+        x: &dyn TensorBase,
+    ) -> MlResult<GlobalTensor<f32>> {
         self.predict(x)
     }
 }

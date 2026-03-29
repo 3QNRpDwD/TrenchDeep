@@ -1,11 +1,4 @@
-use tracing_subscriber::{
-    prelude::*,
-    EnvFilter,
-    fmt,
-    layer::SubscriberExt,
-    util::SubscriberInitExt
-};
-use time::macros::format_description;
+use super::*;
 
 pub fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
     let file_appender = tracing_appender::rolling::hourly("logs", "test_run.log");

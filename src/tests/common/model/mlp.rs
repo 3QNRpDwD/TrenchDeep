@@ -1,5 +1,4 @@
 use super::*;
-use log::info;
 
 impl MLP {
     pub fn build_model(n_input: usize, n_hidden: usize, n_output: usize) -> MlResult<MLP> {

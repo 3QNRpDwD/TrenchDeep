@@ -2,7 +2,7 @@ use super::*;
 use crate::tensor::operators::{MaxPool2d, AvgPool2d};
 
 impl Pooling {
-    /// MaxPool2d 레이어를 생성합니다.
+    /// MaxPool2d 레이어를 생성.
     pub fn new_max(
         kernel_size: (usize, usize),
         stride: (usize, usize),
@@ -16,7 +16,7 @@ impl Pooling {
         }
     }
 
-    /// AvgPool2d 레이어를 생성합니다.
+    /// AvgPool2d 레이어를 생성.
     pub fn new_avg(
         kernel_size: (usize, usize),
         stride: (usize, usize),

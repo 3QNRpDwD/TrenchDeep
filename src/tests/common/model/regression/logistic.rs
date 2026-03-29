@@ -1,6 +1,4 @@
 use super::*;
-use log::info;
-use crate::nn::activation::Sigmoid;
 
 impl LogisticRegression {
     pub fn build_model(n_input: usize, n_output: usize) -> MlResult<LogisticRegression> {

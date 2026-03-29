@@ -2,7 +2,7 @@ use super::*;
 use crate::tensor::operators::Conv2d;
 
 impl Conv2DLayer {
-    /// 새로운 Conv 레이어를 생성합니다.
+    /// 새로운 Conv 레이어를 생성.
     ///
     /// # Arguments
     /// * `in_channels`  - 입력 채널 수

@@ -1,7 +1,7 @@
 use crate::{
     MlResult,
-    nn::{Linear, Sequential, GroupNormLayer, Parameter, Layer},
-    tensor::{Tensor, TensorBase},
+    nn::{GroupNormLayer, Layer, Linear, Parameter, Sequential},
+    tensor::TensorBase,
 };
 
 // ── 헬퍼 ────────────────────────────────────────────────────────────────────

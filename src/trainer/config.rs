@@ -1,8 +1,8 @@
-use super::Trainer;
+use super::*;
 
 /// 학습 루프에서 활성화할 메트릭 집합.
 ///
-/// 모든 메서드가 `const fn`이므로 `const` 변수로 컴파일 타임에 확정할 수 있다.
+/// 모든 메서드가 `const fn`이므로 `const` 변수로 컴파일 타임에 확정 가능.
 ///
 /// # 예시
 /// ```no_run
@@ -53,9 +53,9 @@ impl Default for Metrics {
 // ────────────────────────────────────────────────────────────────────────────
 
 /// Trainer 내부에서 사용하는 확정된 로그·메트릭 설정.
-/// `TrainerBuilder::build()`가 생성한다.
+/// `TrainerBuilder::build()`가 생성.
 pub struct LogConfig {
-    /// 몇 배치마다 메트릭 계산 및 배치 progress bar 를 갱신할지.
+    /// 몇 배치마다 메트릭 계산 및 배치 progress bar 를 갱신할지 여부.
     /// `usize::MAX` = 배치 레벨 로그 완전 비활성.
     pub batch_log_interval: usize,
 
@@ -71,6 +71,10 @@ pub struct LogConfig {
 
     /// progress bar 출력 여부.
     pub show_progress: bool,
+
+    /// 체크포인트 저장 디렉토리.
+    /// `None`이면 인터럽트 시 체크포인트를 저장하지 않는다.
+    pub checkpoint_dir: Option<String>,
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -94,6 +98,7 @@ pub struct TrainerBuilder {
     nan_check_interval: usize,
     metrics:            Metrics,
     show_progress:      bool,
+    checkpoint_dir:     Option<String>,
 }
 
 impl TrainerBuilder {
@@ -104,12 +109,13 @@ impl TrainerBuilder {
             nan_check_interval: 1,
             metrics:            Metrics::default(),
             show_progress:      true,
+            checkpoint_dir:     None,
         }
     }
 
     /// 몇 배치마다 메트릭을 계산하고 로그를 출력할지 설정.
     ///
-    /// `0`을 입력하면 배치 레벨 로그가 완전히 비활성화된다.
+    /// `0`을 입력하면 배치 레벨 로그가 완전히 비활성화.
     /// 예: `50` → 50배치마다 grad_norm 계산 + progress bar 갱신.
     pub fn log_every_n_batches(mut self, n: usize) -> Self {
         self.batch_log_interval = if n == 0 { usize::MAX } else { n };
@@ -124,14 +130,14 @@ impl TrainerBuilder {
 
     /// NaN/Inf 그래디언트 검사 활성화 여부.
     ///
-    /// `false`로 설정하면 성능이 향상되지만 발산 감지가 불가능해진다.
-    /// 완전히 검증된 모델·학습률 조합에서만 비활성화를 권장한다.
+    /// `false`로 설정하면 성능이 향상되지만 발산 감지가 불가능.
+    /// 완전히 검증된 모델·학습률 조합에서만 비활성화를 권장.
     pub fn nan_check(mut self, enabled: bool) -> Self {
         self.nan_check_interval = if enabled { 1 } else { usize::MAX };
         self
     }
 
-    /// 활성화할 메트릭 집합을 설정한다.
+    /// 활성화할 메트릭 집합을 설정.
     ///
     /// ```no_run
     /// .metrics(Metrics::none().grad_norm().accuracy())
@@ -147,7 +153,20 @@ impl TrainerBuilder {
         self
     }
 
-    /// 설정을 확정하고 `Trainer`를 생성한다.
+    /// 체크포인트 저장 디렉토리를 설정한다.
+    ///
+    /// 설정하면 학습 중 Ctrl+C 인터럽트 시 모델 가중치와 학습 상태를
+    /// 이 디렉토리에 저장한다. `resume()`으로 중단 지점부터 재개 가능.
+    ///
+    /// ```no_run
+    /// .checkpoint_dir("checkpoints/my_model")
+    /// ```
+    pub fn checkpoint_dir(mut self, dir: &str) -> Self {
+        self.checkpoint_dir = Some(dir.to_string());
+        self
+    }
+
+    /// 설정을 확정하고 `Trainer`를 생성.
     pub fn build(self) -> Trainer {
         Trainer {
             config: LogConfig {
@@ -156,6 +175,7 @@ impl TrainerBuilder {
                 nan_check_interval: self.nan_check_interval,
                 metrics:            self.metrics,
                 show_progress:      self.show_progress,
+                checkpoint_dir:     self.checkpoint_dir,
             },
         }
     }

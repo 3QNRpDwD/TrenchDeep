@@ -1,5 +1,3 @@
-use crate::nn::Parameter;
-use crate::tensor::AutogradFunction;
 use super::*;
 
 pub const MAX_PERIOD: f32 = 10000.0;

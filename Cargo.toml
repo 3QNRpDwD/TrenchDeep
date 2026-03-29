@@ -26,6 +26,7 @@ indicatif = "0.17.11"             #테스트시 로깅용 크레이트
 tracing = "0.1.41"                 #테스트시 로깅용 크레이트
 time = { version = "0.3.41", features = ["macros"] }
 thiserror = "2.0.12"               #오류 전파용 크레이트
+ctrlc = "3.4"                      #학습 중단 시그널 처리용 크레이트
 
 [profile.dev]
 debug = true

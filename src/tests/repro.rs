@@ -2,11 +2,10 @@
 mod reproduction_test {
     use crate::{
         MlResult,
-        tensor::{Tensor, TENSOR_STORAGE, ComputationGraph, NodeId, GlobalTensor, TensorBase},
-        nn::{Variable, Parameter},
+        nn::Parameter,
+        tensor::{ComputationGraph, Tensor, TENSOR_STORAGE, TensorBase},
         var_input
     };
-    use std::sync::Arc;
 
     #[test]
     #[cfg(all(feature = "enableBackward"))]
