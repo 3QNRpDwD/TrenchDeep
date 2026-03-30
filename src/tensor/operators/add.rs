@@ -20,8 +20,18 @@ impl Function for Add {
         let first_shape = first_target.shape();
         let second_shape = second_target.shape();
 
-        if first_shape.len() == 2 && second_shape.len() == 1 && first_shape[1] == second_shape[0] {
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Add::forward] {} + {}",
+            crate::tensor::operators::debug::summary("lhs", first_target),
+            crate::tensor::operators::debug::summary("rhs", second_target)
+        );
+
+        let result = if first_shape.len() == 2 && second_shape.len() == 1 && first_shape[1] == second_shape[0] {
             // Special case for matrix + vector broadcasting
+            #[cfg(feature = "debugging")]
+            tracing::debug!("[Add::forward] broadcast path: [{},{}] + [{}]", first_shape[0], first_shape[1], second_shape[0]);
+
             let (batch_size, features) = (first_shape[0], first_shape[1]);
             let mut data = vec![0.0; first_target.data().len()];
 
@@ -30,14 +40,21 @@ impl Function for Add {
                     data[i * features + j] = first_target.data()[i * features + j] + second_target.data()[j];
                 }
             }
-            
-            return Ok(vec![GlobalTensor::from_vec(data, first_shape)?])
+
+            Ok(vec![GlobalTensor::from_vec(data, first_shape)?])
+        } else {
+            match first_target.chk_shape(second_target) {
+                Err(e) => Err(e),
+                _ => Ok(vec![GlobalTensor::from_vec(self.backend().add(first_target.data(), second_target.data()), first_target.shape())?])
+            }
+        };
+
+        #[cfg(feature = "debugging")]
+        if let Ok(ref r) = result {
+            tracing::debug!("[Add::forward] → {}", crate::tensor::operators::debug::summary_raw("out", &r[0].data, &r[0].shape));
         }
 
-        match first_target.chk_shape(second_target) {
-            Err(e) => Err(e),
-            _ => Ok(vec![GlobalTensor::from_vec(self.backend().add(first_target.data(), second_target.data()), first_target.shape())?])
-        }
+        result
     }
 
     fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
@@ -71,8 +88,18 @@ impl Function for Add {
         let first_shape = targets[0].shape();
         let second_shape = targets[1].shape();
 
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Add::backward] lhs_shape={:?} rhs_shape={:?}  {}",
+            first_shape, second_shape,
+            crate::tensor::operators::debug::summary("grad_in", grad)
+        );
+
         // Broadcasting 케이스: [M, N] + [N] → bias grad는 batch 차원으로 합산
-        if first_shape.len() == 2 && second_shape.len() == 1 && first_shape[1] == second_shape[0] {
+        let result = if first_shape.len() == 2 && second_shape.len() == 1 && first_shape[1] == second_shape[0] {
+            #[cfg(feature = "debugging")]
+            tracing::debug!("[Add::backward] broadcast path: summing bias grad over batch dim");
+
             let (batch_size, features) = (first_shape[0], first_shape[1]);
             let grad_data = grad.data();
             let matrix_grad = GlobalTensor::from_vec(grad_data.to_vec(), first_shape)?;
@@ -82,11 +109,20 @@ impl Function for Add {
                     bias_grad[j] += grad_data[i * features + j];
                 }
             }
-            return Ok(vec![matrix_grad, GlobalTensor::from_vec(bias_grad, second_shape)?]);
+            Ok(vec![matrix_grad, GlobalTensor::from_vec(bias_grad, second_shape)?])
+        } else {
+            let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec(), dirty: false };
+            Ok(vec![gt.clone(), gt])
+        };
+
+        #[cfg(feature = "debugging")]
+        if let Ok(ref r) = result {
+            for (i, g) in r.iter().enumerate() {
+                crate::tensor::operators::debug::stats_raw(&format!("  └─ grad_out[{}]", i), &g.data, &g.shape);
+            }
         }
 
-        let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec(), dirty: false };
-        Ok(vec![gt.clone(), gt])
+        result
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

@@ -41,6 +41,12 @@ impl ComputationGraph {
         let node_id = variable.node_id();
         let node_idx = self.nodes.len();
 
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Graph::add_input] id={:?} shape={:?} (total nodes after: {})",
+            node_id, variable.tensor().shape(), node_idx + 1
+        );
+
         #[cfg(feature = "enableVisualization")]
         {
             VISUALIZATION_GRAPH.with(|viz_graph| {
@@ -70,6 +76,11 @@ impl ComputationGraph {
     }
 
     pub(crate) fn add_operation(&mut self, variable: &Variable, operator_name: &str, inputs: Vec<NodeId>) -> NodeId {
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Graph::add_operation] op='{}' inputs={:?} → output={:?} (total nodes after: {})",
+            operator_name, inputs, variable.node_id(), self.nodes.len() + 1
+        );
         #[cfg(feature = "enableVisualization")]
         VISUALIZATION_GRAPH.with(|viz_graph| {
             let mut viz = viz_graph.borrow_mut();
@@ -163,6 +174,14 @@ impl ComputationGraph {
         }
 
         self.is_sorted = true;
+
+        #[cfg(feature = "debugging")]
+        {
+            let order: Vec<String> = self.topo_order.iter().map(|&idx| {
+                self.nodes[idx].function.clone().unwrap_or_else(|| "Input".to_string())
+            }).collect();
+            tracing::debug!("[Graph::topo_sort] order={:?} ({} nodes total)", order, self.topo_order.len());
+        }
     }
 
     #[cfg(feature = "enableBackward")]
@@ -185,6 +204,9 @@ impl ComputationGraph {
         output_node.grad.replace(ones);
 
         // ── 3. 역전파 루프 ───────────────────────────────────────────────────
+        #[cfg(feature = "debugging")]
+        tracing::debug!("[backward] start — {} nodes in topo order", self.topo_order.len());
+
         for &node_idx in self.topo_order.iter().rev() {
             let node = &self.nodes[node_idx];
 
@@ -194,6 +216,14 @@ impl ComputationGraph {
 
             let grad = &node.grad;
             let function = node.function.as_ref().unwrap();
+
+            #[cfg(feature = "debugging")]
+            tracing::debug!(
+                "[backward] op='{}' id={:?}  {}",
+                function,
+                node.id,
+                crate::tensor::operators::debug::summary("grad", grad)
+            );
 
             let input_tensors: Vec<&dyn TensorBase> = node.inputs
                 .iter()
@@ -213,6 +243,15 @@ impl ComputationGraph {
                     ))
             })?;
 
+            #[cfg(feature = "debugging")]
+            for (i, ig) in input_grads.iter().enumerate() {
+                crate::tensor::operators::debug::stats_raw(
+                    &format!("  └─ input_grad[{}]", i),
+                    &ig.data,
+                    &ig.shape,
+                );
+            }
+
             for (input_id, input_grad) in node.inputs.iter().zip(input_grads) {
                 let input_idx = self.node_map[input_id];
                 let input_node = &self.nodes[input_idx];
@@ -223,6 +262,10 @@ impl ComputationGraph {
                 Self::clear_node_grad(&node.grad);
             }
         }
+
+        #[cfg(feature = "debugging")]
+        tracing::debug!("[backward] done");
+
         Ok(())
     }
 
@@ -249,6 +292,12 @@ impl ComputationGraph {
 
     #[cfg(feature = "enableBackward")]
     fn accumulate_node_grad(grad: &Tensor, new_grad: GlobalTensor<f32>) -> MlResult<()> {
+        #[cfg(feature = "debugging")]
+        let before_norm: f32 = {
+            let d = grad.data();
+            if d.is_empty() { 0.0 } else { d.iter().map(|x| x * x).sum::<f32>().sqrt() }
+        };
+
         if grad.data().is_empty() {
             let mut buf = GlobalTensor::from_vec(
                 new_grad.data.clone(),
@@ -273,6 +322,19 @@ impl ComputationGraph {
                 }
             });
         }
+
+        #[cfg(feature = "debugging")]
+        {
+            let after_norm: f32 = {
+                let d = grad.data();
+                if d.is_empty() { 0.0 } else { d.iter().map(|x| x * x).sum::<f32>().sqrt() }
+            };
+            tracing::trace!(
+                "[accumulate_grad] shape={:?} before_norm={:.4} → after_norm={:.4}",
+                new_grad.shape, before_norm, after_norm
+            );
+        }
+
         Ok(())
     }
 

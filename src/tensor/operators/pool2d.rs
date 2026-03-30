@@ -80,6 +80,13 @@ impl Function for MaxPool2d {
         }
 
         let out_shape = vec![n, c, h_out, w_out];
+
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[MaxPool2d::forward] [{},{},{},{}] → [{},{},{},{}]  kernel=({},{}) stride=({},{})",
+            n, c, h, w, n, c, h_out, w_out, kh, kw, stride_h, stride_w
+        );
+
         Ok(vec![
             GlobalTensor::from_vec(y_data,    &out_shape)?,
             GlobalTensor::from_vec(mask_data, &out_shape)?,
@@ -106,6 +113,9 @@ impl Function for MaxPool2d {
         for (out_idx, (&dy, &mask_idx)) in dy_data.iter().zip(mask_data.iter()).enumerate() {
             dx[mask_idx as usize] += dy;
         }
+
+        #[cfg(feature = "debugging")]
+        crate::tensor::operators::debug::stats_raw("  └─ dX (MaxPool2d)", &dx, in_shape);
 
         let zero = GlobalTensor::from_vec(vec![0.0], &[1, 1])?;
         Ok(vec![
@@ -190,6 +200,13 @@ impl Function for AvgPool2d {
         }
 
         let out_shape = vec![n, c, h_out, w_out];
+
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[AvgPool2d::forward] [{},{},{},{}] → [{},{},{},{}]  kernel=({},{}) stride=({},{})",
+            n, c, h, w, n, c, h_out, w_out, kh, kw, stride_h, stride_w
+        );
+
         Ok(vec![GlobalTensor::from_vec(y_data, &out_shape)?])
     }
 
@@ -238,6 +255,9 @@ impl Function for AvgPool2d {
                 }
             }
         }
+
+        #[cfg(feature = "debugging")]
+        crate::tensor::operators::debug::stats_raw("  └─ dX (AvgPool2d)", &dx, in_shape);
 
         let zero = GlobalTensor::from_vec(vec![0.0], &[1, 1])?;
         Ok(vec![

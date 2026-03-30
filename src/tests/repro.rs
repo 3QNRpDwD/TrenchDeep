@@ -10,7 +10,7 @@ mod reproduction_test {
     #[test]
     #[cfg(all(feature = "enableBackward"))]
     fn test_graph_reset_drops_variable_data() -> MlResult<()> {
-        let _ = crate::tests::common::logging::setup_logging();
+        let _guard = crate::tests::common::logging::setup_logging();
 
         // 1. Create a variable
         let data = vec![1.0, 2.0, 3.0, 4.0];
@@ -52,7 +52,7 @@ mod reproduction_test {
     #[test]
     
     fn test_tensor_with_id_destruction() -> MlResult<()> {
-        let _ = crate::tests::common::logging::setup_logging();
+        let _guard = crate::tests::common::logging::setup_logging();
 
         // 1. Create a tensor
         let data = vec![1.0, 2.0];

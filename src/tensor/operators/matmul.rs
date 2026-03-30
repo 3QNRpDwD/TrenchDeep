@@ -27,6 +27,14 @@ impl Function for Matmul {
         let a = target_0_shape.len();
         let b = target_1_shape.len();
 
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Matmul::forward] {} @ {}  (case {}D×{}D)",
+            crate::tensor::operators::debug::summary("lhs", target_0),
+            crate::tensor::operators::debug::summary("rhs", target_1),
+            a, b
+        );
+
         let buffer = match (a, b) {
             // Case 1: 1D * 1D (dot product)
             (1, 1) => {
@@ -162,6 +170,12 @@ impl Function for Matmul {
                 GlobalTensor::from_vec(data, &shape)?
             }
         };
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Matmul::forward] → {}",
+            crate::tensor::operators::debug::summary_raw("out", &buffer.data, &buffer.shape)
+        );
+
         Ok(vec![buffer])
     }
 
@@ -175,6 +189,14 @@ impl Function for Matmul {
 
         let a = target_0_shape.len();
         let b = target_1_shape.len();
+
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Matmul::backward] lhs_shape={:?} rhs_shape={:?}  {}  (case {}D×{}D)",
+            target_0_shape, target_1_shape,
+            crate::tensor::operators::debug::summary("grad_in", grad),
+            a, b
+        );
 
         let (grad_0, grad_1) = match (a, b) {
             // Case 1: 1D * 1D (dot product)
@@ -321,6 +343,12 @@ impl Function for Matmul {
                 )
             }
         };
+
+        #[cfg(feature = "debugging")]
+        {
+            crate::tensor::operators::debug::stats_raw("  └─ grad_lhs", &grad_0.data, &grad_0.shape);
+            crate::tensor::operators::debug::stats_raw("  └─ grad_rhs", &grad_1.data, &grad_1.shape);
+        }
 
         Ok(vec![grad_0, grad_1])
     }

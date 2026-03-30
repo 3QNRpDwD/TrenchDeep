@@ -13,6 +13,13 @@ impl Function for Div {
     /// # Returns
     /// A new tensor with the result of the element-wise division
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Div::forward] {} / {}",
+            crate::tensor::operators::debug::summary("lhs", targets[0]),
+            crate::tensor::operators::debug::summary("rhs", targets[1])
+        );
+
         match targets[0].chk_shape(targets[1]) {
             Err(e) => Err(e),
             _ => Ok(vec![GlobalTensor::from_vec(self.backend().div(targets[0].data(), targets[1].data()), targets[0].shape())?])
@@ -28,12 +35,20 @@ impl Function for Div {
     
     #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        let x1 = targets[1];
+        #[cfg(feature = "debugging")]
+        tracing::debug!("[Div::backward] {}", crate::tensor::operators::debug::summary("grad", grad));
 
-        Ok(vec![
-            self.forward(&[grad, x1])?.remove(0), // grad / x2
-            grad * &self.forward(&[&-targets[0], &(x1 * x1)])?.remove(0) // grad * (-x0 / x1^2)
-        ])
+        let x1 = targets[1];
+        let dlhs = self.forward(&[grad, x1])?.remove(0);                                  // grad / x2
+        let drhs = grad * &self.forward(&[&-targets[0], &(x1 * x1)])?.remove(0);          // grad * (-x0 / x1^2)
+
+        #[cfg(feature = "debugging")]
+        {
+            crate::tensor::operators::debug::stats_raw("  └─ dlhs", &dlhs.data, &dlhs.shape);
+            crate::tensor::operators::debug::stats_raw("  └─ drhs", &drhs.data, &drhs.shape);
+        }
+
+        Ok(vec![dlhs, drhs])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

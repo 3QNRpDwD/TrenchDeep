@@ -75,6 +75,15 @@ impl Function for Concat {
             axis_offset += t_axis_dim;
         }
 
+        #[cfg(feature = "debugging")]
+        {
+            let shapes: Vec<_> = tensors.iter().map(|t| t.shape().to_vec()).collect();
+            tracing::debug!(
+                "[Concat::forward] axis={} {:?} → {:?}",
+                axis, shapes, out_shape
+            );
+        }
+
         Ok(vec![GlobalTensor::from_vec(out_data, &out_shape)?])
     }
 
@@ -118,6 +127,13 @@ impl Function for Concat {
 
         // axis 스칼라는 기울기 없음
         grads.push(GlobalTensor::from_vec(vec![0.0], &[1, 1])?);
+
+        #[cfg(feature = "debugging")]
+        {
+            for (i, g) in grads.iter().take(grads.len() - 1).enumerate() {
+                crate::tensor::operators::debug::stats_raw(&format!("  └─ dInput[{}]", i), &g.data, &g.shape);
+            }
+        }
 
         Ok(grads)
     }

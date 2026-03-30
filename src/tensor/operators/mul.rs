@@ -18,6 +18,13 @@ impl Function for Mul {
         let shape1 = targets[0].shape();
         let shape2 = targets[1].shape();
 
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Mul::forward] {} ⊙ {}",
+            crate::tensor::operators::debug::summary("lhs", targets[0]),
+            crate::tensor::operators::debug::summary("rhs", targets[1])
+        );
+
         // [1,1] 텐서인 경우에만 브로드캐스팅
         if shape2 == &[1, 1] {
             let target2_data = targets[1].data();
@@ -71,10 +78,18 @@ impl Function for Mul {
 
     #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        Ok(vec![
+        let result = vec![
             self.forward(&[grad, targets[1]])?.remove(0),
-            self.forward(&[grad, targets[0]])?.remove(0)
-        ])
+            self.forward(&[grad, targets[0]])?.remove(0),
+        ];
+
+        #[cfg(feature = "debugging")]
+        {
+            crate::tensor::operators::debug::stats_raw("  └─ dlhs", &result[0].data, &result[0].shape);
+            crate::tensor::operators::debug::stats_raw("  └─ drhs", &result[1].data, &result[1].shape);
+        }
+
+        Ok(result)
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

@@ -67,6 +67,17 @@ impl Function for Cos {
     fn node_id(&self) -> &NodeId { &self.node_id }
 }
 
+/// 표준 sin/cos forward에 디버깅 로그 추가
+#[cfg(feature = "debugging")]
+fn log_trig_forward(name: &str, input: &dyn crate::tensor::TensorBase, output: &[f32], shape: &[usize]) {
+    tracing::debug!(
+        "[{}::forward] {} → {}",
+        name,
+        crate::tensor::operators::debug::summary("in", input),
+        crate::tensor::operators::debug::summary_raw("out", output, shape)
+    );
+}
+
 impl Function for ApproxSin {
     fn new() -> MlResult<GlobalFunction> {
         OPERATOR_STORAGE.with(|ops| {
@@ -118,6 +129,9 @@ impl Function for ApproxSin {
             factorial *= (current_power + 1) as f32 * (current_power + 2) as f32;
             current_power += 2;
         }
+
+        #[cfg(feature = "debugging")]
+        log_trig_forward("ApproxSin", x, &result, x.shape());
 
         Ok(vec![GlobalTensor::from_vec(result, x.shape())?])
     }
@@ -199,6 +213,9 @@ impl Function for ApproxCos {
             factorial *= (current_power + 1) as f32 * (current_power + 2) as f32;
             current_power += 2;
         }
+
+        #[cfg(feature = "debugging")]
+        log_trig_forward("ApproxCos", x, &result, x.shape());
 
         Ok(vec![GlobalTensor::from_vec(result, x.shape())?])
     }

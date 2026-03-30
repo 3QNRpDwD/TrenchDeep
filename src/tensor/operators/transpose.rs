@@ -82,6 +82,12 @@ impl Function for Transpose {
             result[target_idx] = input.data()[i];
         }
 
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Transpose::forward] {:?} d{}↔d{} → {:?}",
+            input.shape(), d0, d1, new_shape
+        );
+
         Ok(vec![GlobalTensor::from_vec(result, &new_shape)?])
     }
 

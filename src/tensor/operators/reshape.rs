@@ -28,6 +28,9 @@ impl Function for Reshape {
             }));
         }
 
+        #[cfg(feature = "debugging")]
+        tracing::debug!("[Reshape::forward] {:?} → {:?}", target_shape, new_shape);
+
         Ok(vec![GlobalTensor::from_vec(target.data().to_vec(), new_shape)?])
     }
 
@@ -45,6 +48,9 @@ impl Function for Reshape {
                 got: target_shape.to_vec(),
             }));
         }
+
+        #[cfg(feature = "debugging")]
+        tracing::debug!("[Reshape::backward] grad {:?} → restore {:?}", grad.shape(), target_shape);
 
         Ok(vec![GlobalTensor::from_vec(grad.data().to_vec(), target_shape)?])
     }

@@ -19,6 +19,13 @@ impl Function for Sum {
         // f32 타입을 가정합니다.
         let total_sum: f32 = target.data().iter().sum();
 
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Sum::forward] {} → scalar={:.6}",
+            crate::tensor::operators::debug::summary("in", target),
+            total_sum
+        );
+
         // 결과를 shape이 [1]인 새로운 텐서(스칼라)로 만들어 반환합니다.
         Ok(vec![GlobalTensor::from_vec(vec![total_sum], &[1,1])?])
     }
@@ -28,6 +35,13 @@ impl Function for Sum {
         if targets.is_empty() {
             return Err(MlError::TensorError(TensorError::EmptyTensor));
         }
+
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Sum::backward] {} → broadcast×{}",
+            crate::tensor::operators::debug::summary("grad", grad),
+            targets.len()
+        );
 
         let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec(), dirty: false };
         Ok(vec![gt.clone(); targets.len()])

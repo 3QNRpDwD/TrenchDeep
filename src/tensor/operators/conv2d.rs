@@ -245,6 +245,15 @@ impl Function for Conv2d {
         }
 
         let out_shape = vec![n, c_out, h_out, w_out];
+
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Conv2d::forward] [{},{},{},{}] → [{},{},{},{}]  kernel=({},{}) stride=({},{}) pad=({},{})",
+            in_shape[0], in_shape[1], in_shape[2], in_shape[3],
+            n, c_out, h_out, w_out,
+            kh, kw, stride_h, stride_w, pad_h, pad_w
+        );
+
         Ok(vec![GlobalTensor::from_vec(y_data, &out_shape)?])
     }
 
@@ -265,6 +274,13 @@ impl Function for Conv2d {
         let w_shape  = weight.shape();
         let (n, _c_in, _h, _w) = (in_shape[0], in_shape[1], in_shape[2], in_shape[3]);
         let (c_out, _c_in2, kh, kw) = (w_shape[0], w_shape[1], w_shape[2], w_shape[3]);
+
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Conv2d::backward] in={:?} w={:?} {}",
+            in_shape, w_shape,
+            crate::tensor::operators::debug::summary("grad", grad)
+        );
 
         let (col, _n, h_out, w_out, col_rows) = im2col(
             input.data(),
@@ -315,6 +331,13 @@ impl Function for Conv2d {
                 let base = ni * c_out * col_cols + ci * col_cols;
                 db_data[ci] += dy_data[base..base + col_cols].iter().sum::<f32>();
             }
+        }
+
+        #[cfg(feature = "debugging")]
+        {
+            crate::tensor::operators::debug::stats_raw("  └─ dX",     &dx_data, in_shape);
+            crate::tensor::operators::debug::stats_raw("  └─ dW",     &dw_data, w_shape);
+            crate::tensor::operators::debug::stats_raw("  └─ db",     &db_data, &[c_out]);
         }
 
         let zero_scalar = GlobalTensor::from_vec(vec![0.0], &[1, 1])?;

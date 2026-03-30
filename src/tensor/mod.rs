@@ -24,6 +24,15 @@ pub mod display;
 pub mod graph;
 pub mod visualization;
 
+/// 명시적으로 라벨이 부여된 텐서인지 판별합니다.
+/// 기본 생성 레이블(`"tensor_*"`, `"tensor_ref_*"`)은 false를 반환합니다.
+/// `enableVisualization`이 활성화된 경우에만 label 필드가 존재하므로 함께 게이팅합니다.
+#[cfg(all(feature = "debugging", feature = "enableVisualization"))]
+#[inline(always)]
+fn tensor_is_labeled(label: &str) -> bool {
+    !label.starts_with("tensor_")
+}
+
 use crate::{MlError, MlResult, register_operator, tensor::operators::Function, TensorError};
 use crate::nn::{Parameter, Variable};
 
@@ -131,6 +140,7 @@ pub struct GlobalFunction {
 #[derive(Debug)]
 pub struct TensorHandle {
     id: NodeId,
+    #[cfg(feature = "enableVisualization")]
     label: String,
     owns_data: bool,
 }
@@ -141,11 +151,20 @@ impl Drop for TensorHandle {
             return;
         }
         let id = self.id;
-        let label = self.label.clone();
         TENSOR_STORAGE.with_borrow_mut(|storage| {
             if storage.remove(&id).is_some() {
-                if id.0 % 100 == 0 {
-                    tracing::trace!("🔥 [Tensor Release] ID: {:?}, Label: '{}' - Memory freed.", id, label);
+                #[cfg(feature = "debugging")]
+                {
+                    #[cfg(feature = "enableVisualization")]
+                    {
+                        if tensor_is_labeled(&self.label) {
+                            tracing::debug!("[Tensor::drop] id={:?} label='{}' freed", id, self.label);
+                        } else {
+                            tracing::trace!("[Tensor::drop] id={:?} freed", id);
+                        }
+                    }
+                    #[cfg(not(feature = "enableVisualization"))]
+                    tracing::trace!("[Tensor::drop] id={:?} freed", id);
                 }
             }
         });
@@ -157,8 +176,18 @@ pub struct Tensor (Arc<TensorHandle>);
 impl Clone for Tensor {
     fn clone(&self) -> Self {
         let new_ref = Self(self.0.clone());
-        if self.id().0 % 100 == 0 {
-            tracing::trace!("✨ [Tensor Clone] ID: {:?}, Label: '{}', New RC: {}", self.id(), self.0.label, Arc::strong_count(&self.0));
+        #[cfg(feature = "debugging")]
+        {
+            #[cfg(feature = "enableVisualization")]
+            {
+                if tensor_is_labeled(&self.0.label) {
+                    tracing::debug!("[Tensor::clone] id={:?} label='{}' rc={}", self.id(), self.0.label, Arc::strong_count(&self.0));
+                } else {
+                    tracing::trace!("[Tensor::clone] id={:?} rc={}", self.id(), Arc::strong_count(&self.0));
+                }
+            }
+            #[cfg(not(feature = "enableVisualization"))]
+            tracing::trace!("[Tensor::clone] id={:?} rc={}", self.id(), Arc::strong_count(&self.0));
         }
         new_ref
     }
@@ -167,23 +196,50 @@ impl Clone for Tensor {
 
 impl Tensor {
     pub fn new_with_id(id: NodeId) -> Self {
-        let label = format!("tensor_{:?}", id);
-        if id.0 % 100 == 0 {
-            tracing::trace!("🆕 [Tensor Create] ID: {:?}, Label: '{}'", id, label);
-        }
-        Self(Arc::new(TensorHandle { id, label, owns_data: true }))
+        #[cfg(feature = "debugging")]
+        tracing::trace!("[Tensor::new] id={:?}", id);
+        Self(Arc::new(TensorHandle {
+            id,
+            #[cfg(feature = "enableVisualization")]
+            label: format!("tensor_{:?}", id),
+            owns_data: true,
+        }))
     }
 
     pub fn new_with_label(id: NodeId, label: &str) -> Self {
-        if id.0 % 100 == 0 {
-            tracing::trace!("🆕 [Tensor Create] ID: {:?}, Label: '{}'", id, label);
-        }
-        Self(Arc::new(TensorHandle { id, label: label.to_string(), owns_data: true }))
+        #[cfg(all(feature = "debugging", feature = "enableVisualization"))]
+        tracing::debug!("[Tensor::new] id={:?} label='{}'", id, label);
+        #[cfg(all(feature = "debugging", not(feature = "enableVisualization")))]
+        tracing::debug!("[Tensor::new] id={:?}", id);
+        Self(Arc::new(TensorHandle {
+            id,
+            #[cfg(feature = "enableVisualization")]
+            label: label.to_string(),
+            owns_data: true,
+        }))
     }
 
     pub fn new_ref(id: NodeId) -> Self {
-        let label = format!("tensor_ref_{:?}", id);
-        Self(Arc::new(TensorHandle { id, label, owns_data: false }))
+        Self(Arc::new(TensorHandle {
+            id,
+            #[cfg(feature = "enableVisualization")]
+            label: format!("tensor_ref_{:?}", id),
+            owns_data: false,
+        }))
+    }
+
+    /// 텐서 핸들의 라벨을 변경합니다. `enableVisualization` 시에만 동작합니다.
+    /// Arc를 교체하지 않고 `Arc::get_mut()`으로 내부를 직접 수정합니다.
+    pub fn set_label(&mut self, label: &str) {
+        #[cfg(feature = "enableVisualization")]
+        if let Some(handle) = Arc::get_mut(&mut self.0) {
+            #[cfg(feature = "debugging")]
+            if tensor_is_labeled(label) {
+                tracing::debug!("[Tensor::label] id={:?} → '{}'", handle.id, label);
+            }
+            handle.label = label.to_string();
+        }
+        // Arc가 이미 공유된 경우(비정상 상황)에는 라벨 변경을 생략합니다.
     }
 
     pub fn id(&self) -> NodeId {

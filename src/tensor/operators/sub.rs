@@ -14,6 +14,13 @@ impl Function for Sub {
     /// # Returns
     /// A new tensor with the result of the element-wise subtraction
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Sub::forward] {} - {}",
+            crate::tensor::operators::debug::summary("lhs", targets[0]),
+            crate::tensor::operators::debug::summary("rhs", targets[1])
+        );
+
         if targets[0].shape().len() == 2 && targets[1].shape().len() == 1 && targets[0].shape()[1] == targets[1].shape()[0] {
             let (batch_size, features) = (targets[0].shape()[0], targets[0].shape()[1]);
             let mut data = vec![0.0; targets[0].data().len()];
@@ -53,8 +60,19 @@ impl Function for Sub {
 
     #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+        #[cfg(feature = "debugging")]
+        tracing::debug!("[Sub::backward] {}", crate::tensor::operators::debug::summary("grad", grad));
+
         let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec(), dirty: false };
-        Ok(vec![gt, GlobalTensor::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?])
+        let neg = GlobalTensor::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?;
+
+        #[cfg(feature = "debugging")]
+        {
+            crate::tensor::operators::debug::stats_raw("  └─ dlhs", &gt.data, &gt.shape);
+            crate::tensor::operators::debug::stats_raw("  └─ drhs", &neg.data, &neg.shape);
+        }
+
+        Ok(vec![gt, neg])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

@@ -1,0 +1,126 @@
+2026-03-30T02:04:36 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(210) shape=?
+2026-03-30T02:04:36 DEBUG trench_deep::tensor: [Tensor::label] id=NodeId(210) → 'input'
+2026-03-30T02:04:36 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(210) freed
+2026-03-30T02:05:04 DEBUG trench_deep::tensor: [Tensor::label] id=NodeId(210) → 'input'
+2026-03-30T02:06:25 DEBUG trench_deep::tensor: [Tensor::label] id=NodeId(210) → 'input'
+2026-03-30T02:06:30 DEBUG trench_deep::tensor: [Tensor::label] id=NodeId(205) → 'input'
+2026-03-30T02:07:37 DEBUG trench_deep::tensor: [Tensor::label] id=NodeId(1272) → 'input'
+2026-03-30T02:07:37 DEBUG trench_deep::tensor::graph: [Graph::add_operation] op='Add' inputs=[NodeId(1262), NodeId(1268)] → output=NodeId(1270) (total nodes after: 11)
+2026-03-30T02:07:37 DEBUG trench_deep::tensor::graph: [Graph::add_operation] op='test_op' inputs=[] → output=NodeId(1272) (total nodes after: 1)
+2026-03-30T02:07:37 DEBUG trench_deep::tensor: [Tensor::clone] id=NodeId(1270) label='output' rc=2
+2026-03-30T02:07:37 DEBUG trench_deep::tensor: [Tensor::clone] id=NodeId(1272) label='input' rc=2
+2026-03-30T02:07:37 DEBUG trench_deep::tensor::graph: [Graph::topo_sort] order=["Input", "Input", "Input", "Input", "Square", "Sub", "Sub", "Square", "Square", "Mul", "Add"] (11 nodes total)
+2026-03-30T02:07:37 DEBUG trench_deep::tensor: [Tensor::drop] id=NodeId(1272) label='input' freed
+2026-03-30T02:07:46 DEBUG trench_deep::tensor::graph: [Graph::add_input] id=NodeId(255) shape=[1, 1] (total nodes after: 3)
+2026-03-30T02:07:46 DEBUG trench_deep::tensor: [Tensor::clone] id=NodeId(255) label='input_2' rc=2
+2026-03-30T02:07:46 DEBUG trench_deep::tensor::graph: [Graph::add_operation] op='Sub' inputs=[NodeId(255), NodeId(1694)] → output=NodeId(1698) (total nodes after: 4)
+2026-03-30T02:07:46 DEBUG trench_deep::tensor: [Tensor::clone] id=NodeId(1698) label='scalar_3' rc=2
+2026-03-30T02:07:46 DEBUG trench_deep::tensor: [Tensor::label] id=NodeId(1700) → 'input'
+2026-03-30T02:07:46 DEBUG trench_deep::tensor: [Tensor::label] id=NodeId(1701) → 'scalar_4'
+2026-03-30T02:07:46 DEBUG trench_deep::tensor::graph: [Graph::add_operation] op='test_op' inputs=[] → output=NodeId(1700) (total nodes after: 1)
+2026-03-30T02:07:46 DEBUG trench_deep::tensor::graph: [Graph::add_operation] op='Square' inputs=[NodeId(1698)] → output=NodeId(1701) (total nodes after: 5)
+2026-03-30T02:07:46 DEBUG trench_deep::tensor: [Tensor::clone] id=NodeId(1700) label='input' rc=2
+2026-03-30T02:07:46 DEBUG trench_deep::tensor: [Tensor::clone] id=NodeId(1701) label='scalar_4' rc=2
+2026-03-30T02:07:46 DEBUG trench_deep::tensor: [Tensor::drop] id=NodeId(1700) label='input' freed
+2026-03-30T02:10:30 DEBUG trench_deep::tensor: [Tensor::label] id=NodeId(18632) → 'input'
+2026-03-30T02:10:30 DEBUG trench_deep::tensor::graph: [Graph::add_operation] op='test_op' inputs=[] → output=NodeId(18632) (total nodes after: 1)
+2026-03-30T02:10:30 DEBUG trench_deep::tensor: [Tensor::clone] id=NodeId(18632) label='input' rc=2
+2026-03-30T02:10:30 DEBUG trench_deep::tensor: [Tensor::drop] id=NodeId(18632) label='input' freed
+2026-03-30T02:14:47 DEBUG trench_deep::tensor: [Tensor::label] id=NodeId(18632) → 'input'
+2026-03-30T02:14:47 DEBUG trench_deep::tensor::graph: [Graph::add_operation] op='test_op' inputs=[] → output=NodeId(18632) (total nodes after: 1)
+2026-03-30T02:14:47 DEBUG trench_deep::tensor: [Tensor::clone] id=NodeId(18632) label='input' rc=2
+2026-03-30T02:14:47 DEBUG trench_deep::tensor: [Tensor::drop] id=NodeId(18632) label='input' freed
+2026-03-30T02:16:03 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(4377) freed
+2026-03-30T02:16:03 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(4384)
+2026-03-30T02:16:03 DEBUG trench_deep::tensor: [Tensor::drop] id=NodeId(4378) label='scalar_7' freed
+2026-03-30T02:16:03 DEBUG trench_deep::tensor: [Tensor::label] id=NodeId(4384) → 'input'
+2026-03-30T02:16:03 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(4385)
+2026-03-30T02:16:03 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(4379) freed
+2026-03-30T02:16:03 DEBUG trench_deep::tensor: [Tensor::drop] id=NodeId(4380) label='scalar_8' freed
+2026-03-30T02:16:03 DEBUG trench_deep::tensor::graph: [Graph::add_operation] op='test_op' inputs=[] → output=NodeId(4384) (total nodes after: 1)
+2026-03-30T02:16:03 DEBUG trench_deep::tensor: [Tensor::clone] id=NodeId(4384) label='input' rc=2
+2026-03-30T02:16:03 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(4381) freed
+2026-03-30T02:16:03 DEBUG trench_deep::tensor: [Tensor::drop] id=NodeId(4382) label='output' freed
+2026-03-30T02:16:03 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(4383) freed
+2026-03-30T02:16:03 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(4386)
+2026-03-30T02:16:03 TRACE trench_deep::tensor: [Tensor::clone] id=NodeId(4385) rc=2
+2026-03-30T02:16:03 DEBUG trench_deep::tensor: [Tensor::drop] id=NodeId(4384) label='input' freed
+2026-03-30T02:16:03 DEBUG trench_deep::tensor: [Tensor::label] id=NodeId(4386) → 'scalar'
+2026-03-30T02:16:03 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(4385) freed
+2026-03-30T02:16:03 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(4387)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8706)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8707)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8708)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8709)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8710)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8711)
+2026-03-30T02:16:46 DEBUG trench_deep::tensor::operators::div: [Div::forward] [lhs] shape=[1, 2] preview=[1.0, 2.0] / [rhs] shape=[1, 2] preview=[2.0, 4.0]
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8713)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8714)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8715)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(8714) freed
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8716)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(8710) freed
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8717)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(8708) freed
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8718)
+2026-03-30T02:16:46 DEBUG trench_deep::tensor::operators::sub: [Sub::forward] [lhs] shape=[1, 1] preview=[0.25356406] - [rhs] shape=[1, 1] preview=[0.2560405]
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8719)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8721)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(8721) freed
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(8715) freed
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8722)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8723)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8724)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8725)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8726)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8727)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8728)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8729)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8730)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8731)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8732)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8733)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8734)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8735)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8736)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8737)
+2026-03-30T02:16:46 DEBUG trench_deep::tensor::graph: [Graph::add_input] id=NodeId(250) shape=[1, 1] (total nodes after: 3)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::clone] id=NodeId(250) rc=2
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::clone] id=NodeId(251) rc=2
+2026-03-30T02:16:46 DEBUG trench_deep::tensor::graph: [Graph::add_operation] op='Sub' inputs=[NodeId(250), NodeId(8704)] → output=NodeId(8719) (total nodes after: 4)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::clone] id=NodeId(8719) rc=2
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::clone] id=NodeId(8737) rc=2
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(8709) freed
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8738)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8739)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8740)
+2026-03-30T02:16:46 DEBUG trench_deep::tensor::graph: [Graph::add_operation] op='test_op' inputs=[] → output=NodeId(8707) (total nodes after: 1)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8741)
+2026-03-30T02:16:46 DEBUG trench_deep::tensor::operators::matmul: [Matmul::forward] [lhs] shape=[1, 2] preview=[1.0, 2.0] @ [rhs] shape=[2, 1] preview=[3.0, 4.0]  (case 2D×2D)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8743)
+2026-03-30T02:16:46 DEBUG trench_deep::tensor::graph: [Graph::add_operation] op='Square' inputs=[NodeId(8719)] → output=NodeId(8738) (total nodes after: 5)
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::clone] id=NodeId(8738) rc=2
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::clone] id=NodeId(8707) rc=2
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::clone] id=NodeId(8740) rc=2
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(8707) freed
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(8731) freed
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(8730) freed
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(8732) freed
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(8733) freed
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::clone] id=NodeId(8743) rc=2
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::new] id=NodeId(8744)
+2026-03-30T02:16:46 DEBUG trench_deep::tensor::operators::mul: [Mul::forward] [lhs] shape=[1, 1] preview=[100.0] ⊙ [rhs] shape=[1, 1] preview=[6.1328233e-6]
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(8744) freed
+2026-03-30T02:16:46 TRACE trench_deep::tensor: [Tensor::drop] id=NodeId(8740) freed
+2026-03-30T02:17:02 DEBUG trench_deep::tensor::graph: [Graph::add_operation] op='test_op' inputs=[] → output=NodeId(2922) (total nodes after: 1)
+2026-03-30T02:17:02 DEBUG trench_deep::tensor::graph: [backward] op='Sub' id=NodeId(2916)  [grad] shape=[1, 1] preview=[1.4615872]
+2026-03-30T02:17:02  WARN trench_deep::nn: [Checkpoint] 레이어 'fc1_renamed' 를 'target/test_checkpoints/label_mismatch.json' 에서 찾지 못함, 건너뜀
+2026-03-30T02:17:07 DEBUG trench_deep::tensor::operators::sub: [Sub::backward] [grad] shape=[1, 1] preview=[-0.59082806]
+2026-03-30T02:17:07 DEBUG trench_deep::tensor: [Tensor::label] id=NodeId(5418) → 'input'
+2026-03-30T02:17:07 DEBUG trench_deep::tensor::graph: [backward] op='Sub' id=NodeId(5412)  [grad] shape=[1, 1] preview=[1.2115319]
+2026-03-30T02:17:07 DEBUG trench_deep::tensor::graph: [Graph::add_operation] op='test_op' inputs=[] → output=NodeId(5418) (total nodes after: 1)
+2026-03-30T02:17:07 DEBUG trench_deep::tensor: [Tensor::clone] id=NodeId(5418) label='input' rc=2
+2026-03-30T02:17:07 DEBUG trench_deep::tensor::operators::sub: [Sub::backward] [grad] shape=[1, 1] preview=[1.2115319]
+2026-03-30T02:17:07 DEBUG trench_deep::tensor::graph: [backward] op='Square' id=NodeId(5400)  [grad] shape=[1, 1] preview=[0.59082806]
+2026-03-30T02:17:07 DEBUG trench_deep::tensor: [Tensor::drop] id=NodeId(5418) label='input' freed

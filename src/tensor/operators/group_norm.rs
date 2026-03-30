@@ -108,6 +108,17 @@ impl Function for GroupNorm {
             }
         }
 
+        #[cfg(feature = "debugging")]
+        {
+            let mean_preview: Vec<f32> = mean_data.iter().take(4).copied().collect();
+            let var_preview:  Vec<f32> = var_data.iter().take(4).copied().collect();
+            tracing::debug!(
+                "[GroupNorm::forward] [{},{},{},{}] G={} cg={} m={} mean_preview={:?} var_preview={:?}",
+                n, c, h, w, g, cg, m, mean_preview, var_preview
+            );
+            crate::tensor::operators::debug::stats_raw("  └─ y", &y_data, shape);
+        }
+
         let out_shape = shape.to_vec();
         Ok(vec![
             GlobalTensor::from_vec(y_data,    &out_shape)?,
@@ -141,6 +152,13 @@ impl Function for GroupNorm {
         let (n, c, h, w) = (shape[0], shape[1], shape[2], shape[3]);
         let cg = c / g;
         let m  = (cg * h * w) as f32;
+
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[GroupNorm::backward] [{},{},{},{}] G={} cg={} {}",
+            n, c, h, w, g, cg,
+            crate::tensor::operators::debug::summary("grad", grad)
+        );
 
         let dy        = grad.data();
         let gamma_d   = gamma.data();
@@ -205,6 +223,13 @@ impl Function for GroupNorm {
                     }
                 }
             }
+        }
+
+        #[cfg(feature = "debugging")]
+        {
+            crate::tensor::operators::debug::stats_raw("  └─ dX",     &dx,     shape);
+            crate::tensor::operators::debug::stats_raw("  └─ dgamma", &dgamma, &[c]);
+            crate::tensor::operators::debug::stats_raw("  └─ dbeta",  &dbeta,  &[c]);
         }
 
         let zero = GlobalTensor::from_vec(vec![0.0], &[1, 1])?;

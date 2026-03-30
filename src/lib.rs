@@ -63,6 +63,7 @@ mod benchmark {
     use crate::tensor::{AutogradFunction, ComputationGraph, Tensor, TensorBase};
     use crate::{MlResult, scalar, var_input, var_with_label, variable};
     use crate::nn::{Parameter, Variable};
+    use crate::tests::common::logging::setup_logging;
 
     fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
         if tensor.shape() != expected_tensor.shape() {

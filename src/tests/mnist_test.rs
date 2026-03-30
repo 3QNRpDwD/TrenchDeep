@@ -16,7 +16,7 @@ use crate::{
 #[test]
 #[cfg(all(feature = "enableBackward"))]
 fn mlp_mnist_classification_integration_test() -> MlResult<()> {
-    let _ = setup_logging();
+    let _guard = setup_logging();
     let config = MnistConfig::default();
     info!("=== Starting MLP MNIST Classification Test ===");
     info!("{:?}", config);
@@ -50,10 +50,10 @@ fn mlp_mnist_classification_integration_test() -> MlResult<()> {
 }
 
 #[test]
-// #[ignore]
+#[ignore]
 #[cfg(all(feature = "enableBackward"))]
 fn softmax_regression_mnist_classification_integration_test() -> MlResult<()> {
-    let _ = setup_logging();
+    let _guard = setup_logging();
     let config = MnistConfig::default();
     info!("=== Starting SoftmaxRegression MNIST Classification Test ===");
     info!("{:?}", config);

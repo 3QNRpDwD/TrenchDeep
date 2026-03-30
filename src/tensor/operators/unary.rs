@@ -27,23 +27,32 @@ impl Function for Exp {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(Exp)
     }
-    
+
     /// Applies the exponential function to each element in the tensor
     ///
     /// # Returns
     /// A new tensor with each element being e ^ tensor_element
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Exp::forward] {}",
+            crate::tensor::operators::debug::summary("in", targets[0])
+        );
+
         Ok(vec![GlobalTensor::from_vec(self.backend().exp(targets[0].data()), targets[0].shape())?])
     }
 
     #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        let gradiant = grad.data().iter()
+        let gradient: Vec<f32> = grad.data().iter()
             .zip(targets[0].data().iter())
-            .map(|(grad_data, target_data)|  target_data.exp() * grad_data)
+            .map(|(grad_data, target_data)| target_data.exp() * grad_data)
             .collect();
 
-        Ok(vec![GlobalTensor::from_vec(gradiant, targets[0].shape())?])
+        #[cfg(feature = "debugging")]
+        crate::tensor::operators::debug::stats_raw("  └─ dExp", &gradient, targets[0].shape());
+
+        Ok(vec![GlobalTensor::from_vec(gradient, targets[0].shape())?])
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }

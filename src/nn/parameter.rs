@@ -16,8 +16,14 @@ impl std::ops::AddAssign<GlobalTensor<f32>> for Variable {
 
 impl Parameter for Variable {
     fn new(tensor: Tensor) -> Self {
+        let mut tensor = tensor;
+
         #[cfg(feature = "enableVisualization")]
-        let label = Arc::new(crate::tensor::creation::LabelGenerator::generate_label(&tensor, None))    ;
+        let label = Arc::new(crate::tensor::creation::LabelGenerator::generate_label(&tensor, None));
+
+        // 생성된 라벨을 Tensor 핸들에도 반영 (debugging 시 추적 가능)
+        #[cfg(feature = "enableVisualization")]
+        tensor.set_label(&label);
 
         Variable {
             #[cfg(feature = "enableVisualization")]
@@ -175,13 +181,17 @@ impl Parameter for Variable {
 impl Variable {
     /// 사용자 정의 라벨로 변수 생성
     pub fn with_label(tensor: Tensor, label_hint: &str) -> Self {
+        let mut tensor = tensor;
         let label = Arc::new("unlabeled".to_string());
-        let retains_grad = cfg!(feature = "requiresGrad");
 
         #[cfg(feature = "enableVisualization")]
         {
             use crate::tensor::NodeType;
             let label = Arc::new(crate::tensor::creation::LabelGenerator::generate_label(&tensor, Some(label_hint)));
+
+            // 라벨을 Tensor 핸들에 반영
+            tensor.set_label(&label);
+
             let node_type = if label.contains("input") {
                 NodeType::Input
             } else if label.contains("weight") {
