@@ -5,11 +5,13 @@ use std::{
         Formatter,
         Result
     },
-    sync::Arc
+    sync::{
+        Arc,
+        atomic::Ordering
+    },
+    cell::RefCell,
+    collections::{HashMap, HashSet},
 };
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
-use std::sync::atomic::Ordering;
 
 use crate::backend::{
     Backend,

@@ -1,16 +1,4 @@
-use log::{info, warn};
-
-use crate::{
-    MlResult,
-    nn::Model,
-    optimizer::{Optimizer, SGD},
-    tests::common::{
-        data::mnist::{MnistConfig, MnistDataset},
-        logging::setup_logging,
-        model::{MLP, SoftmaxRegression},
-        utils::generate_visualization,
-    },
-};
+use super::*;
 
 #[ignore]
 #[test]
