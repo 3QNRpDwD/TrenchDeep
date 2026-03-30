@@ -12,9 +12,11 @@ pub use rmsprop::RMSProp;
 pub use adam::Adam;
 pub use adamw::AdamW;
 
-use crate::MlResult;
-use crate::nn::Parameter;
-use crate::tensor::{NodeId, TENSOR_STORAGE};
+use crate::{
+    MlResult,
+    nn::Parameter,
+    tensor::{NodeId, TENSOR_STORAGE}
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum OptimError {

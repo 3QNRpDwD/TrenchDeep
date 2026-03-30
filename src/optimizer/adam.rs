@@ -1,7 +1,4 @@
-use crate::MlResult;
-use crate::nn::Parameter;
-use crate::tensor::{NodeId, TENSOR_STORAGE};
-use super::{clear_grads, snapshot_grads, Optimizer};
+use super::*;
 
 pub(super) struct AdamState {
     pub(super) weight_id: NodeId,

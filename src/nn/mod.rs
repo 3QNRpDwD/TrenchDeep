@@ -7,16 +7,30 @@ mod parameter;
 pub mod checkpoint;
 mod reshape;
 
-use crate::{register_operator, var_bias, var_weight, backend::Backend, MlResult, tensor::{
-    operators::{Add, Matmul, Sub},
-    operators::Function,
-    GlobalFunction,
-    GlobalTensor,
-    NodeId,
-    Tensor,
-    TensorBase,
-    AutogradFunction,
-}, MlError, TensorError};
+use crate::{
+    register_operator,
+    var_bias,
+    var_weight,
+    backend::Backend,
+    MlResult,
+    tensor::{
+        operators::{
+            Add,
+            Matmul,
+            Sub,
+            Function
+        },
+        GlobalFunction,
+        GlobalTensor,
+        NodeId,
+        Tensor,
+        TensorBase,
+        AutogradFunction,
+    },
+    MlError,
+    TensorError,
+    nn::activation::Softmax
+};
 use std::{
     fmt::{
         Formatter,
@@ -24,7 +38,6 @@ use std::{
     },
     sync::Arc
 };
-use crate::nn::activation::Softmax;
 pub use checkpoint::{LayerState, ModelState, ParamState};
 
 #[macro_export]

@@ -1,8 +1,5 @@
-use crate::MlResult;
-use crate::nn::Parameter;
-use crate::tensor::{NodeId, TENSOR_STORAGE};
-use super::{clear_grads, snapshot_grads, Optimizer};
-use super::adam::AdamState;
+use super::*;
+
 
 /// AdamW (Adam with Decoupled Weight Decay).
 ///
@@ -24,7 +21,7 @@ pub struct AdamW {
     eps:          f32,
     weight_decay: f32,
     t:            u32,
-    params:       Vec<AdamState>,
+    params:       Vec<crate::optimizer::adam::AdamState>,
 }
 
 impl AdamW {
@@ -43,7 +40,7 @@ impl Optimizer for AdamW {
         let size = TENSOR_STORAGE.with_borrow(|s| {
             s.get(&param.node_id()).map(|w| w.data.len()).unwrap_or(0)
         });
-        self.params.push(AdamState::new(param.node_id(), param.grad().id(), size));
+        self.params.push(crate::optimizer::adam::AdamState::new(param.node_id(), param.grad().id(), size));
     }
 
     fn step(&mut self) -> MlResult<()> {
