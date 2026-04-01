@@ -20,7 +20,6 @@ impl SoftmaxRegression {
     ) -> Self {
         let n_input = layer_parms[0];
         let n_output = layer_parms[1];
-        // He 초기화 또는 Xavier 초기화와 같은 더 나은 가중치 초기화 방법을 고려할 수 있음
         let w1_data: Vec<f32> = (0..n_input * n_output)
             .map(|_| (rand::random::<f32>() - 0.5) * 0.5)
             .collect();
@@ -29,7 +28,6 @@ impl SoftmaxRegression {
             "weight_1"
         );
 
-        // bias: [n_output] — Add의 broadcasting으로 [1, n_output] + [n_output] 지원
         let b1_data: Vec<f32> = vec![0.0; n_output];
         let b1 = var_with_label!(
             Tensor::from_vec(b1_data, &[n_output]).unwrap(),
@@ -51,7 +49,6 @@ impl Model for SoftmaxRegression {
     #[cfg(feature = "enableBackward")]
     fn apply(&mut self, x: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
-        // x [1, n_input] × w1 [n_input, n_output] = [1, n_output]
         let uh1_pre = matmul.apply(&[x, &self.w1])?;
         Ok(&uh1_pre + &self.b1)
     }

@@ -4,7 +4,8 @@ pub mod nn;
 pub mod optimizer;
 pub mod loss;
 pub mod trainer;
-pub mod tests;
+#[cfg(test)]
+mod tests;
 
 use crate::backend::BackendError;
 use crate::loss::LossError;
@@ -254,6 +255,7 @@ mod benchmark {
         Ok(())
     }
 
+    #[ignore = "너무 오래걸려서 무시함"]
     #[test]
     #[cfg(feature = "enableBackward")]
     fn rosenbrock_gradient_descent_function() -> MlResult<()> {
@@ -267,16 +269,16 @@ mod benchmark {
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
             
-            // if i % 1 == 0 {
-            //     println!(
-            //         "iter - {}\n\
-            // [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
-            // [ x1.tensor: {:?}, x1.grad: {:?} ]"
-            //         , i, x0.tensor(), x0.grad(), x1.tensor(), x1.grad()
-            //     );
-            // }
+            if i % 1 == 0 {
+                println!(
+                    "iter - {}\n\
+            [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
+            [ x1.tensor: {:?}, x1.grad: {:?} ]"
+                    , i, x0.tensor(), x0.grad(), x1.tensor(), x1.grad()
+                );
+            }
             
-            //파라미터 갱신
+            // 파라미터 갱신
             x0 -= x0.grad() * &learning_rate;
             x1 -= x1.grad() * &learning_rate;
         }

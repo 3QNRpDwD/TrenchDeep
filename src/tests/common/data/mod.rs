@@ -1,8 +1,8 @@
-pub(crate) use super::*; // info, MlResult (from common/mod.rs)
+use super::*; // info, MlResult (from common/mod.rs)
 
 // data 하위 모듈에서 사용
-pub(crate) use ::mnist::MnistBuilder;
-pub(crate) use crate::{
+use ::mnist::MnistBuilder;
+use crate::{
     nn::{Parameter, Variable},
     tensor::{Tensor, TensorBase},
     var_input,
