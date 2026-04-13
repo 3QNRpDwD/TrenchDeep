@@ -171,7 +171,7 @@ mod benchmark {
         let mut square = Square::new()?;
         let mut add = Add::new()?;
 
-        let sq = square.apply(&[&x0])?;
+        let sq = square.apply(&[&x0])?;//x0^2
         // 100 * (x1 - x0^2)^2 + (1 - x0)^2
         let term1 = &variable!(vec![vec![100.0]]) * &square.apply(&[&(x1 - &sq)])?;
         let term2 = square.apply(&[&(&variable!(vec![vec![1.0]]) - x0)])?;
@@ -238,10 +238,10 @@ mod benchmark {
 
     #[test]
     fn rosenbrock() -> MlResult<()> {
-        let x0 = var_input!(Tensor::from_vec(vec![0.0], &[1,1])?);
-        let x1 = var_input!(Tensor::from_vec(vec![2.0], &[1,1])?);
-
+        let x0 = var_with_label!(Tensor::from_vec(vec![0.0], &[1,1])?, "x0");
+        let x1 = var_with_label!(Tensor::from_vec(vec![2.0], &[1,1])?, "x1");
         let y = rosenbrock_function(&x0, &x1)?;
+
         #[cfg(feature = "enableBackward")]
         {
             y.backward()?;
@@ -252,6 +252,7 @@ mod benchmark {
 
         #[cfg(feature = "enableVisualization")]
         crate::tensor::VisualizationGraph::save_graph("graph/rosenbrock.dot").unwrap();
+        crate::tensor::VisualizationGraph::render_to_svg("graph/rosenbrock.svg").unwrap();
         Ok(())
     }
 

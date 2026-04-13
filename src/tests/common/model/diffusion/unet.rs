@@ -86,13 +86,13 @@ impl ResNetBlock {
         label:        &str,
     ) -> MlResult<Self> {
         let branch1 = Sequential::from(vec![
-            Box::new(GroupNormLayer::new(num_groups, in_channels,  1e-5, "gn1")?) as Box<dyn Layer>,
+            Box::new(GroupNormLayer::new(num_groups, in_channels,  1e-5, "norm1")?) as Box<dyn Layer>,
             Box::new(SiLULayer::new("act1")?),
             Box::new(Conv2DLayer::new(in_channels, out_channels, (3, 3), (1, 1), (1, 1), "conv1")?),
         ], "branch1");
 
         let branch2 = Sequential::from(vec![
-            Box::new(GroupNormLayer::new(num_groups, out_channels, 1e-5, "gn2")?) as Box<dyn Layer>,
+            Box::new(GroupNormLayer::new(num_groups, out_channels, 1e-5, "norm2")?) as Box<dyn Layer>,
             Box::new(SiLULayer::new("act2")?),
             Box::new(Conv2DLayer::new(out_channels, out_channels, (3, 3), (1, 1), (1, 1), "conv2")?),
         ], "branch2");

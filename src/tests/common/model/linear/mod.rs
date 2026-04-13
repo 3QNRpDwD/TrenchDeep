@@ -1,7 +1,6 @@
-use super::*; // info, MlResult, Layer, Parameter, Variable, Matmul, Add, ... (from model/mod.rs)
+use super::*;
 
-// regression 하위 모듈 전용 import
-use crate::nn::activation::Identity; // linear.rs
+use crate::nn::activation::Identity;
 
 pub mod linear;
 

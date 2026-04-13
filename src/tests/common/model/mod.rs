@@ -23,10 +23,12 @@ use crate::{
     var_with_label,
 };
 
-pub mod classification;
-pub mod regression;
-pub mod generation;
-pub mod language;
+pub mod linear;
+pub mod nonlinear;
+pub mod mlp;
+pub mod diffusion;
+pub mod transformer;
 
-pub use self::classification::{MLP, LogisticRegression, SoftmaxRegression};
-pub use self::regression::LinearRegression;
+pub use self::linear::LinearRegression;
+pub use self::nonlinear::{LogisticRegression, SoftmaxRegression};
+pub use self::mlp::MLP;

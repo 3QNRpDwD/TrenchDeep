@@ -1,13 +1,7 @@
 use super::*;
 
-pub mod mlp;
 pub mod logistic;
 pub mod softmax;
-
-pub struct MLP {
-    pub layer: Sequential,
-    loss_function: GlobalFunction,
-}
 
 pub struct LogisticRegression {
     pub w1: Variable,
@@ -21,15 +15,6 @@ pub struct SoftmaxRegression {
     pub b1: Variable,
     activation: GlobalFunction,
     loss_function: GlobalFunction,
-}
-
-impl std::fmt::Debug for MLP {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "MLP {{")?;
-        writeln!(f, "  layer = {:?}", self.layer)?;
-        writeln!(f, "  loss_function = {}", self.loss_function.name())?;
-        writeln!(f, "}}")
-    }
 }
 
 impl std::fmt::Debug for LogisticRegression {
