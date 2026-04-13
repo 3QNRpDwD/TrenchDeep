@@ -1,7 +1,13 @@
 use super::*;
-use crate::tensor::operators::GroupNorm;
+use crate::tensor::operators::GroupNormOp;
 
-impl GroupNormLayer {
+layer_params!(GroupNorm, "GroupNorm", [gamma, beta], |s| serde_json::json!({
+    "num_groups":   s.num_groups,
+    "num_channels": s.num_channels,
+    "eps":          s.eps,
+}));
+
+impl GroupNorm {
     /// 새로운 GroupNorm 레이어를 생성합니다.
     ///
     /// # Arguments
@@ -17,7 +23,7 @@ impl GroupNormLayer {
     ) -> MlResult<Self> {
         if num_channels % num_groups != 0 {
             return Err(MlError::StringError(format!(
-                "GroupNormLayer: num_channels({}) % num_groups({}) != 0",
+                "GroupNorm: num_channels({}) % num_groups({}) != 0",
                 num_channels, num_groups
             )));
         }
@@ -44,23 +50,19 @@ impl GroupNormLayer {
     }
 }
 
-impl Layer for GroupNormLayer {
+impl Layer for GroupNorm {
     #[cfg(all(feature = "enableBackward"))]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
         let g_var   = Variable::new(Tensor::from_vec(vec![self.num_groups as f32], &[1, 1])?);
         let eps_var = Variable::new(Tensor::from_vec(vec![self.eps],               &[1, 1])?);
 
-        // apply_with_saved: forward()[1..] (x_hat, mean, var) 를 saved tensors로
-        // 자동 보존하고 with_grad_fn inputs 뒤에 이어붙임.
-        // → backward targets = [X, γ, β, g, eps, x_hat, mean, var]
-        let mut op = GroupNorm::new()?;
+        let mut op = GroupNormOp::new()?;
         op.apply_with_saved(&[input, &self.gamma, &self.beta, &g_var, &eps_var])
     }
 
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         let [g, e] = self.param_scalars()?;
-        let op = GroupNorm::new()?;
-        // forward()[0] = Y
+        let op = GroupNormOp::new()?;
         Ok(op.forward(&[
             input,
             self.gamma.tensor(),
@@ -69,46 +71,8 @@ impl Layer for GroupNormLayer {
         ])?.remove(0))
     }
 
-    fn params(&self) -> Vec<&dyn Parameter> {
-        vec![&self.gamma, &self.beta]
-    }
-
-    fn label(&self) -> &str {
-        &self.label
-    }
-
-    fn save_state(&self) -> LayerState {
-        let g = self.gamma.tensor();
-        let b = self.beta.tensor();
-        LayerState {
-            layer_type: "GroupNormLayer".to_string(),
-            label: self.label.clone(),
-            config: serde_json::json!({
-                "num_groups":   self.num_groups,
-                "num_channels": self.num_channels,
-                "eps":          self.eps,
-            }),
-            params: vec![
-                ParamState { name: "gamma".to_string(), shape: g.shape().to_vec(), data: g.data().to_vec(), blob_offset: None, blob_length: None },
-                ParamState { name: "beta".to_string(),  shape: b.shape().to_vec(), data: b.data().to_vec(), blob_offset: None, blob_length: None },
-            ],
-        }
-    }
-
-    fn load_state(&mut self, state: &LayerState) -> MlResult<()> {
-        if state.layer_type != "GroupNormLayer" {
-            return Err(MlError::StringError(format!(
-                "레이어 타입 불일치: 파일='{}', 현재='GroupNormLayer'", state.layer_type
-            )));
-        }
-        let g = crate::nn::checkpoint::find_param(&state.params, "gamma")?;
-        crate::nn::checkpoint::validate_shape(g, self.gamma.tensor().shape())?;
-        self.gamma.tensor().replace(GlobalTensor::from_vec(g.data.clone(), &g.shape)?);
-
-        let b = crate::nn::checkpoint::find_param(&state.params, "beta")?;
-        crate::nn::checkpoint::validate_shape(b, self.beta.tensor().shape())?;
-        self.beta.tensor().replace(GlobalTensor::from_vec(b.data.clone(), &b.shape)?);
-
-        Ok(())
-    }
+    fn params(&self) -> Vec<&dyn Parameter> { self._params() }
+    fn label(&self) -> &str { &self.label }
+    fn save_state(&self) -> LayerState { self._save_state() }
+    fn load_state(&mut self, state: &LayerState) -> MlResult<()> { self._load_state(state) }
 }

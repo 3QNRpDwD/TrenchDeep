@@ -1,33 +1,5 @@
 use super::*;
 
-impl IdentityLayer {
-    pub fn new(label: &str) -> Self {
-        Self {
-            label: label.to_string(),
-            operator: Identity::new().unwrap(),
-        }
-    }
-}
-
-impl Layer for IdentityLayer {
-    #[cfg(all(feature = "enableBackward"))]
-    fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
-        self.operator.apply(&[input])
-    }
-
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
-        Ok(self.operator.forward(&[input])?.remove(0))
-    }
-
-    fn params(&self) -> Vec<&dyn Parameter> {
-        vec![]
-    }
-
-    fn label(&self) -> &str {
-        &self.label
-    }
-}
-
 impl Function for Identity {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(Identity)
@@ -44,11 +16,7 @@ impl Function for Identity {
         Ok(vec![GlobalTensor::from_vec(grad.data().to_vec(), grad.shape())?])
     }
 
-    fn backend(&self) -> &Arc<dyn Backend> {
-        &self.backend
-    }
+    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
-    fn node_id(&self) -> &NodeId {
-        &self.node_id
-    }
+    fn node_id(&self) -> &NodeId { &self.node_id }
 }

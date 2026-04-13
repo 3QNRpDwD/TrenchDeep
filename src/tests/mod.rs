@@ -10,7 +10,7 @@ mod checkpoint_test;
 use crate::{
     MlResult,
     nn::{
-        GroupNormLayer,
+        GroupNorm,
         Layer,
         Linear,
         Parameter,

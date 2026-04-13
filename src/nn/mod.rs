@@ -1,3 +1,69 @@
+/// 파라미터가 있는 레이어의 체크포인트(save/load) 보일러플레이트를 자동 생성합니다.
+///
+/// # 사용법
+/// ```ignore
+/// layer_params!(Linear, "Linear", [weight, bias], |s| serde_json::json!({
+///     "in_features": s.weight.tensor().shape()[0],
+///     "out_features": s.weight.tensor().shape()[1],
+/// }));
+/// ```
+///
+/// `|s|` 는 `self`를 바인딩하는 식별자입니다 (매크로 위생 규칙 때문에 `self` 직접 사용 불가).
+///
+/// 생성되는 메서드: `_params()`, `_save_state()`, `_load_state()`
+/// Layer impl에서 위임하여 사용:
+/// ```ignore
+/// impl Layer for Linear {
+///     fn params(&self) -> Vec<&dyn Parameter> { self._params() }
+///     fn save_state(&self) -> LayerState { self._save_state() }
+///     fn load_state(&mut self, state: &LayerState) -> MlResult<()> { self._load_state(state) }
+/// }
+/// ```
+macro_rules! layer_params {
+    ($layer:ty, $type_name:expr, [$($param:ident),+], |$s:ident| $config:expr) => {
+        impl $layer {
+            fn _params(&self) -> Vec<&dyn Parameter> {
+                vec![$(&self.$param),+]
+            }
+
+            fn _save_state(&self) -> LayerState {
+                let $s = self;
+                LayerState {
+                    layer_type: $type_name.to_string(),
+                    label: $s.label.clone(),
+                    config: $config,
+                    params: vec![$(
+                        {
+                            let t = $s.$param.tensor();
+                            ParamState {
+                                name: stringify!($param).to_string(),
+                                shape: t.shape().to_vec(),
+                                data: t.data().to_vec(),
+                                blob_offset: None,
+                                blob_length: None,
+                            }
+                        },
+                    )+],
+                }
+            }
+
+            fn _load_state(&mut self, state: &LayerState) -> MlResult<()> {
+                if state.layer_type != $type_name {
+                    return Err(MlError::StringError(format!(
+                        "레이어 타입 불일치: 파일='{}', 현재='{}'", state.layer_type, $type_name
+                    )));
+                }
+                $(
+                    let p = crate::nn::checkpoint::find_param(&state.params, stringify!($param))?;
+                    crate::nn::checkpoint::validate_shape(p, self.$param.tensor().shape())?;
+                    self.$param.tensor().replace(GlobalTensor::from_vec(p.data.clone(), &p.shape)?);
+                )+
+                Ok(())
+            }
+        }
+    };
+}
+
 pub mod activation;
 pub mod conv2d;
 pub mod pooling;
@@ -221,7 +287,7 @@ pub struct Linear {
 }
 
 #[derive(Debug)]
-pub struct Conv2DLayer {
+pub struct Conv2D {
     label: String,
     weight: Variable,           // [C_out, C_in, kH, kW]
     bias: Variable,             // [C_out]
@@ -249,13 +315,22 @@ pub struct Pooling {
 /// Group Normalization 레이어
 /// 학습 파라미터: γ (scale) [C], β (bias) [C]
 #[derive(Debug)]
-pub struct GroupNormLayer {
+pub struct GroupNorm {
     label:        String,
     pub gamma:    Variable,   // [C]  — 초기값 1
     pub beta:     Variable,   // [C]  — 초기값 0
     pub num_groups:   usize,
     pub num_channels: usize,
     pub eps:      f32,
+}
+
+/// Reshape 레이어 — 입력 텐서의 shape를 `target_shape`로 변환.
+/// `target_shape`에 `-1`을 하나만 쓰면 해당 차원을 자동 추론합니다.
+#[derive(Debug)]
+pub struct Reshape {
+    label: String,
+    target_shape: Vec<isize>,
+    operator: GlobalFunction,
 }
 
 pub struct Sequential {

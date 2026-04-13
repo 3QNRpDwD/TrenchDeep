@@ -126,14 +126,14 @@ fn test_load_missing_label_skips_gracefully() -> MlResult<()> {
     Ok(())
 }
 
-// ── GroupNormLayer 저장/로드 테스트 ─────────────────────────────────────────
+// ── GroupNorm 저장/로드 테스트 ─────────────────────────────────────────
 
 #[test]
 fn test_group_norm_save_load() -> MlResult<()> {
     let tmp = "target/test_checkpoints/group_norm.json";
 
     let mut net = Sequential::new("gn_net");
-    net.push(Box::new(GroupNormLayer::new(4, 8, 1e-5, "gn1")?));
+    net.push(Box::new(GroupNorm::new(4, 8, 1e-5, "gn1")?));
 
     // gamma를 2.0, beta를 0.5로 설정
     let params = net.params();
@@ -146,7 +146,7 @@ fn test_group_norm_save_load() -> MlResult<()> {
     net.save(tmp)?;
 
     let mut net2 = Sequential::new("gn_net");
-    net2.push(Box::new(GroupNormLayer::new(4, 8, 1e-5, "gn1")?));
+    net2.push(Box::new(GroupNorm::new(4, 8, 1e-5, "gn1")?));
     net2.load(tmp)?;
 
     let p = net2.params();

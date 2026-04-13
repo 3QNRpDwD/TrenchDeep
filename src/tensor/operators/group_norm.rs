@@ -22,9 +22,9 @@ use super::*;
 // backward 반환:
 //   [dX, dγ, dβ, 0, 0, 0, 0, 0]
 
-impl Function for GroupNorm {
+impl Function for GroupNormOp {
     fn new() -> MlResult<GlobalFunction> {
-        register_operator!(GroupNorm)
+        register_operator!(GroupNormOp)
     }
 
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
@@ -265,7 +265,7 @@ mod tests {
     ) -> MlResult<(GlobalTensor<f32>, GlobalTensor<f32>, GlobalTensor<f32>, GlobalTensor<f32>)> {
         let g   = GlobalTensor::from_vec(vec![num_groups as f32], &[1, 1])?;
         let e   = GlobalTensor::from_vec(vec![eps], &[1, 1])?;
-        let op  = GroupNorm::new()?;
+        let op  = GroupNormOp::new()?;
         let mut out = op.forward(&[x, gamma, beta, &g, &e])?;
         let var_t  = out.remove(3);
         let mean_t = out.remove(2);
@@ -381,7 +381,7 @@ mod tests {
         let g     = GlobalTensor::from_vec(vec![3.0f32], &[1, 1])?;
         let e     = GlobalTensor::from_vec(vec![1e-5f32], &[1, 1])?;
 
-        let op  = GroupNorm::new()?;
+        let op  = GroupNormOp::new()?;
         assert!(op.forward(&[&x, &gamma, &beta, &g, &e]).is_err());
         Ok(())
     }

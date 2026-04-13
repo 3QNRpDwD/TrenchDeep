@@ -174,15 +174,15 @@ fn matmul_a_bt(a: &[f32], b: &[f32], m: usize, k: usize, n: usize) -> Vec<f32> {
 ///
 /// `backward` 반환 순서 (입력과 대응):
 ///   `[dX, dW, db, 0, 0, 0, 0]`
-impl Function for Conv2d {
+impl Function for Conv2dOp {
     fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Conv2d)
+        register_operator!(Conv2dOp)
     }
 
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         if targets.len() < 7 {
             return Err(MlError::StringError(
-                "Conv2d::forward: [input, weight, bias, stride_h, stride_w, pad_h, pad_w] 필요".into(),
+                "Conv2dOp::forward: [input, weight, bias, stride_h, stride_w, pad_h, pad_w] 필요".into(),
             ));
         }
         let input  = targets[0];
@@ -248,7 +248,7 @@ impl Function for Conv2d {
 
         #[cfg(feature = "debugging")]
         tracing::debug!(
-            "[Conv2d::forward] [{},{},{},{}] → [{},{},{},{}]  kernel=({},{}) stride=({},{}) pad=({},{})",
+            "[Conv2dOp::forward] [{},{},{},{}] → [{},{},{},{}]  kernel=({},{}) stride=({},{}) pad=({},{})",
             in_shape[0], in_shape[1], in_shape[2], in_shape[3],
             n, c_out, h_out, w_out,
             kh, kw, stride_h, stride_w, pad_h, pad_w
@@ -277,7 +277,7 @@ impl Function for Conv2d {
 
         #[cfg(feature = "debugging")]
         tracing::debug!(
-            "[Conv2d::backward] in={:?} w={:?} {}",
+            "[Conv2dOp::backward] in={:?} w={:?} {}",
             in_shape, w_shape,
             crate::tensor::operators::debug::summary("grad", grad)
         );
@@ -373,7 +373,7 @@ mod tests {
         let sw = GlobalTensor::from_vec(vec![stride.1 as f32],   &[1, 1])?;
         let ph = GlobalTensor::from_vec(vec![padding.0 as f32],  &[1, 1])?;
         let pw = GlobalTensor::from_vec(vec![padding.1 as f32],  &[1, 1])?;
-        let op = Conv2d::new()?;
+        let op = Conv2dOp::new()?;
         let mut result = op.forward(&[input, weight, bias, &sh, &sw, &ph, &pw])?;
         Ok(result.remove(0))
     }

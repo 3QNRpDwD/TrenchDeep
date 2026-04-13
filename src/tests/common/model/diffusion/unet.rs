@@ -24,7 +24,7 @@ struct ResNetBlock {
     label:      String,
     branch1:    Sequential,               // gn1 → act1 → conv1
     branch2:    Sequential,               // gn2 → act2 → conv2
-    skip_conv:  Option<Conv2DLayer>,      // 1×1, in_channels != out_channels 일 때
+    skip_conv:  Option<Conv2D>,      // 1×1, in_channels != out_channels 일 때
     t_emb_proj: Option<Linear>,           // Linear(t_emb_dim → out_channels)
     #[cfg(feature = "enableBackward")]
     t_emb_cache: Option<Variable>,
@@ -86,19 +86,19 @@ impl ResNetBlock {
         label:        &str,
     ) -> MlResult<Self> {
         let branch1 = Sequential::from(vec![
-            Box::new(GroupNormLayer::new(num_groups, in_channels,  1e-5, "norm1")?) as Box<dyn Layer>,
+            Box::new(GroupNorm::new(num_groups, in_channels,  1e-5, "norm1")?) as Box<dyn Layer>,
             Box::new(SiLULayer::new("act1")?),
-            Box::new(Conv2DLayer::new(in_channels, out_channels, (3, 3), (1, 1), (1, 1), "conv1")?),
+            Box::new(Conv2D::new(in_channels, out_channels, (3, 3), (1, 1), (1, 1), "conv1")?),
         ], "branch1");
 
         let branch2 = Sequential::from(vec![
-            Box::new(GroupNormLayer::new(num_groups, out_channels, 1e-5, "norm2")?) as Box<dyn Layer>,
+            Box::new(GroupNorm::new(num_groups, out_channels, 1e-5, "norm2")?) as Box<dyn Layer>,
             Box::new(SiLULayer::new("act2")?),
-            Box::new(Conv2DLayer::new(out_channels, out_channels, (3, 3), (1, 1), (1, 1), "conv2")?),
+            Box::new(Conv2D::new(out_channels, out_channels, (3, 3), (1, 1), (1, 1), "conv2")?),
         ], "branch2");
 
         let skip_conv = if in_channels != out_channels {
-            Some(Conv2DLayer::new(in_channels, out_channels, (1, 1), (1, 1), (0, 0), "skip_conv")?)
+            Some(Conv2D::new(in_channels, out_channels, (1, 1), (1, 1), (0, 0), "skip_conv")?)
         } else {
             None
         };
@@ -201,7 +201,7 @@ impl Layer for ResNetBlock {
 impl SelfAttentionBlock {
     pub fn new(channels: usize, label: &str) -> MlResult<Self> {
         let layers = Sequential::from(vec![
-            Box::new(GroupNormLayer::new(32, channels, 1e-5, "gn")?),
+            Box::new(GroupNorm::new(32, channels, 1e-5, "gn")?),
             // Box::new(Reshape::new()? as &dyn Layer), // [N, C, H, W] → [N, H*W, C] (채널이 마지막 차원)
         ], "attn_layers");
 

@@ -1,25 +1,12 @@
 use super::*;
 
-impl Function for Reshape {
-    fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Reshape)
-    }
-
-    /// Reshapes the tensor to the specified shape.
-    ///
-    /// # Arguments
-    /// * `targets` - A slice of tensors to reshape.
-    /// * `shape` - The new shape for the tensor.
-    ///
-    /// # Returns
-    /// A new tensor with the specified shape.
-    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+impl_function!(ReshapeOp,
+    forward(self, targets) {
         let target = targets[0];
         let target_shape = target.shape();
         let target_size: usize = target_shape.iter().product();
         let new_shape = targets[1].shape();
         let new_size: usize = new_shape.iter().product();
-
 
         if target_size != new_size {
             return Err(MlError::TensorError(TensorError::InvalidShape {
@@ -32,10 +19,8 @@ impl Function for Reshape {
         tracing::debug!("[Reshape::forward] {:?} → {:?}", target_shape, new_shape);
 
         Ok(vec![GlobalTensor::from_vec(target.data().to_vec(), new_shape)?])
-    }
-
-    #[cfg(all(feature = "enableBackward"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    },
+    backward(self, targets, grad) {
         let target = targets[0];
         let target_shape = target.shape();
         let target_size: usize = target_shape.iter().product();
@@ -54,8 +39,4 @@ impl Function for Reshape {
 
         Ok(vec![GlobalTensor::from_vec(grad.data().to_vec(), target_shape)?])
     }
-    
-    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
-
-    fn node_id(&self) -> &NodeId { &self.node_id }
-}
+);

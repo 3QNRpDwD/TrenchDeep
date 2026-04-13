@@ -6,8 +6,8 @@ impl MLP {
         info!("Network Structure: {}(Input) -> {}(Hidden) -> {}(Output)", n_input, n_hidden, n_output);
         let mlp = MLP::new(
             &[n_input, n_hidden, n_output],
-            Box::new(crate::nn::activation::SigmoidLayer::new("hidden_act")),
-            Box::new(crate::nn::activation::SoftmaxLayer::new("output_act")),
+            Box::new(crate::nn::activation::SigmoidLayer::new("hidden_act")?),
+            Box::new(crate::nn::activation::SoftmaxLayer::new("output_act")?),
             loss_function,
         )?;
         info!("MLP model created successfully.");

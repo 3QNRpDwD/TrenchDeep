@@ -1,5 +1,58 @@
 use super::*;
 
+/// 연산자의 `impl Function` 보일러플레이트를 자동 생성합니다.
+/// `new()`, `backend()`, `node_id()`는 자동 생성되며, 개발자는 `forward`와 `backward`만 작성하면 됩니다.
+///
+/// # 사용법
+/// ```ignore
+/// // forward + backward
+/// impl_function!(Exp,
+///     forward(self, targets) {
+///         Ok(vec![GlobalTensor::from_vec(self.backend().exp(targets[0].data()), targets[0].shape())?])
+///     },
+///     backward(self, targets, grad) {
+///         let g: Vec<f32> = grad.data().iter().zip(targets[0].data().iter())
+///             .map(|(g, t)| t.exp() * g).collect();
+///         Ok(vec![GlobalTensor::from_vec(g, targets[0].shape())?])
+///     }
+/// );
+///
+/// // forward only (backward 미구현)
+/// impl_function!(Abs,
+///     forward(self, targets) {
+///         Ok(vec![GlobalTensor::from_vec(targets[0].data().iter().map(|&x| x.abs()).collect(), targets[0].shape())?])
+///     }
+/// );
+/// ```
+macro_rules! impl_function {
+    // forward + backward
+    ($name:ident,
+     forward($self_f:ident, $tgt_f:ident) $fwd:block,
+     backward($self_b:ident, $tgt_b:ident, $grad:ident) $bwd:block
+    ) => {
+        impl Function for $name {
+            fn new() -> MlResult<GlobalFunction> { register_operator!($name) }
+            fn forward(&$self_f, $tgt_f: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> $fwd
+            #[cfg(all(feature = "enableBackward"))]
+            fn backward(&$self_b, $tgt_b: &[&dyn TensorBase], $grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> $bwd
+            fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+            fn node_id(&self) -> &NodeId { &self.node_id }
+        }
+    };
+
+    // forward only
+    ($name:ident,
+     forward($self_f:ident, $tgt_f:ident) $fwd:block
+    ) => {
+        impl Function for $name {
+            fn new() -> MlResult<GlobalFunction> { register_operator!($name) }
+            fn forward(&$self_f, $tgt_f: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> $fwd
+            fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+            fn node_id(&self) -> &NodeId { &self.node_id }
+        }
+    };
+}
+
 #[cfg(feature = "debugging")]
 pub(crate) mod debug;
 
@@ -88,7 +141,7 @@ define_op!(Div);
 define_op!(Matmul);
 define_op!(Sin);  // 일반적인 사인 함수입니다.
 define_op!(Cos);  // 일반적인 코사인 함수입니다.d
-define_op!(Reshape);
+define_op!(ReshapeOp);
 define_op!(Transpose);
 define_op!(Pow);
 define_op!(Topk);
@@ -96,10 +149,10 @@ define_op!(Matmax);
 define_op!(ApproxSin, threshold: f32);  // 테일러급수를 사용한 사인 함수 입니다.
 define_op!(ApproxCos, threshold: f32);  // 테일러급수를 사용한 코사인 함수 입니다
 define_op!(Concat);
-define_op!(Conv2d);
+define_op!(Conv2dOp);
 define_op!(MaxPool2d);
 define_op!(AvgPool2d);
-define_op!(GroupNorm);
+define_op!(GroupNormOp);
 
 pub trait Function {
     fn new() -> MlResult<GlobalFunction> where Self: Sized {

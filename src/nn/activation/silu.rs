@@ -1,33 +1,5 @@
 use super::*;
 
-impl SiLULayer {
-    pub fn new(label: &str) -> MlResult<Self> {
-        Ok(Self {
-            label: label.to_string(),
-            operator: SiLU::new()?,
-        })
-    }
-}
-
-impl Layer for SiLULayer {
-    #[cfg(all(feature = "enableBackward"))]
-    fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
-        self.operator.apply(&[input])
-    }
-
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
-        Ok(self.operator.forward(&[input])?.remove(0))
-    }
-
-    fn params(&self) -> Vec<&dyn Parameter> {
-        vec![]
-    }
-
-    fn label(&self) -> &str {
-        &self.label
-    }
-}
-
 impl Function for SiLU {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(SiLU)
@@ -71,9 +43,7 @@ impl Function for SiLU {
         ])
     }
 
-    fn backend(&self) -> &Arc<dyn Backend> {
-        &self.backend
-    }
+    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
 
     fn node_id(&self) -> &NodeId { &self.node_id }
 }

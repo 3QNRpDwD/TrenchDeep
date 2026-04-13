@@ -1,33 +1,5 @@
 use super::*;
 
-impl SoftmaxLayer {
-    pub fn new(label: &str) -> Self {
-        Self {
-            label: label.to_string(),
-            operator: Softmax::new().unwrap(),
-        }
-    }
-}
-
-impl Layer for SoftmaxLayer {
-    #[cfg(all(feature = "enableBackward"))]
-    fn apply(&mut self, input: &Variable) -> MlResult<Variable> {
-        self.operator.apply(&[input])
-    }
-
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
-        Ok(self.operator.forward(&[input])?.remove(0))
-    }
-
-    fn params(&self) -> Vec<&dyn Parameter> {
-        vec![]
-    }
-
-    fn label(&self) -> &str {
-        &self.label
-    }
-}
-
 impl Function for Softmax {
     fn new() -> MlResult<GlobalFunction> {
         register_operator!(Softmax)
@@ -63,6 +35,6 @@ impl Function for Softmax {
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
-    
+
     fn node_id(&self) -> &NodeId { &self.node_id }
 }
