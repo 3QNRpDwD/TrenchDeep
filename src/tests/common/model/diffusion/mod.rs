@@ -10,19 +10,19 @@ use super::*; // info, MlResult, Layer, Linear, Sequential, ... (from model/mod.
 use std::fmt::Debug;
 use crate::{
     nn::{Conv2D, GroupNorm, activation::SiLULayer},
-    tensor::operators::{Concat, Cos, Sin},
+    tensor::operators::{Concat, Cos, Mul, ReshapeOp, Sin, Transpose},
 };
-
+use crate::loss::MeanSquaredError;
 use self::decoder::Decoder;
 use self::encoder::{Encoder, SinusoidalPE};
+use self::scheduler::Scheduler;
 
 struct Diffusion {
     encoder: Encoder,
+    unet: Box<dyn Layer>,
     decoder: Decoder,
-    scheduler: MLP,
-    loss: CrossEntropyLoss,
+    scheduler: Scheduler,
+    loss: MeanSquaredError,
 }
 
-struct StableDiffusion {
-
-}
+struct StableDiffusion; // todo(DDPM 구현 후 예정)

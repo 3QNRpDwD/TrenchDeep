@@ -4,20 +4,28 @@ pub const MAX_PERIOD: f32 = 10000.0;
 
 pub struct Encoder;
 
+/// Sinusoidal Positional Embedding.
+///
+/// 입력 shape: `[B, 1]` (timestep 스칼라 배치).
+/// 출력 shape: `[B, dim]` (sin half + cos half concat).
 #[derive(Debug)]
 pub struct SinusoidalPE {
     inv_freq: Variable,
-    label: String
+    concat_axis: Variable, // Concat 연산자가 요구하는 axis 스칼라 ([1,1], value=1.0 = 마지막 축)
+    label: String,
 }
 
 impl SinusoidalPE {
     pub fn new(dim: usize, label: &str) -> MlResult<Self> {
-        // max_period = 보통 10000
         let half_dim = dim / 2;
         let data: Vec<f32> = (0..half_dim)
             .map(|i| (MAX_PERIOD).powf(2.0 * i as f32 / dim as f32).recip())
             .collect();
-        Ok(SinusoidalPE { inv_freq: Variable::new(Tensor::from_vec(data, &[1, half_dim])?), label: label.to_string() })
+        Ok(SinusoidalPE {
+            inv_freq: Variable::new(Tensor::from_vec(data, &[1, half_dim])?),
+            concat_axis: Variable::new(Tensor::from_vec(vec![1.0], &[1, 1])?),
+            label: label.to_string(),
+        })
     }
 }
 
@@ -28,21 +36,14 @@ impl Layer for SinusoidalPE {
         let mut cos = Cos::new()?;
         let mut matmul = Matmul::new()?;
         let mut concat = Concat::new()?;
-        // 1. 분모(Inverse Frequencies) 미리 계산
-        // weights = [exp(i * -ln(10000) / (dim/2))] for i in 0..dim/2
 
-        // 2. 외적(Outer Product) 수행: (Batch, 1) * (1, dim/2) -> (Batch, dim/2)
-        // t_tensor: [t1, t2, t3, t4]
+        // (B, 1) · (1, half) → (B, half)
         let args = matmul.apply(&[input, &self.inv_freq])?;
-
-        // 3. Sin과 Cos을 각각 적용
         let sin_features = sin.apply(&[&args])?;
         let cos_features = cos.apply(&[&args])?;
 
-        // 4. 마지막 차원을 기준으로 결합 (Concatenate)
-        // 결과: (Batch, dim) 형태의 텐서 하나를 반환
-
-        Ok(concat.apply(&[&sin_features, &cos_features])?)
+        // axis=1 로 concat → (B, dim)
+        concat.apply(&[&sin_features, &cos_features, &self.concat_axis])
     }
 
     fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
@@ -50,21 +51,14 @@ impl Layer for SinusoidalPE {
         let cos = Cos::new()?;
         let matmul = Matmul::new()?;
         let concat = Concat::new()?;
-        // 1. 분모(Inverse Frequencies) 미리 계산 (한 번만 수행하거나 생성자에서 처리 권장)
-        // weights = [exp(i * -ln(10000) / (dim/2))] for i in 0..dim/2
 
-        // 2. 외적(Outer Product) 수행: (Batch, 1) * (1, dim/2) -> (Batch, dim/2)
-        // t_tensor: [t1, t2, t3, t4]
         let args = matmul.forward(&[input, self.inv_freq.tensor()])?;
-
-        // 3. Sin과 Cos을 각각 적용
         let sin_features = sin.forward(&[&args[0]])?;
         let cos_features = cos.forward(&[&args[0]])?;
 
-        // 4. 마지막 차원을 기준으로 결합 (Concatenate)
-        // 결과: (Batch, dim) 형태의 텐서 하나를 반환
-
-        Ok(concat.forward(&[&sin_features[0], &cos_features[0]])?.remove(0))
+        Ok(concat
+            .forward(&[&sin_features[0], &cos_features[0], self.concat_axis.tensor()])?
+            .remove(0))
     }
 
     fn params(&self) -> Vec<&dyn Parameter> {
@@ -73,5 +67,34 @@ impl Layer for SinusoidalPE {
 
     fn label(&self) -> &str {
         self.label.as_str()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sinusoidal_pe_predict_shape() -> MlResult<()> {
+        let mut pe = SinusoidalPE::new(4, "pe")?;
+        let t = Tensor::from_vec(vec![0.0, 1.0], &[2, 1])?;
+        let out = pe.predict(&t)?;
+        assert_eq!(out.shape(), &[2, 4]);
+        // 앞 half = sin(args), 뒤 half = cos(args).  t=0 → sin=0, cos=1.
+        assert!((out.data()[0] - 0.0).abs() < 1e-6);
+        assert!((out.data()[1] - 0.0).abs() < 1e-6);
+        assert!((out.data()[2] - 1.0).abs() < 1e-6);
+        assert!((out.data()[3] - 1.0).abs() < 1e-6);
+        Ok(())
+    }
+
+    #[cfg(feature = "enableBackward")]
+    #[test]
+    fn sinusoidal_pe_apply_shape() -> MlResult<()> {
+        let mut pe = SinusoidalPE::new(8, "pe")?;
+        let t = Variable::new(Tensor::from_vec(vec![0.0, 1.0, 2.0], &[3, 1])?);
+        let out = pe.apply(&t)?;
+        assert_eq!(out.tensor().shape(), &[3, 8]);
+        Ok(())
     }
 }
