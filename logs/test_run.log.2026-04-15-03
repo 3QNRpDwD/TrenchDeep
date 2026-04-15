@@ -1,0 +1,4 @@
+2026-04-15T03:02:50 DEBUG trench_deep::tensor: [Tensor::label] id=NodeId(816) → 'input'
+2026-04-15T03:02:50 DEBUG trench_deep::tensor::graph: [Graph::add_operation] op='test_op' inputs=[] → output=NodeId(816) (total nodes after: 1)
+2026-04-15T03:02:50 DEBUG trench_deep::tensor: [Tensor::clone] id=NodeId(816) label='input' rc=2
+2026-04-15T03:02:50 DEBUG trench_deep::tensor: [Tensor::drop] id=NodeId(816) label='input' freed
