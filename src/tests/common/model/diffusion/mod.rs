@@ -10,16 +10,17 @@ use super::*; // info, MlResult, Layer, Linear, Sequential, ... (from model/mod.
 use std::fmt::Debug;
 use crate::{
     nn::{Conv2D, GroupNorm, activation::{SiLU, SoftmaxOp}},
-    tensor::operators::{Concat, Cos, Mul, ReshapeOp, Sin, Transpose},
+    tensor::operators::{Concat, Cos, Mul, NearestUpsample2d, ReshapeOp, Sin, Transpose},
 };
 use crate::loss::MeanSquaredError;
+use crate::tests::common::model::diffusion::unet::Unet;
 use self::decoder::Decoder;
 use self::encoder::{Encoder, SinusoidalPE};
 use self::scheduler::Scheduler;
 
 struct Diffusion {
     encoder: Encoder,
-    unet: Box<dyn Layer>,
+    unet: Unet,
     decoder: Decoder,
     scheduler: Scheduler,
     loss: MeanSquaredError,

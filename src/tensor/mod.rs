@@ -525,6 +525,27 @@ pub trait TensorBase {
         Self::from_vec(data, shape).unwrap()
     }
 
+    /// 표준 정규분포 N(0, 1)에서 샘플링한 텐서를 생성합니다.
+    /// Box-Muller 변환: z = sqrt(-2 * ln(u1)) * cos(2π * u2)
+    fn randn(shape: &[usize]) -> Self where Self: Sized {
+        let size: usize = shape.iter().product();
+        let mut data = Vec::with_capacity(size);
+        let mut i = 0;
+        while i < size {
+            let u1: f32 = rand::random::<f32>().max(f32::EPSILON); // ln(0) 방지
+            let u2: f32 = rand::random::<f32>();
+            let r = (-2.0 * u1.ln()).sqrt();
+            let theta = 2.0 * std::f32::consts::PI * u2;
+            data.push(r * theta.cos());
+            if i + 1 < size {
+                data.push(r * theta.sin());
+            }
+            i += 2;
+        }
+        data.truncate(size);
+        Self::from_vec(data, shape).unwrap()
+    }
+
     fn scalar(scalar: f32) -> Self where Self: Sized {
         Self::new(vec![vec![scalar]])
     }

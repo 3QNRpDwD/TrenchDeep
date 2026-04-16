@@ -72,6 +72,7 @@ pub mod transpose;
 pub mod concat;
 pub mod conv2d;
 pub mod pool2d;
+pub mod upsample;
 pub mod group_norm;
 
 macro_rules! define_op {
@@ -153,6 +154,7 @@ define_op!(Conv2dOp);
 define_op!(MaxPool2d);
 define_op!(AvgPool2d);
 define_op!(GroupNormOp);
+define_op!(NearestUpsample2d);
 
 pub trait Function {
     fn new() -> MlResult<GlobalFunction> where Self: Sized {

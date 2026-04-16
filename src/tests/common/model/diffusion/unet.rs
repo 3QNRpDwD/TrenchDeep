@@ -1,3 +1,4 @@
+use crate::nn::Reshape;
 use super::*;
 
 // ── U-Net 하위 블록 ─────────────────────────────────────────────────────────
@@ -19,14 +20,14 @@ struct MidBlock {
     resnet2: ResNetBlock,
 }
 
-/// Up path 한 단계: ResNet×2 → (optional) Attention → Upsample
+/// Up path 한 단계: ResNet×2 → (optional) Attention → NearestUpsample(2×) → Conv2D
 /// UpBlock의 resnet1.in_channels = skip_channels + up_channels (concat 후)
 #[derive(Debug)]
 struct UpBlock {
-    resnet1:  ResNetBlock,
-    resnet2:  ResNetBlock,
-    attn:     Option<SelfAttentionBlock>,
-    upsample: Conv2D,  // TODO: ConvTranspose2d 또는 Interpolate+Conv 로 교체 예정
+    resnet1:      ResNetBlock,
+    resnet2:      ResNetBlock,
+    attn:         Option<SelfAttentionBlock>,
+    upsample_conv: Conv2D,  // upsample 후 3×3 conv (채널 보정)
 }
 
 #[derive(Debug)]
@@ -169,9 +170,25 @@ impl UpBlock {
             } else {
                 None
             },
-            // TODO: ConvTranspose2d 구현 후 교체. 현재는 1×1 conv placeholder.
-            upsample: Conv2D::new(out_ch, out_ch, (1, 1), (1, 1), (0, 0), &format!("{}_up", label))?,
+            upsample_conv: Conv2D::new(out_ch, out_ch, (3, 3), (1, 1), (1, 1), &format!("{}_up_conv", label))?,
         })
+    }
+
+    /// NearestUpsample(2×) 적용 후 conv.
+    #[cfg(feature = "enableBackward")]
+    fn upsample_apply(&mut self, x: &Variable) -> MlResult<Variable> {
+        let scale_h = Variable::new(Tensor::from_vec(vec![2.0], &[1, 1])?);
+        let scale_w = Variable::new(Tensor::from_vec(vec![2.0], &[1, 1])?);
+        let upsampled = NearestUpsample2d::new()?.apply(&[x, &scale_h, &scale_w])?;
+        self.upsample_conv.apply(&upsampled)
+    }
+
+    /// NearestUpsample(2×) 적용 후 conv (추론).
+    fn upsample_predict(&self, x: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+        let scale_h = GlobalTensor::from_vec(vec![2.0], &[1, 1])?;
+        let scale_w = GlobalTensor::from_vec(vec![2.0], &[1, 1])?;
+        let upsampled = NearestUpsample2d::new()?.forward(&[x, &scale_h, &scale_w])?.remove(0);
+        self.upsample_conv.predict(&upsampled)
     }
 
     #[cfg(feature = "enableBackward")]
@@ -181,7 +198,7 @@ impl UpBlock {
         if let Some(ref mut attn) = self.attn {
             h = attn.apply(&h)?;
         }
-        self.upsample.apply(&h)
+        self.upsample_apply(&h)
     }
 
     fn predict_forward(&self, x: &dyn TensorBase, t_emb: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
@@ -190,14 +207,14 @@ impl UpBlock {
         if let Some(ref attn) = self.attn {
             h = attn.predict(&h)?;
         }
-        self.upsample.predict(&h)
+        self.upsample_predict(&h)
     }
 
     fn params(&self) -> Vec<&dyn Parameter> {
         let mut p = self.resnet1.params();
         p.extend(self.resnet2.params());
         if let Some(ref attn) = self.attn { p.extend(attn.params()); }
-        p.extend(self.upsample.params());
+        p.extend(self.upsample_conv.params());
         p
     }
 }
@@ -212,7 +229,7 @@ impl Unet {
         resnet_block_groups: usize,
         learned_variance: bool, learned_sinusoidal_cond: bool, learned_sinusoidal_dim: usize, sinusoidal_pos_emb_theta: usize,
         random_fourier_features: bool,
-        attn_dim_head: usize, attn_heads: usize, full_attn: Option<bool>, flash_attn: bool,
+        full_attn: Option<bool>, flash_attn: bool,
     ) -> Self {
         todo!("Unet::new — DownBlock/UpBlock/MidBlock 파라미터 조립 후 구현")
     }
@@ -721,6 +738,38 @@ mod tests {
 
         let out = block.predict_forward(&x, &t)?;
         assert_eq!(out.shape(), &[1, 8, 4, 4]);
+        Ok(())
+    }
+
+    #[test]
+    fn upblock_predict_doubles_spatial() -> MlResult<()> {
+        // 4×4 → NearestUpsample(2×) + Conv → 8×8
+        let t_emb_dim = 16;
+        let block = UpBlock::new(8, 8, 4, Some(t_emb_dim), false, "up0")?;
+        let data: Vec<f32> = (0..(1 * 8 * 4 * 4)).map(|i| i as f32 * 0.01).collect();
+        let x = Tensor::from_vec(data, &[1, 8, 4, 4])?;
+        let t_data: Vec<f32> = vec![0.1; t_emb_dim];
+        let t = Tensor::from_vec(t_data, &[1, t_emb_dim])?;
+
+        let out = block.predict_forward(&x, &t)?;
+        assert_eq!(out.shape(), &[1, 8, 8, 8]);
+        Ok(())
+    }
+
+    // ── Tensor::randn 테스트 ────────────────────────────────────────────────
+
+    #[test]
+    fn randn_shape_and_distribution() -> MlResult<()> {
+        let t = Tensor::randn(&[1000]);
+        assert_eq!(t.shape(), &[1000]);
+
+        let data = t.data();
+        let mean: f32 = data.iter().sum::<f32>() / data.len() as f32;
+        let variance: f32 = data.iter().map(|&x| (x - mean).powi(2)).sum::<f32>() / data.len() as f32;
+
+        // N(0,1): 평균 ≈ 0, 분산 ≈ 1 (통계적 허용 범위)
+        assert!(mean.abs() < 0.15, "mean = {} (expected ≈ 0)", mean);
+        assert!((variance - 1.0).abs() < 0.25, "variance = {} (expected ≈ 1)", variance);
         Ok(())
     }
 }
