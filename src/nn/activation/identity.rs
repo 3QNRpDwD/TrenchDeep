@@ -1,8 +1,8 @@
 use super::*;
 
-impl Function for Identity {
+impl Function for IdentityOp {
     fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Identity)
+        register_operator!(IdentityOp)
     }
 
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {

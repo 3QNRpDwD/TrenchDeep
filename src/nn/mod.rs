@@ -170,7 +170,7 @@ pub trait Model {
 pub trait Layer: Debug {
     #[cfg(all(feature = "enableBackward"))]
     fn apply(&mut self, input: &Variable) -> MlResult<Variable>;
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>>;
+    fn predict(&self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>>;
     fn params(&self) -> Vec<&dyn Parameter>;
     fn type_name(&self) -> &str {
         std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
@@ -406,8 +406,8 @@ impl Layer for Sequential {
         Ok(current)
     }
 
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
-        let mut layer_iter = self.layers.iter_mut();
+    fn predict(&self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+        let mut layer_iter = self.layers.iter();
         let first_layer = match layer_iter.next() {
             Some(layer) => layer,
             None => return Err(MlError::StringError("Sequential 모델에 레이어가 없습니다.".to_string())),

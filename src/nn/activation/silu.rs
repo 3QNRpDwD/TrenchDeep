@@ -1,8 +1,8 @@
 use super::*;
 
-impl Function for SiLU {
+impl Function for SiLUOp {
     fn new() -> MlResult<GlobalFunction> {
-        register_operator!(SiLU)
+        register_operator!(SiLUOp)
     }
 
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {

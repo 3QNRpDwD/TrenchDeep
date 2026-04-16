@@ -21,7 +21,7 @@ impl TimeEmbeddingMLP {
         let mlp = Sequential::from(vec![
             Box::new(SinusoidalPE::new(layer_params[0], "SinusoidalPE(t)")?),
             Box::new(Linear::new(layer_params[0], layer_params[1], "Linear(d_model, d_hidden)(t_emb)")?),
-            Box::new(SiLULayer::new("SiLU(t_emb)")?),
+            Box::new(SiLU::new("SiLU(t_emb)")?),
             Box::new(Linear::new(layer_params[1], layer_params[2], "Linear(d_hidden, C)(t_emb)")?),
         ], "TimeEmbeddingMLP",);
 
@@ -41,7 +41,7 @@ impl Layer for TimeEmbeddingMLP {
         self.mlp.apply(input)
     }
 
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+    fn predict(&self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         self.mlp.predict(input)
     }
 

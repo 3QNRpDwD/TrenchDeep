@@ -1,8 +1,8 @@
 use super::*;
 
-impl Function for Tanh {
+impl Function for TanhOp {
     fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Tanh)
+        register_operator!(TanhOp)
     }
 
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {

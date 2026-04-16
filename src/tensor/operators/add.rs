@@ -171,38 +171,42 @@ impl Function for Add {
 /// # Broadcasting
 /// * Supports broadcasting when adding a 1D tensor to each row of a 2D tensor
 impl std::ops::Add<Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn add(self, other: Tensor) -> Self::Output {
         Add::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().forward(&[&self, &other]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 
 impl std::ops::Add<&Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn add(self, other: &Tensor) -> Self::Output {
         Add::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().forward(&[&self, other]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 
 impl std::ops::Add<&Tensor> for &Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn add(self, other: &Tensor) -> Self::Output {
         Add::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().forward(&[self, other]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 
 impl std::ops::Add<Tensor> for &Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn add(self, other: Tensor) -> Self::Output {
         Add::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().forward(&[self, &other]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 
@@ -225,6 +229,7 @@ impl std::ops::AddAssign<Tensor> for Tensor {
 
 impl std::ops::AddAssign<&Tensor> for Tensor {
     fn add_assign(&mut self, other: &Tensor) {
+        Add::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Add").unwrap().assign_forward(&[self, other], self.id()).unwrap().remove(0));
     }
 }
@@ -255,6 +260,18 @@ impl std::ops::Add<Variable> for Variable {
     type Output = Variable;
     fn add(self, other: Variable) -> Variable {
         Add::new().unwrap().apply(&[&self, &other]).unwrap()
+    }
+}
+
+impl std::ops::AddAssign<&Variable> for Variable {
+    fn add_assign(&mut self, other: &Variable) {
+        *self = Add::new().unwrap().apply(&[self, other]).unwrap();
+    }
+}
+
+impl std::ops::AddAssign<Variable> for Variable {
+    fn add_assign(&mut self, other: Variable) {
+        *self = Add::new().unwrap().apply(&[self, &other]).unwrap();
     }
 }
 

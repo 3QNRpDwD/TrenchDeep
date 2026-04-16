@@ -2,7 +2,7 @@ use super::*;
 
 impl LogisticRegression {
     pub fn build_model(n_input: usize, n_output: usize) -> MlResult<LogisticRegression> {
-        let activation = Sigmoid::new()?;
+        let activation = SigmoidOp::new()?;
         let loss_function = crate::loss::MeanSquaredError::new()?;
 
         info!("Network Structure: {}(Input) -> {}(Output)", n_input, n_output);

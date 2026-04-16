@@ -1,5 +1,7 @@
 use super::*;
 
+use crate::nn::activation::{SoftmaxOp, SigmoidOp};
+
 pub mod logistic;
 pub mod softmax;
 

@@ -12,10 +12,11 @@ impl_function!(Neg,
 );
 
 impl std::ops::Neg for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn neg(self) -> Self::Output {
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Neg").unwrap().forward(&[&self]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 

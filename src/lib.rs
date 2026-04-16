@@ -60,6 +60,7 @@ pub type MlResult<T> = Result<T, MlError>;
 
 #[cfg(test)]
 mod benchmark {
+    use std::ops::SubAssign;
     use crate::tensor::operators::{Add, Function, Mul, Square};
     use crate::tensor::{AutogradFunction, ComputationGraph, Tensor, TensorBase};
     use crate::{MlResult, scalar, var_input, var_with_label, variable};
@@ -280,8 +281,8 @@ mod benchmark {
             }
             
             // 파라미터 갱신
-            x0 -= x0.grad() * &learning_rate;
-            x1 -= x1.grad() * &learning_rate;
+            x0 -= Variable::new(x0.grad() * &learning_rate);
+            x1 -= Variable::new(x1.grad() * &learning_rate);
         }
         Ok(())
     }

@@ -9,7 +9,7 @@ use super::*; // info, MlResult, Layer, Linear, Sequential, ... (from model/mod.
 // diffusion 하위 모듈 전용 import
 use std::fmt::Debug;
 use crate::{
-    nn::{Conv2D, GroupNorm, activation::SiLULayer},
+    nn::{Conv2D, GroupNorm, activation::{SiLU, SoftmaxOp}},
     tensor::operators::{Concat, Cos, Mul, ReshapeOp, Sin, Transpose},
 };
 use crate::loss::MeanSquaredError;

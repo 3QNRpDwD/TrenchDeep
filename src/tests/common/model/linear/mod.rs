@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::nn::activation::Identity;
+use crate::nn::activation::IdentityOp;
 
 pub mod linear;
 

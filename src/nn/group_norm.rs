@@ -60,7 +60,7 @@ impl Layer for GroupNorm {
         op.apply_with_saved(&[input, &self.gamma, &self.beta, &g_var, &eps_var])
     }
 
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+    fn predict(&self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         let [g, e] = self.param_scalars()?;
         let op = GroupNormOp::new()?;
         Ok(op.forward(&[

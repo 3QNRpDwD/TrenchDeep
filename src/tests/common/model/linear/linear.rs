@@ -2,7 +2,7 @@ use super::*;
 
 impl LinearRegression {
     pub fn build_model(n_input: usize, n_output: usize) -> MlResult<LinearRegression> {
-        let activation = Identity::new()?;
+        let activation = IdentityOp::new()?;
         let loss_function = crate::loss::MeanSquaredError::new()?;
 
         info!("Network Structure: {}(Input) -> {}(Output)", n_input, n_output);

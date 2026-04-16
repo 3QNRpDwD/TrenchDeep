@@ -63,7 +63,7 @@ impl Layer for Pooling {
         }
     }
 
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+    fn predict(&self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         let [kh, kw, sh, sw] = self.kernel_stride_scalars()?;
         match self.mode {
             PoolingMode::Max => {

@@ -1,8 +1,8 @@
 use super::*;
 
-impl Function for Softmax {
+impl Function for SoftmaxOp {
     fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Softmax)
+        register_operator!(SoftmaxOp)
     }
 
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {

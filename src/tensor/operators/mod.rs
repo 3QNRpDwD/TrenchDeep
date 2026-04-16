@@ -156,6 +156,7 @@ define_op!(GroupNormOp);
 
 pub trait Function {
     fn new() -> MlResult<GlobalFunction> where Self: Sized {
+        // register_operator!(Self);
         unimplemented!("{} Function::new() is not implemented", std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown"))
     }
 

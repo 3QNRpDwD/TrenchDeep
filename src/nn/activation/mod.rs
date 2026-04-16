@@ -49,7 +49,7 @@ macro_rules! activation_layer {
                 self.operator.apply(&[input])
             }
 
-            fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+            fn predict(&self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
                 Ok(self.operator.forward(&[input])?.remove(0))
             }
 
@@ -60,16 +60,16 @@ macro_rules! activation_layer {
     };
 }
 
-define_activation_op!(Sigmoid);
-define_activation_op!(Tanh);
-define_activation_op!(ReLU);
-define_activation_op!(Softmax);
-define_activation_op!(Identity);
-define_activation_op!(SiLU);
+define_activation_op!(SigmoidOp);
+define_activation_op!(TanhOp);
+define_activation_op!(ReLUOp);
+define_activation_op!(SoftmaxOp);
+define_activation_op!(IdentityOp);
+define_activation_op!(SiLUOp);
 
-activation_layer!(SigmoidLayer, Sigmoid);
-activation_layer!(TanhLayer, Tanh);
-activation_layer!(ReLULayer, ReLU);
-activation_layer!(SoftmaxLayer, Softmax);
-activation_layer!(IdentityLayer, Identity);
-activation_layer!(SiLULayer, SiLU);
+activation_layer!(Sigmoid, SigmoidOp);
+activation_layer!(Tanh, TanhOp);
+activation_layer!(ReLU, ReLUOp);
+activation_layer!(Softmax, SoftmaxOp);
+activation_layer!(Identity, IdentityOp);
+activation_layer!(SiLU, SiLUOp);

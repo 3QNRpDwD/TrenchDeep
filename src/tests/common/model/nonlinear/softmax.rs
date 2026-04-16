@@ -2,7 +2,7 @@ use super::*;
 
 impl SoftmaxRegression {
     pub fn build_model(n_input: usize, n_output: usize) -> MlResult<SoftmaxRegression> {
-        let activation = Softmax::new()?;
+        let activation = SoftmaxOp::new()?;
         let loss_function = SoftmaxCrossEntropyLoss::new()?;
 
         info!("Network Structure: {}(Input) -> {}(Output)", n_input, n_output);

@@ -43,7 +43,7 @@ impl Layer for Linear {
         Ok(&x + &self.bias)
     }
 
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+    fn predict(&self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         let matmul = Matmul::new()?;
         let add = Add::new()?;
 

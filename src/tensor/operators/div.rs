@@ -64,20 +64,22 @@ impl Function for Div {
 /// # Returns
 /// A new tensor containing the element-wise quotient
 impl std::ops::Div<&Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn div(self, other: &Tensor) -> Self::Output {
         Div::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().forward(&[&self, other]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 
 impl std::ops::Div<Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn div(self, other: Tensor) -> Self::Output {
         Div::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().forward(&[&self, &other]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 
@@ -92,11 +94,12 @@ impl std::ops::Div<&dyn TensorBase> for &dyn TensorBase {
 }
 
 impl std::ops::Div<Tensor> for &Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn div(self, other: Tensor) -> Self::Output {
         Div::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().forward(&[self, &other]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 
@@ -112,5 +115,46 @@ impl std::ops::DivAssign<&Tensor> for Tensor {
     fn div_assign(&mut self, other: &Tensor) {
         Div::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow_mut().get_mut("Div").unwrap().assign_forward(&[self, other], self.id()).unwrap().remove(0));
+    }
+}
+
+// Variable operator overloading (graph-tracked)
+impl std::ops::Div<&Variable> for &Variable {
+    type Output = Variable;
+    fn div(self, other: &Variable) -> Variable {
+        Div::new().unwrap().apply(&[self, other]).unwrap()
+    }
+}
+
+impl std::ops::Div<&Variable> for Variable {
+    type Output = Variable;
+    fn div(self, other: &Variable) -> Variable {
+        Div::new().unwrap().apply(&[&self, other]).unwrap()
+    }
+}
+
+impl std::ops::Div<Variable> for &Variable {
+    type Output = Variable;
+    fn div(self, other: Variable) -> Variable {
+        Div::new().unwrap().apply(&[self, &other]).unwrap()
+    }
+}
+
+impl std::ops::Div<Variable> for Variable {
+    type Output = Variable;
+    fn div(self, other: Variable) -> Variable {
+        Div::new().unwrap().apply(&[&self, &other]).unwrap()
+    }
+}
+
+impl std::ops::DivAssign<&Variable> for Variable {
+    fn div_assign(&mut self, other: &Variable) {
+        *self = Div::new().unwrap().apply(&[self, other]).unwrap();
+    }
+}
+
+impl std::ops::DivAssign<Variable> for Variable {
+    fn div_assign(&mut self, other: Variable) {
+        *self = Div::new().unwrap().apply(&[self, &other]).unwrap();
     }
 }

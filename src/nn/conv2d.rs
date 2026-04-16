@@ -74,7 +74,7 @@ impl Layer for Conv2D {
         op.apply(&[input, &self.weight, &self.bias, &sh, &sw, &ph, &pw])
     }
 
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+    fn predict(&self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         let [sh, sw, ph, pw] = self.stride_padding_scalars()?;
         let op = Conv2dOp::new()?;
         let mut result = op.forward(&[

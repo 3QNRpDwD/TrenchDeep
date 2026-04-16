@@ -92,38 +92,42 @@ impl Function for Sub {
 /// # Broadcasting
 /// * Supports broadcasting when subtracting a 1D tensor from each row of a 2D tensor
 impl std::ops::Sub<Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn sub(self, other: Tensor) -> Self::Output {
         Sub::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[&self, &other]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 
 impl std::ops::Sub<&Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn sub(self, other: &Tensor) -> Self::Output {
         Sub::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[&self, other]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 
 impl std::ops::Sub<&Tensor> for &Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn sub(self, other: &Tensor) -> Self::Output {
         Sub::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[self, other]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 
 impl std::ops::Sub<Tensor> for &Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn sub(self, other: Tensor) -> Self::Output {
         Sub::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Sub").unwrap().forward(&[self, &other]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 
@@ -177,5 +181,17 @@ impl std::ops::Sub<Variable> for Variable {
     type Output = Variable;
     fn sub(self, other: Variable) -> Variable {
         Sub::new().unwrap().apply(&[&self, &other]).unwrap()
+    }
+}
+
+impl std::ops::SubAssign<&Variable> for Variable {
+    fn sub_assign(&mut self, other: &Variable) {
+        *self = Sub::new().unwrap().apply(&[self, other]).unwrap();
+    }
+}
+
+impl std::ops::SubAssign<Variable> for Variable {
+    fn sub_assign(&mut self, other: Variable) {
+        *self = Sub::new().unwrap().apply(&[self, &other]).unwrap();
     }
 }

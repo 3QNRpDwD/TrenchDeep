@@ -26,7 +26,6 @@ struct ResNetBlock {
     branch2:    Sequential,               // gn2 → act2 → conv2
     skip_conv:  Option<Conv2D>,      // 1×1, in_channels != out_channels 일 때
     t_emb_proj: Option<Linear>,           // Linear(t_emb_dim → out_channels)
-    #[cfg(feature = "enableBackward")]
     t_emb_cache: Option<Variable>,
 }
 
@@ -62,7 +61,7 @@ impl Layer for Unet {
         todo!()
     }
 
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+    fn predict(&self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         todo!()
     }
 
@@ -89,13 +88,13 @@ impl ResNetBlock {
     ) -> MlResult<Self> {
         let branch1 = Sequential::from(vec![
             Box::new(GroupNorm::new(num_groups, in_channels,  1e-5, "norm1")?) as Box<dyn Layer>,
-            Box::new(SiLULayer::new("act1")?),
+            Box::new(SiLU::new("act1")?),
             Box::new(Conv2D::new(in_channels, out_channels, (3, 3), (1, 1), (1, 1), "conv1")?),
         ], "branch1");
 
         let branch2 = Sequential::from(vec![
             Box::new(GroupNorm::new(num_groups, out_channels, 1e-5, "norm2")?) as Box<dyn Layer>,
-            Box::new(SiLULayer::new("act2")?),
+            Box::new(SiLU::new("act2")?),
             Box::new(Conv2D::new(out_channels, out_channels, (3, 3), (1, 1), (1, 1), "conv2")?),
         ], "branch2");
 
@@ -116,13 +115,11 @@ impl ResNetBlock {
             branch2,
             skip_conv,
             t_emb_proj,
-            #[cfg(feature = "enableBackward")]
             t_emb_cache: None,
         })
     }
 
     /// time embedding을 다음 forward에 주입합니다.
-    #[cfg(feature = "enableBackward")]
     pub fn set_time_emb(&mut self, t_emb: Variable) {
         self.t_emb_cache = Some(t_emb);
     }
@@ -134,24 +131,14 @@ impl Layer for ResNetBlock {
         // gn1 → act1 → conv1
         let h = self.branch1.apply(input)?;
 
-        // t_emb 주입: proj(t) [N, C_out] → 수동 broadcast-add → [N, C_out, H, W]
+        // t_emb 주입: proj(t) [N, C_out] → reshape [N, C_out, 1, 1] → broadcast-add
         let h = if let (Some(proj), Some(t)) = (self.t_emb_proj.as_mut(), self.t_emb_cache.take()) {
-            let t_proj = proj.apply(&t)?;
-            let h_shape = h.tensor().shape().to_vec();
-            let (n, c, hh, w) = (h_shape[0], h_shape[1], h_shape[2], h_shape[3]);
-            let t_data = t_proj.tensor().data().to_vec();
-            let mut out = h.tensor().data().to_vec();
-            for ni in 0..n {
-                for ci in 0..c {
-                    let v = t_data[ni * c + ci];
-                    for yi in 0..hh {
-                        for xi in 0..w {
-                            out[ni*c*hh*w + ci*hh*w + yi*w + xi] += v;
-                        }
-                    }
-                }
-            }
-            Variable::new(Tensor::from_vec(out, &h_shape)?)
+            let t_proj = proj.apply(&t)?; // [N, C_out]
+            let h_shape = h.tensor().shape();
+            let (n, c) = (h_shape[0], h_shape[1]);
+            let shape_4d = Variable::new(Tensor::from_vec(vec![0.0; n * c], &[n, c, 1, 1])?);
+            let t_4d = ReshapeOp::new()?.apply(&[&t_proj, &shape_4d])?; // [N, C_out, 1, 1]
+            &h + &t_4d // Add 브로드캐스트: [N, C, H, W] + [N, C, 1, 1] → autograd 유지
         } else {
             h
         };
@@ -169,21 +156,32 @@ impl Layer for ResNetBlock {
         Ok(&h + &skip)
     }
 
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+    fn predict(&self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         // gn1 → act1 → conv1
-        let h = self.branch1.predict(input)?;
+        let h = self.branch1.predict(input)?.to_id()?;
+
+        let h = if let (Some(proj), Some(t)) = (&self.t_emb_proj, &self.t_emb_cache) {
+            let t_proj = proj.predict(t.tensor())?; // [N, C_out]
+            let h_shape = h.shape();
+            let (n, c) = (h_shape[0], h_shape[1]);
+            let shape_4d = Tensor::from_vec(vec![0.0; n * c], &[n, c, 1, 1])?;
+            let t_4d = ReshapeOp::new()?.forward(&[&t_proj, &shape_4d])?.remove(0).to_id()?; // [N, C_out, 1, 1]
+            &h + &t_4d // Add 브로드캐스트: [N, C, H, W] + [N, C, 1, 1] → autograd 유지
+        } else {
+            h
+        };
 
         // gn2 → act2 → conv2
         let h = self.branch2.predict(&h)?;
 
         // skip connection
-        let skip: GlobalTensor<f32> = if let Some(ref mut sc) = self.skip_conv {
+        let skip: GlobalTensor<f32> = if let Some(ref sc) = self.skip_conv {
             sc.predict(input)?
         } else {
             GlobalTensor::from_vec(input.data().to_vec(), input.shape())?
         };
 
-        let add_op = crate::tensor::operators::Add::new()?;
+        let add_op = Add::new()?;
         Ok(add_op.forward(&[&h, &skip])?.remove(0))
     }
 
@@ -297,7 +295,7 @@ impl Layer for SelfAttentionBlock {
         // 10) softmax
         //  NOTE(TODO): 현 Softmax 연산자는 전역 정규화를 수행하므로 row-wise 와 다름.
         //  axis-aware Softmax 가 도입되면 교체. 단일 배치·단일 공간 위치 케이스만 수학적으로 정확.
-        let attn = Softmax::new()?.apply(&[&scores_scaled])?;
+        let attn = SoftmaxOp::new()?.apply(&[&scores_scaled])?;
 
         // 11) attn · V → [N, HW, C]
         let ctx = Matmul::new()?.apply(&[&attn, &v])?;
@@ -320,7 +318,7 @@ impl Layer for SelfAttentionBlock {
         Ok(&out + input)
     }
 
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+    fn predict(&self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         let shape = input.shape().to_vec();
         if shape.len() != 4 {
             return Err(crate::MlError::StringError(

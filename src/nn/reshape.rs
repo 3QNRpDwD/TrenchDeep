@@ -81,7 +81,7 @@ impl Layer for Reshape {
         self.operator.apply(&[input, &shape_dummy])
     }
 
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+    fn predict(&self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         let resolved = self.resolve_shape(input.shape())?;
         Ok(GlobalTensor::from_vec(input.data().to_vec(), &resolved)?)
     }

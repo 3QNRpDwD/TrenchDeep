@@ -131,29 +131,32 @@ impl Function for Mul {
 /// * This performs element-wise multiplication, not matrix multiplication
 /// * For matrix multiplication, use `matmul()` instead
 impl std::ops::Mul<Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn mul(self, other: Tensor) -> Self::Output {
         Mul::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[&self, &other]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 
 impl std::ops::Mul<&Tensor> for Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn mul(self, other: &Tensor) -> Self::Output {
         Mul::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[&self, other]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 
 impl std::ops::Mul<&Tensor> for &Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn mul(self, other: &Tensor) -> Self::Output {
         Mul::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[self, other]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 
@@ -167,11 +170,12 @@ impl std::ops::Mul<&dyn TensorBase> for &dyn TensorBase {
 }
 
 impl std::ops::Mul<Tensor> for &Tensor {
-    type Output = GlobalTensor<f32>;
+    type Output = Tensor;
 
     fn mul(self, other: Tensor) -> Self::Output {
         Mul::new().unwrap();
         OPERATOR_STORAGE.with(|ops| ops.borrow().get("Mul").unwrap().forward(&[self, &other]).unwrap().remove(0))
+            .to_id().unwrap()
     }
 }
 
@@ -216,6 +220,18 @@ impl std::ops::Mul<Variable> for Variable {
     type Output = Variable;
     fn mul(self, other: Variable) -> Variable {
         Mul::new().unwrap().apply(&[&self, &other]).unwrap()
+    }
+}
+
+impl std::ops::MulAssign<&Variable> for Variable {
+    fn mul_assign(&mut self, other: &Variable) {
+        *self = Mul::new().unwrap().apply(&[self, other]).unwrap();
+    }
+}
+
+impl std::ops::MulAssign<Variable> for Variable {
+    fn mul_assign(&mut self, other: Variable) {
+        *self = Mul::new().unwrap().apply(&[self, &other]).unwrap();
     }
 }
 

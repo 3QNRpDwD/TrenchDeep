@@ -46,7 +46,7 @@ impl Layer for SinusoidalPE {
         concat.apply(&[&sin_features, &cos_features, &self.concat_axis])
     }
 
-    fn predict(&mut self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
+    fn predict(&self, input: &dyn TensorBase) -> MlResult<GlobalTensor<f32>> {
         let sin = Sin::new()?;
         let cos = Cos::new()?;
         let matmul = Matmul::new()?;

@@ -1,8 +1,8 @@
 use super::*;
 
-impl Function for Sigmoid {
+impl Function for SigmoidOp {
     fn new() -> MlResult<GlobalFunction> {
-        register_operator!(Sigmoid)
+        register_operator!(SigmoidOp)
     }
 
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
