@@ -252,8 +252,10 @@ mod benchmark {
         }
 
         #[cfg(feature = "enableVisualization")]
-        crate::tensor::VisualizationGraph::save_graph("graph/rosenbrock.dot").unwrap();
-        crate::tensor::VisualizationGraph::render_to_svg("graph/rosenbrock.svg").unwrap();
+        {
+            crate::tensor::VisualizationGraph::save_graph("graph/rosenbrock.dot").unwrap();
+            crate::tensor::VisualizationGraph::render_to_svg("graph/rosenbrock.svg").unwrap();
+        }
         Ok(())
     }
 
