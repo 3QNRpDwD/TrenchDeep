@@ -7,10 +7,17 @@ impl Function for SiLUOp {
 
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let x = targets[0];
-        let ones = vec![1.0f32; x.data().len()];
-        // σ(x) = 1 / (1 + exp(-x))
-        let neg_x: Vec<f32> = x.data().iter().map(|&v| -v).collect();
-        let sigmoid = self.backend.div(&ones, &self.backend.add(&ones, &self.backend.exp(&neg_x)));
+        // Numerically stable sigmoid:
+        //   x >= 0 → σ = 1 / (1 + exp(-x))
+        //   x <  0 → σ = exp(x) / (1 + exp(x))
+        let sigmoid: Vec<f32> = x.data().iter().map(|&v| {
+            if v >= 0.0 {
+                1.0 / (1.0 + (-v).exp())
+            } else {
+                let e = v.exp();
+                e / (1.0 + e)
+            }
+        }).collect();
         // SiLU(x) = x * σ(x)
         Ok(vec![
             GlobalTensor::from_vec(
@@ -23,12 +30,17 @@ impl Function for SiLUOp {
     #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         let x = targets[0];
-        let ones = vec![1.0f32; x.data().len()];
-        // σ(x) = 1 / (1 + exp(-x))
-        let neg_x: Vec<f32> = x.data().iter().map(|&v| -v).collect();
-        let sigmoid = self.backend.div(&ones, &self.backend.add(&ones, &self.backend.exp(&neg_x)));
+        // Numerically stable sigmoid (same as forward)
+        let sigmoid: Vec<f32> = x.data().iter().map(|&v| {
+            if v >= 0.0 {
+                1.0 / (1.0 + (-v).exp())
+            } else {
+                let e = v.exp();
+                e / (1.0 + e)
+            }
+        }).collect();
         // σ'(x) = σ(x) * (1 - σ(x))
-        let sigmoid_deriv = self.backend.multiply(&sigmoid, &self.backend.sub(&ones, &sigmoid));
+        let sigmoid_deriv: Vec<f32> = sigmoid.iter().map(|&s| s * (1.0 - s)).collect();
         // ∂SiLU/∂x = σ(x) + x * σ'(x)
         let derivative = self.backend.add(
             &sigmoid,

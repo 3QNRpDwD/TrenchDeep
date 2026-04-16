@@ -76,3 +76,43 @@ pub(crate) fn snapshot_grads(grad_ids: &[NodeId]) -> Vec<Vec<f32>> {
         })
     }).collect()
 }
+
+/// 전체 파라미터의 gradient에 대해 L2 norm을 계산하고,
+/// `max_norm`을 초과하면 모든 gradient를 비례 축소한다.
+///
+/// PyTorch의 `torch.nn.utils.clip_grad_norm_` 과 동일한 동작.
+///
+/// # Arguments
+/// * `params` - gradient clipping 대상 파라미터 목록
+/// * `max_norm` - 허용할 최대 L2 norm
+///
+/// # Returns
+/// clipping 전 총 gradient norm (모니터링용)
+pub fn clip_grad_norm(params: &[&dyn Parameter], max_norm: f32) -> f32 {
+    // 1) 전체 grad 의 L2 norm 계산
+    let total_norm_sq: f32 = TENSOR_STORAGE.with_borrow(|storage| {
+        params.iter().map(|p| {
+            storage.get(&p.grad().id())
+                .filter(|g| g.dirty)
+                .map(|g| g.data.iter().map(|&v| v * v).sum::<f32>())
+                .unwrap_or(0.0)
+        }).sum()
+    });
+    let total_norm = total_norm_sq.sqrt();
+
+    // 2) max_norm 초과 시 비례 축소
+    if total_norm > max_norm {
+        let clip_coef = max_norm / (total_norm + 1e-6);
+        TENSOR_STORAGE.with_borrow_mut(|storage| {
+            for p in params {
+                if let Some(g) = storage.get_mut(&p.grad().id()) {
+                    if g.dirty {
+                        g.data.iter_mut().for_each(|v| *v *= clip_coef);
+                    }
+                }
+            }
+        });
+    }
+
+    total_norm
+}
