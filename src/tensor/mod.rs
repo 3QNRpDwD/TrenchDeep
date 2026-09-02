@@ -27,7 +27,7 @@ pub mod graph;
 pub mod visualization;
 pub mod broadcast;
 pub mod context;
-pub use context::{ContextId, ContextTensor, ContextVariable, ExecutionContext as ExplicitExecutionContext, GraphStats, RequiresGrad, TensorView};
+pub use context::{BackwardOptions, ContextId, ContextTensor, ContextVariable, ExecutionContext as ExplicitExecutionContext, GraphStats, RequiresGrad, TensorView};
 
 /// 명시적으로 라벨이 부여된 텐서인지 판별합니다.
 /// 기본 생성 레이블(`"tensor_*"`, `"tensor_ref_*"`)은 false를 반환합니다.
