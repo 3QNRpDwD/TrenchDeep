@@ -28,6 +28,9 @@ pub mod nonlinear;
 pub mod mlp;
 pub mod diffusion;
 pub mod transformer;
+pub mod semi_supervised;
+pub mod reinforcement;
+pub mod autoregressive;
 
 pub use self::linear::LinearRegression;
 pub use self::nonlinear::{LogisticRegression, SoftmaxRegression};

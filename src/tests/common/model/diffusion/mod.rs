@@ -14,10 +14,11 @@ use crate::{
 };
 use crate::loss::MeanSquaredError;
 use crate::tests::common::model::diffusion::unet::Unet;
-use self::decoder::Decoder;
 use self::embedding::TimeEmbeddingMLP;
-use self::encoder::{Encoder, SinusoidalPE};
-use self::scheduler::{Scheduler, DDPMScheduler};
+use self::encoder::SinusoidalPE;
+use self::scheduler::DDPMScheduler;
+// NOTE: `Decoder`, `Encoder`, `Scheduler` (wrapper) 스텁은 LatentDiffusion 구현 시
+//        사용될 예정이므로 제거하지 않는다. 현재는 dead import 방지를 위해 제외.
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║                     DDPM — Diffusion 모델                               ║
@@ -184,27 +185,30 @@ impl Diffusion {
     }
 }
 
-struct LatentDiffusion; // todo(DDPM 구현 후 예정)
+// TODO(LatentDiffusion): DDPM 안정화 후 latent space 학습 구현 예정.
+// Encoder/Decoder (VAE) + DDPMScheduler 를 조합한 Stable Diffusion 계열 아키텍처.
+// 삭제 금지.
+#[allow(dead_code)]
+struct LatentDiffusion;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  TrainableModel 구현 (학습 경로)
+//  UnsupervisedModel 구현 (학습 경로)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
-// ║  Diffusion × TrainableModel 어댑터                                         ║
+// ║  Diffusion × UnsupervisedModel 어댑터                                      ║
 // ║                                                                           ║
-// ║  Trainer::fit() 은 지도학습 패턴 (x → y, loss(y, t)) 을 가정하지만,           ║
-// ║  DDPM 은 자기지도(self-supervised) 학습:                                    ║
+// ║  DDPM 은 자기지도(self-supervised) 학습이므로 타깃 `t` 를 외부에서          ║
+// ║  받지 않는다. `UnsupervisedTrainer` 는 입력 `x` 만 전달하며,                 ║
+// ║  모델이 내부에서 랜덤 노이즈 ε 를 생성한다:                                  ║
 // ║                                                                           ║
 // ║    - 입력: x₀ (원본 이미지)                                                 ║
 // ║    - 타겟: ε (내부에서 랜덤 생성한 노이즈)                                    ║
 // ║    - 예측: ε_θ(x_t, t) (U-Net 이 예측한 노이즈)                              ║
 // ║    - 손실: ‖ε - ε_θ‖²                                                      ║
 // ║                                                                           ║
-// ║  따라서 forward_loss(x, t_label) 에서:                                      ║
-// ║    - x = 원본 이미지 배치 x₀                                                ║
-// ║    - t_label = 사용하지 않음 (dummy)                                        ║
-// ║    - 반환: (predicted_noise, loss)                                         ║
+// ║  이전에는 `TrainableModel` (지도학습용) 에 dummy target 을 넘기는 방식으로   ║
+// ║  구현되어 있었으나, P3 에서 `UnsupervisedModel` 로 정식 이관.                ║
 // ╚═══════════════════════════════════════════════════════════════════════════╝
 
 #[cfg(feature = "enableBackward")]
@@ -271,29 +275,23 @@ impl Diffusion {
     }
 }
 
-/// TrainableModel 구현 — Trainer::fit() 과 통합하기 위한 어댑터.
+/// UnsupervisedModel 구현 — `UnsupervisedTrainer::fit()` 과 통합.
 ///
 /// ## 인터페이스 매핑
 ///
-/// | TrainableModel     | DDPM 에서의 의미                          |
-/// |--------------------|-------------------------------------------|
-/// | `x` (입력)         | 원본 이미지 배치 x₀                       |
-/// | `t` (타겟)         | **사용 안 함** (노이즈는 내부에서 생성)   |
-/// | `forward_loss()`   | Algorithm 1 전체 (q_sample → unet → MSE) |
-/// | `predict_raw()`    | U-Net 추론 (dummy timestep)               |
-/// | `params()`         | U-Net 의 모든 학습 파라미터               |
+/// | UnsupervisedModel | DDPM 에서의 의미                          |
+/// |-------------------|-------------------------------------------|
+/// | `x` (입력)        | 원본 이미지 배치 x₀                       |
+/// | `forward_loss()`  | Algorithm 1 전체 (q_sample → unet → MSE) |
+/// | `predict_raw()`   | U-Net 추론 (dummy timestep)               |
+/// | `params()`        | U-Net 의 모든 학습 파라미터               |
 #[cfg(feature = "enableBackward")]
-impl crate::trainer::TrainableModel for Diffusion {
+impl crate::trainer::UnsupervisedModel for Diffusion {
     fn forward_loss(
         &mut self,
         x: &Variable,
-        _t: &Variable, // 미사용 — diffusion 은 자기지도 학습
     ) -> MlResult<(Variable, Variable)> {
         self.forward_loss_diffusion(x)
-    }
-
-    fn params(&self) -> Vec<&dyn crate::nn::Parameter> {
-        self.unet.params()
     }
 
     fn predict_raw(
@@ -303,6 +301,11 @@ impl crate::trainer::TrainableModel for Diffusion {
         self.unet.predict(x)
     }
 }
+
+impl crate::trainer::TrainableModel for Diffusion {
+    fn params(&self) -> Vec<&dyn crate::nn::Parameter> { self.unet.params() }
+}
+impl crate::trainer::CheckpointableModel for Diffusion {}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  테스트
@@ -506,9 +509,6 @@ mod tests {
         }
         let x_0 = Variable::new(Tensor::from_vec(img_data, &[batch_size, 1, 8, 8])?);
 
-        // dummy target (Diffusion 에서 사용하지 않음)
-        let t_dummy = Variable::new(Tensor::from_vec(vec![0.0; batch_size], &[batch_size, 1])?);
-
         // ── 학습 전 초기 loss 측정 ──────────────────────────────────────
         let initial_loss = model.compute_loss(x_0.tensor())?;
         info!("  Initial loss (no-grad): {:.6}", initial_loss);
@@ -629,27 +629,23 @@ mod tests {
         Ok(())
     }
 
-    /// Trainer::fit() 을 사용한 DDPM 학습 테스트.
+    /// `UnsupervisedTrainer::fit()` 을 사용한 DDPM 학습 테스트.
     ///
-    /// 수동 루프 대신 프레임워크의 Trainer 를 활용하는 패턴.
+    /// 수동 루프 대신 프레임워크의 트레이너를 활용하는 패턴.
+    /// P3 에서 dummy target 을 받던 `Trainer`(지도학습) 대신
+    /// 자기지도에 최적화된 `UnsupervisedTrainer` 로 이관됨.
     ///
-    /// ## Trainer 를 사용할 때의 트레이드오프
-    ///
-    /// 장점:
+    /// ## UnsupervisedTrainer 장점
+    ///   - forward_loss 가 `(x,)` 만 받으므로 dummy 타깃 불필요
     ///   - 로그, NaN 검사, progress bar 자동 처리
     ///   - 수렴 조기 종료 (tolerance)
     ///   - 체크포인트 저장/재개
-    ///
-    /// 한계:
-    ///   - forward_loss(x, t) 인터페이스에 맞춰야 함
-    ///   - 디퓨전의 자기지도 특성상 t (target) 는 dummy
-    ///   - 배치 셔플링이 지도학습용으로 설계됨
     #[cfg(feature = "enableBackward")]
     #[test]
     fn diffusion_train_with_trainer() -> MlResult<()> {
         use crate::optimizer::{Adam, Optimizer};
 
-        info!("  DDPM Training via Trainer::fit()");
+        info!("  DDPM Training via UnsupervisedTrainer::fit()");
 
         // 모델 생성 (최소 구성)
         let mut model = Diffusion::new(
@@ -663,28 +659,21 @@ mod tests {
             optimizer.register(param);
         }
 
-        // 학습 데이터 (단일 배치, Variable 슬라이스로 변환)
+        // 학습 데이터 (단일 배치)
         let x_0 = Variable::new(
             Tensor::from_vec(vec![0.5; 2 * 1 * 8 * 8], &[2, 1, 8, 8])?
         );
-        let t_dummy = Variable::new(
-            Tensor::from_vec(vec![0.0; 2], &[2, 1])?
-        );
 
-        // Trainer::silent() — 로그 없이 빠르게 실행
-        let trainer = crate::trainer::Trainer::silent();
-        let result = trainer.fit(
-            &mut model,
-            &mut optimizer,
-            &[&x_0],         // x_set: 이미지 배치 1개
-            &[&t_dummy],     // t_set: dummy 타겟 1개
-            3,               // 3 에폭
-            1e-10,           // tolerance (수렴 판정 비활성화)
-        )?;
+        // UnsupervisedTrainer::silent() — 로그 없이 빠르게 실행
+        let trainer = crate::trainer::Trainer::silent().unsupervised();
+        let samples = [&x_0];
+        let result = trainer.fit(&mut model, &mut optimizer,
+            crate::trainer::UnsupervisedDataset::new(&samples)?,
+            crate::trainer::EpochSchedule::new(3)?.with_tolerance(1e-10))?;
 
-        info!("  Trainer result: {} epochs, final_loss = {:.6}", result.epochs_trained, result.final_loss);
+        println!("  Trainer result: {} epochs, final_loss = {:.6}", result.units_completed, result.final_loss);
         assert!(result.final_loss.is_finite(), "Trainer final loss must be finite");
-        assert_eq!(result.epochs_trained, 3);
+        assert_eq!(result.units_completed, 3);
 
         Ok(())
     }

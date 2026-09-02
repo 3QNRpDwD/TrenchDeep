@@ -381,26 +381,30 @@ impl Function for SoftmaxCrossEntropyLoss {
 
         let logits_data = logits.data();
         let target_data = target.data();
-        let batch_size = Self::get_batch_size(logits.shape());
+        let shape       = logits.shape();
+        let batch_size  = Self::get_batch_size(shape);
+        // `num_classes` 는 마지막 축 크기. `[B, V]` 는 V, `[V]` 는 V, `[B, L, V]` 도 V.
+        let num_classes = *shape.last().unwrap_or(&logits_data.len());
+        let n_rows      = if num_classes == 0 { 0 } else { logits_data.len() / num_classes };
 
-        // Log-Sum-Exp 트릭을 사용한 안정적인 손실 계산
-        // loss = log(sum(exp(z_i))) - z_k (여기서 k는 정답 클래스 인덱스)
-        //      = log(sum(exp(z_i))) - dot(z, t)
+        // 행(=샘플) 단위로 log-sum-exp + dot(z, t) 를 누적한다.
+        // 전체 텐서를 하나의 분포로 취급하던 이전 구현은 `[B, V]` 에서 잘못된 값을 냈다.
+        let mut loss_sum = 0.0f32;
+        for row in 0..n_rows {
+            let lo = row * num_classes;
+            let hi = lo + num_classes;
+            let row_logits = &logits_data[lo..hi];
+            let row_target = &target_data[lo..hi];
 
-        // 1. 오버플로우 방지를 위해 로짓의 최댓값을 뺍니다.
-        let max_logit = logits_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+            let max_logit = row_logits.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+            let sum_exp   = row_logits.iter().map(|&z| (z - max_logit).exp()).sum::<f32>();
+            let log_sum_exp = sum_exp.ln();
+            let dot_product = row_logits.iter().zip(row_target.iter()).map(|(&z, &t)| z * t).sum::<f32>();
 
-        // 2. log(sum(exp(z_i))) 계산
-        let sum_exp = logits_data.iter().map(|&z| (z - max_logit).exp()).sum::<f32>();
-        let log_sum_exp = sum_exp.ln();
+            loss_sum += (max_logit + log_sum_exp) - dot_product;
+        }
 
-        // 3. 실제 로짓과 타겟의 내적(dot product) 계산
-        let dot_product = logits_data.iter().zip(target_data.iter()).map(|(&z, &t)| z * t).sum::<f32>();
-
-        // 4. 최종 손실 계산 (뺐던 최댓값을 다시 더해줌)
-        let loss = (max_logit + log_sum_exp) - dot_product;
-
-        Ok(vec![scalar!(loss / batch_size)])
+        Ok(vec![scalar!(loss_sum / batch_size)])
     }
 
     #[cfg(all(feature = "enableBackward"))]
@@ -412,27 +416,34 @@ impl Function for SoftmaxCrossEntropyLoss {
             _ => return Err(MlError::TensorError(InvalidInputCount { expected: 2, got: inputs.len() }.into())),
         };
 
-        let grad_val = grad.data().get(0).copied().unwrap_or(1.0);
-        let batch_size = Self::get_batch_size(logits.shape());
-
-        // --- 그래디언트 계산을 위해 먼저 Softmax 확률(p)을 계산 ---
+        let grad_val    = grad.data().get(0).copied().unwrap_or(1.0);
+        let shape       = logits.shape();
+        let batch_size  = Self::get_batch_size(shape);
         let logits_data = logits.data();
-        let max_logit = logits_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-        let exp_values: Vec<f32> = logits_data.iter().map(|&z| (z - max_logit).exp()).collect();
-        let sum_exp = exp_values.iter().sum::<f32>();
+        let target_data = target.data();
+        let num_classes = *shape.last().unwrap_or(&logits_data.len());
+        let n_rows      = if num_classes == 0 { 0 } else { logits_data.len() / num_classes };
 
-        // p (확률) 계산
-        let probabilities: Vec<f32> = exp_values.iter().map(|&exp_val| exp_val / sum_exp).collect();
+        // 행 단위로 softmax(p) 계산 후 (p - t) 를 스케일해 기록한다.
+        let mut grad_logits_data = vec![0.0f32; logits_data.len()];
+        for row in 0..n_rows {
+            let lo = row * num_classes;
+            let hi = lo + num_classes;
+            let row_logits = &logits_data[lo..hi];
+            let row_target = &target_data[lo..hi];
+            let out        = &mut grad_logits_data[lo..hi];
 
-        // --- 로짓에 대한 그래디언트 (p - t) 계산 ---
-        let grad_logits_data: Vec<f32> = probabilities.iter()
-            .zip(target.data().iter())
-            .map(|(&p, &t)| grad_val * (p - t) / batch_size)
-            .collect();
+            let max_logit  = row_logits.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+            let exp_values: Vec<f32> = row_logits.iter().map(|&z| (z - max_logit).exp()).collect();
+            let sum_exp    = exp_values.iter().sum::<f32>();
 
-        let grad_logits = GlobalTensor::from_vec(grad_logits_data, logits.shape())?;
+            for i in 0..num_classes {
+                let p = exp_values[i] / sum_exp;
+                out[i] = grad_val * (p - row_target[i]) / batch_size;
+            }
+        }
 
-        // target에 대한 그래디언트는 필요 없는 경우가 많지만, 완전성을 위해 계산 (보통 0으로 처리)
+        let grad_logits = GlobalTensor::from_vec(grad_logits_data, shape)?;
         let grad_target = GlobalTensor::zeros(target.shape());
 
         Ok(vec![grad_logits, grad_target])
@@ -445,5 +456,100 @@ impl Function for SoftmaxCrossEntropyLoss {
 
     fn node_id(&self) -> &NodeId {
         &self.node_id
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 테스트: SoftmaxCrossEntropyLoss — per-row log-sum-exp 회귀 테스트
+// ────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod softmax_ce_tests {
+    use super::*;
+    use crate::tensor::{operators::Function, Tensor};
+
+    /// [1, V] 단일 행: 균등 logit → loss = log V.
+    #[test]
+    fn sce_single_row_uniform_logits() -> MlResult<()> {
+        let sce = SoftmaxCrossEntropyLoss::new()?;
+        let logits = Tensor::from_vec(vec![0.0, 0.0, 0.0, 0.0], &[1, 4])?;
+        let target = Tensor::from_vec(vec![1.0, 0.0, 0.0, 0.0], &[1, 4])?;
+
+        let out = sce.forward(&[&logits, &target])?.remove(0);
+        let loss = out.data()[0];
+        let expected = (4.0f32).ln();
+        assert!((loss - expected).abs() < 1e-5, "expected {expected}, got {loss}");
+        Ok(())
+    }
+
+    /// [B>1, V]: 모든 행이 균등 logit 이면 평균 loss = log V.
+    /// 이전 구현은 flat log-sum-exp 로 잘못된 값을 반환했다.
+    #[test]
+    fn sce_multi_row_uniform_logits_per_row() -> MlResult<()> {
+        let sce = SoftmaxCrossEntropyLoss::new()?;
+        let logits = Tensor::from_vec(vec![0.0; 12], &[3, 4])?;
+        let mut target_data = vec![0.0; 12];
+        target_data[0]  = 1.0;
+        target_data[5]  = 1.0;
+        target_data[10] = 1.0;
+        let target = Tensor::from_vec(target_data, &[3, 4])?;
+
+        let out = sce.forward(&[&logits, &target])?.remove(0);
+        let loss = out.data()[0];
+        let expected = (4.0f32).ln();
+        assert!((loss - expected).abs() < 1e-5, "expected {expected}, got {loss}");
+        Ok(())
+    }
+
+    /// 확신적 예측 → loss ≥ 0 이며 매우 작아야 함.
+    #[test]
+    fn sce_multi_row_nonnegative_and_small_when_confident() -> MlResult<()> {
+        let sce = SoftmaxCrossEntropyLoss::new()?;
+        let logits_data = vec![
+            10.0, -10.0, -10.0, -10.0,
+            -10.0, 10.0, -10.0, -10.0,
+            -10.0, -10.0, 10.0, -10.0,
+        ];
+        let mut target_data = vec![0.0; 12];
+        target_data[0]  = 1.0;
+        target_data[5]  = 1.0;
+        target_data[10] = 1.0;
+
+        let logits = Tensor::from_vec(logits_data, &[3, 4])?;
+        let target = Tensor::from_vec(target_data, &[3, 4])?;
+        let out = sce.forward(&[&logits, &target])?.remove(0);
+        let loss = out.data()[0];
+        assert!(loss >= 0.0, "loss must be non-negative, got {loss}");
+        assert!(loss < 1e-3, "confident predictions should yield near-zero loss, got {loss}");
+        Ok(())
+    }
+
+    /// Backward: 행별 (p - t) / batch_size 가 배치 전반에 걸쳐 정확히 계산되어야 한다.
+    #[cfg(feature = "enableBackward")]
+    #[test]
+    fn sce_multi_row_backward_per_row() -> MlResult<()> {
+        let sce = SoftmaxCrossEntropyLoss::new()?;
+        let logits = Tensor::from_vec(vec![0.0; 8], &[2, 4])?;
+        let mut target_data = vec![0.0; 8];
+        target_data[0] = 1.0;
+        target_data[7] = 1.0;
+        let target = Tensor::from_vec(target_data, &[2, 4])?;
+
+        let grad = Tensor::from_vec(vec![1.0], &[1])?;
+        let out  = sce.backward(&[&logits, &target], &grad)?;
+        let grad_logits = &out[0];
+        let data = grad_logits.data();
+
+        // 균등 softmax = 1/4, batch_size = 2.
+        // row 0 target class 0: [-0.375, 0.125, 0.125, 0.125]
+        // row 1 target class 3: [0.125, 0.125, 0.125, -0.375]
+        let expected = [
+            -0.375, 0.125, 0.125, 0.125,
+             0.125, 0.125, 0.125, -0.375,
+        ];
+        for (i, (got, exp)) in data.iter().zip(expected.iter()).enumerate() {
+            assert!((got - exp).abs() < 1e-5, "grad_logits[{i}] expected {exp}, got {got}");
+        }
+        Ok(())
     }
 }

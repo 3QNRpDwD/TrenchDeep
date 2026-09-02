@@ -41,12 +41,6 @@ impl LogisticRegression {
 
 impl Model for LogisticRegression {
     #[cfg(feature = "enableBackward")]
-    fn train(&mut self, x_set: &[&Variable], t_set: &[&Variable], epochs: usize, optimizer: &mut dyn crate::optimizer::Optimizer, tolerance: f32) -> MlResult<()> {
-        crate::trainer::Trainer::default().fit(self, optimizer, x_set, t_set, epochs, tolerance)?;
-        Ok(())
-    }
-
-    #[cfg(feature = "enableBackward")]
     fn apply(&mut self, x: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
         let linear_out = &matmul.apply(&[x, &self.w1])? + &self.b1;
@@ -64,37 +58,10 @@ impl Model for LogisticRegression {
         Ok(ah1)
     }
 
-    fn save(&self, path: &str) -> MlResult<()> {
-        todo!()
-    }
-
-    fn load(&mut self, path: &str) -> MlResult<()> {
-        todo!()
-    }
-
-    fn get_loss(&self) -> f32 {
-        todo!()
-    }
-
-    fn compute_total_error(&mut self, x_set: &[&Variable], t_set: &[&Variable]) -> MlResult<f32> {
-        let mut total_loss = 0.0;
-        for m in 0..x_set.len() {
-            let output_tensor = {
-                let matmul = Matmul::new()?;
-                let add = Add::new()?;
-                let uh1_pre = matmul.forward(&[x_set[m].tensor(), self.w1.tensor()])?.remove(0);
-                let uh1 = add.forward(&[&uh1_pre, self.b1.tensor()])?.remove(0);
-                self.activation.forward(&[&uh1])?.remove(0)
-            };
-            let loss = self.loss_function.forward(&[&output_tensor, t_set[m].tensor()])?.remove(0);
-            total_loss += loss.data()[0];
-        }
-        Ok(total_loss / x_set.len() as f32)
-    }
 }
 
 #[cfg(feature = "enableBackward")]
-impl crate::trainer::TrainableModel for LogisticRegression {
+impl crate::trainer::SupervisedModel for LogisticRegression {
     fn forward_loss(
         &mut self,
         x: &Variable,
@@ -105,10 +72,6 @@ impl crate::trainer::TrainableModel for LogisticRegression {
         Ok((y, loss))
     }
 
-    fn params(&self) -> Vec<&dyn crate::nn::Parameter> {
-        vec![&self.w1, &self.b1]
-    }
-
     fn predict_raw(
         &mut self,
         x: &dyn TensorBase,
@@ -116,3 +79,8 @@ impl crate::trainer::TrainableModel for LogisticRegression {
         self.predict(x)
     }
 }
+
+impl crate::trainer::TrainableModel for LogisticRegression {
+    fn params(&self) -> Vec<&dyn crate::nn::Parameter> { vec![&self.w1, &self.b1] }
+}
+impl crate::trainer::CheckpointableModel for LogisticRegression {}

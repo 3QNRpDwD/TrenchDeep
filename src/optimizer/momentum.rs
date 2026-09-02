@@ -74,4 +74,5 @@ impl Optimizer for Momentum {
 
     fn lr(&self) -> f32 { self.lr }
     fn set_lr(&mut self, lr: f32) { self.lr = lr; }
+    fn registered_param_count(&self) -> usize { self.params.len() }
 }

@@ -2,6 +2,8 @@ use super::*;
 
 pub const MAX_PERIOD: f32 = 10000.0;
 
+// TODO(LatentDiffusion): VAE 인코더 구현 예정. 삭제 금지.
+#[allow(dead_code)]
 pub struct Encoder;
 
 /// Sinusoidal Positional Embedding.

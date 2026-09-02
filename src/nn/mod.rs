@@ -131,40 +131,31 @@ macro_rules! variable {
     };
 }
 
-pub trait Model {
-    #[cfg(feature = "enableBackward")]
-    fn train(&mut self, x_set: &[&Variable], t_set: &[&Variable], epochs: usize, optimizer: &mut dyn crate::optimizer::Optimizer, tolerance: f32) -> MlResult<()>;
+/// 모델의 최소 인터페이스.
+///
+/// 순방향 계산(`apply`/`predict`), 직렬화(`save`/`load`), 파라미터 노출(`params`)
+/// 만 담당한다. 학습 루프는 아키텍처별 트레이너가 전담한다:
+///
+/// | 패러다임   | 모델 트레잇                             | 트레이너                     |
+/// |-----------|----------------------------------------|-----------------------------|
+/// | 지도학습   | [`trainer::SupervisedModel`]           | [`trainer::SupervisedTrainer`]    |
+/// | 비지도학습 | [`trainer::UnsupervisedModel`]         | [`trainer::UnsupervisedTrainer`]  |
+/// | 반지도학습 | [`trainer::SemiSupervisedModel`]       | [`trainer::SemiSupervisedTrainer`]|
+/// | 강화학습   | [`trainer::RLModel`] + [`trainer::Environment`] | [`trainer::RLTrainer`] |
+///
+/// [`trainer::SupervisedModel`]: crate::trainer::SupervisedModel
+/// [`trainer::SupervisedTrainer`]: crate::trainer::SupervisedTrainer
+/// [`trainer::UnsupervisedModel`]: crate::trainer::UnsupervisedModel
+/// [`trainer::UnsupervisedTrainer`]: crate::trainer::UnsupervisedTrainer
+/// [`trainer::SemiSupervisedModel`]: crate::trainer::SemiSupervisedModel
+/// [`trainer::SemiSupervisedTrainer`]: crate::trainer::SemiSupervisedTrainer
+/// [`trainer::RLModel`]: crate::trainer::RLModel
+/// [`trainer::Environment`]: crate::trainer::Environment
+/// [`trainer::RLTrainer`]: crate::trainer::RLTrainer
+pub trait Model: crate::trainer::TrainableModel + crate::trainer::CheckpointableModel {
     #[cfg(feature = "enableBackward")]
     fn apply(&mut self, x: &Variable) -> MlResult<Variable>;
     fn predict(&mut self, test_data: &dyn TensorBase) -> MlResult<GlobalTensor<f32>>;
-    fn save(&self, path: &str) -> MlResult<()>;
-    fn load(&mut self, path: &str) -> MlResult<()>;
-    fn get_loss(&self) -> f32;
-    fn compute_total_error(&mut self, x_set: &[&Variable], t_set: &[&Variable]) -> MlResult<f32>;
-    fn evaluate_model(&mut self, x_test: &[&Variable], t_test: &[&Variable]) -> MlResult<f32> {
-        let n_val = x_test.len();
-        let mut correct_predictions = 0;
-        for i in 0..n_val {
-            let y = self.predict(x_test[i].tensor())?;
-            let predicted_class = y.data()
-                .iter()
-                .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                .map(|(index, _)| index)
-                .unwrap_or(0);
-            let true_class = t_test[i].tensor().data()
-                .iter()
-                .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                .map(|(index, _)| index)
-                .unwrap_or(0);
-            if predicted_class == true_class {
-                correct_predictions += 1;
-            }
-        }
-        let accuracy = correct_predictions as f32 / n_val as f32 * 100.0;
-        Ok(accuracy)
-    }
 }
 
 pub trait Layer: Debug {
@@ -358,7 +349,7 @@ impl Sequential {
     /// 레이어들의 파라미터를 파일로 저장 (확장자에 따라 JSON/binary 자동 선택).
     ///
     /// # 예시
-    /// ```no_run
+    /// ```ignore
     /// net.save("checkpoints/model.json")?;  // JSON 포맷
     /// net.save("checkpoints/model.tdw")?;   // binary 포맷
     /// ```
@@ -373,7 +364,7 @@ impl Sequential {
     /// 레이블이 없는 레이어는 경고를 출력하고 건너뜀 (부분 로드 지원).
     ///
     /// # 예시
-    /// ```no_run
+    /// ```ignore
     /// net.load("checkpoints/model.json")?;
     /// ```
     pub fn load(&mut self, path: &str) -> MlResult<()> {

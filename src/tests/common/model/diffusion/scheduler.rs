@@ -208,11 +208,15 @@ impl DDPMScheduler {
     }
 }
 
-// Scheduler 구조체를 DDPMScheduler로 대체
+// TODO(LatentDiffusion): 다중 스케줄러(DDPM/DDIM/PLMS 등) 추상화 래퍼.
+// 현재는 DDPMScheduler 단일 구현만 사용하지만, LatentDiffusion 구현 시
+// 스케줄러 선택 스위치로 확장될 예정이므로 스텁을 유지한다.
+#[allow(dead_code)]
 pub struct Scheduler {
     pub inner: DDPMScheduler,
 }
 
+#[allow(dead_code)]
 impl Scheduler {
     pub fn ddpm(timesteps: usize, beta_start: f32, beta_end: f32) -> Self {
         Self {

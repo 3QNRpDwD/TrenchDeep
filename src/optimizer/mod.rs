@@ -17,6 +17,25 @@ use crate::{
     nn::Parameter,
     tensor::{NodeId, TENSOR_STORAGE}
 };
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum OptimizerKind { Sgd, Momentum, AdaGrad, RmsProp, Adam, AdamW }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParameterOptimizerState {
+    pub shape: Vec<usize>,
+    pub buffers: Vec<Vec<f32>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OptimizerSnapshot {
+    pub version: u32,
+    pub kind: OptimizerKind,
+    pub lr: f32,
+    pub scalars: Vec<f32>,
+    pub parameters: Vec<ParameterOptimizerState>,
+}
 
 #[derive(thiserror::Error, Debug)]
 pub enum OptimError {
@@ -27,7 +46,7 @@ pub enum OptimError {
 /// 모든 옵티마이저가 구현해야 하는 공통 인터페이스.
 ///
 /// # 사용 예시
-/// ```no_run
+/// ```ignore
 /// let mut opt = SGD::new(0.01);
 /// opt.register(&model.w1);
 /// opt.register(&model.b1);
@@ -50,6 +69,18 @@ pub trait Optimizer {
 
     fn lr(&self) -> f32;
     fn set_lr(&mut self, lr: f32);
+
+    /// TODO(Phase-6): each optimizer must serialize its state buffers.
+    fn snapshot(&self) -> MlResult<OptimizerSnapshot> {
+        Err(crate::MlError::StringError("optimizer snapshot is not implemented (Phase-6)".into()))
+    }
+
+    /// TODO(Phase-6): restore after parameters have been registered in stable order.
+    fn restore(&mut self, _snapshot: &OptimizerSnapshot) -> MlResult<()> {
+        Err(crate::MlError::StringError("optimizer restore is not implemented (Phase-6)".into()))
+    }
+
+    fn registered_param_count(&self) -> usize { 0 }
 }
 
 /// 등록된 grad NodeId 목록의 그래디언트를 일괄 초기화한다.
