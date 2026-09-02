@@ -47,7 +47,7 @@ struct GraphNode {
     backward: BuiltinBackward,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum BuiltinBackward {
     Add,
     Sub,
@@ -65,6 +65,9 @@ enum BuiltinBackward {
     Sigmoid,
     Silu,
     Relu,
+    Reshape,
+    Transpose(Vec<usize>),
+    Concat { axis: usize, sizes: Vec<usize> },
     Sum,
     Matmul2d,
 }
@@ -254,25 +257,18 @@ impl ExecutionContext {
         self.validate(lhs)?;
         self.validate(rhs)?;
         let (left, right) = (lhs.snapshot()?, rhs.snapshot()?);
-        if left.shape != right.shape {
-            return Err(TensorError::InvalidShape {
-                expected: left.shape,
-                got: right.shape,
-            }
-            .into());
-        }
-        if left.data.len() != right.data.len() {
-            return Err(TensorError::InvalidOperation {
+        let shape = broadcast_shape(&left.shape, &right.shape).ok_or_else(|| {
+            TensorError::InvalidOperation {
                 op,
-                reason: "data length mismatch".into(),
+                reason: format!("shapes {:?} and {:?} cannot be broadcast", left.shape, right.shape),
             }
-            .into());
-        }
-        let shape = left.shape.clone();
+        })?;
+        let left_data = broadcast_data(&left, &shape)?;
+        let right_data = broadcast_data(&right, &shape)?;
         let output = self.tensor(
-            left.data
+            left_data
                 .into_iter()
-                .zip(right.data)
+                .zip(right_data)
                 .map(|(a, b)| f(a, b))
                 .collect(),
             &shape,
@@ -399,6 +395,66 @@ impl ExecutionContext {
             output.node_id(),
             vec![input.node_id()],
             BuiltinBackward::Sum,
+        )?;
+        Ok(output)
+    }
+
+    pub fn reshape(&self, input: &ContextTensor, shape: &[usize]) -> MlResult<ContextTensor> {
+        self.validate(input)?;
+        let value = input.snapshot()?;
+        let requested_len = shape.iter().product::<usize>();
+        if value.data.len() != requested_len {
+            return Err(TensorError::InvalidDataLength {
+                expected: value.data.len(), got: requested_len,
+            }.into());
+        }
+        let output = self.tensor(value.data, shape)?;
+        self.record(output.node_id(), vec![input.node_id()], BuiltinBackward::Reshape)?;
+        Ok(output)
+    }
+
+    pub fn transpose(&self, input: &ContextTensor, axes: &[usize]) -> MlResult<ContextTensor> {
+        self.validate(input)?;
+        let value = input.snapshot()?;
+        validate_permutation(&value.shape, axes)?;
+        let output_shape: Vec<_> = axes.iter().map(|&axis| value.shape[axis]).collect();
+        let data = permute_data(&value.data, &value.shape, axes);
+        let output = self.tensor(data, &output_shape)?;
+        self.record(output.node_id(), vec![input.node_id()], BuiltinBackward::Transpose(axes.to_vec()))?;
+        Ok(output)
+    }
+
+    pub fn concat(&self, inputs: &[&ContextTensor], axis: usize) -> MlResult<ContextTensor> {
+        if inputs.is_empty() {
+            return Err(TensorError::InvalidInputCount { expected: 1, got: 0 }.into());
+        }
+        let values = inputs.iter().map(|input| {
+            self.validate(input)?;
+            input.snapshot()
+        }).collect::<MlResult<Vec<_>>>()?;
+        let rank = values[0].shape.len();
+        if axis >= rank { return Err(TensorError::InvalidAxis { axis, shape: values[0].shape.clone() }.into()); }
+        for value in &values[1..] {
+            if value.shape.len() != rank || value.shape.iter().enumerate().any(|(i, dim)| i != axis && *dim != values[0].shape[i]) {
+                return Err(TensorError::InvalidOperation { op: "concat", reason: "non-concatenated dimensions must match".into() }.into());
+            }
+        }
+        let mut shape = values[0].shape.clone();
+        shape[axis] = values.iter().map(|value| value.shape[axis]).sum();
+        let outer: usize = shape[..axis].iter().product();
+        let inner: usize = shape[axis + 1..].iter().product();
+        let mut data = Vec::with_capacity(shape.iter().product());
+        for outer_index in 0..outer {
+            for value in &values {
+                let chunk = value.shape[axis] * inner;
+                let start = outer_index * chunk;
+                data.extend_from_slice(&value.data[start..start + chunk]);
+            }
+        }
+        let output = self.tensor(data, &shape)?;
+        self.record(
+            output.node_id(), inputs.iter().map(|input| input.node_id()).collect(),
+            BuiltinBackward::Concat { axis, sizes: values.iter().map(|value| value.shape[axis]).collect() },
         )?;
         Ok(output)
     }
@@ -532,6 +588,19 @@ impl ExecutionContext {
 
     pub fn sum_variable(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
         self.variable_from(self.sum(input.tensor())?)
+    }
+
+    pub fn reshape_variable(&self, input: &ContextVariable, shape: &[usize]) -> MlResult<ContextVariable> {
+        self.variable_from(self.reshape(input.tensor(), shape)?)
+    }
+
+    pub fn transpose_variable(&self, input: &ContextVariable, axes: &[usize]) -> MlResult<ContextVariable> {
+        self.variable_from(self.transpose(input.tensor(), axes)?)
+    }
+
+    pub fn concat_variables(&self, inputs: &[&ContextVariable], axis: usize) -> MlResult<ContextVariable> {
+        let tensors: Vec<_> = inputs.iter().map(|input| input.tensor()).collect();
+        self.variable_from(self.concat(&tensors, axis)?)
     }
 
     pub fn matmul_variable(
@@ -686,26 +755,39 @@ impl ExecutionContext {
                 })
                 .collect::<Result<Vec<_>, _>>()?;
             let grads = match node.backward {
-                BuiltinBackward::Add => vec![grad.clone(), grad],
-                BuiltinBackward::Sub => vec![grad.clone(), tensor_map(&grad, |g| -g)?],
+                BuiltinBackward::Add => {
+                    require_arity(&values, 2)?;
+                    vec![reduce_to_shape(&grad, &values[0].shape)?, reduce_to_shape(&grad, &values[1].shape)?]
+                }
+                BuiltinBackward::Sub => {
+                    require_arity(&values, 2)?;
+                    vec![
+                        reduce_to_shape(&grad, &values[0].shape)?,
+                        reduce_to_shape(&tensor_map(&grad, |g| -g)?, &values[1].shape)?,
+                    ]
+                }
                 BuiltinBackward::Mul => {
                     require_arity(&values, 2)?;
-                    let left = tensor_zip(&grad, &values[1], |g, r| g * r)?;
-                    let right = tensor_zip(&grad, &values[0], |g, l| g * l)?;
-                    vec![left, right]
+                    let rhs = GlobalTensor::from_vec(broadcast_data(&values[1], &grad.shape)?, &grad.shape)?;
+                    let lhs = GlobalTensor::from_vec(broadcast_data(&values[0], &grad.shape)?, &grad.shape)?;
+                    let left = tensor_zip(&grad, &rhs, |g, r| g * r)?;
+                    let right = tensor_zip(&grad, &lhs, |g, l| g * l)?;
+                    vec![reduce_to_shape(&left, &values[0].shape)?, reduce_to_shape(&right, &values[1].shape)?]
                 }
                 BuiltinBackward::Div => {
                     require_arity(&values, 2)?;
-                    let left = tensor_zip(&grad, &values[1], |g, r| g / r)?;
+                    let rhs = GlobalTensor::from_vec(broadcast_data(&values[1], &grad.shape)?, &grad.shape)?;
+                    let lhs = GlobalTensor::from_vec(broadcast_data(&values[0], &grad.shape)?, &grad.shape)?;
+                    let left = tensor_zip(&grad, &rhs, |g, r| g / r)?;
                     let right_data = grad
                         .data
                         .iter()
-                        .zip(&values[0].data)
-                        .zip(&values[1].data)
+                        .zip(&lhs.data)
+                        .zip(&rhs.data)
                         .map(|((g, l), r)| -g * l / (r * r))
                         .collect();
-                    let right = GlobalTensor::from_vec(right_data, &values[1].shape)?;
-                    vec![left, right]
+                    let right = GlobalTensor::from_vec(right_data, &grad.shape)?;
+                    vec![reduce_to_shape(&left, &values[0].shape)?, reduce_to_shape(&right, &values[1].shape)?]
                 }
                 BuiltinBackward::Neg => vec![tensor_map(&grad, |g| -g)?],
                 BuiltinBackward::Square => {
@@ -759,6 +841,42 @@ impl ExecutionContext {
                 BuiltinBackward::Relu => {
                     require_arity(&values, 1)?;
                     vec![tensor_zip(&grad, &values[0], |g, x| if x > 0.0 { g } else { 0.0 })?]
+                }
+                BuiltinBackward::Reshape => {
+                    require_arity(&values, 1)?;
+                    vec![GlobalTensor::from_vec(grad.data, &values[0].shape)?]
+                }
+                BuiltinBackward::Transpose(axes) => {
+                    require_arity(&values, 1)?;
+                    let mut inverse = vec![0; axes.len()];
+                    for (output_axis, input_axis) in axes.into_iter().enumerate() {
+                        inverse[input_axis] = output_axis;
+                    }
+                    vec![GlobalTensor::from_vec(
+                        permute_data(&grad.data, &grad.shape, &inverse), &values[0].shape,
+                    )?]
+                }
+                BuiltinBackward::Concat { axis, sizes } => {
+                    if sizes.len() != values.len() {
+                        return Err(AutogradError::BackwardArityMismatch { expected: values.len(), got: sizes.len() }.into());
+                    }
+                    let outer: usize = grad.shape[..axis].iter().product();
+                    let inner: usize = grad.shape[axis + 1..].iter().product();
+                    let axis_width = grad.shape[axis] * inner;
+                    let mut offsets = Vec::with_capacity(sizes.len());
+                    let mut running = 0;
+                    for size in &sizes { offsets.push(running); running += size * inner; }
+                    let mut results = Vec::with_capacity(values.len());
+                    for (input_index, value) in values.iter().enumerate() {
+                        let chunk = sizes[input_index] * inner;
+                        let mut data = Vec::with_capacity(value.data.len());
+                        for outer_index in 0..outer {
+                            let start = outer_index * axis_width + offsets[input_index];
+                            data.extend_from_slice(&grad.data[start..start + chunk]);
+                        }
+                        results.push(GlobalTensor::from_vec(data, &value.shape)?);
+                    }
+                    results
                 }
                 BuiltinBackward::Sum => {
                     require_arity(&values, 1)?;
@@ -823,6 +941,89 @@ impl ExecutionContext {
         }
         Ok(())
     }
+}
+
+fn validate_permutation(shape: &[usize], axes: &[usize]) -> MlResult<()> {
+    if axes.len() != shape.len() {
+        return Err(TensorError::InvalidOperation { op: "transpose", reason: "axis count must equal rank".into() }.into());
+    }
+    let mut seen = vec![false; shape.len()];
+    for &axis in axes {
+        if axis >= shape.len() || seen[axis] {
+            return Err(TensorError::InvalidAxis { axis, shape: shape.to_vec() }.into());
+        }
+        seen[axis] = true;
+    }
+    Ok(())
+}
+
+fn permute_data(data: &[f32], input_shape: &[usize], axes: &[usize]) -> Vec<f32> {
+    let output_shape: Vec<_> = axes.iter().map(|&axis| input_shape[axis]).collect();
+    let mut output = vec![0.0; data.len()];
+    for output_flat in 0..output.len() {
+        let mut remainder = output_flat;
+        let mut input_coordinates = vec![0; input_shape.len()];
+        for output_axis in (0..output_shape.len()).rev() {
+            let coordinate = remainder % output_shape[output_axis];
+            remainder /= output_shape[output_axis];
+            input_coordinates[axes[output_axis]] = coordinate;
+        }
+        let input_flat = input_coordinates.iter().zip(input_shape).fold(0, |flat, (&coordinate, &dim)| flat * dim + coordinate);
+        output[output_flat] = data[input_flat];
+    }
+    output
+}
+
+fn broadcast_shape(lhs: &[usize], rhs: &[usize]) -> Option<Vec<usize>> {
+    let rank = lhs.len().max(rhs.len());
+    let mut output = vec![1; rank];
+    for offset in 0..rank {
+        let left = lhs.len().checked_sub(offset + 1).map(|i| lhs[i]).unwrap_or(1);
+        let right = rhs.len().checked_sub(offset + 1).map(|i| rhs[i]).unwrap_or(1);
+        if left != right && left != 1 && right != 1 { return None; }
+        output[rank - offset - 1] = left.max(right);
+    }
+    Some(output)
+}
+
+fn broadcast_offset(flat: usize, output_shape: &[usize], input_shape: &[usize]) -> usize {
+    let rank_delta = output_shape.len() - input_shape.len();
+    let mut remainder = flat;
+    let mut coordinates = vec![0; output_shape.len()];
+    for axis in (0..output_shape.len()).rev() {
+        coordinates[axis] = remainder % output_shape[axis];
+        remainder /= output_shape[axis];
+    }
+    let mut input_offset = 0;
+    for (axis, &dim) in input_shape.iter().enumerate() {
+        let coordinate = if dim == 1 { 0 } else { coordinates[axis + rank_delta] };
+        input_offset = input_offset * dim + coordinate;
+    }
+    input_offset
+}
+
+fn broadcast_data(input: &GlobalTensor<f32>, output_shape: &[usize]) -> MlResult<Vec<f32>> {
+    if broadcast_shape(&input.shape, output_shape).as_deref() != Some(output_shape) {
+        return Err(TensorError::InvalidOperation {
+            op: "broadcast", reason: format!("cannot broadcast {:?} to {:?}", input.shape, output_shape),
+        }.into());
+    }
+    let length: usize = output_shape.iter().product();
+    Ok((0..length).map(|flat| input.data[broadcast_offset(flat, output_shape, &input.shape)]).collect())
+}
+
+fn reduce_to_shape(input: &GlobalTensor<f32>, target_shape: &[usize]) -> MlResult<GlobalTensor<f32>> {
+    if broadcast_shape(target_shape, &input.shape).as_deref() != Some(input.shape.as_slice()) {
+        return Err(AutogradError::GradientShapeMismatch {
+            expected: target_shape.to_vec(), got: input.shape.clone(),
+        }.into());
+    }
+    let target_length: usize = target_shape.iter().product();
+    let mut data = vec![0.0; target_length];
+    for (flat, value) in input.data.iter().copied().enumerate() {
+        data[broadcast_offset(flat, &input.shape, target_shape)] += value;
+    }
+    GlobalTensor::from_vec(data, target_shape)
 }
 
 fn require_arity(values: &[GlobalTensor<f32>], expected: usize) -> MlResult<()> {
@@ -1202,6 +1403,65 @@ mod tests {
         finite_difference_check(0.7, |x| 1.0 / (1.0 + (-x).exp()), |ctx, x| ctx.sigmoid_variable(x))?;
         finite_difference_check(0.7, |x| x / (1.0 + (-x).exp()), |ctx, x| ctx.silu_variable(x))?;
         finite_difference_check(0.7, |x| x.max(0.0), |ctx, x| ctx.relu_variable(x))?;
+        Ok(())
+    }
+
+    #[test]
+    fn multidimensional_broadcast_reduces_gradients() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let rows = ctx.parameter(vec![1.0, 2.0], &[2, 1])?;
+        let columns = ctx.parameter(vec![10.0, 20.0, 30.0], &[3])?;
+        let product = ctx.mul_variable(&rows, &columns)?;
+        assert_eq!(product.tensor().shape()?, vec![2, 3]);
+        assert_eq!(product.tensor().to_vec()?, vec![10.0, 20.0, 30.0, 20.0, 40.0, 60.0]);
+        ctx.sum_variable(&product)?.backward()?;
+        assert_eq!(rows.grad()?.expect("row gradient").data, vec![60.0, 60.0]);
+        assert_eq!(columns.grad()?.expect("column gradient").data, vec![3.0, 3.0, 3.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn scalar_broadcast_and_incompatible_shapes_are_handled() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let values = ctx.parameter(vec![1.0, 2.0, 3.0], &[3])?;
+        let scalar = ctx.parameter(vec![2.0], &[])?;
+        let quotient = ctx.div_variable(&values, &scalar)?;
+        ctx.sum_variable(&quotient)?.backward()?;
+        assert_eq!(values.grad()?.expect("value gradient").data, vec![0.5; 3]);
+        assert_eq!(scalar.grad()?.expect("scalar gradient").data, vec![-1.5]);
+
+        let incompatible = ctx.tensor(vec![1.0; 4], &[2, 2])?;
+        assert!(matches!(
+            ctx.add(values.tensor(), &incompatible),
+            Err(crate::MlError::TensorError(TensorError::InvalidOperation { op: "add", .. }))
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn transpose_and_reshape_reverse_the_layout_in_backward() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let input = ctx.parameter(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?;
+        let transposed = ctx.transpose_variable(&input, &[1, 0])?;
+        assert_eq!(transposed.tensor().to_vec()?, vec![1.0, 4.0, 2.0, 5.0, 3.0, 6.0]);
+        let flattened = ctx.reshape_variable(&transposed, &[6])?;
+        let cotangent = ctx.tensor(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[6])?;
+        flattened.backward_with_grad(&cotangent)?;
+        assert_eq!(input.grad()?.expect("input gradient").data, vec![1.0, 3.0, 5.0, 2.0, 4.0, 6.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn concat_backward_splits_each_outer_block() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let left = ctx.parameter(vec![10.0, 20.0], &[2, 1])?;
+        let right = ctx.parameter(vec![1.0, 2.0, 3.0, 4.0], &[2, 2])?;
+        let joined = ctx.concat_variables(&[&left, &right], 1)?;
+        assert_eq!(joined.tensor().to_vec()?, vec![10.0, 1.0, 2.0, 20.0, 3.0, 4.0]);
+        let cotangent = ctx.tensor(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?;
+        joined.backward_with_grad(&cotangent)?;
+        assert_eq!(left.grad()?.expect("left gradient").data, vec![1.0, 4.0]);
+        assert_eq!(right.grad()?.expect("right gradient").data, vec![2.0, 3.0, 5.0, 6.0]);
         Ok(())
     }
 }
