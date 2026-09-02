@@ -36,6 +36,8 @@ struct ContextState {
     next_node: u64,
     graph: HashMap<NodeId, GraphNode>,
     tracked: HashSet<NodeId>,
+    leaves: HashSet<NodeId>,
+    retained_gradients: HashSet<NodeId>,
     gradients: HashMap<NodeId, GlobalTensor<f32>>,
     consumed: HashSet<NodeId>,
     no_grad_depth: usize,
@@ -146,6 +148,8 @@ impl ExecutionContext {
                 next_node: 0,
                 graph: HashMap::new(),
                 tracked: HashSet::new(),
+                leaves: HashSet::new(),
+                retained_gradients: HashSet::new(),
                 gradients: HashMap::new(),
                 consumed: HashSet::new(),
                 no_grad_depth: 0,
@@ -175,11 +179,11 @@ impl ExecutionContext {
     ) -> MlResult<ContextVariable> {
         let tensor = self.tensor(data, shape)?;
         if requires_grad == RequiresGrad::Yes {
-            self.state
+            let mut state = self.state
                 .try_borrow_mut()
-                .map_err(|_| ContextError::BorrowConflict)?
-                .tracked
-                .insert(tensor.node_id());
+                .map_err(|_| ContextError::BorrowConflict)?;
+            state.tracked.insert(tensor.node_id());
+            state.leaves.insert(tensor.node_id());
         }
         Ok(ContextVariable {
             tensor,
@@ -636,6 +640,8 @@ impl ExecutionContext {
         state.tensors.clear();
         state.graph.clear();
         state.tracked.clear();
+        state.leaves.clear();
+        state.retained_gradients.clear();
         state.gradients.clear();
         state.consumed.clear();
         Ok(())
@@ -944,6 +950,12 @@ impl ExecutionContext {
             }
             state.consumed.insert(output.tensor.node_id());
         }
+        let keep: HashSet<_> = state
+            .leaves
+            .union(&state.retained_gradients)
+            .copied()
+            .collect();
+        state.gradients.retain(|id, _| keep.contains(id));
         Ok(())
     }
 }
@@ -1172,11 +1184,27 @@ impl ContextVariable {
     pub fn requires_grad(&self) -> bool {
         self.requires_grad
     }
-    pub fn detach(&self) -> Self {
-        Self {
-            tensor: self.tensor.clone(),
-            requires_grad: false,
+    pub fn detach(&self) -> MlResult<Self> {
+        let state = self.tensor.state()?;
+        let ctx = ExecutionContext {
+            id: self.tensor.context_id(),
+            state,
+            _not_sync: Rc::new(Cell::new(())),
+        };
+        let value = self.tensor.snapshot()?;
+        ctx.variable(value.data, &value.shape, RequiresGrad::No)
+    }
+
+    pub fn retain_grad(&self) -> MlResult<()> {
+        let state = self.tensor.state()?;
+        let mut state = state
+            .try_borrow_mut()
+            .map_err(|_| ContextError::BorrowConflict)?;
+        if !state.tracked.contains(&self.tensor.node_id()) {
+            return Err(AutogradError::NodeNotFound(self.tensor.node_id()).into());
         }
+        state.retained_gradients.insert(self.tensor.node_id());
+        Ok(())
     }
 
     pub fn grad(&self) -> MlResult<Option<GlobalTensor<f32>>> {
@@ -1546,6 +1574,38 @@ mod tests {
         ctx.sum_variable(&output)?.backward()?;
         assert_eq!(matrix.grad()?.expect("matrix gradient").data, vec![2.0, 3.0, 4.0, 2.0, 3.0, 4.0]);
         assert_eq!(vector.grad()?.expect("vector gradient").data, vec![5.0, 7.0, 9.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn non_leaf_gradients_require_explicit_retention() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let x = ctx.parameter(vec![2.0], &[])?;
+        let hidden = ctx.square_variable(&x)?;
+        let output = ctx.square_variable(&hidden)?;
+        output.backward()?;
+        assert!(hidden.grad()?.is_none());
+        assert_eq!(x.grad()?.expect("leaf gradient").data, vec![32.0]);
+
+        let hidden = ctx.square_variable(&x)?;
+        hidden.retain_grad()?;
+        let output = ctx.square_variable(&hidden)?;
+        output.backward()?;
+        assert_eq!(hidden.grad()?.expect("retained gradient").data, vec![8.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn detach_creates_an_untracked_leaf_in_the_same_context() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let x = ctx.parameter(vec![3.0], &[])?;
+        let connected = ctx.square_variable(&x)?;
+        let detached = connected.detach()?;
+        assert_eq!(detached.tensor().context_id(), x.tensor().context_id());
+        assert_ne!(detached.tensor().node_id(), connected.tensor().node_id());
+        assert!(!detached.requires_grad());
+        assert_eq!(detached.tensor().item()?, 9.0);
+        assert_eq!(ctx.graph_stats()?.graph_nodes, 1);
         Ok(())
     }
 }
