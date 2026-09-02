@@ -57,6 +57,14 @@ enum BuiltinBackward {
     Square,
     Exp,
     Log,
+    Sqrt,
+    Pow(f32),
+    Sin,
+    Cos,
+    Tanh,
+    Sigmoid,
+    Silu,
+    Relu,
     Sum,
     Matmul2d,
 }
@@ -351,6 +359,38 @@ impl ExecutionContext {
         self.unary(input, BuiltinBackward::Log, f32::ln)
     }
 
+    pub fn sqrt(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
+        self.unary(input, BuiltinBackward::Sqrt, f32::sqrt)
+    }
+
+    pub fn powf(&self, input: &ContextTensor, exponent: f32) -> MlResult<ContextTensor> {
+        self.unary(input, BuiltinBackward::Pow(exponent), |x| x.powf(exponent))
+    }
+
+    pub fn sin(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
+        self.unary(input, BuiltinBackward::Sin, f32::sin)
+    }
+
+    pub fn cos(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
+        self.unary(input, BuiltinBackward::Cos, f32::cos)
+    }
+
+    pub fn tanh(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
+        self.unary(input, BuiltinBackward::Tanh, f32::tanh)
+    }
+
+    pub fn sigmoid(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
+        self.unary(input, BuiltinBackward::Sigmoid, |x| 1.0 / (1.0 + (-x).exp()))
+    }
+
+    pub fn silu(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
+        self.unary(input, BuiltinBackward::Silu, |x| x / (1.0 + (-x).exp()))
+    }
+
+    pub fn relu(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
+        self.unary(input, BuiltinBackward::Relu, |x| x.max(0.0))
+    }
+
     pub fn sum(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
         self.validate(input)?;
         let value = input.snapshot()?;
@@ -456,6 +496,38 @@ impl ExecutionContext {
 
     pub fn log_variable(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
         self.variable_from(self.log(input.tensor())?)
+    }
+
+    pub fn sqrt_variable(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.variable_from(self.sqrt(input.tensor())?)
+    }
+
+    pub fn powf_variable(&self, input: &ContextVariable, exponent: f32) -> MlResult<ContextVariable> {
+        self.variable_from(self.powf(input.tensor(), exponent)?)
+    }
+
+    pub fn sin_variable(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.variable_from(self.sin(input.tensor())?)
+    }
+
+    pub fn cos_variable(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.variable_from(self.cos(input.tensor())?)
+    }
+
+    pub fn tanh_variable(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.variable_from(self.tanh(input.tensor())?)
+    }
+
+    pub fn sigmoid_variable(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.variable_from(self.sigmoid(input.tensor())?)
+    }
+
+    pub fn silu_variable(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.variable_from(self.silu(input.tensor())?)
+    }
+
+    pub fn relu_variable(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.variable_from(self.relu(input.tensor())?)
     }
 
     pub fn sum_variable(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
@@ -650,6 +722,43 @@ impl ExecutionContext {
                 BuiltinBackward::Log => {
                     require_arity(&values, 1)?;
                     vec![tensor_zip(&grad, &values[0], |g, x| g / x)?]
+                }
+                BuiltinBackward::Sqrt => {
+                    let output = state.tensors.get(&id).ok_or(ContextError::UnknownTensor(id))?;
+                    vec![tensor_zip(&grad, output, |g, y| g * 0.5 / y)?]
+                }
+                BuiltinBackward::Pow(exponent) => {
+                    require_arity(&values, 1)?;
+                    vec![tensor_zip(&grad, &values[0], |g, x| {
+                        g * exponent * x.powf(exponent - 1.0)
+                    })?]
+                }
+                BuiltinBackward::Sin => {
+                    require_arity(&values, 1)?;
+                    vec![tensor_zip(&grad, &values[0], |g, x| g * x.cos())?]
+                }
+                BuiltinBackward::Cos => {
+                    require_arity(&values, 1)?;
+                    vec![tensor_zip(&grad, &values[0], |g, x| -g * x.sin())?]
+                }
+                BuiltinBackward::Tanh => {
+                    let output = state.tensors.get(&id).ok_or(ContextError::UnknownTensor(id))?;
+                    vec![tensor_zip(&grad, output, |g, y| g * (1.0 - y * y))?]
+                }
+                BuiltinBackward::Sigmoid => {
+                    let output = state.tensors.get(&id).ok_or(ContextError::UnknownTensor(id))?;
+                    vec![tensor_zip(&grad, output, |g, y| g * y * (1.0 - y))?]
+                }
+                BuiltinBackward::Silu => {
+                    require_arity(&values, 1)?;
+                    vec![tensor_zip(&grad, &values[0], |g, x| {
+                        let sigmoid = 1.0 / (1.0 + (-x).exp());
+                        g * sigmoid * (1.0 + x * (1.0 - sigmoid))
+                    })?]
+                }
+                BuiltinBackward::Relu => {
+                    require_arity(&values, 1)?;
+                    vec![tensor_zip(&grad, &values[0], |g, x| if x > 0.0 { g } else { 0.0 })?]
                 }
                 BuiltinBackward::Sum => {
                     require_arity(&values, 1)?;
@@ -1062,6 +1171,37 @@ mod tests {
             w.grad()?.expect("w gradient").data,
             vec![4.0, 4.0, 6.0, 6.0]
         );
+        Ok(())
+    }
+
+    fn finite_difference_check(
+        x0: f32,
+        expected: impl Fn(f32) -> f32,
+        build: impl Fn(&ExecutionContext, &ContextVariable) -> MlResult<ContextVariable>,
+    ) -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let x = ctx.parameter(vec![x0], &[])?;
+        build(&ctx, &x)?.backward()?;
+        let analytic = x.grad()?.expect("leaf gradient").data[0];
+        let epsilon = 1e-3;
+        let numeric = (expected(x0 + epsilon) - expected(x0 - epsilon)) / (2.0 * epsilon);
+        let absolute = (analytic - numeric).abs();
+        let relative = absolute / numeric.abs().max(1e-6);
+        assert!(absolute <= 1e-3 || relative <= 1e-3,
+            "analytic={analytic}, numeric={numeric}, abs={absolute}, rel={relative}");
+        Ok(())
+    }
+
+    #[test]
+    fn unary_gradients_match_central_finite_difference() -> MlResult<()> {
+        finite_difference_check(1.3, f32::sqrt, |ctx, x| ctx.sqrt_variable(x))?;
+        finite_difference_check(1.3, |x| x.powf(2.7), |ctx, x| ctx.powf_variable(x, 2.7))?;
+        finite_difference_check(0.7, f32::sin, |ctx, x| ctx.sin_variable(x))?;
+        finite_difference_check(0.7, f32::cos, |ctx, x| ctx.cos_variable(x))?;
+        finite_difference_check(0.7, f32::tanh, |ctx, x| ctx.tanh_variable(x))?;
+        finite_difference_check(0.7, |x| 1.0 / (1.0 + (-x).exp()), |ctx, x| ctx.sigmoid_variable(x))?;
+        finite_difference_check(0.7, |x| x / (1.0 + (-x).exp()), |ctx, x| ctx.silu_variable(x))?;
+        finite_difference_check(0.7, |x| x.max(0.0), |ctx, x| ctx.relu_variable(x))?;
         Ok(())
     }
 }
