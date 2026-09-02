@@ -12,6 +12,8 @@ use super::*;
 /// ```
 #[derive(Clone, Copy)]
 pub struct Metrics {
+    /// 현재 패러다임의 대표 메트릭(accuracy, perplexity, return, lambda 등)
+    pub paradigm:     bool,
     /// 전체 파라미터의 그래디언트 L2 노름
     pub grad_norm:    bool,
     /// Update Ratio = ||lr·grad|| / ||W||  (학습률 스케일 진단용)
@@ -25,19 +27,21 @@ pub struct Metrics {
 impl Metrics {
     /// 모든 메트릭 비활성.
     pub const fn none() -> Self {
-        Self { grad_norm: false, update_ratio: false, accuracy: false, fw_bw_timing: false }
+        Self { paradigm: false, grad_norm: false, update_ratio: false, accuracy: false, fw_bw_timing: false }
     }
 
     /// 모든 메트릭 활성.
     pub const fn all() -> Self {
-        Self { grad_norm: true, update_ratio: true, accuracy: true, fw_bw_timing: true }
+        Self { paradigm: true, grad_norm: true, update_ratio: true, accuracy: true, fw_bw_timing: true }
     }
 
+    pub const fn paradigm(mut self)    -> Self { self.paradigm     = true; self }
     pub const fn grad_norm(mut self)    -> Self { self.grad_norm    = true; self }
     pub const fn update_ratio(mut self) -> Self { self.update_ratio = true; self }
     pub const fn accuracy(mut self)     -> Self { self.accuracy     = true; self }
     pub const fn fw_bw_timing(mut self) -> Self { self.fw_bw_timing = true; self }
 
+    pub const fn without_paradigm(mut self)     -> Self { self.paradigm     = false; self }
     pub const fn without_grad_norm(mut self)    -> Self { self.grad_norm    = false; self }
     pub const fn without_update_ratio(mut self) -> Self { self.update_ratio = false; self }
     pub const fn without_accuracy(mut self)     -> Self { self.accuracy     = false; self }
@@ -46,7 +50,7 @@ impl Metrics {
 
 impl Default for Metrics {
     fn default() -> Self {
-        Self::none().grad_norm().accuracy().fw_bw_timing()
+        Self::none().paradigm()
     }
 }
 
@@ -60,6 +64,10 @@ pub struct LogConfig {
     /// 몇 배치마다 메트릭 계산 및 배치 progress bar 를 갱신할지 여부.
     /// `usize::MAX` = 배치 레벨 로그 완전 비활성.
     pub batch_log_interval: usize,
+
+    /// 학습 완료 후 발행할 배치 요약의 간격.
+    /// `usize::MAX`면 완료 후 배치 로그를 남기지 않는다.
+    pub batch_summary_interval: usize,
 
     /// 몇 에폭마다 에폭 레벨 로그를 출력할지.
     pub epoch_log_interval: usize,
@@ -103,6 +111,7 @@ pub type TrainerConfig = LogConfig;
 /// ```
 pub struct TrainerBuilder {
     batch_log_interval: usize,
+    batch_summary_interval: usize,
     epoch_log_interval: usize,
     nan_check_interval: usize,
     metrics:            Metrics,
@@ -115,6 +124,7 @@ impl TrainerBuilder {
     pub fn new() -> Self {
         Self {
             batch_log_interval: 1,
+            batch_summary_interval: usize::MAX,
             epoch_log_interval: 1,
             nan_check_interval: 1,
             metrics:            Metrics::default(),
@@ -124,12 +134,18 @@ impl TrainerBuilder {
         }
     }
 
-    /// 몇 배치마다 메트릭을 계산하고 로그를 출력할지 설정.
+    /// 몇 배치마다 메트릭을 계산하고 progress bar 메시지를 갱신할지 설정.
     ///
-    /// `0`을 입력하면 배치 레벨 로그가 완전히 비활성화.
+    /// `0`을 입력하면 배치 레벨 메시지가 완전히 비활성화.
     /// 예: `50` → 50배치마다 grad_norm 계산 + progress bar 갱신.
     pub fn log_every_n_batches(mut self, n: usize) -> Self {
         self.batch_log_interval = if n == 0 { usize::MAX } else { n };
+        self
+    }
+
+    /// Progress 종료 후 발행할 배치 요약 간격. `0`이면 비활성화한다.
+    pub fn summarize_every_n_batches(mut self, n: usize) -> Self {
+        self.batch_summary_interval = if n == 0 { usize::MAX } else { n };
         self
     }
 
@@ -192,6 +208,7 @@ impl TrainerBuilder {
     pub fn build(self) -> crate::trainer::Trainer {
         let config = LogConfig {
             batch_log_interval: self.batch_log_interval,
+            batch_summary_interval: self.batch_summary_interval,
             epoch_log_interval: self.epoch_log_interval,
             nan_check_interval: self.nan_check_interval,
             metrics:            self.metrics,

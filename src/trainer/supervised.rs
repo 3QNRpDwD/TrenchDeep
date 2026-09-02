@@ -84,10 +84,10 @@ pub struct SupervisedTrainer {
 impl From<Trainer> for SupervisedTrainer {
     fn from(t: Trainer) -> Self {
         let this = Self { core: t.core };
-        // metrics.accuracy 가 켜진 프리셋/빌더 경로에는 ClassificationAccuracy 훅을
-        // 자동 장착해 에폭 요약에 "AC: ..." 를 출력한다. 원시 경로(from_config) 는
+        // 기본 패러다임 메트릭 또는 명시적 accuracy가 켜진 경로에는
+        // ClassificationAccuracy 훅을 자동 장착해 에폭 요약에 "AC: ..." 를 출력한다. 원시 경로(from_config) 는
         // 명시적으로 `.with_hook(...)` 을 호출해야 한다.
-        if this.core.config().metrics.accuracy {
+        if this.core.config().metrics.paradigm || this.core.config().metrics.accuracy {
             this.with_hook(Box::new(ClassificationAccuracy::new()))
         } else {
             this
@@ -116,11 +116,11 @@ impl SupervisedTrainer {
 
     /// 최대 성능 모드. 모든 로그·NaN 검사가 비활성화.
     pub fn silent()  -> Self { Trainer::silent().into() }
-    /// 최소 로그 모드. 에폭 평균 손실만 출력.
+    /// 핵심 메트릭 모드. 배치 손실과 에폭 평균 손실을 표시.
     pub fn minimal() -> Self { Trainer::minimal().into() }
-    /// 기본 모드. FW/BW 타이밍, GradNorm, Accuracy, progress bar 포함.
+    /// 기본 모드. 핵심 메트릭과 Accuracy 포함.
     pub fn default() -> Self { Trainer::default().into() }
-    /// 전체 디버그 모드. 모든 메트릭 활성화.
+    /// 상세 진단 모드. FW/BW, GradNorm, Update Ratio 포함.
     pub fn verbose() -> Self { Trainer::verbose().into() }
 
     /// 커스텀 빌더(= `Trainer::builder()`). `.build().into()` 로 변환한다.
@@ -226,6 +226,12 @@ impl SupervisedTrainer {
         let cfg              = self.config();
         let training_start   = Instant::now();
         let remaining_epochs = epochs.saturating_sub(start_epoch);
+        self.core.trace_model(
+            "supervised",
+            &*model,
+            remaining_epochs,
+            x_set.len(),
+        );
         let progress         = EpochProgress::new(remaining_epochs, cfg.show_progress);
 
         let interrupt = if cfg.checkpoint_dir.is_some() {
@@ -241,6 +247,8 @@ impl SupervisedTrainer {
         let mut converged    = false;
         let mut interrupted  = false;
         let mut saved_checkpoint = None;
+        let mut summary_logs = Vec::new();
+        let mut final_metrics = MetricValues::new();
 
         for epoch in start_epoch..epochs {
             self.core.begin_epoch(epoch);
@@ -268,19 +276,25 @@ impl SupervisedTrainer {
             epochs_done = epoch + 1;
             let avg_loss          = outcome.avg_loss;
             let batch_interrupted = outcome.interrupted;
+            summary_logs.extend(outcome.batch_summaries.iter().cloned());
+            final_metrics = outcome.metrics.clone();
 
             let should_log_epoch =
                 cfg.epoch_log_interval != usize::MAX
                 && (epoch + 1) % cfg.epoch_log_interval == 0;
 
             if should_log_epoch {
-                let loss_change = avg_loss - last_loss;
+                let loss_change = last_loss.is_finite().then(|| avg_loss - last_loss);
                 let extras_str  = outcome.summary_extras.join(" | ");
+                let loss_change = loss_change
+                    .map(|value| format!("{value:+.6}"))
+                    .unwrap_or_else(|| "N/A".to_string());
                 let msg = format!(
-                    "AL: {:.6} | LC: {:+.6} | {}",
+                    "AL: {:.6} | LC: {} | {}",
                     avg_loss, loss_change, extras_str
                 );
                 progress.set_msg(&msg);
+                summary_logs.push(format!("Epoch {}/{} | {}", epoch + 1, epochs, msg));
                 progress.inc();
             } else {
                 progress.inc();
@@ -315,6 +329,7 @@ impl SupervisedTrainer {
                 progress.finish_converged();
                 info!("Loss converged at epoch {}. Early stopping.", epoch + 1);
                 converged = true;
+                last_loss = avg_loss;
                 break;
             }
             last_loss = avg_loss;
@@ -329,6 +344,9 @@ impl SupervisedTrainer {
         }
 
         let total_duration = training_start.elapsed();
+        for summary in &summary_logs {
+            info!("{}", summary);
+        }
         if !interrupted {
             info!(
                 "Training finished. Epochs: {}/{}, Final loss: {:.6}, Duration: {:.2?}",
@@ -339,6 +357,7 @@ impl SupervisedTrainer {
         let reason = if interrupted { StopReason::Interrupted }
             else if converged { StopReason::Converged } else { StopReason::Completed };
         Ok(TrainResult::epochs(reason, epochs_done, last_loss, total_duration)
+            .with_metrics(final_metrics)
             .with_checkpoint(saved_checkpoint))
     }
 }
@@ -457,10 +476,10 @@ mod tests {
     }
 
     #[test]
-    fn minimal_preset_auto_attaches_accuracy_hook() {
+    fn minimal_preset_has_no_paradigm_hook() {
         let trainer = SupervisedTrainer::minimal();
-        assert_eq!(trainer.core.hook_count(), 1,
-            "minimal() 은 metrics.accuracy=true 이므로 훅이 자동 장착되어야 함");
+        assert_eq!(trainer.core.hook_count(), 0,
+            "minimal() 은 핵심 메트릭만 표시하므로 accuracy 훅이 없어야 함");
     }
 
     #[test]
@@ -495,6 +514,7 @@ mod tests {
         // metrics.accuracy=true 여도 from_config 경로는 자동 훅을 달지 않는다 (계약).
         let cfg = LogConfig {
             batch_log_interval: usize::MAX,
+            batch_summary_interval: usize::MAX,
             epoch_log_interval: usize::MAX,
             nan_check_interval: usize::MAX,
             metrics:            Metrics::all(),

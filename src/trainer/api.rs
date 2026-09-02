@@ -53,6 +53,11 @@ impl TrainResult {
         self.checkpoint = checkpoint;
         self
     }
+
+    pub(crate) fn with_metrics(mut self, metrics: MetricValues) -> Self {
+        self.metrics = metrics;
+        self
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

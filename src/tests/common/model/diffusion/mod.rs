@@ -315,10 +315,12 @@ impl crate::trainer::CheckpointableModel for Diffusion {}
 mod tests {
     use super::*;
     use crate::tensor::operators::Function;
+    use crate::tests::common::logging::setup_logging;
 
     /// Diffusion 모델 생성 + loss 계산 end-to-end 테스트.
     #[test]
     fn diffusion_compute_loss() -> MlResult<()> {
+        setup_logging();
         // 작은 모델: 8×8 grayscale, dim=8, 2 stages
         let model = Diffusion::new(
             1, 8,               // 1채널, 8×8
@@ -344,6 +346,7 @@ mod tests {
     /// Diffusion 샘플링 shape 테스트.
     #[test]
     fn diffusion_sample_shape() -> MlResult<()> {
+        setup_logging();
         let model = Diffusion::new(
             1, 8,
             8, &[1, 2],
@@ -364,6 +367,7 @@ mod tests {
     /// Scheduler 와 Unet 이 조합되어 동작하는지 확인.
     #[test]
     fn diffusion_forward_reverse_roundtrip() -> MlResult<()> {
+        setup_logging();
         let model = Diffusion::new(
             1, 8,
             8, &[1, 2],
@@ -444,6 +448,7 @@ mod tests {
     #[cfg(feature = "enableBackward")]
     #[test]
     fn diffusion_train_and_sample() -> MlResult<()> {
+        setup_logging();
         use crate::tensor::ComputationGraph;
         use crate::optimizer::{Adam, Optimizer, clip_grad_norm};
 
@@ -643,6 +648,7 @@ mod tests {
     #[cfg(feature = "enableBackward")]
     #[test]
     fn diffusion_train_with_trainer() -> MlResult<()> {
+        setup_logging();
         use crate::optimizer::{Adam, Optimizer};
         use crate::trainer::{UnsupervisedDataset, EpochSchedule};
         
@@ -663,7 +669,7 @@ mod tests {
             Tensor::from_vec(vec![0.5; 2 * 1 * 8 * 8], &[2, 1, 8, 8])?
         );
         // UnsupervisedTrainer::silent() — 로그 없이 빠르게 실행
-        let trainer = crate::trainer::Trainer::silent().unsupervised();
+        let trainer = crate::trainer::Trainer::verbose().unsupervised();
         let samples = [&x_0];
         let result = 
             trainer.fit(
@@ -672,9 +678,13 @@ mod tests {
                 UnsupervisedDataset::new(&samples)?, 
                 EpochSchedule::new(3)?.with_tolerance(1e-10)
             )?;
-        println!("  Trainer result: {} epochs, final_loss = {:.6}", result.units_completed, result.final_loss);
+        info!("  Trainer result: {} epochs, final_loss = {:.6}", result.units_completed, result.final_loss);
+        info!("  Trainer metrics: {:?}", result.metrics);
         assert!(result.final_loss.is_finite(), "Trainer final loss must be finite");
         assert_eq!(result.units_completed, 3);
+        for key in ["avg_loss", "grad_norm", "update_ratio", "forward_secs", "backward_secs"] {
+            assert!(result.metrics.contains_key(key), "missing trainer metric: {key}");
+        }
 
         Ok(())
     }

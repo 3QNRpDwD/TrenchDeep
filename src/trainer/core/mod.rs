@@ -15,6 +15,7 @@ pub mod metrics;
 pub mod convergence;
 pub mod epoch_loop;
 pub mod runtime;
+mod debug_trace;
 
 use std::cell::RefCell;
 

@@ -27,4 +27,4 @@ use crate::{
         utils::generate_visualization,
     }
 };
-use log::{info, warn};
+use tracing::{info, warn};

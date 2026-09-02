@@ -2,7 +2,9 @@
 use super::*;
 
 // progress 전용 import
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use std::time::Duration;
+
+use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 
 // ────────────────────────────────────────────────────────────────────────────
 // EpochProgress — 에폭 레벨 progress bar 래퍼
@@ -19,14 +21,18 @@ pub(crate) struct EpochProgress {
 
 impl EpochProgress {
     pub fn new(epochs: usize, show: bool) -> Self {
-        let multi = MultiProgress::new();
+        // 연산 trace와 동적 progress 출력은 동일 터미널 행을 공유할 수 없다.
+        // debugging 빌드에서는 구조화 로그를 우선하고 progress만 숨긴다.
+        let show = show && !cfg!(feature = "debugging");
+        // 짧은 배치도 에폭 바와 동시에 보이도록 기본 15Hz보다 자주 그린다.
+        let multi = MultiProgress::with_draw_target(ProgressDrawTarget::stderr_with_hz(60));
         let epoch_bar = if show {
             let pb = multi.add(ProgressBar::new(epochs as u64));
             pb.set_style(
                 ProgressStyle::default_bar()
                     .template(
                         "{spinner:.green} [{elapsed_precise}] \
-                         [ {wide_bar:.cyan/blue} ] {pos}/{len} Epochs ({eta}) | {msg}"
+                         [ {wide_bar:.cyan/blue} ] {percent:>3}% Epochs ({eta}) | {msg}"
                     )
                     .unwrap()
                     .progress_chars("▉ "),
@@ -48,11 +54,14 @@ impl EpochProgress {
         if !self.show {
             return BatchProgress { bar: ProgressBar::hidden(), active: false };
         }
+        // MultiProgress는 각 bar가 한 번 draw되어야 해당 행을 합성한다.
+        // 첫 에폭부터 에폭/배치 두 행이 함께 보이도록 에폭 상태를 먼저 등록한다.
+        self.epoch_bar.tick();
+        let epoch_percent = (epoch + 1) * 100 / epochs.max(1);
         let template = format!(
-            "  > Epoch {:>3}/{:<3} \
-             [ {{wide_bar:.green/blue}} ] {{pos}}/{{len}} Batches ({{eta}}) | {{msg}}",
-            epoch + 1,
-            epochs
+            "  > Epoch {:>3}% \
+             [ {{wide_bar:.green/blue}} ] {{percent:>3}}% Batches ({{eta}}) | {{msg}}",
+            epoch_percent,
         );
         let bar = self.multi.add(ProgressBar::new(n_batches as u64));
         bar.set_style(
@@ -61,6 +70,9 @@ impl EpochProgress {
                 .unwrap()
                 .progress_chars("█ "),
         );
+        // 배치 연산 중에는 상태 변경이 없으므로 ticker가 없으면 짧은 배치 바가
+        // 첫 redraw 전에 finish_and_clear 되어 화면에 나타나지 않을 수 있다.
+        bar.enable_steady_tick(Duration::from_millis(16));
         BatchProgress { bar, active: true }
     }
 
@@ -126,12 +138,14 @@ impl BatchProgress {
 
     pub fn finish(&self) {
         if self.active {
+            self.bar.disable_steady_tick();
             self.bar.finish_and_clear();
         }
     }
 
     pub fn abandon(&self, msg: &str) {
         if self.active {
+            self.bar.disable_steady_tick();
             self.bar.abandon_with_message(msg.to_string());
         }
     }

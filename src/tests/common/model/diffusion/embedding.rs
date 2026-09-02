@@ -132,12 +132,14 @@ impl Layer for TimeEmbeddingMLP {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tests::common::logging::setup_logging;
 
     /// TimeEmbeddingMLP 의 shape 변환 검증.
     ///
     /// [N, 1] → [N, t_emb_dim]
     #[test]
     fn time_embedding_mlp_shape() -> MlResult<()> {
+        setup_logging();
         let dim = 8;
         let t_emb_dim = dim * 4; // 32
         let mlp = TimeEmbeddingMLP::new(dim, t_emb_dim)?;
@@ -157,6 +159,7 @@ mod tests {
     /// t_emb_dim 접근자 테스트.
     #[test]
     fn time_embedding_mlp_dim_accessor() -> MlResult<()> {
+        setup_logging();
         let mlp = TimeEmbeddingMLP::new(16, 64)?;
         assert_eq!(mlp.t_emb_dim(), 64);
         Ok(())
@@ -166,6 +169,7 @@ mod tests {
     #[cfg(feature = "enableBackward")]
     #[test]
     fn time_embedding_mlp_apply_shape() -> MlResult<()> {
+        setup_logging();
         let dim = 8;
         let t_emb_dim = 32;
         let mut mlp = TimeEmbeddingMLP::new(dim, t_emb_dim)?;

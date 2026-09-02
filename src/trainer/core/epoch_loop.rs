@@ -128,6 +128,10 @@ pub struct EpochOutcome {
     /// 에폭 요약 로그 라인의 뒷부분 (패러다임 extras + duration). epoch_log_interval
     /// 판정은 run_epoch 외부의 호출자가 담당한다.
     pub summary_extras: Vec<String>,
+    /// Progress bar 종료 뒤 `tracing`으로 발행할 배치 요약.
+    pub batch_summaries: Vec<String>,
+    /// 마지막 에폭에서 계산된 수치 메트릭.
+    pub metrics: crate::trainer::MetricValues,
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -139,8 +143,8 @@ impl TrainerCore {
     ///
     /// # 파라미터
     /// - `step`            : 패러다임별 `EpochStep` 구현
-    /// - `epoch_display_idx`: 배치 바 타이틀 `Epoch {idx+1}/{total}` 표시용 (0-indexed)
-    /// - `total_epochs_display`: 위 타이틀의 분모
+    /// - `epoch_display_idx`: 배치 바 타이틀의 에폭 진행률 계산용 (0-indexed)
+    /// - `total_epochs_display`: 에폭 진행률의 전체 에폭 수
     /// - `progress`        : 에폭 바 (배치 바는 여기서 생성)
     /// - `interrupt`       : Ctrl+C 플래그. `None` 이면 인터럽트 감지 비활성.
     ///
@@ -157,6 +161,23 @@ impl TrainerCore {
     ) -> MlResult<EpochOutcome> {
         let cfg        = self.config();
         let n_batches  = step.n_batches();
+
+        #[cfg(feature = "debugging")]
+        let epoch_span = tracing::debug_span!(
+            target: "trench_deep::trainer::debug",
+            "trainer_epoch",
+            epoch = epoch_display_idx + 1,
+            total_epochs = total_epochs_display,
+            batches = n_batches,
+        );
+        #[cfg(feature = "debugging")]
+        let _epoch_guard = epoch_span.enter();
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            target: "trench_deep::trainer::debug",
+            "epoch execution started"
+        );
+
         let batch_bar  = progress.start_batch_bar(epoch_display_idx, total_epochs_display, n_batches);
         let epoch_start = Instant::now();
 
@@ -173,8 +194,32 @@ impl TrainerCore {
         let mut total_loss   = 0.0f32;
         let mut total_weight = 0usize;
         let mut interrupted  = false;
+        let mut batch_summaries = Vec::new();
+        let mut grad_norm_sum = 0.0f32;
+        let mut grad_norm_count = 0usize;
+        let mut update_ratio_sum = 0.0f32;
+        let mut update_ratio_count = 0usize;
+        let mut fw_secs = 0.0f32;
+        let mut fw_count = 0usize;
+        let mut bw_secs = 0.0f32;
+        let mut bw_count = 0usize;
 
         for batch_idx in 0..n_batches {
+            #[cfg(feature = "debugging")]
+            let batch_span = tracing::debug_span!(
+                target: "trench_deep::trainer::debug",
+                "trainer_batch",
+                batch = batch_idx + 1,
+                total_batches = n_batches,
+            );
+            #[cfg(feature = "debugging")]
+            let _batch_guard = batch_span.enter();
+            #[cfg(feature = "debugging")]
+            tracing::trace!(
+                target: "trench_deep::trainer::debug",
+                "batch execution started"
+            );
+
             let info = match step.forward_backward(batch_idx, cfg) {
                 Ok(i) => i,
                 Err(e) => {
@@ -183,6 +228,15 @@ impl TrainerCore {
                     return Err(e);
                 }
             };
+
+            #[cfg(feature = "debugging")]
+            tracing::trace!(
+                target: "trench_deep::trainer::debug",
+                loss = info.loss,
+                loss_weight = info.loss_weight,
+                diagnostics = %info.diagnostics.build_batch_msg(),
+                "forward/backward completed"
+            );
 
             if info.diagnostics.has_nan {
                 progress.abandon("Error: NaN/Inf Gradient");
@@ -199,6 +253,23 @@ impl TrainerCore {
             let weight = info.loss_weight.max(1);
             total_loss += info.loss * weight as f32;
             total_weight += weight;
+
+            if let Some(value) = info.diagnostics.grad_norm {
+                grad_norm_sum += value;
+                grad_norm_count += 1;
+            }
+            if let Some(value) = info.diagnostics.update_ratio {
+                update_ratio_sum += value;
+                update_ratio_count += 1;
+            }
+            if let Some(value) = info.diagnostics.fw_dur {
+                fw_secs += value.as_secs_f32();
+                fw_count += 1;
+            }
+            if let Some(value) = info.diagnostics.bw_dur {
+                bw_secs += value.as_secs_f32();
+                bw_count += 1;
+            }
 
             // 훅 업데이트 — forward_backward 가 스태시해둔 last_* 에서 참조를 꺼내
             // BatchContext 를 조립해 전달한다. NaN 검출 이후에 호출하므로 학습을
@@ -221,7 +292,25 @@ impl TrainerCore {
             let should_log_batch = cfg.batch_log_interval != usize::MAX
                 && (batch_idx + 1) % cfg.batch_log_interval == 0;
             if should_log_batch {
-                batch_bar.set_msg(&info.diagnostics.build_batch_msg());
+                let diagnostics = info.diagnostics.build_batch_msg();
+                let message = if diagnostics.is_empty() {
+                    format!("L: {:.6}", info.loss)
+                } else {
+                    format!("L: {:.6} | {}", info.loss, diagnostics)
+                };
+                batch_bar.set_msg(&message);
+                let summary_interval = cfg.batch_summary_interval;
+                let should_summarize = summary_interval != usize::MAX
+                    && ((batch_idx + 1) % summary_interval == 0 || batch_idx + 1 == n_batches);
+                if should_summarize {
+                    batch_summaries.push(format!(
+                        "Epoch {}/{} | Batch {:>3}% | {}",
+                        epoch_display_idx + 1,
+                        total_epochs_display,
+                        (batch_idx + 1) * 100 / n_batches.max(1),
+                        message,
+                    ));
+                }
             }
 
             batch_bar.inc();
@@ -262,11 +351,43 @@ impl TrainerCore {
 
         summary_extras.push(format!("{:.2?}", epoch_dur));
 
+        let mut metrics = crate::trainer::MetricValues::new();
+        metrics.insert("avg_loss".into(), avg_loss);
+        metrics.insert("epoch_duration_secs".into(), epoch_dur.as_secs_f32());
+        if grad_norm_count > 0 {
+            metrics.insert("grad_norm".into(), grad_norm_sum / grad_norm_count as f32);
+        }
+        if update_ratio_count > 0 {
+            metrics.insert("update_ratio".into(), update_ratio_sum / update_ratio_count as f32);
+        }
+        if fw_count > 0 {
+            metrics.insert("forward_secs".into(), fw_secs / fw_count as f32);
+        }
+        if bw_count > 0 {
+            metrics.insert("backward_secs".into(), bw_secs / bw_count as f32);
+        }
+        if hooks_active {
+            for hook in self.hooks.borrow().iter() {
+                metrics.insert(hook.name().to_string(), hook.compute());
+            }
+        }
+
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            target: "trench_deep::trainer::debug",
+            avg_loss,
+            elapsed = ?epoch_dur,
+            interrupted,
+            "epoch execution completed"
+        );
+
         Ok(EpochOutcome {
             avg_loss,
             interrupted,
             epoch_dur,
             summary_extras,
+            batch_summaries,
+            metrics,
         })
     }
 }

@@ -152,7 +152,12 @@ pub struct SemiSupervisedTrainer {
 
 impl From<Trainer> for SemiSupervisedTrainer {
     fn from(t: Trainer) -> Self {
-        Self { core: t.core, ramp: ConsistencyRamp::default() }
+        let this = Self { core: t.core, ramp: ConsistencyRamp::default() };
+        if this.core.config().metrics.paradigm || this.core.config().metrics.accuracy {
+            this.with_hook(Box::new(ClassificationAccuracy::new()))
+        } else {
+            this
+        }
     }
 }
 
@@ -295,6 +300,12 @@ impl SemiSupervisedTrainer {
         let n_u              = x_unlabeled.len();
         let training_start   = Instant::now();
         let remaining_epochs = epochs.saturating_sub(start_epoch);
+        self.core.trace_model(
+            "semi_supervised",
+            &*model,
+            remaining_epochs,
+            n_l.max(n_u),
+        );
         let progress         = EpochProgress::new(remaining_epochs, cfg.show_progress);
 
         // 인터럽트 핸들러 — 다른 트레이너와 동일 규약.
@@ -311,6 +322,8 @@ impl SemiSupervisedTrainer {
         let mut converged   = false;
         let mut interrupted = false;
         let mut saved_checkpoint = None;
+        let mut summary_logs = Vec::new();
+        let mut final_metrics = MetricValues::new();
 
         for epoch in start_epoch..epochs {
             self.core.begin_epoch(epoch);
@@ -329,6 +342,7 @@ impl SemiSupervisedTrainer {
                     x_labeled, t_labeled, x_unlabeled,
                     labeled_idx, unlabeled_idx,
                     lambda,
+                    show_paradigm: cfg.metrics.paradigm,
                     last_y: None,
                     last_t: None,
                 };
@@ -343,17 +357,24 @@ impl SemiSupervisedTrainer {
             epochs_done = epoch + 1;
             let avg_loss          = outcome.avg_loss;
             let batch_interrupted = outcome.interrupted;
+            summary_logs.extend(outcome.batch_summaries.iter().cloned());
+            final_metrics = outcome.metrics.clone();
 
             let should_log_epoch =
                 cfg.epoch_log_interval != usize::MAX
                 && (epoch + 1) % cfg.epoch_log_interval == 0;
             if should_log_epoch {
-                let loss_change = avg_loss - last_loss;
+                let loss_change = last_loss.is_finite().then(|| avg_loss - last_loss);
                 let extras_str  = outcome.summary_extras.join(" | ");
-                progress.set_msg(&format!(
-                    "AL: {:.6} | LC: {:+.6} | {}",
+                let loss_change = loss_change
+                    .map(|value| format!("{value:+.6}"))
+                    .unwrap_or_else(|| "N/A".to_string());
+                let msg = format!(
+                    "AL: {:.6} | LC: {} | {}",
                     avg_loss, loss_change, extras_str
-                ));
+                );
+                progress.set_msg(&msg);
+                summary_logs.push(format!("Epoch {}/{} | {}", epoch + 1, epochs, msg));
             }
             progress.inc();
 
@@ -385,6 +406,7 @@ impl SemiSupervisedTrainer {
                 progress.finish_converged();
                 info!("Loss converged at epoch {}. Early stopping.", epoch + 1);
                 converged = true;
+                last_loss = avg_loss;
                 break;
             }
             last_loss = avg_loss;
@@ -399,6 +421,9 @@ impl SemiSupervisedTrainer {
         }
 
         let total_duration = training_start.elapsed();
+        for summary in &summary_logs {
+            info!("{}", summary);
+        }
         if !interrupted {
             info!(
                 "Semi-supervised training finished. Epochs: {}/{}, Final loss: {:.6}, Duration: {:.2?}",
@@ -409,6 +434,7 @@ impl SemiSupervisedTrainer {
         let reason = if interrupted { StopReason::Interrupted }
             else if converged { StopReason::Converged } else { StopReason::Completed };
         Ok(TrainResult::epochs(reason, epochs_done, last_loss, total_duration)
+            .with_metrics(final_metrics)
             .with_checkpoint(saved_checkpoint))
     }
 }
@@ -430,6 +456,7 @@ struct SemiSupervisedEpochStep<'a, M: SemiSupervisedModel> {
     labeled_idx:   Vec<usize>,
     unlabeled_idx: Vec<usize>,
     lambda:        f32,
+    show_paradigm: bool,
     last_y:        Option<crate::nn::Variable>,
     last_t:        Option<&'a crate::nn::Variable>,
 }
@@ -482,7 +509,11 @@ impl<'a, M: SemiSupervisedModel> EpochStep for SemiSupervisedEpochStep<'a, M> {
             let params = self.model.params();
             let gn = cfg.metrics.grad_norm.then(|| grad_norm(&params));
             let ur = cfg.metrics.update_ratio.then(|| update_ratio(&params, self.optimizer.lr()));
-            (gn, ur, vec![format!("λ: {:.3}", self.lambda)])
+            let extra_msg = cfg.metrics.paradigm
+                .then(|| format!("λ: {:.3}", self.lambda))
+                .into_iter()
+                .collect();
+            (gn, ur, extra_msg)
         } else {
             (None, None, Vec::new())
         };
@@ -509,7 +540,10 @@ impl<'a, M: SemiSupervisedModel> EpochStep for SemiSupervisedEpochStep<'a, M> {
     fn current_lr(&self) -> f32 { self.optimizer.lr() }
 
     fn format_epoch_extras(&self, _avg_loss: f32) -> Vec<String> {
-        vec![format!("λ: {:.3}", self.lambda)]
+        self.show_paradigm
+            .then(|| format!("λ: {:.3}", self.lambda))
+            .into_iter()
+            .collect()
     }
 }
 

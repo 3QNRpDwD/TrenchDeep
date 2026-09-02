@@ -16,6 +16,10 @@
 //!
 //! `Trainer` 는 공통 설정을 소유하는 단일 facade다. `supervised()` 등으로
 //! 정적 타입이 보존된 패러다임별 runner를 선택한다.
+//!
+//! `debugging` feature를 활성화하면 모델 파라미터 구조와 에폭/배치 실행
+//! 컨텍스트가 기존 연산별 forward/backward trace에 자동으로 추가된다.
+//! 동적 progress bar는 상세 trace와 터미널 행이 충돌하지 않도록 비활성화된다.
 
 pub mod core;
 pub mod api;
@@ -117,6 +121,7 @@ impl Trainer {
     pub fn silent() -> Self {
         Self::builder()
             .log_every_n_batches(0)
+            .summarize_every_n_batches(0)
             .log_every_n_epochs(0)
             .nan_check(false)
             .metrics(Metrics::none())
@@ -124,30 +129,34 @@ impl Trainer {
             .build()
     }
 
-    /// 최소 로그 모드. 에폭 평균 손실만 출력한다. NaN 검사는 유지.
+    /// 핵심 메트릭 모드. progress bar에 배치 손실을 표시하고 NaN 검사를 유지한다.
     pub fn minimal() -> Self {
         Self::builder()
-            .log_every_n_batches(0)
-            .nan_check(true)
-            .metrics(Metrics::none().accuracy())
-            .show_progress(false)
-            .build()
-    }
-
-    /// 기본 모드. FW/BW 타이밍, GradNorm, Accuracy, progress bar 포함.
-    pub fn default() -> Self {
-        Self::builder()
             .log_every_n_batches(1)
+            .summarize_every_n_batches(0)
             .nan_check(true)
-            .metrics(Metrics::none().grad_norm().accuracy().fw_bw_timing())
+            .metrics(Metrics::none())
             .show_progress(true)
             .build()
     }
 
-    /// 전체 디버그 모드. 모든 메트릭 활성화.
+    /// 기본 모드. 핵심 메트릭과 패러다임 대표 메트릭을 표시한다.
+    pub fn default() -> Self {
+        Self::builder()
+            .log_every_n_batches(1)
+            .summarize_every_n_batches(0)
+            .nan_check(true)
+            .metrics(Metrics::default())
+            .show_progress(true)
+            .build()
+    }
+
+    /// 상세 진단 모드. 모든 메트릭을 활성화하고 완료 후 배치 요약을
+    /// 100배치 간격으로 발행한다.
     pub fn verbose() -> Self {
         Self::builder()
             .log_every_n_batches(1)
+            .summarize_every_n_batches(100)
             .nan_check(true)
             .metrics(Metrics::all())
             .show_progress(true)
@@ -159,4 +168,42 @@ impl Trainer {
     pub fn semi_supervised(self) -> SemiSupervisedTrainer { self.into() }
     pub fn autoregressive(self) -> AutoregressiveTrainer { self.into() }
     pub fn reinforcement(self) -> RLTrainer { self.into() }
+}
+
+#[cfg(test)]
+mod preset_tests {
+    use super::*;
+
+    #[test]
+    fn logging_presets_keep_metric_layers_separate() {
+        let silent = Trainer::silent().core;
+        assert!(!silent.config().show_progress);
+        assert_eq!(silent.config().batch_log_interval, usize::MAX);
+        assert_eq!(silent.config().epoch_log_interval, usize::MAX);
+        assert!(!silent.config().metrics.paradigm);
+
+        let minimal = Trainer::minimal().core;
+        assert!(minimal.config().show_progress);
+        assert_eq!(minimal.config().batch_log_interval, 1);
+        assert_eq!(minimal.config().batch_summary_interval, usize::MAX);
+        assert!(!minimal.config().metrics.paradigm);
+        assert!(!minimal.config().metrics.grad_norm);
+        assert!(!minimal.config().metrics.update_ratio);
+        assert!(!minimal.config().metrics.fw_bw_timing);
+
+        let default = Trainer::default().core;
+        assert!(default.config().metrics.paradigm);
+        assert!(!default.config().metrics.grad_norm);
+        assert!(!default.config().metrics.update_ratio);
+        assert!(!default.config().metrics.fw_bw_timing);
+        assert_eq!(default.config().batch_summary_interval, usize::MAX);
+
+        let verbose = Trainer::verbose().core;
+        assert!(verbose.config().metrics.paradigm);
+        assert!(verbose.config().metrics.grad_norm);
+        assert!(verbose.config().metrics.update_ratio);
+        assert!(verbose.config().metrics.accuracy);
+        assert!(verbose.config().metrics.fw_bw_timing);
+        assert_eq!(verbose.config().batch_summary_interval, 100);
+    }
 }

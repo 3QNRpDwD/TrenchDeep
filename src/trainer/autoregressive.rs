@@ -90,10 +90,8 @@ pub struct AutoregressiveTrainer {
 impl From<Trainer> for AutoregressiveTrainer {
     fn from(t: Trainer) -> Self {
         let this = Self { core: t.core };
-        // 에폭 로그가 켜진 프리셋/빌더 경로에는 Perplexity 훅을 자동 장착한다.
-        // silent() 처럼 epoch_log_interval 이 disabled 인 경우에는 장착하지 않아
-        // "최대 성능 모드" 계약을 유지한다.
-        if this.core.config().epoch_log_interval != usize::MAX {
+        // default/verbose처럼 패러다임 메트릭이 활성화된 경우에만 PPL을 장착한다.
+        if this.core.config().metrics.paradigm {
             this.with_hook(Box::new(Perplexity::new()))
         } else {
             this
@@ -122,11 +120,11 @@ impl AutoregressiveTrainer {
 
     /// 최대 성능 모드. 로그·NaN 검사 비활성.
     pub fn silent()  -> Self { Trainer::silent().into() }
-    /// 에폭 평균 손실/PPL만 출력.
+    /// 핵심 메트릭만 출력.
     pub fn minimal() -> Self { Trainer::minimal().into() }
-    /// 기본 모드. FW/BW 타이밍, GradNorm, PPL, progress bar 포함.
+    /// 기본 모드. 핵심 메트릭과 PPL 포함.
     pub fn default() -> Self { Trainer::default().into() }
-    /// 디버그 모드. 모든 메트릭 활성.
+    /// 상세 진단 모드. FW/BW, GradNorm, Update Ratio 포함.
     pub fn verbose() -> Self { Trainer::verbose().into() }
 
     // ── 메트릭 훅 ─────────────────────────────────────────────────────────
@@ -221,6 +219,12 @@ impl AutoregressiveTrainer {
         let cfg              = self.config();
         let training_start   = Instant::now();
         let remaining_epochs = epochs.saturating_sub(start_epoch);
+        self.core.trace_model(
+            "autoregressive",
+            &*model,
+            remaining_epochs,
+            x_set.len(),
+        );
         let progress         = EpochProgress::new(remaining_epochs, cfg.show_progress);
 
         let interrupt = if cfg.checkpoint_dir.is_some() {
@@ -236,6 +240,8 @@ impl AutoregressiveTrainer {
         let mut converged   = false;
         let mut interrupted = false;
         let mut saved_checkpoint = None;
+        let mut summary_logs = Vec::new();
+        let mut final_metrics = MetricValues::new();
 
         for epoch in start_epoch..epochs {
             self.core.begin_epoch(epoch);
@@ -262,19 +268,25 @@ impl AutoregressiveTrainer {
             epochs_done = epoch + 1;
             let avg_loss          = outcome.avg_loss;
             let batch_interrupted = outcome.interrupted;
+            summary_logs.extend(outcome.batch_summaries.iter().cloned());
+            final_metrics = outcome.metrics.clone();
 
             let should_log_epoch =
                 cfg.epoch_log_interval != usize::MAX
                 && (epoch + 1) % cfg.epoch_log_interval == 0;
 
             if should_log_epoch {
-                let loss_change = avg_loss - last_loss;
+                let loss_change = last_loss.is_finite().then(|| avg_loss - last_loss);
                 let extras_str  = outcome.summary_extras.join(" | ");
+                let loss_change = loss_change
+                    .map(|value| format!("{value:+.6}"))
+                    .unwrap_or_else(|| "N/A".to_string());
                 let msg = format!(
-                    "AL: {:.6} | LC: {:+.6} | {}",
+                    "AL: {:.6} | LC: {} | {}",
                     avg_loss, loss_change, extras_str
                 );
                 progress.set_msg(&msg);
+                summary_logs.push(format!("Epoch {}/{} | {}", epoch + 1, epochs, msg));
                 progress.inc();
             } else {
                 progress.inc();
@@ -311,6 +323,7 @@ impl AutoregressiveTrainer {
                 progress.finish_converged();
                 info!("Loss converged at epoch {}. Early stopping.", epoch + 1);
                 converged = true;
+                last_loss = avg_loss;
                 break;
             }
             last_loss = avg_loss;
@@ -325,6 +338,9 @@ impl AutoregressiveTrainer {
         }
 
         let total_duration = training_start.elapsed();
+        for summary in &summary_logs {
+            info!("{}", summary);
+        }
         if !interrupted {
             info!(
                 "Autoregressive training finished. Epochs: {}/{}, Final loss: {:.6}, Duration: {:.2?}",
@@ -335,6 +351,7 @@ impl AutoregressiveTrainer {
         let reason = if interrupted { StopReason::Interrupted }
             else if converged { StopReason::Converged } else { StopReason::Completed };
         Ok(TrainResult::epochs(reason, epochs_done, last_loss, total_duration)
+            .with_metrics(final_metrics)
             .with_checkpoint(saved_checkpoint))
     }
 }
@@ -450,10 +467,10 @@ mod tests {
     }
 
     #[test]
-    fn minimal_preset_auto_attaches_perplexity_hook() {
+    fn minimal_preset_has_no_perplexity_hook() {
         let trainer = AutoregressiveTrainer::minimal();
-        assert_eq!(trainer.core.hook_count(), 1,
-            "minimal() 은 epoch_log_interval 유효 → 훅 자동 장착");
+        assert_eq!(trainer.core.hook_count(), 0,
+            "minimal() 은 핵심 메트릭만 표시하므로 PPL 훅이 없어야 함");
     }
 
     #[test]
@@ -468,6 +485,7 @@ mod tests {
         // epoch_log_interval 이 유효해도 from_config 경로는 자동 장착 안 함.
         let cfg = LogConfig {
             batch_log_interval: 1,
+            batch_summary_interval: 100,
             epoch_log_interval: 1,
             nan_check_interval: 1,
             metrics:            Metrics::default(),

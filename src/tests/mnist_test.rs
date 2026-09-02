@@ -13,7 +13,6 @@ fn evaluate_accuracy<M: Model>(model: &mut M, x: &[&Variable], t: &[&Variable]) 
     Ok(acc.compute())
 }
 
-#[ignore]
 #[test]
 #[cfg(all(feature = "enableBackward"))]
 fn mlp_mnist_classification_integration_test() -> MlResult<()> {

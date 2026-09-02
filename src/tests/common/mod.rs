@@ -9,7 +9,7 @@ use tracing_subscriber::{
 };
 
 // 다수 하위 모듈에서 사용
-use log::info;
+use tracing::info;
 use crate::MlResult;
 
 pub(crate) mod logging;

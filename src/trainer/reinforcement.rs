@@ -211,16 +211,40 @@ impl RLTrainer {
         let cfg            = self.config();
         let n_actions      = env.num_actions();
         let training_start = Instant::now();
+        self.core.trace_model(
+            "reinforcement",
+            &*model,
+            num_episodes,
+            max_steps_per_episode,
+        );
         let progress       = EpochProgress::new(num_episodes, cfg.show_progress);
 
         let mut last_loss         = f32::INFINITY;
         let mut last_episode_ret  = 0.0f32;
         let mut episodes_done     = 0usize;
+        let mut summary_logs      = Vec::new();
+        let mut final_metrics     = MetricValues::new();
 
         // SCE 인스턴스는 루프 외부에서 한 번 생성해 재사용.
         let mut sce = SoftmaxCrossEntropyLoss::new()?;
 
         for episode in 0..num_episodes {
+            #[cfg(feature = "debugging")]
+            let episode_span = tracing::debug_span!(
+                target: "trench_deep::trainer::debug",
+                "trainer_episode",
+                episode = episode + 1,
+                total_episodes = num_episodes,
+                max_steps = max_steps_per_episode,
+            );
+            #[cfg(feature = "debugging")]
+            let _episode_guard = episode_span.enter();
+            #[cfg(feature = "debugging")]
+            tracing::debug!(
+                target: "trench_deep::trainer::debug",
+                "episode execution started"
+            );
+
             let episode_start = Instant::now();
             ComputationGraph::reset_graph();
 
@@ -326,17 +350,41 @@ impl RLTrainer {
                 && (episode + 1) % cfg.epoch_log_interval == 0;
             if should_log_epoch {
                 let mut parts = Vec::with_capacity(4);
-                parts.push(format!("EP-R: {:+.4}", episode_return));
                 parts.push(format!("L: {:+.4}", step_loss));
-                parts.push(format!("T: {}", t_len));
+                if cfg.metrics.paradigm {
+                    parts.push(format!("EP-R: {:+.4}", episode_return));
+                    parts.push(format!("T: {}", t_len));
+                }
                 if cfg.metrics.grad_norm {
                     let params = model.params();
                     parts.push(format!("GN: {:.2e}", grad_norm(&params)));
                 }
                 parts.push(format!("{:.2?}", ep_dur));
-                progress.set_msg(&parts.join(" | "));
+                let msg = parts.join(" | ");
+                progress.set_msg(&msg);
+                summary_logs.push(format!(
+                    "Episode {}/{} | {}",
+                    episode + 1,
+                    num_episodes,
+                    msg,
+                ));
             }
             progress.inc();
+
+            final_metrics.insert("episode_return".into(), episode_return);
+            final_metrics.insert("episode_steps".into(), t_len as f32);
+            final_metrics.insert("episode_duration_secs".into(), ep_dur.as_secs_f32());
+            final_metrics.insert("loss".into(), step_loss);
+
+            #[cfg(feature = "debugging")]
+            tracing::debug!(
+                target: "trench_deep::trainer::debug",
+                loss = step_loss,
+                episode_return,
+                steps = t_len,
+                elapsed = ?ep_dur,
+                "episode execution completed"
+            );
 
             if episode == num_episodes - 1 {
                 progress.finish_completed();
@@ -344,12 +392,16 @@ impl RLTrainer {
         }
 
         let total_duration = training_start.elapsed();
+        for summary in &summary_logs {
+            info!("{}", summary);
+        }
         info!(
             "RL training finished. Episodes: {}, Last return: {:.4}, Final loss: {:.6}, Duration: {:.2?}",
             episodes_done, last_episode_ret, last_loss, total_duration
         );
 
-        Ok(TrainResult::episodes(episodes_done, last_loss, total_duration))
+        Ok(TrainResult::episodes(episodes_done, last_loss, total_duration)
+            .with_metrics(final_metrics))
     }
 }
 
