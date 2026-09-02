@@ -15,7 +15,7 @@ pub mod graph;
 pub mod operators;
 pub mod visualization;
 pub use context::{
-    BackwardOptions, ContextId, ContextTensor, ContextVariable, ExecutionContext, GraphStats,
+    BackwardOp, BackwardOptions, ContextId, ContextTensor, ContextVariable, ExecutionContext, GraphStats,
     RequiresGrad, TensorView,
 };
 

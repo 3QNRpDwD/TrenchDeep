@@ -27,6 +27,8 @@ pub enum RequiresGrad {
 pub struct GraphStats {
     pub tensors: usize,
     pub graph_nodes: usize,
+    pub dynamic_backward_nodes: usize,
+    pub saved_tensor_references: usize,
     pub no_grad_depth: usize,
 }
 
@@ -43,10 +45,17 @@ struct ContextState {
     no_grad_depth: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct GraphNode {
     inputs: Vec<NodeId>,
-    backward: BuiltinBackward,
+    saved: Vec<NodeId>,
+    backward: NodeBackward,
+}
+
+#[derive(Debug)]
+enum NodeBackward {
+    Dynamic(Box<dyn BackwardOp>),
+    Legacy(BuiltinBackward),
 }
 
 #[derive(Debug, Clone)]
@@ -116,6 +125,57 @@ pub struct ContextVariable {
 pub struct TensorView<'a> {
     data: &'a [f32],
     shape: &'a [usize],
+}
+
+pub trait BackwardOp: std::fmt::Debug {
+    fn name(&self) -> &'static str;
+    fn input_count(&self) -> usize;
+    fn backward(
+        &self,
+        inputs: &[TensorView<'_>],
+        saved: &[TensorView<'_>],
+        output_grad: TensorView<'_>,
+    ) -> MlResult<Vec<Option<GlobalTensor<f32>>>>;
+}
+
+#[derive(Debug)]
+struct AddBackward;
+
+impl BackwardOp for AddBackward {
+    fn name(&self) -> &'static str { "add" }
+    fn input_count(&self) -> usize { 2 }
+    fn backward(&self, inputs: &[TensorView<'_>], _saved: &[TensorView<'_>], grad: TensorView<'_>) -> MlResult<Vec<Option<GlobalTensor<f32>>>> {
+        if inputs.len() != self.input_count() {
+            return Err(AutogradError::BackwardArityMismatch { expected: self.input_count(), got: inputs.len() }.into());
+        }
+        let grad = GlobalTensor::from_vec(grad.data.to_vec(), grad.shape)?;
+        Ok(vec![
+            Some(reduce_to_shape(&grad, inputs[0].shape)?),
+            Some(reduce_to_shape(&grad, inputs[1].shape)?),
+        ])
+    }
+}
+
+#[derive(Debug)]
+struct MulBackward;
+
+impl BackwardOp for MulBackward {
+    fn name(&self) -> &'static str { "mul" }
+    fn input_count(&self) -> usize { 2 }
+    fn backward(&self, inputs: &[TensorView<'_>], _saved: &[TensorView<'_>], grad: TensorView<'_>) -> MlResult<Vec<Option<GlobalTensor<f32>>>> {
+        if inputs.len() != self.input_count() {
+            return Err(AutogradError::BackwardArityMismatch { expected: self.input_count(), got: inputs.len() }.into());
+        }
+        let grad = GlobalTensor::from_vec(grad.data.to_vec(), grad.shape)?;
+        let lhs = GlobalTensor::from_vec(inputs[0].data.to_vec(), inputs[0].shape)?;
+        let rhs = GlobalTensor::from_vec(inputs[1].data.to_vec(), inputs[1].shape)?;
+        let lhs_broadcast = GlobalTensor::from_vec(broadcast_data(&lhs, grad.shape.as_slice())?, &grad.shape)?;
+        let rhs_broadcast = GlobalTensor::from_vec(broadcast_data(&rhs, grad.shape.as_slice())?, &grad.shape)?;
+        Ok(vec![
+            Some(reduce_to_shape(&tensor_zip(&grad, &rhs_broadcast, |g, x| g * x)?, &lhs.shape)?),
+            Some(reduce_to_shape(&tensor_zip(&grad, &lhs_broadcast, |g, x| g * x)?, &rhs.shape)?),
+        ])
+    }
 }
 
 impl<'a> TensorView<'a> {
@@ -289,7 +349,8 @@ impl ExecutionContext {
                 output.node_id(),
                 GraphNode {
                     inputs: vec![lhs.node_id(), rhs.node_id()],
-                    backward,
+                    saved: Vec::new(),
+                    backward: into_node_backward(backward),
                 },
             );
         }
@@ -338,7 +399,15 @@ impl ExecutionContext {
             .map_err(|_| ContextError::BorrowConflict)?;
         if state.no_grad_depth == 0 && inputs.iter().any(|id| state.tracked.contains(id)) {
             state.tracked.insert(output);
-            state.graph.insert(output, GraphNode { inputs, backward });
+            let saved = match backward {
+                BuiltinBackward::Exp | BuiltinBackward::Sqrt | BuiltinBackward::Tanh | BuiltinBackward::Sigmoid => vec![output],
+                _ => Vec::new(),
+            };
+            state.graph.insert(output, GraphNode {
+                inputs,
+                saved,
+                backward: into_node_backward(backward),
+            });
         }
         Ok(())
     }
@@ -677,6 +746,8 @@ impl ExecutionContext {
         Ok(GraphStats {
             tensors: state.tensors.len(),
             graph_nodes: state.graph.len(),
+            dynamic_backward_nodes: state.graph.values().filter(|node| matches!(&node.backward, NodeBackward::Dynamic(_))).count(),
+            saved_tensor_references: state.graph.values().map(|node| node.saved.len()).sum(),
             no_grad_depth: state.no_grad_depth,
         })
     }
@@ -739,8 +810,8 @@ impl ExecutionContext {
             let node = state
                 .graph
                 .get(&id)
-                .cloned()
                 .ok_or(AutogradError::NodeNotFound(id))?;
+            let input_ids = node.inputs.clone();
             let grad = state
                 .gradients
                 .get(&id)
@@ -757,7 +828,26 @@ impl ExecutionContext {
                         .ok_or(ContextError::UnknownTensor(*input))
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            let grads = match node.backward {
+            let grads = match &node.backward {
+                NodeBackward::Dynamic(op) => {
+                    let saved = node.saved.iter().map(|saved| {
+                        state.tensors.get(saved).cloned().ok_or(ContextError::UnknownTensor(*saved))
+                    }).collect::<Result<Vec<_>, _>>()?;
+                    let input_views: Vec<_> = values.iter().map(|value| TensorView { data: &value.data, shape: &value.shape }).collect();
+                    let saved_views: Vec<_> = saved.iter().map(|value| TensorView { data: &value.data, shape: &value.shape }).collect();
+                    let results = op.backward(
+                        &input_views,
+                        &saved_views,
+                        TensorView { data: &grad.data, shape: &grad.shape },
+                    )?;
+                    if results.len() != op.input_count() {
+                        return Err(AutogradError::BackwardArityMismatch { expected: op.input_count(), got: results.len() }.into());
+                    }
+                    results.into_iter().map(|result| result.ok_or_else(|| {
+                        AutogradError::BackwardNotSupported(format!("{} returned a non-differentiable input", op.name())).into()
+                    })).collect::<MlResult<Vec<_>>>()?
+                }
+                NodeBackward::Legacy(backward) => match backward.clone() {
                 BuiltinBackward::Add => {
                     require_arity(&values, 2)?;
                     vec![reduce_to_shape(&grad, &values[0].shape)?, reduce_to_shape(&grad, &values[1].shape)?]
@@ -923,15 +1013,16 @@ impl ExecutionContext {
                         GlobalTensor::from_vec(dr, &rhs.shape)?,
                     ]
                 }
+                },
             };
-            if grads.len() != node.inputs.len() {
+            if grads.len() != input_ids.len() {
                 return Err(AutogradError::BackwardArityMismatch {
-                    expected: node.inputs.len(),
+                    expected: input_ids.len(),
                     got: grads.len(),
                 }
                 .into());
             }
-            for (input, incoming) in node.inputs.into_iter().zip(grads) {
+            for (input, incoming) in input_ids.into_iter().zip(grads) {
                 if !state.tracked.contains(&input) {
                     continue;
                 }
@@ -957,6 +1048,14 @@ impl ExecutionContext {
             .collect();
         state.gradients.retain(|id, _| keep.contains(id));
         Ok(())
+    }
+}
+
+fn into_node_backward(backward: BuiltinBackward) -> NodeBackward {
+    match backward {
+        BuiltinBackward::Add => NodeBackward::Dynamic(Box::new(AddBackward)),
+        BuiltinBackward::Mul => NodeBackward::Dynamic(Box::new(MulBackward)),
+        other => NodeBackward::Legacy(other),
     }
 }
 
@@ -1606,6 +1705,20 @@ mod tests {
         assert!(!detached.requires_grad());
         assert_eq!(detached.tensor().item()?, 9.0);
         assert_eq!(ctx.graph_stats()?.graph_nodes, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn graph_nodes_own_dynamic_backward_ops_and_separate_saved_tensors() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let x = ctx.parameter(vec![1.0], &[])?;
+        let sum = ctx.add_variable(&x, &x)?;
+        let product = ctx.mul_variable(&sum, &x)?;
+        let _exponential = ctx.exp_variable(&product)?;
+        let stats = ctx.graph_stats()?;
+        assert_eq!(stats.graph_nodes, 3);
+        assert_eq!(stats.dynamic_backward_nodes, 2);
+        assert_eq!(stats.saved_tensor_references, 1);
         Ok(())
     }
 }
