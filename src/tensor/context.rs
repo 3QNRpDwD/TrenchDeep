@@ -178,6 +178,77 @@ impl BackwardOp for MulBackward {
     }
 }
 
+#[derive(Debug)]
+struct ElementwiseBackward(BuiltinBackward);
+
+impl BackwardOp for ElementwiseBackward {
+    fn name(&self) -> &'static str {
+        match &self.0 {
+            BuiltinBackward::Sub => "sub", BuiltinBackward::Div => "div",
+            BuiltinBackward::Neg => "neg", BuiltinBackward::Square => "square",
+            BuiltinBackward::Exp => "exp", BuiltinBackward::Log => "log",
+            BuiltinBackward::Sqrt => "sqrt", BuiltinBackward::Pow(_) => "pow",
+            BuiltinBackward::Sin => "sin", BuiltinBackward::Cos => "cos",
+            BuiltinBackward::Tanh => "tanh", BuiltinBackward::Sigmoid => "sigmoid",
+            BuiltinBackward::Silu => "silu", BuiltinBackward::Relu => "relu",
+            BuiltinBackward::Sum => "sum", BuiltinBackward::Reshape => "reshape",
+            _ => "unsupported",
+        }
+    }
+
+    fn input_count(&self) -> usize {
+        match &self.0 { BuiltinBackward::Sub | BuiltinBackward::Div => 2, _ => 1 }
+    }
+
+    fn backward(&self, inputs: &[TensorView<'_>], saved: &[TensorView<'_>], grad: TensorView<'_>) -> MlResult<Vec<Option<GlobalTensor<f32>>>> {
+        if inputs.len() != self.input_count() {
+            return Err(AutogradError::BackwardArityMismatch { expected: self.input_count(), got: inputs.len() }.into());
+        }
+        let values = inputs.iter().map(|view| GlobalTensor::from_vec(view.data.to_vec(), view.shape)).collect::<MlResult<Vec<_>>>()?;
+        let grad = GlobalTensor::from_vec(grad.data.to_vec(), grad.shape)?;
+        let saved_output = || -> MlResult<GlobalTensor<f32>> {
+            let view = saved.first().ok_or_else(|| AutogradError::BackwardArityMismatch { expected: 1, got: 0 })?;
+            GlobalTensor::from_vec(view.data.to_vec(), view.shape)
+        };
+        let results = match &self.0 {
+            BuiltinBackward::Sub => vec![
+                reduce_to_shape(&grad, &values[0].shape)?,
+                reduce_to_shape(&tensor_map(&grad, |g| -g)?, &values[1].shape)?,
+            ],
+            BuiltinBackward::Div => {
+                let rhs = GlobalTensor::from_vec(broadcast_data(&values[1], &grad.shape)?, &grad.shape)?;
+                let lhs = GlobalTensor::from_vec(broadcast_data(&values[0], &grad.shape)?, &grad.shape)?;
+                let left = tensor_zip(&grad, &rhs, |g, r| g / r)?;
+                let right = GlobalTensor::from_vec(grad.data.iter().zip(&lhs.data).zip(&rhs.data)
+                    .map(|((g, l), r)| -g * l / (r * r)).collect(), &grad.shape)?;
+                vec![reduce_to_shape(&left, &values[0].shape)?, reduce_to_shape(&right, &values[1].shape)?]
+            }
+            BuiltinBackward::Neg => vec![tensor_map(&grad, |g| -g)?],
+            BuiltinBackward::Square => vec![tensor_zip(&grad, &values[0], |g, x| 2.0 * g * x)?],
+            BuiltinBackward::Exp => vec![tensor_zip(&grad, &saved_output()?, |g, y| g * y)?],
+            BuiltinBackward::Log => vec![tensor_zip(&grad, &values[0], |g, x| g / x)?],
+            BuiltinBackward::Sqrt => vec![tensor_zip(&grad, &saved_output()?, |g, y| g * 0.5 / y)?],
+            BuiltinBackward::Pow(exponent) => vec![tensor_zip(&grad, &values[0], |g, x| g * *exponent * x.powf(*exponent - 1.0))?],
+            BuiltinBackward::Sin => vec![tensor_zip(&grad, &values[0], |g, x| g * x.cos())?],
+            BuiltinBackward::Cos => vec![tensor_zip(&grad, &values[0], |g, x| -g * x.sin())?],
+            BuiltinBackward::Tanh => vec![tensor_zip(&grad, &saved_output()?, |g, y| g * (1.0 - y * y))?],
+            BuiltinBackward::Sigmoid => vec![tensor_zip(&grad, &saved_output()?, |g, y| g * y * (1.0 - y))?],
+            BuiltinBackward::Silu => vec![tensor_zip(&grad, &values[0], |g, x| {
+                let sigmoid = 1.0 / (1.0 + (-x).exp());
+                g * sigmoid * (1.0 + x * (1.0 - sigmoid))
+            })?],
+            BuiltinBackward::Relu => vec![tensor_zip(&grad, &values[0], |g, x| if x > 0.0 { g } else { 0.0 })?],
+            BuiltinBackward::Sum => {
+                let scalar = grad.data.first().copied().ok_or(TensorError::EmptyTensor)?;
+                vec![GlobalTensor::from_vec(vec![scalar; values[0].data.len()], &values[0].shape)?]
+            }
+            BuiltinBackward::Reshape => vec![GlobalTensor::from_vec(grad.data, &values[0].shape)?],
+            _ => return Err(AutogradError::BackwardNotSupported(self.name().into()).into()),
+        };
+        Ok(results.into_iter().map(Some).collect())
+    }
+}
+
 impl<'a> TensorView<'a> {
     pub fn data(&self) -> &'a [f32] {
         self.data
@@ -1055,6 +1126,22 @@ fn into_node_backward(backward: BuiltinBackward) -> NodeBackward {
     match backward {
         BuiltinBackward::Add => NodeBackward::Dynamic(Box::new(AddBackward)),
         BuiltinBackward::Mul => NodeBackward::Dynamic(Box::new(MulBackward)),
+        other @ (BuiltinBackward::Sub
+        | BuiltinBackward::Div
+        | BuiltinBackward::Neg
+        | BuiltinBackward::Square
+        | BuiltinBackward::Exp
+        | BuiltinBackward::Log
+        | BuiltinBackward::Sqrt
+        | BuiltinBackward::Pow(_)
+        | BuiltinBackward::Sin
+        | BuiltinBackward::Cos
+        | BuiltinBackward::Tanh
+        | BuiltinBackward::Sigmoid
+        | BuiltinBackward::Silu
+        | BuiltinBackward::Relu
+        | BuiltinBackward::Sum
+        | BuiltinBackward::Reshape) => NodeBackward::Dynamic(Box::new(ElementwiseBackward(other))),
         other => NodeBackward::Legacy(other),
     }
 }
@@ -1717,7 +1804,7 @@ mod tests {
         let _exponential = ctx.exp_variable(&product)?;
         let stats = ctx.graph_stats()?;
         assert_eq!(stats.graph_nodes, 3);
-        assert_eq!(stats.dynamic_backward_nodes, 2);
+        assert_eq!(stats.dynamic_backward_nodes, 3);
         assert_eq!(stats.saved_tensor_references, 1);
         Ok(())
     }
