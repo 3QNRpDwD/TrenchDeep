@@ -6,6 +6,8 @@ use super::*;
 ///
 /// # 예시
 /// ```no_run
+/// use trench_deep::trainer::Metrics;
+///
 /// let m = Metrics::none().grad_norm().accuracy();
 /// ```
 #[derive(Clone, Copy)]
@@ -75,7 +77,12 @@ pub struct LogConfig {
     /// 체크포인트 저장 디렉토리.
     /// `None`이면 인터럽트 시 체크포인트를 저장하지 않는다.
     pub checkpoint_dir: Option<String>,
+
+    /// Base seed for deterministic shuffling and sampling.
+    pub seed: u64,
 }
+
+pub type TrainerConfig = LogConfig;
 
 // ────────────────────────────────────────────────────────────────────────────
 // Builder
@@ -85,6 +92,8 @@ pub struct LogConfig {
 ///
 /// # 예시
 /// ```no_run
+/// use trench_deep::trainer::{Metrics, Trainer};
+///
 /// let trainer = Trainer::builder()
 ///     .log_every_n_batches(50)
 ///     .nan_check(true)
@@ -99,6 +108,7 @@ pub struct TrainerBuilder {
     metrics:            Metrics,
     show_progress:      bool,
     checkpoint_dir:     Option<String>,
+    seed:               u64,
 }
 
 impl TrainerBuilder {
@@ -110,6 +120,7 @@ impl TrainerBuilder {
             metrics:            Metrics::default(),
             show_progress:      true,
             checkpoint_dir:     None,
+            seed:               0,
         }
     }
 
@@ -140,7 +151,10 @@ impl TrainerBuilder {
     /// 활성화할 메트릭 집합을 설정.
     ///
     /// ```no_run
-    /// .metrics(Metrics::none().grad_norm().accuracy())
+    /// use trench_deep::trainer::{Metrics, Trainer};
+    /// let trainer = Trainer::builder()
+    ///     .metrics(Metrics::none().grad_norm().accuracy())
+    ///     .build();
     /// ```
     pub fn metrics(mut self, m: Metrics) -> Self {
         self.metrics = m;
@@ -159,25 +173,33 @@ impl TrainerBuilder {
     /// 이 디렉토리에 저장한다. `resume()`으로 중단 지점부터 재개 가능.
     ///
     /// ```no_run
-    /// .checkpoint_dir("checkpoints/my_model")
+    /// use trench_deep::trainer::Trainer;
+    /// let trainer = Trainer::builder()
+    ///     .checkpoint_dir("checkpoints/my_model")
+    ///     .build();
     /// ```
     pub fn checkpoint_dir(mut self, dir: &str) -> Self {
         self.checkpoint_dir = Some(dir.to_string());
         self
     }
 
+    pub fn checkpoint(self, dir: &str) -> Self { self.checkpoint_dir(dir) }
+
+    /// Sets the deterministic training RNG seed.
+    pub fn seed(mut self, seed: u64) -> Self { self.seed = seed; self }
+
     /// 설정을 확정하고 `Trainer`를 생성.
-    pub fn build(self) -> Trainer {
-        Trainer {
-            config: LogConfig {
-                batch_log_interval: self.batch_log_interval,
-                epoch_log_interval: self.epoch_log_interval,
-                nan_check_interval: self.nan_check_interval,
-                metrics:            self.metrics,
-                show_progress:      self.show_progress,
-                checkpoint_dir:     self.checkpoint_dir,
-            },
-        }
+    pub fn build(self) -> crate::trainer::Trainer {
+        let config = LogConfig {
+            batch_log_interval: self.batch_log_interval,
+            epoch_log_interval: self.epoch_log_interval,
+            nan_check_interval: self.nan_check_interval,
+            metrics:            self.metrics,
+            show_progress:      self.show_progress,
+            checkpoint_dir:     self.checkpoint_dir,
+            seed:               self.seed,
+        };
+        crate::trainer::Trainer { core: super::TrainerCore::new(config) }
     }
 }
 

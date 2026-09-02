@@ -1,6 +1,11 @@
 mod display;
 mod function;
 
+/// Loss aggregation contract. Detailed high-rank and masking semantics are
+/// intentionally deferred to TODO(Phase-B1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Reduction { Mean, Sum, None }
+
 
 use std::{
     fmt::{Debug, Display, Formatter},

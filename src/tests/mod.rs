@@ -15,7 +15,8 @@ use crate::{
         Linear,
         Parameter,
         Sequential,
-        Model
+        Model,
+        Variable,
     },
     tensor::TensorBase,
     optimizer::{Optimizer, SGD},

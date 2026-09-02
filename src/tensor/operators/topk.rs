@@ -100,9 +100,9 @@ impl Function for Topk {
         Ok(vec![GlobalTensor::from_vec(values, &new_shape)?, GlobalTensor::from_vec(indices, &new_shape)?])
     }
 
-    #[cfg(all(feature = "enableBackward"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        todo!()
+    #[cfg(feature = "enableBackward")]
+    fn backward(&self, _targets: &[&dyn TensorBase], _grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+        backward_not_supported(self.type_name())
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -113,8 +113,12 @@ impl Function for Topk {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "enableBackward")]
+    use crate::nn::{Parameter, Variable};
     use crate::tensor::operators::{Function, Topk};
     use crate::tensor::{Tensor, TensorBase};
+    #[cfg(feature = "enableBackward")]
+    use crate::tensor::{AutogradFunction, ComputationGraph};
     use crate::{tensor_ops, MlResult};
 
     #[test]
@@ -142,6 +146,24 @@ mod tests {
         assert_eq!(values.data(), &[4.0, 3.0, 5.0]);
         assert_eq!(indices.data(), &[1.0, 2.0, 4.0]);
 
+        Ok(())
+    }
+
+    #[cfg(feature = "enableBackward")]
+    #[test]
+    fn topk_backward_is_rejected_without_panicking() -> MlResult<()> {
+        ComputationGraph::reset_graph();
+        let input = Variable::new(Tensor::from_vec(vec![1.0, 3.0, 2.0], &[3])?);
+        let k = Variable::new(Tensor::scalar(1.0));
+        let sorted = Variable::new(Tensor::scalar(1.0));
+        let mut topk = Topk::new()?;
+        let values = topk.apply(&[&input, &k, &sorted])?;
+
+        let error = values.backward().expect_err("Topk backward must be rejected");
+        let message = error.to_string();
+        assert!(message.contains("Topk"), "unexpected error: {message}");
+        assert!(message.contains("does not support backward"), "unexpected error: {message}");
+        ComputationGraph::reset_graph();
         Ok(())
     }
 }

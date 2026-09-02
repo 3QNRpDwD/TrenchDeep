@@ -32,15 +32,6 @@ impl MLP {
 
 impl Model for MLP {
     #[cfg(feature = "enableBackward")]
-    fn train(&mut self, x_set: &[&Variable], t_set: &[&Variable], epochs: usize, optimizer: &mut dyn crate::optimizer::Optimizer, tolerance: f32) -> MlResult<()> {
-        for param in self.layer.params() {
-            optimizer.register(param);
-        }
-        crate::trainer::Trainer::default().fit(self, optimizer, x_set, t_set, epochs, tolerance)?;
-        Ok(())
-    }
-
-    #[cfg(feature = "enableBackward")]
     fn apply(&mut self, x: &Variable) -> MlResult<Variable> {
         self.layer.apply(x)
     }
@@ -49,31 +40,10 @@ impl Model for MLP {
         self.layer.predict(x)
     }
 
-    fn save(&self, path: &str) -> MlResult<()> {
-        self.layer.save(path)
-    }
-
-    fn load(&mut self, path: &str) -> MlResult<()> {
-        self.layer.load(path)
-    }
-
-    fn get_loss(&self) -> f32 {
-        todo!()
-    }
-
-    fn compute_total_error(&mut self, x_set: &[&Variable], t_set: &[&Variable]) -> MlResult<f32> {
-        let mut total_loss = 0.0;
-        for m in 0..x_set.len() {
-            let y = self.predict(x_set[m].tensor())?;
-            let loss = self.loss_function.forward(&[&y, t_set[m].tensor()])?.remove(0);
-            total_loss += loss.data()[0];
-        }
-        Ok(total_loss / x_set.len() as f32)
-    }
 }
 
 #[cfg(feature = "enableBackward")]
-impl crate::trainer::TrainableModel for MLP {
+impl crate::trainer::SupervisedModel for MLP {
     fn forward_loss(
         &mut self,
         x: &Variable,
@@ -84,14 +54,22 @@ impl crate::trainer::TrainableModel for MLP {
         Ok((y, loss))
     }
 
-    fn params(&self) -> Vec<&dyn Parameter> {
-        self.layer.params()
-    }
-
     fn predict_raw(
         &mut self,
         x: &dyn TensorBase,
     ) -> MlResult<GlobalTensor<f32>> {
         self.layer.predict(x)
+    }
+}
+
+impl crate::trainer::TrainableModel for MLP {
+    fn params(&self) -> Vec<&dyn Parameter> { self.layer.params() }
+}
+impl crate::trainer::CheckpointableModel for MLP {
+    fn save_checkpoint(&self, path: &std::path::Path) -> MlResult<()> {
+        self.layer.save(path.to_string_lossy().as_ref())
+    }
+    fn load_checkpoint(&mut self, path: &std::path::Path) -> MlResult<()> {
+        self.layer.load(path.to_string_lossy().as_ref())
     }
 }

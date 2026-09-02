@@ -175,8 +175,8 @@ pub trait Function {
     }
 
     #[cfg(all(feature = "enableBackward"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        unimplemented!("{} Backward pass is not implemented", self.type_name())
+    fn backward(&self, _targets: &[&dyn TensorBase], _grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+        backward_not_supported(self.type_name())
     }
 
     fn backend(&self) -> &Arc<dyn Backend> {
@@ -186,6 +186,15 @@ pub trait Function {
     fn node_id(&self) -> &NodeId {
         unimplemented!("{} Function::node_id() is not implemented", self.type_name())
     }
+}
+
+/// 아직 역전파를 제공하지 않는 연산자가 패닉 대신 일관된 오류를 반환할 때 사용합니다.
+#[cfg(feature = "enableBackward")]
+pub(crate) fn backward_not_supported(operator: &str) -> MlResult<Vec<GlobalTensor<f32>>> {
+    Err(MlError::TensorError(TensorError::InvalidOperation {
+        op: "backward",
+        reason: format!("operator '{}' does not support backward", operator),
+    }))
 }
 
 

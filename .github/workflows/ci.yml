@@ -1,0 +1,32 @@
+name: Rust feature matrix
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: no-features
+            args: "--no-default-features"
+          - name: backward
+            args: "--features enableBackward"
+          - name: visualization
+            args: "--features enableVisualization"
+          - name: higher-order
+            args: "--features enableHigherOrderDifferentiation"
+          - name: all-features
+            args: "--all-features"
+    name: test (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Check
+        run: cargo check --lib ${{ matrix.args }}
+      - name: Test
+        run: cargo test ${{ matrix.args }}

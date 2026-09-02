@@ -117,9 +117,9 @@ impl Function for Matmax {
         Ok(buffer)
     }
 
-    #[cfg(all(feature = "enableBackward"))]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        todo!()
+    #[cfg(feature = "enableBackward")]
+    fn backward(&self, _targets: &[&dyn TensorBase], _grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+        backward_not_supported(self.type_name())
     }
 
     fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
@@ -157,6 +157,24 @@ mod tests {
         assert_eq!(max_neg.data(), &[3.0, 6.0]);
         assert_eq!(indices_neg.data(), &[2.0, 2.0]);
         
+        Ok(())
+    }
+
+    #[cfg(feature = "enableBackward")]
+    #[test]
+    fn matmax_backward_is_rejected_without_panicking() -> MlResult<()> {
+        let input = Tensor::new(vec![vec![1.0, 3.0, 2.0]]);
+        let dim = Tensor::scalar(-1.0);
+        let keepdim = Tensor::scalar(1.0);
+        let grad = Tensor::scalar(1.0);
+        let operator = Matmax::new()?;
+
+        let error = operator
+            .backward(&[&input, &dim, &keepdim], &grad)
+            .expect_err("Matmax backward must be rejected");
+        let message = error.to_string();
+        assert!(message.contains("Matmax"), "unexpected error: {message}");
+        assert!(message.contains("does not support backward"), "unexpected error: {message}");
         Ok(())
     }
 }
