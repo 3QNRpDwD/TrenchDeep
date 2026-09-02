@@ -69,7 +69,7 @@ enum BuiltinBackward {
     Transpose(Vec<usize>),
     Concat { axis: usize, sizes: Vec<usize> },
     Sum,
-    Matmul2d,
+    Matmul,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -463,30 +463,27 @@ impl ExecutionContext {
         self.validate(lhs)?;
         self.validate(rhs)?;
         let (left, right) = (lhs.snapshot()?, rhs.snapshot()?);
-        if left.shape.len() != 2 || right.shape.len() != 2 || left.shape[1] != right.shape[0] {
-            return Err(TensorError::InvalidOperation {
-                op: "matmul",
-                reason: format!(
-                    "expected [m,k] x [k,n], got {:?} x {:?}",
-                    left.shape, right.shape
-                ),
-            }
-            .into());
-        }
-        let (m, k, n) = (left.shape[0], left.shape[1], right.shape[1]);
-        let mut data = vec![0.0; m * n];
-        for i in 0..m {
-            for j in 0..n {
-                for p in 0..k {
-                    data[i * n + j] += left.data[i * k + p] * right.data[p * n + j];
+        let spec = MatmulSpec::new(&left.shape, &right.shape)?;
+        let batch_count: usize = spec.batch_shape.iter().product();
+        let mut data = vec![0.0; batch_count * spec.m * spec.n];
+        for batch in 0..batch_count {
+            let left_batch = broadcast_offset(batch, &spec.batch_shape, &spec.left_batch);
+            let right_batch = broadcast_offset(batch, &spec.batch_shape, &spec.right_batch);
+            for i in 0..spec.m {
+                for j in 0..spec.n {
+                    for p in 0..spec.k {
+                        data[(batch * spec.m + i) * spec.n + j] +=
+                            left.data[(left_batch * spec.m + i) * spec.k + p]
+                                * right.data[(right_batch * spec.k + p) * spec.n + j];
+                    }
                 }
             }
         }
-        let output = self.tensor(data, &[m, n])?;
+        let output = self.tensor(data, &spec.output_shape)?;
         self.record(
             output.node_id(),
             vec![lhs.node_id(), rhs.node_id()],
-            BuiltinBackward::Matmul2d,
+            BuiltinBackward::Matmul,
         )?;
         Ok(output)
     }
@@ -893,17 +890,25 @@ impl ExecutionContext {
                         &values[0].shape,
                     )?]
                 }
-                BuiltinBackward::Matmul2d => {
+                BuiltinBackward::Matmul => {
                     require_arity(&values, 2)?;
                     let (lhs, rhs) = (&values[0], &values[1]);
-                    let (m, k, n) = (lhs.shape[0], lhs.shape[1], rhs.shape[1]);
-                    let mut dl = vec![0.0; m * k];
-                    let mut dr = vec![0.0; k * n];
-                    for i in 0..m {
-                        for p in 0..k {
-                            for j in 0..n {
-                                dl[i * k + p] += grad.data[i * n + j] * rhs.data[p * n + j];
-                                dr[p * n + j] += lhs.data[i * k + p] * grad.data[i * n + j];
+                    let spec = MatmulSpec::new(&lhs.shape, &rhs.shape)?;
+                    let batch_count: usize = spec.batch_shape.iter().product();
+                    let mut dl = vec![0.0; lhs.data.len()];
+                    let mut dr = vec![0.0; rhs.data.len()];
+                    for batch in 0..batch_count {
+                        let left_batch = broadcast_offset(batch, &spec.batch_shape, &spec.left_batch);
+                        let right_batch = broadcast_offset(batch, &spec.batch_shape, &spec.right_batch);
+                        for i in 0..spec.m {
+                            for p in 0..spec.k {
+                                for j in 0..spec.n {
+                                    let upstream = grad.data[(batch * spec.m + i) * spec.n + j];
+                                    dl[(left_batch * spec.m + i) * spec.k + p] +=
+                                        upstream * rhs.data[(right_batch * spec.k + p) * spec.n + j];
+                                    dr[(right_batch * spec.k + p) * spec.n + j] +=
+                                        lhs.data[(left_batch * spec.m + i) * spec.k + p] * upstream;
+                                }
                             }
                         }
                     }
@@ -940,6 +945,44 @@ impl ExecutionContext {
             state.consumed.insert(output.tensor.node_id());
         }
         Ok(())
+    }
+}
+
+struct MatmulSpec {
+    left_batch: Vec<usize>,
+    right_batch: Vec<usize>,
+    batch_shape: Vec<usize>,
+    output_shape: Vec<usize>,
+    m: usize,
+    k: usize,
+    n: usize,
+}
+
+impl MatmulSpec {
+    fn new(left: &[usize], right: &[usize]) -> MlResult<Self> {
+        if left.is_empty() || right.is_empty() {
+            return Err(TensorError::MatrixMultiplicationError {
+                left_shape: left.to_vec(), right_shape: right.to_vec(),
+            }.into());
+        }
+        let left_vector = left.len() == 1;
+        let right_vector = right.len() == 1;
+        let (m, k) = if left_vector { (1, left[0]) } else { (left[left.len() - 2], left[left.len() - 1]) };
+        let (right_k, n) = if right_vector { (right[0], 1) } else { (right[right.len() - 2], right[right.len() - 1]) };
+        let left_batch = if left_vector { vec![] } else { left[..left.len() - 2].to_vec() };
+        let right_batch = if right_vector { vec![] } else { right[..right.len() - 2].to_vec() };
+        let batch_shape = broadcast_shape(&left_batch, &right_batch).ok_or_else(|| {
+            TensorError::MatrixMultiplicationError { left_shape: left.to_vec(), right_shape: right.to_vec() }
+        })?;
+        if k != right_k {
+            return Err(TensorError::MatrixMultiplicationError {
+                left_shape: left.to_vec(), right_shape: right.to_vec(),
+            }.into());
+        }
+        let mut output_shape = batch_shape.clone();
+        if !left_vector { output_shape.push(m); }
+        if !right_vector { output_shape.push(n); }
+        Ok(Self { left_batch, right_batch, batch_shape, output_shape, m, k, n })
     }
 }
 
@@ -1462,6 +1505,47 @@ mod tests {
         joined.backward_with_grad(&cotangent)?;
         assert_eq!(left.grad()?.expect("left gradient").data, vec![1.0, 4.0]);
         assert_eq!(right.grad()?.expect("right gradient").data, vec![2.0, 3.0, 5.0, 6.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn matmul_supports_vector_contracts() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let x = ctx.parameter(vec![1.0, 2.0, 3.0], &[3])?;
+        let w = ctx.parameter(vec![4.0, 5.0, 6.0], &[3])?;
+        let dot = ctx.matmul_variable(&x, &w)?;
+        assert_eq!(dot.tensor().shape()?, Vec::<usize>::new());
+        assert_eq!(dot.tensor().item()?, 32.0);
+        dot.backward()?;
+        assert_eq!(x.grad()?.expect("x gradient").data, vec![4.0, 5.0, 6.0]);
+        assert_eq!(w.grad()?.expect("w gradient").data, vec![1.0, 2.0, 3.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn batched_matmul_broadcasts_and_reduces_batch_gradient() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let lhs = ctx.parameter(vec![1.0; 4].into_iter().chain(vec![2.0; 4]).collect(), &[2, 2, 2])?;
+        let rhs = ctx.parameter(vec![1.0, 2.0, 3.0, 4.0], &[2, 2])?;
+        let output = ctx.matmul_variable(&lhs, &rhs)?;
+        assert_eq!(output.tensor().shape()?, vec![2, 2, 2]);
+        ctx.sum_variable(&output)?.backward()?;
+        assert_eq!(lhs.grad()?.expect("lhs gradient").data,
+            vec![3.0, 7.0, 3.0, 7.0, 3.0, 7.0, 3.0, 7.0]);
+        assert_eq!(rhs.grad()?.expect("rhs gradient").data, vec![6.0, 6.0, 6.0, 6.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn matrix_vector_matmul_has_expected_gradient() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let matrix = ctx.parameter(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?;
+        let vector = ctx.parameter(vec![2.0, 3.0, 4.0], &[3])?;
+        let output = ctx.matmul_variable(&matrix, &vector)?;
+        assert_eq!(output.tensor().to_vec()?, vec![20.0, 47.0]);
+        ctx.sum_variable(&output)?.backward()?;
+        assert_eq!(matrix.grad()?.expect("matrix gradient").data, vec![2.0, 3.0, 4.0, 2.0, 3.0, 4.0]);
+        assert_eq!(vector.grad()?.expect("vector gradient").data, vec![5.0, 7.0, 9.0]);
         Ok(())
     }
 }
