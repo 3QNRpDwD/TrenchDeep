@@ -4,6 +4,10 @@ pub mod nn;
 pub mod optimizer;
 pub mod loss;
 pub mod trainer;
+pub use tensor::{
+    BackwardOptions, ContextId, ContextTensor, ContextVariable, ExecutionContext, GraphStats,
+    RequiresGrad, TensorView,
+};
 #[cfg(test)]
 mod tests;
 

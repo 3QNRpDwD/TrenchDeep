@@ -1,33 +1,23 @@
 use std::{
-    fmt::{
-        Debug,
-        Display,
-        Formatter,
-        Result
-    },
-    sync::{
-        Arc,
-        atomic::Ordering
-    },
     cell::RefCell,
     collections::{HashMap, HashSet},
+    fmt::{Debug, Display, Formatter, Result},
+    sync::{Arc, atomic::Ordering},
 };
 
-use crate::backend::{
-    Backend,
-    CpuBackend,
-    Device
-};
+use crate::backend::{Backend, CpuBackend, Device};
 
-
-pub mod creation;
-pub mod operators;
-pub mod display;
-pub mod graph;
-pub mod visualization;
 pub mod broadcast;
 pub mod context;
-pub use context::{BackwardOptions, ContextId, ContextTensor, ContextVariable, ExecutionContext as ExplicitExecutionContext, GraphStats, RequiresGrad, TensorView};
+pub mod creation;
+pub mod display;
+pub mod graph;
+pub mod operators;
+pub mod visualization;
+pub use context::{
+    BackwardOptions, ContextId, ContextTensor, ContextVariable, ExecutionContext, GraphStats,
+    RequiresGrad, TensorView,
+};
 
 /// 명시적으로 라벨이 부여된 텐서인지 판별합니다.
 /// 기본 생성 레이블(`"tensor_*"`, `"tensor_ref_*"`)은 false를 반환합니다.
@@ -38,8 +28,8 @@ fn tensor_is_labeled(label: &str) -> bool {
     !label.starts_with("tensor_")
 }
 
-use crate::{MlError, MlResult, register_operator, tensor::operators::Function, TensorError};
 use crate::nn::{Parameter, Variable};
+use crate::{MlError, MlResult, TensorError, register_operator, tensor::operators::Function};
 
 #[macro_export]
 macro_rules! tensor_ops {
@@ -50,7 +40,11 @@ macro_rules! tensor_ops {
     }};
 
     ($tensor:expr, $op:ident, $second_tensor:expr) => {
-        $op::new().unwrap().forward(&[&$tensor, &$second_tensor]).unwrap().remove(0)
+        $op::new()
+            .unwrap()
+            .forward(&[&$tensor, &$second_tensor])
+            .unwrap()
+            .remove(0)
     };
 
     ($tensor:expr, $op:ident) => {
@@ -81,43 +75,55 @@ macro_rules! tensor_ops {
 #[macro_export]
 macro_rules! scalar_ops {
     ($tensor:expr, Add, $scalar:expr) => {
-        Tensor::from_vec($tensor.data().iter().map(|&x| x + $scalar).collect(), &$tensor.shape())
+        Tensor::from_vec(
+            $tensor.data().iter().map(|&x| x + $scalar).collect(),
+            &$tensor.shape(),
+        )
     };
 
     ($tensor:expr, Sub, $scalar:expr) => {
-        Tensor::from_vec($tensor.data().iter().map(|&x| x - $scalar).collect(), &$tensor.shape())
+        Tensor::from_vec(
+            $tensor.data().iter().map(|&x| x - $scalar).collect(),
+            &$tensor.shape(),
+        )
     };
 
     ($tensor:expr, Mul, $scalar:expr) => {
-        Tensor::from_vec($tensor.data().iter().map(|&x| x * $scalar).collect(), &$tensor.shape())
+        Tensor::from_vec(
+            $tensor.data().iter().map(|&x| x * $scalar).collect(),
+            &$tensor.shape(),
+        )
     };
 
     ($tensor:expr, Div, $scalar:expr) => {
-        Tensor::from_vec($tensor.data().iter().map(|&x| x / $scalar).collect(), &$tensor.shape())
+        Tensor::from_vec(
+            $tensor.data().iter().map(|&x| x / $scalar).collect(),
+            &$tensor.shape(),
+        )
     };
 
     ($scalar:expr, buS, $tensor:expr) => {
-        Tensor::from_vec($tensor.data().iter().map(|&x| $scalar - x).collect(), &$tensor.shape())
+        Tensor::from_vec(
+            $tensor.data().iter().map(|&x| $scalar - x).collect(),
+            &$tensor.shape(),
+        )
     };
 
     ($scalar:expr, viD, $tensor:expr) => {
-        Tensor::from_vec($tensor.data().iter().map(|&x| $scalar / x).collect(), &$tensor.shape())
+        Tensor::from_vec(
+            $tensor.data().iter().map(|&x| $scalar / x).collect(),
+            &$tensor.shape(),
+        )
     };
 }
 
 #[macro_export]
-macro_rules! scalar  {
-
-    ($scalar:expr) => {
-        {
-            use crate::tensor::GlobalTensor;
-            {
-                GlobalTensor::new(vec![vec![$scalar]])
-            }
-        }
-    };
+macro_rules! scalar {
+    ($scalar:expr) => {{
+        use crate::tensor::GlobalTensor;
+        { GlobalTensor::new(vec![vec![$scalar]]) }
+    }};
 }
-
 
 #[derive(Debug, Clone)]
 pub struct GlobalTensor<Type> {
@@ -163,7 +169,11 @@ impl Drop for TensorHandle {
                     #[cfg(feature = "enableVisualization")]
                     {
                         if tensor_is_labeled(&self.label) {
-                            tracing::debug!("[Tensor::drop] id={:?} label='{}' freed", id, self.label);
+                            tracing::debug!(
+                                "[Tensor::drop] id={:?} label='{}' freed",
+                                id,
+                                self.label
+                            );
                         } else {
                             tracing::trace!("[Tensor::drop] id={:?} freed", id);
                         }
@@ -176,7 +186,7 @@ impl Drop for TensorHandle {
     }
 }
 
-pub struct Tensor (Arc<TensorHandle>);
+pub struct Tensor(Arc<TensorHandle>);
 
 impl Clone for Tensor {
     fn clone(&self) -> Self {
@@ -186,13 +196,26 @@ impl Clone for Tensor {
             #[cfg(feature = "enableVisualization")]
             {
                 if tensor_is_labeled(&self.0.label) {
-                    tracing::debug!("[Tensor::clone] id={:?} label='{}' rc={}", self.id(), self.0.label, Arc::strong_count(&self.0));
+                    tracing::debug!(
+                        "[Tensor::clone] id={:?} label='{}' rc={}",
+                        self.id(),
+                        self.0.label,
+                        Arc::strong_count(&self.0)
+                    );
                 } else {
-                    tracing::trace!("[Tensor::clone] id={:?} rc={}", self.id(), Arc::strong_count(&self.0));
+                    tracing::trace!(
+                        "[Tensor::clone] id={:?} rc={}",
+                        self.id(),
+                        Arc::strong_count(&self.0)
+                    );
                 }
             }
             #[cfg(not(feature = "enableVisualization"))]
-            tracing::trace!("[Tensor::clone] id={:?} rc={}", self.id(), Arc::strong_count(&self.0));
+            tracing::trace!(
+                "[Tensor::clone] id={:?} rc={}",
+                self.id(),
+                Arc::strong_count(&self.0)
+            );
         }
         new_ref
     }
@@ -252,9 +275,7 @@ impl Tensor {
     }
 
     pub fn replace(&self, other_tensor: GlobalTensor<f32>) {
-        TENSOR_STORAGE.with_borrow_mut(|storage| {
-            storage.insert(self.id(), other_tensor)
-        });
+        TENSOR_STORAGE.with_borrow_mut(|storage| storage.insert(self.id(), other_tensor));
     }
 
     pub fn is_unique(&self) -> bool {
@@ -268,7 +289,10 @@ impl Function for GlobalFunction {
             let mut ops = ops.borrow_mut();
             match ops.get_mut(self.name()) {
                 Some(op) => op.forward(inputs),
-                None => Err(MlError::StringError(format!("Function {} is not registered globally.", self.type_name())))
+                None => Err(MlError::StringError(format!(
+                    "Function {} is not registered globally.",
+                    self.type_name()
+                ))),
             }
         })
     }
@@ -278,18 +302,28 @@ impl Function for GlobalFunction {
             let mut ops = ops.borrow_mut();
             match ops.get_mut(self.name()) {
                 Some(op) => op.assign_forward(inputs, node_id),
-                None => Err(MlError::StringError(format!("Function {} is not registered globally.", self.type_name())))
+                None => Err(MlError::StringError(format!(
+                    "Function {} is not registered globally.",
+                    self.type_name()
+                ))),
             }
         })
     }
 
     #[cfg(feature = "enableBackward")]
-    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(
+        &self,
+        targets: &[&dyn TensorBase],
+        grad: &dyn TensorBase,
+    ) -> MlResult<Vec<GlobalTensor<f32>>> {
         OPERATOR_STORAGE.with(|ops| {
             let mut ops = ops.borrow_mut();
             match ops.get_mut(self.name()) {
                 Some(op) => op.backward(targets, grad),
-                None => Err(MlError::StringError(format!("Function {} is not registered globally.", self.type_name())))
+                None => Err(MlError::StringError(format!(
+                    "Function {} is not registered globally.",
+                    self.type_name()
+                ))),
             }
         })
     }
@@ -298,14 +332,11 @@ impl Function for GlobalFunction {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeId(u64);
 
-
 pub struct NodeIdGenerator {
     counter: std::sync::atomic::AtomicU64,
 }
 
-
 pub(crate) static NODE_ID_GEN: NodeIdGenerator = NodeIdGenerator::new();
-
 
 impl NodeIdGenerator {
     pub const fn new() -> Self {
@@ -324,7 +355,9 @@ impl NodeIdGenerator {
 }
 
 impl NodeId {
-    pub(crate) const fn from_raw(value: u64) -> Self { Self(value) }
+    pub(crate) const fn from_raw(value: u64) -> Self {
+        Self(value)
+    }
 }
 
 pub(crate) struct ComputationNode {
@@ -368,7 +401,8 @@ pub enum NodeType {
     Output,
 }
 
-pub struct ExecutionContext {
+#[deprecated(note = "use tensor::ExecutionContext")]
+pub struct LegacyExecutionContext {
     #[cfg(all(feature = "enableBackward"))]
     pub graph: ComputationGraph,
     pub tensor_storage: HashMap<NodeId, GlobalTensor<f32>>,
@@ -378,7 +412,7 @@ pub struct ExecutionContext {
     pub visualization_graph: VisualizationGraph,
 }
 
-impl ExecutionContext {
+impl LegacyExecutionContext {
     pub fn new() -> Self {
         Self {
             #[cfg(all(feature = "enableBackward"))]
@@ -416,7 +450,6 @@ thread_local! {
     #[cfg(feature = "enableVisualization")]
     static              SHAPE_REGISTRY      : RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
 }
-
 
 // TensorBase를 구현하는 모든 타입 간 비교 (data + shape 기반, dirty 등 메타데이터 무시)
 impl PartialEq for dyn TensorBase {
@@ -464,13 +497,18 @@ impl Ord for Tensor {
     }
 }
 
-
 pub trait TensorBase {
-    fn new(_data: Vec<Vec<f32>>) -> Self where Self: Sized {
+    fn new(_data: Vec<Vec<f32>>) -> Self
+    where
+        Self: Sized,
+    {
         unimplemented!(" TensorBase::new() is not implemented ")
     }
 
-    fn from_vec(_data: Vec<f32>, _shape: &[usize]) -> MlResult<Self> where Self: Sized {
+    fn from_vec(_data: Vec<f32>, _shape: &[usize]) -> MlResult<Self>
+    where
+        Self: Sized,
+    {
         unimplemented!(" TensorBase::from_vec() is not implemented ")
     }
 
@@ -505,27 +543,42 @@ pub trait TensorBase {
         }
     }
 
-    fn zeros(shape: &[usize]) -> Self where Self: Sized {
+    fn zeros(shape: &[usize]) -> Self
+    where
+        Self: Sized,
+    {
         let size: usize = shape.iter().product();
         let data = vec![0.0; size];
         Self::from_vec(data, shape).unwrap()
     }
 
-    fn zeros_like(&self) -> Self where Self: Sized {
+    fn zeros_like(&self) -> Self
+    where
+        Self: Sized,
+    {
         Self::zeros(&self.shape())
     }
 
-    fn ones(shape: &[usize]) -> Self where Self: Sized {
+    fn ones(shape: &[usize]) -> Self
+    where
+        Self: Sized,
+    {
         let size: usize = shape.iter().product();
         let data = vec![1.0; size];
         Self::from_vec(data, shape).unwrap()
     }
 
-    fn ones_like(&self) -> Self where Self: Sized {
+    fn ones_like(&self) -> Self
+    where
+        Self: Sized,
+    {
         Self::ones(&self.shape())
     }
 
-    fn rand(shape: &[usize]) -> Self where Self: Sized {
+    fn rand(shape: &[usize]) -> Self
+    where
+        Self: Sized,
+    {
         let size: usize = shape.iter().product();
         let data: Vec<f32> = (0..size).map(|_| rand::random::<f32>()).collect();
         Self::from_vec(data, shape).unwrap()
@@ -533,7 +586,10 @@ pub trait TensorBase {
 
     /// 표준 정규분포 N(0, 1)에서 샘플링한 텐서를 생성합니다.
     /// Box-Muller 변환: z = sqrt(-2 * ln(u1)) * cos(2π * u2)
-    fn randn(shape: &[usize]) -> Self where Self: Sized {
+    fn randn(shape: &[usize]) -> Self
+    where
+        Self: Sized,
+    {
         let size: usize = shape.iter().product();
         let mut data = Vec::with_capacity(size);
         let mut i = 0;
@@ -552,7 +608,10 @@ pub trait TensorBase {
         Self::from_vec(data, shape).unwrap()
     }
 
-    fn scalar(scalar: f32) -> Self where Self: Sized {
+    fn scalar(scalar: f32) -> Self
+    where
+        Self: Sized,
+    {
         Self::new(vec![vec![scalar]])
     }
 
@@ -585,11 +644,16 @@ pub trait AutogradFunction: Function {
 
 #[cfg(test)]
 mod tests {
-    use crate::tensor::operators::{Abs, Add, Div, Exp, Function, Log, Matmul, Mul, Neg, Sqrt, Square, Sub};
-    use crate::tensor::{Tensor, TensorBase};
     use crate::MlResult;
+    use crate::tensor::operators::{
+        Abs, Add, Div, Exp, Function, Log, Matmul, Mul, Neg, Sqrt, Square, Sub,
+    };
+    use crate::tensor::{Tensor, TensorBase};
 
-    pub fn assert_tensor_eq(tensor: &dyn TensorBase, expected_tensor: &dyn TensorBase) -> MlResult<()> {
+    pub fn assert_tensor_eq(
+        tensor: &dyn TensorBase,
+        expected_tensor: &dyn TensorBase,
+    ) -> MlResult<()> {
         assert_eq!(tensor.data(), expected_tensor.data());
         assert_eq!(tensor.shape(), expected_tensor.shape());
         Ok(())
@@ -597,7 +661,6 @@ mod tests {
 
     #[test]
     fn tensor() -> MlResult<()> {
-
         let t1 = Tensor::new(vec![vec![1.0, 2.0]]);
         assert_eq!(t1.data(), vec![1.0, 2.0]);
         assert_eq!(t1.shape(), vec![1, 2]);
@@ -718,14 +781,14 @@ mod tests {
     #[test]
     fn tensor_mul_scalar() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let result = scalar_ops!(first, Mul , 2.0)?;
+        let result = scalar_ops!(first, Mul, 2.0)?;
 
         assert_tensor_eq(&result, &Tensor::new(vec![vec![2.0, 4.0]]))
     }
     #[test]
     fn tensor_div_scalar() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let result = scalar_ops!(first, Div , 2.0)?;
+        let result = scalar_ops!(first, Div, 2.0)?;
 
         assert_tensor_eq(&result, &Tensor::new(vec![vec![0.5, 1.0]]))
     }
@@ -733,15 +796,14 @@ mod tests {
     #[test]
     fn tensor_scalar_sub() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let result = scalar_ops!(2.0, buS , first)?;
+        let result = scalar_ops!(2.0, buS, first)?;
 
         assert_tensor_eq(&result, &Tensor::new(vec![vec![1.0, 0.0]]))
-
     }
     #[test]
     fn tensor_scalar_div() -> MlResult<()> {
         let first = Tensor::new(vec![vec![1.0, 2.0]]);
-        let result = scalar_ops!(2.0, viD , first)?;
+        let result = scalar_ops!(2.0, viD, first)?;
 
         assert_tensor_eq(&result, &Tensor::new(vec![vec![2.0, 1.0]]))
     }
