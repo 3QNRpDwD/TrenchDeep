@@ -418,6 +418,38 @@ impl ContextVariable {
     }
 }
 
+fn context_for(tensor: &ContextTensor) -> MlResult<ExecutionContext> {
+    Ok(ExecutionContext {
+        id: tensor.context_id(),
+        state: tensor.state()?,
+        _not_sync: Rc::new(Cell::new(())),
+    })
+}
+
+impl std::ops::Add<&ContextTensor> for &ContextTensor {
+    type Output = MlResult<ContextTensor>;
+    fn add(self, rhs: &ContextTensor) -> Self::Output { context_for(self)?.add(self, rhs) }
+}
+
+impl std::ops::Mul<&ContextTensor> for &ContextTensor {
+    type Output = MlResult<ContextTensor>;
+    fn mul(self, rhs: &ContextTensor) -> Self::Output { context_for(self)?.mul(self, rhs) }
+}
+
+impl std::ops::Add<&ContextVariable> for &ContextVariable {
+    type Output = MlResult<ContextVariable>;
+    fn add(self, rhs: &ContextVariable) -> Self::Output {
+        context_for(self.tensor())?.add_variable(self, rhs)
+    }
+}
+
+impl std::ops::Mul<&ContextVariable> for &ContextVariable {
+    type Output = MlResult<ContextVariable>;
+    fn mul(self, rhs: &ContextVariable) -> Self::Output {
+        context_for(self.tensor())?.mul_variable(self, rhs)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -471,6 +503,27 @@ mod tests {
         let seed = ctx.tensor(vec![1.0, 2.0], &[2])?;
         y.backward_with_grad(&seed)?;
         assert_eq!(x.grad()?.expect("leaf gradient").data, vec![4.0, 12.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn fallible_operator_overloads_use_the_owning_context() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let x = ctx.parameter(vec![2.0], &[])?;
+        let y = (&x * &x)?;
+        let z = (&y + &x)?;
+        z.backward()?;
+        assert_eq!(x.grad()?.expect("leaf gradient").data, vec![5.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn no_grad_skips_graph_registration() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let x = ctx.parameter(vec![2.0], &[])?;
+        let y = ctx.no_grad(|| ctx.mul_variable(&x, &x))?;
+        assert!(!y.requires_grad());
+        assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
         Ok(())
     }
 }
