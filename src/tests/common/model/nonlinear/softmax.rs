@@ -15,7 +15,7 @@ impl SoftmaxRegression {
 
     pub fn new(
         layer_parms: &[usize],
-        activation: GlobalFunction,
+        activation: GlobalFunction,     
         loss_function: GlobalFunction,
     ) -> Self {
         let n_input = layer_parms[0];

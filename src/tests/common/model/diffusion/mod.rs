@@ -227,46 +227,15 @@ impl Diffusion {
     /// 자동으로 ∂L/∂θ 를 계산할 수 있음.
     pub fn forward_loss_diffusion(&mut self, x_0: &Variable) -> MlResult<(Variable, Variable)> {
         let batch_size = x_0.tensor().shape()[0];
-
-        // Step 1: 랜덤 타임스텝 — t ~ Uniform({0, ..., T-1})
         let t = self.scheduler.sample_timestep();
-
-        // Step 2: 가우시안 노이즈 — ε ~ N(0, I)
-        //
-        // U-Net 이 예측할 노이즈.
-        // Variable 로 감싸서 MSE loss 의 backward 가 작동하도록 함.
         let noise = Variable::new(Tensor::randn(x_0.tensor().shape()));
-
-        // Step 3: Forward diffusion (Variable 경로)
-        //
-        //   x_t = √ᾱ_t · x₀ + √(1-ᾱ_t) · ε
-        //
-        // q_sample_variable 은 Mul + Add 연산자를 사용하여
-        // gradient 가 x₀ → ... → loss 까지 흐를 수 있게 함.
-        // (실제로는 x₀ 의 gradient 는 필요 없지만, noise 와 unet 파라미터의 gradient 가  요지)
         let x_t = self.scheduler.q_sample_variable(x_0, t, &noise)?;
-
-        // Step 4: Timestep 정규화 + U-Net 순전파
-        //
-        // t 를 [0, 1) 범위로 정규화하여 SinusoidalPE 에 입력.
-        // 왜 정규화? → timestep 의 절대값(0~999)보다 상대적 위치가
-        // sinusoidal encoding 에 더 안정적인 입력을 제공.
         let t_normalized = t as f32 / self.scheduler.timesteps as f32;
         let t_var = Variable::new(
             Tensor::from_vec(vec![t_normalized; batch_size], &[batch_size, 1])?
         );
-
-        // ε_θ(x_t, t) — gradient 추적되는 노이즈 예측
         let predicted_noise = self.unet.forward_with_t(&x_t, &t_var)?;
-
-        // Step 5: MSE Loss — ‖ε - ε_θ‖²
-        //
-        //   L = (1/n) Σᵢ (εᵢ - ε_θᵢ)²
-        //
-        // .backward() 호출 시 ∂L/∂ε_θ = 2(ε_θ - ε)/n 이 계산되고,
-        // chain rule 을 통해 U-Net 의 모든 파라미터 θ 까지 역전파됨.
         let loss = self.loss.apply_with_label(&[&noise, &predicted_noise], "mse_loss")?;
-
         Ok((predicted_noise, loss))
     }
 }
@@ -443,18 +412,9 @@ mod tests {
     fn diffusion_train_and_sample() -> MlResult<()> {
         use crate::tensor::ComputationGraph;
         use crate::optimizer::{Adam, Optimizer, clip_grad_norm};
-
         info!("═══════════════════════════════════════════════════════════");
         info!("  DDPM Training + Sampling E2E Test");
         info!("═══════════════════════════════════════════════════════════");
-
-        // ── 모델 생성 ──────────────────────────────────────────────────
-        //
-        // 최소 구성으로 빠른 테스트:
-        //   - 8×8 grayscale (1채널)
-        //   - dim=8, dim_mults=[1,2] → 2단계 U-Net
-        //   - 10 timesteps (실제로는 1000, 테스트에서는 속도 우선)
-        //   - attention 없음 (파라미터 수 최소화)
         let mut model = Diffusion::new(
             1, 8,                  // image: 1ch × 8×8
             8,                                   // dim (base channels)
@@ -464,36 +424,12 @@ mod tests {
             10,                            // T = 10 timesteps
             1e-4, 0.02,           // β schedule
         )?;
-
-        // ── 옵티마이저 설정 ────────────────────────────────────────────
-        //
-        // Adam: DDPM 논문 기본 옵티마이저
-        //   lr = 1e-3 (작은 모델이므로 높은 학습률 사용 가능)
-        //   β₁ = 0.9, β₂ = 0.999
         let mut optimizer = Adam::new(1e-3, 0.9, 0.999, 1e-8);
-
-        // U-Net 의 모든 파라미터를 옵티마이저에 등록
-        //
-        // params() 는 init_conv, time_mlp, down blocks, mid block,
-        // up blocks, final_res_block, final_conv 의 모든 weight/bias 를 반환
         for param in model.unet.params() {
             optimizer.register(param);
         }
-
         let param_count = model.unet.params().len();
         info!("  Model parameters: {} tensors", param_count);
-
-        // ── 학습 데이터 생성 ───────────────────────────────────────────
-        //
-        // 간단한 패턴: 상단 밝고 하단 어두운 그래디언트 이미지
-        //
-        //   row 0: ████████  (밝음, ≈1.0)
-        //   row 1: ▓▓▓▓▓▓▓▓
-        //   row 2: ▒▒▒▒▒▒▒▒
-        //   ...
-        //   row 7: ░░░░░░░░  (어두움, ≈0.14)
-        //
-        // 이 패턴을 학습하면 U-Net 은 "위가 밝고 아래가 어두운" 구조를 재현하기 위해 작동.
         let batch_size = 2;
         let mut img_data = Vec::with_capacity(batch_size * 1 * 8 * 8);
         for _b in 0..batch_size {
@@ -505,119 +441,44 @@ mod tests {
             }
         }
         let x_0 = Variable::new(Tensor::from_vec(img_data, &[batch_size, 1, 8, 8])?);
-
-        // dummy target (Diffusion 에서 사용하지 않음)
-        let t_dummy = Variable::new(Tensor::from_vec(vec![0.0; batch_size], &[batch_size, 1])?);
-
-        // ── 학습 전 초기 loss 측정 ──────────────────────────────────────
         let initial_loss = model.compute_loss(x_0.tensor())?;
         info!("  Initial loss (no-grad): {:.6}", initial_loss);
-
-        // ── 학습 루프 ──────────────────────────────────────────────────
-        //
-        // DDPM Algorithm 1:
-        //   repeat:
-        //     1. x₀ ~ dataset
-        //     2. t ~ Uniform({0,...,T-1})
-        //     3. ε ~ N(0, I)
-        //     4. x_t = √ᾱ_t · x₀ + √(1-ᾱ_t) · ε
-        //     5. L = ‖ε - ε_θ(x_t, t)‖²
-        //     6. ∇_θ L → update θ
-        //
-        // 아래 루프는 이 과정을 명시적으로 구현.
         let epochs = 5;
         let mut losses = Vec::with_capacity(epochs);
-
         for epoch in 0..epochs {
-            // ① 연산 그래프 초기화
-            //
-            // 매 스텝마다 새로운 그래프를 만들어야 함.
-            // 이전 스텝의 중간 노드를 재사용하면 gradient 가 오염됨.
             ComputationGraph::reset_graph();
-
-            // ② Forward pass — Algorithm 1 의 Step 1~5
-            //
-            // forward_loss_diffusion 내부에서:
-            //   - 랜덤 t 선택
-            //   - 노이즈 생성
-            //   - q_sample_variable (forward diffusion)
-            //   - unet.forward_with_t (노이즈 예측)
-            //   - MSE loss 계산
             let (_predicted, loss_var) = model.forward_loss_diffusion(&x_0)?;
             let loss_val = loss_var.tensor().data()[0];
             losses.push(loss_val);
-
-            // ③ 역전파 — ∂L/∂θ 계산
-            //
-            // loss.backward() 는 연산 그래프를 역순으로 순회하며
-            // chain rule 을 적용하여 모든 파라미터의 gradient 를 계산:
-            //
-            //   loss ← MSE ← ε_θ ← UNet layers ← ... ← θ (weights)
-            //                  ↑
-            //             ∂L/∂ε_θ = 2(ε_θ - ε)/n
             loss_var.backward()?;
-
-            // gradient clipping — 수치 안정성
-            //
-            // 깊은 네트워크에서 gradient 가 폭발할 수 있으므로,
-            // L2 norm 이 max_norm 을 초과하면 비례 축소.
-            // PyTorch 의 torch.nn.utils.clip_grad_norm_ 과 동일.
             let params: Vec<&dyn crate::nn::Parameter> = model.unet.params();
             let grad_norm = clip_grad_norm(&params, 1.0);
-
-            // ④ 파라미터 업데이트 — θ ← θ - lr · ∂L/∂θ
             optimizer.step()?;
-
-            // ⑤ gradient 초기화
             optimizer.zero_grad()?;
-
             info!(
                 "  Epoch {}/{}: loss = {:.6}, grad_norm = {:.4}",
                 epoch + 1, epochs, loss_val, grad_norm
             );
-
-            // loss 가 유한한지 확인 (NaN/Inf 발생 시 즉시 실패)
             assert!(
                 loss_val.is_finite(),
                 "Epoch {}: loss = {} (NaN/Inf detected!)",
                 epoch + 1, loss_val
             );
         }
-
-        // ── 학습 결과 검증 ──────────────────────────────────────────────
-        //
-        // 5 에폭은 수렴하기에 부족하지만, 최소한:
-        //   1. 모든 loss 가 유한해야 함 (수치 안정성)
-        //   2. loss 가 비합리적으로 크지 않아야 함
         info!("  All losses: {:?}", losses);
-
         let final_loss = *losses.last().unwrap();
         assert!(final_loss.is_finite(), "Final loss must be finite");
         assert!(final_loss < 100.0, "Final loss {} is unreasonably large", final_loss);
-
-        // ── 샘플링 테스트 ──────────────────────────────────────────────
-        //
-        // 학습된(?) 모델로 이미지 생성:
-        //   x_T ~ N(0, I) → ... → x₀
-        //
-        // 5 에폭 학습이므로 의미있는 이미지는 기대하지 않지만,
-        // 파이프라인이 정상 동작하는지 (shape, 유한성) 확인.
         info!("  Sampling {} images...", batch_size);
         let samples = model.sample(batch_size)?;
-
-        // Shape 검증: [batch_size, channels, height, width]
         assert_eq!(
             samples.shape(),
             &[batch_size, 1, 8, 8],
             "Sample shape mismatch: expected [{}, 1, 8, 8], got {:?}",
             batch_size, samples.shape()
         );
-
-        // 유한성 검증: NaN/Inf 없어야 함
         let all_finite = samples.data().iter().all(|v| v.is_finite());
         assert!(all_finite, "Samples contain NaN/Inf values");
-
-        // 통계 출력
         let min = samples.data().iter().cloned().fold(f32::INFINITY, f32::min);
         let max = samples.data().iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let mean = samples.data().iter().sum::<f32>() / samples.data().len() as f32;
@@ -625,7 +486,6 @@ mod tests {
         info!("═══════════════════════════════════════════════════════════");
         info!("  ✓ DDPM train + sample pipeline verified!");
         info!("═══════════════════════════════════════════════════════════");
-
         Ok(())
     }
 
@@ -648,30 +508,21 @@ mod tests {
     #[test]
     fn diffusion_train_with_trainer() -> MlResult<()> {
         use crate::optimizer::{Adam, Optimizer};
-
-        info!("  DDPM Training via Trainer::fit()");
-
-        // 모델 생성 (최소 구성)
+        info!("  DDPM Training via Trainer::fit()" );
         let mut model = Diffusion::new(
             1, 8, 8, &[1, 2], 4, &[false, false],
             10, 1e-4, 0.02,
         )?;
-
-        // 옵티마이저 + 파라미터 등록
         let mut optimizer = Adam::new(1e-3, 0.9, 0.999, 1e-8);
         for param in model.unet.params() {
             optimizer.register(param);
         }
-
-        // 학습 데이터 (단일 배치, Variable 슬라이스로 변환)
         let x_0 = Variable::new(
             Tensor::from_vec(vec![0.5; 2 * 1 * 8 * 8], &[2, 1, 8, 8])?
         );
         let t_dummy = Variable::new(
             Tensor::from_vec(vec![0.0; 2], &[2, 1])?
         );
-
-        // Trainer::silent() — 로그 없이 빠르게 실행
         let trainer = crate::trainer::Trainer::silent();
         let result = trainer.fit(
             &mut model,
@@ -681,11 +532,9 @@ mod tests {
             3,               // 3 에폭
             1e-10,           // tolerance (수렴 판정 비활성화)
         )?;
-
         info!("  Trainer result: {} epochs, final_loss = {:.6}", result.epochs_trained, result.final_loss);
         assert!(result.final_loss.is_finite(), "Trainer final loss must be finite");
         assert_eq!(result.epochs_trained, 3);
-
         Ok(())
     }
 }
