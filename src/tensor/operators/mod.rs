@@ -421,14 +421,8 @@ mod tests {
         {
             y.backward()?;
 
-            #[cfg(feature = "requiresGrad")] {
-                assert_eq!(y.grad(), &Tensor::new(vec![vec![1.0]]));
-                assert_eq!(t.grad(), &Tensor::new(vec![vec![1.0]]));
-            }
-            #[cfg(not(feature = "requiresGrad"))] {
-                assert!(y.grad().is_empty());
-                assert!(t.grad().is_empty());
-            }
+            assert!(y.grad().is_empty());
+            assert!(t.grad().is_empty());
 
             assert_tensor_eq(x0.grad(), &Tensor::new(vec![vec![2.0]]))?;
             assert_tensor_eq(x1.grad(), &Tensor::new(vec![vec![1.0]]))?;

@@ -31,7 +31,7 @@ impl Parameter for Variable {
             #[cfg(feature = "enableVisualization")]
             node_type: crate::tensor::NodeType::Variable,
             tensor,
-            requires_grad: cfg!(feature = "requiresGrad").into(),
+            requires_grad: false.into(),
             //  zeros_like() → new_empty()
             //   zeros_like(): shape 크기만큼 Vec<f32> 힙 할당 + TENSOR_STORAGE insert
             //   new_empty() : data=[], shape=[] — capacity=0, 힙 할당 없음
@@ -215,7 +215,7 @@ impl Variable {
                 node_type,
                 grad: tensor.zeros_like(),
                 tensor,
-                requires_grad: cfg!(feature = "requiresGrad").into(),
+                requires_grad: false.into(),
             }
         }
 
@@ -226,7 +226,7 @@ impl Variable {
             node_type: crate::tensor::NodeType::Variable,
             grad: tensor.zeros_like(),
             tensor,
-            requires_grad: cfg!(feature = "requiresGrad").into(),
+            requires_grad: false.into(),
         }
     }
 

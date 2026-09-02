@@ -28,6 +28,40 @@ pub enum TensorError {
     InvalidInputCount { expected: i32, got: usize },
     #[error("Empty tensor")]
     EmptyTensor,
+    #[error("Expected a scalar tensor, got shape {shape:?}")]
+    NotScalar { shape: Vec<usize> },
+    #[error("Invalid tensor index {indices:?} for shape {shape:?}")]
+    InvalidIndex { indices: Vec<usize>, shape: Vec<usize> },
+}
+
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub enum ContextError {
+    #[error("The execution context has already been dropped")]
+    Dropped,
+    #[error("Tensors belong to different execution contexts")]
+    Mismatch,
+    #[error("Tensor node {0:?} is not present in this execution context")]
+    UnknownTensor(crate::tensor::NodeId),
+    #[error("The execution context is already borrowed")]
+    BorrowConflict,
+}
+
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub enum AutogradError {
+    #[error("backward() requires a scalar output, got shape {0:?}")]
+    OutputNotScalar(Vec<usize>),
+    #[error("Gradient shape mismatch: expected {expected:?}, got {got:?}")]
+    GradientShapeMismatch { expected: Vec<usize>, got: Vec<usize> },
+    #[error("Operator '{0}' does not support backward")]
+    BackwardNotSupported(String),
+    #[error("The computation graph for node {0:?} has already been freed")]
+    GraphAlreadyFreed(crate::tensor::NodeId),
+    #[error("Computation node {0:?} was not found")]
+    NodeNotFound(crate::tensor::NodeId),
+    #[error("A cycle was detected in the computation graph")]
+    CycleDetected,
+    #[error("Backward result arity mismatch: expected {expected}, got {got}")]
+    BackwardArityMismatch { expected: usize, got: usize },
 }
 
 #[derive(Error, Debug)]
@@ -42,6 +76,10 @@ pub enum MlError {
     BackendError(#[from] BackendError),
     #[error(transparent)]
     OptimError(#[from] OptimError),
+    #[error(transparent)]
+    ContextError(#[from] ContextError),
+    #[error(transparent)]
+    AutogradError(#[from] AutogradError),
 }
 
 impl From<String> for MlError {
