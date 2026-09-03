@@ -49,13 +49,7 @@ struct ContextState {
 struct GraphNode {
     inputs: Vec<NodeId>,
     saved: Vec<NodeId>,
-    backward: NodeBackward,
-}
-
-#[derive(Debug)]
-enum NodeBackward {
-    Dynamic(Box<dyn BackwardOp>),
-    Legacy(BuiltinBackward),
+    backward: Box<dyn BackwardOp>,
 }
 
 #[derive(Debug, Clone)]
@@ -891,7 +885,7 @@ impl ExecutionContext {
         Ok(GraphStats {
             tensors: state.tensors.len(),
             graph_nodes: state.graph.len(),
-            dynamic_backward_nodes: state.graph.values().filter(|node| matches!(&node.backward, NodeBackward::Dynamic(_))).count(),
+            dynamic_backward_nodes: state.graph.len(),
             saved_tensor_references: state.graph.values().map(|node| node.saved.len()).sum(),
             no_grad_depth: state.no_grad_depth,
         })
@@ -973,193 +967,34 @@ impl ExecutionContext {
                         .ok_or(ContextError::UnknownTensor(*input))
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            let grads = match &node.backward {
-                NodeBackward::Dynamic(op) => {
-                    let saved = node.saved.iter().map(|saved| {
-                        state.tensors.get(saved).cloned().ok_or(ContextError::UnknownTensor(*saved))
-                    }).collect::<Result<Vec<_>, _>>()?;
-                    let input_views: Vec<_> = values.iter().map(|value| TensorView { data: &value.data, shape: &value.shape }).collect();
-                    let saved_views: Vec<_> = saved.iter().map(|value| TensorView { data: &value.data, shape: &value.shape }).collect();
-                    let results = op.backward(
-                        &input_views,
-                        &saved_views,
-                        TensorView { data: &grad.data, shape: &grad.shape },
-                    )?;
-                    if results.len() != op.input_count() {
-                        return Err(AutogradError::BackwardArityMismatch { expected: op.input_count(), got: results.len() }.into());
-                    }
-                    results.into_iter().map(|result| result.ok_or_else(|| {
-                        AutogradError::BackwardNotSupported(format!("{} returned a non-differentiable input", op.name())).into()
-                    })).collect::<MlResult<Vec<_>>>()?
-                }
-                NodeBackward::Legacy(backward) => match backward.clone() {
-                BuiltinBackward::Add => {
-                    require_arity(&values, 2)?;
-                    vec![reduce_to_shape(&grad, &values[0].shape)?, reduce_to_shape(&grad, &values[1].shape)?]
-                }
-                BuiltinBackward::Sub => {
-                    require_arity(&values, 2)?;
-                    vec![
-                        reduce_to_shape(&grad, &values[0].shape)?,
-                        reduce_to_shape(&tensor_map(&grad, |g| -g)?, &values[1].shape)?,
-                    ]
-                }
-                BuiltinBackward::Mul => {
-                    require_arity(&values, 2)?;
-                    let rhs = GlobalTensor::from_vec(broadcast_data(&values[1], &grad.shape)?, &grad.shape)?;
-                    let lhs = GlobalTensor::from_vec(broadcast_data(&values[0], &grad.shape)?, &grad.shape)?;
-                    let left = tensor_zip(&grad, &rhs, |g, r| g * r)?;
-                    let right = tensor_zip(&grad, &lhs, |g, l| g * l)?;
-                    vec![reduce_to_shape(&left, &values[0].shape)?, reduce_to_shape(&right, &values[1].shape)?]
-                }
-                BuiltinBackward::Div => {
-                    require_arity(&values, 2)?;
-                    let rhs = GlobalTensor::from_vec(broadcast_data(&values[1], &grad.shape)?, &grad.shape)?;
-                    let lhs = GlobalTensor::from_vec(broadcast_data(&values[0], &grad.shape)?, &grad.shape)?;
-                    let left = tensor_zip(&grad, &rhs, |g, r| g / r)?;
-                    let right_data = grad
-                        .data
-                        .iter()
-                        .zip(&lhs.data)
-                        .zip(&rhs.data)
-                        .map(|((g, l), r)| -g * l / (r * r))
-                        .collect();
-                    let right = GlobalTensor::from_vec(right_data, &grad.shape)?;
-                    vec![reduce_to_shape(&left, &values[0].shape)?, reduce_to_shape(&right, &values[1].shape)?]
-                }
-                BuiltinBackward::Neg => vec![tensor_map(&grad, |g| -g)?],
-                BuiltinBackward::Square => {
-                    require_arity(&values, 1)?;
-                    vec![tensor_zip(&grad, &values[0], |g, x| 2.0 * g * x)?]
-                }
-                BuiltinBackward::Exp => {
-                    let output = state
-                        .tensors
-                        .get(&id)
-                        .ok_or(ContextError::UnknownTensor(id))?;
-                    vec![tensor_zip(&grad, output, |g, y| g * y)?]
-                }
-                BuiltinBackward::Log => {
-                    require_arity(&values, 1)?;
-                    vec![tensor_zip(&grad, &values[0], |g, x| g / x)?]
-                }
-                BuiltinBackward::Sqrt => {
-                    let output = state.tensors.get(&id).ok_or(ContextError::UnknownTensor(id))?;
-                    vec![tensor_zip(&grad, output, |g, y| g * 0.5 / y)?]
-                }
-                BuiltinBackward::Pow(exponent) => {
-                    require_arity(&values, 1)?;
-                    vec![tensor_zip(&grad, &values[0], |g, x| {
-                        g * exponent * x.powf(exponent - 1.0)
-                    })?]
-                }
-                BuiltinBackward::Sin => {
-                    require_arity(&values, 1)?;
-                    vec![tensor_zip(&grad, &values[0], |g, x| g * x.cos())?]
-                }
-                BuiltinBackward::Cos => {
-                    require_arity(&values, 1)?;
-                    vec![tensor_zip(&grad, &values[0], |g, x| -g * x.sin())?]
-                }
-                BuiltinBackward::Tanh => {
-                    let output = state.tensors.get(&id).ok_or(ContextError::UnknownTensor(id))?;
-                    vec![tensor_zip(&grad, output, |g, y| g * (1.0 - y * y))?]
-                }
-                BuiltinBackward::Sigmoid => {
-                    let output = state.tensors.get(&id).ok_or(ContextError::UnknownTensor(id))?;
-                    vec![tensor_zip(&grad, output, |g, y| g * y * (1.0 - y))?]
-                }
-                BuiltinBackward::Silu => {
-                    require_arity(&values, 1)?;
-                    vec![tensor_zip(&grad, &values[0], |g, x| {
-                        let sigmoid = 1.0 / (1.0 + (-x).exp());
-                        g * sigmoid * (1.0 + x * (1.0 - sigmoid))
-                    })?]
-                }
-                BuiltinBackward::Relu => {
-                    require_arity(&values, 1)?;
-                    vec![tensor_zip(&grad, &values[0], |g, x| if x > 0.0 { g } else { 0.0 })?]
-                }
-                BuiltinBackward::Reshape => {
-                    require_arity(&values, 1)?;
-                    vec![GlobalTensor::from_vec(grad.data, &values[0].shape)?]
-                }
-                BuiltinBackward::Transpose(axes) => {
-                    require_arity(&values, 1)?;
-                    let mut inverse = vec![0; axes.len()];
-                    for (output_axis, input_axis) in axes.into_iter().enumerate() {
-                        inverse[input_axis] = output_axis;
-                    }
-                    vec![GlobalTensor::from_vec(
-                        permute_data(&grad.data, &grad.shape, &inverse), &values[0].shape,
-                    )?]
-                }
-                BuiltinBackward::Concat { axis, sizes } => {
-                    if sizes.len() != values.len() {
-                        return Err(AutogradError::BackwardArityMismatch { expected: values.len(), got: sizes.len() }.into());
-                    }
-                    let outer: usize = grad.shape[..axis].iter().product();
-                    let inner: usize = grad.shape[axis + 1..].iter().product();
-                    let axis_width = grad.shape[axis] * inner;
-                    let mut offsets = Vec::with_capacity(sizes.len());
-                    let mut running = 0;
-                    for size in &sizes { offsets.push(running); running += size * inner; }
-                    let mut results = Vec::with_capacity(values.len());
-                    for (input_index, value) in values.iter().enumerate() {
-                        let chunk = sizes[input_index] * inner;
-                        let mut data = Vec::with_capacity(value.data.len());
-                        for outer_index in 0..outer {
-                            let start = outer_index * axis_width + offsets[input_index];
-                            data.extend_from_slice(&grad.data[start..start + chunk]);
-                        }
-                        results.push(GlobalTensor::from_vec(data, &value.shape)?);
-                    }
-                    results
-                }
-                BuiltinBackward::Sum => {
-                    require_arity(&values, 1)?;
-                    let scalar =
-                        grad.data
-                            .first()
-                            .copied()
-                            .ok_or(TensorError::InvalidOperation {
-                                op: "sum backward",
-                                reason: "empty output gradient".into(),
-                            })?;
-                    vec![GlobalTensor::from_vec(
-                        vec![scalar; values[0].data.len()],
-                        &values[0].shape,
-                    )?]
-                }
-                BuiltinBackward::Matmul => {
-                    require_arity(&values, 2)?;
-                    let (lhs, rhs) = (&values[0], &values[1]);
-                    let spec = MatmulSpec::new(&lhs.shape, &rhs.shape)?;
-                    let batch_count: usize = spec.batch_shape.iter().product();
-                    let mut dl = vec![0.0; lhs.data.len()];
-                    let mut dr = vec![0.0; rhs.data.len()];
-                    for batch in 0..batch_count {
-                        let left_batch = broadcast_offset(batch, &spec.batch_shape, &spec.left_batch);
-                        let right_batch = broadcast_offset(batch, &spec.batch_shape, &spec.right_batch);
-                        for i in 0..spec.m {
-                            for p in 0..spec.k {
-                                for j in 0..spec.n {
-                                    let upstream = grad.data[(batch * spec.m + i) * spec.n + j];
-                                    dl[(left_batch * spec.m + i) * spec.k + p] +=
-                                        upstream * rhs.data[(right_batch * spec.k + p) * spec.n + j];
-                                    dr[(right_batch * spec.k + p) * spec.n + j] +=
-                                        lhs.data[(left_batch * spec.m + i) * spec.k + p] * upstream;
-                                }
-                            }
-                        }
-                    }
-                    vec![
-                        GlobalTensor::from_vec(dl, &lhs.shape)?,
-                        GlobalTensor::from_vec(dr, &rhs.shape)?,
-                    ]
-                }
-                },
-            };
+            let op = &node.backward;
+            let saved = node.saved.iter().map(|saved| {
+                state.tensors.get(saved).cloned().ok_or(ContextError::UnknownTensor(*saved))
+            }).collect::<Result<Vec<_>, _>>()?;
+            let input_views: Vec<_> = values.iter().map(|value| TensorView {
+                data: &value.data,
+                shape: &value.shape,
+            }).collect();
+            let saved_views: Vec<_> = saved.iter().map(|value| TensorView {
+                data: &value.data,
+                shape: &value.shape,
+            }).collect();
+            let results = op.backward(
+                &input_views,
+                &saved_views,
+                TensorView { data: &grad.data, shape: &grad.shape },
+            )?;
+            if results.len() != op.input_count() {
+                return Err(AutogradError::BackwardArityMismatch {
+                    expected: op.input_count(),
+                    got: results.len(),
+                }.into());
+            }
+            let grads = results.into_iter().map(|result| result.ok_or_else(|| {
+                AutogradError::BackwardNotSupported(format!(
+                    "{} returned a non-differentiable input", op.name()
+                )).into()
+            })).collect::<MlResult<Vec<_>>>()?;
             if grads.len() != input_ids.len() {
                 return Err(AutogradError::BackwardArityMismatch {
                     expected: input_ids.len(),
@@ -1196,10 +1031,10 @@ impl ExecutionContext {
     }
 }
 
-fn into_node_backward(backward: BuiltinBackward) -> NodeBackward {
+fn into_node_backward(backward: BuiltinBackward) -> Box<dyn BackwardOp> {
     match backward {
-        BuiltinBackward::Add => NodeBackward::Dynamic(Box::new(AddBackward)),
-        BuiltinBackward::Mul => NodeBackward::Dynamic(Box::new(MulBackward)),
+        BuiltinBackward::Add => Box::new(AddBackward),
+        BuiltinBackward::Mul => Box::new(MulBackward),
         other @ (BuiltinBackward::Sub
         | BuiltinBackward::Div
         | BuiltinBackward::Neg
@@ -1215,11 +1050,10 @@ fn into_node_backward(backward: BuiltinBackward) -> NodeBackward {
         | BuiltinBackward::Silu
         | BuiltinBackward::Relu
         | BuiltinBackward::Sum
-        | BuiltinBackward::Reshape) => NodeBackward::Dynamic(Box::new(ElementwiseBackward(other))),
+        | BuiltinBackward::Reshape) => Box::new(ElementwiseBackward(other)),
         other @ (BuiltinBackward::Transpose(_)
         | BuiltinBackward::Concat { .. }
-        | BuiltinBackward::Matmul) => NodeBackward::Dynamic(Box::new(StructuralBackward(other))),
-        other => NodeBackward::Legacy(other),
+        | BuiltinBackward::Matmul) => Box::new(StructuralBackward(other)),
     }
 }
 
@@ -1342,17 +1176,6 @@ fn reduce_to_shape(input: &GlobalTensor<f32>, target_shape: &[usize]) -> MlResul
         data[broadcast_offset(flat, &input.shape, target_shape)] += value;
     }
     GlobalTensor::from_vec(data, target_shape)
-}
-
-fn require_arity(values: &[GlobalTensor<f32>], expected: usize) -> MlResult<()> {
-    if values.len() != expected {
-        return Err(AutogradError::BackwardArityMismatch {
-            expected,
-            got: values.len(),
-        }
-        .into());
-    }
-    Ok(())
 }
 
 fn tensor_map(tensor: &GlobalTensor<f32>, f: impl Fn(f32) -> f32) -> MlResult<GlobalTensor<f32>> {
