@@ -1,9 +1,10 @@
-use super::{DotEncoder, GraphSnapshot, VisualizationError, graphviz};
+use super::{DotEncoder, DotProfile, GraphSnapshot, VisualizationError, graphviz};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub struct WriteWarning {
     pub artifact: PathBuf,
+    pub kind: graphviz::GraphvizFailureKind,
     pub message: String,
 }
 
@@ -25,6 +26,7 @@ pub struct FileSnapshotWriterBuilder {
     output_directory: PathBuf,
     render_svg: bool,
     graphviz_program: PathBuf,
+    dot_profile: DotProfile,
 }
 
 impl FileSnapshotWriterBuilder {
@@ -38,6 +40,11 @@ impl FileSnapshotWriterBuilder {
         self
     }
 
+    pub fn dot_profile(mut self, profile: DotProfile) -> Self {
+        self.dot_profile = profile;
+        self
+    }
+
     pub fn build(self) -> Result<FileSnapshotWriter, VisualizationError> {
         if self.output_directory.as_os_str().is_empty() {
             return Err(VisualizationError::InvalidArtifactStem(
@@ -48,6 +55,7 @@ impl FileSnapshotWriterBuilder {
             output_directory: self.output_directory,
             render_svg: self.render_svg,
             graphviz_program: self.graphviz_program,
+            dot_profile: self.dot_profile,
         })
     }
 }
@@ -56,6 +64,7 @@ pub struct FileSnapshotWriter {
     output_directory: PathBuf,
     render_svg: bool,
     graphviz_program: PathBuf,
+    dot_profile: DotProfile,
 }
 
 impl FileSnapshotWriter {
@@ -64,6 +73,7 @@ impl FileSnapshotWriter {
             output_directory: output_directory.as_ref().to_path_buf(),
             render_svg: false,
             graphviz_program: PathBuf::from("dot"),
+            dot_profile: DotProfile::Auto,
         }
     }
 }
@@ -78,7 +88,7 @@ impl SnapshotWriter for FileSnapshotWriter {
         std::fs::create_dir_all(&self.output_directory)
             .map_err(|error| VisualizationError::io(&self.output_directory, error))?;
 
-        let dot_text = DotEncoder::encode(snapshot);
+        let dot_text = DotEncoder::encode_with_profile(snapshot, self.dot_profile);
         let dot_path = self.output_directory.join(format!("{stem}.dot"));
         let json_path = self.output_directory.join(format!("{stem}.json"));
         std::fs::write(&dot_path, &dot_text)
@@ -95,9 +105,10 @@ impl SnapshotWriter for FileSnapshotWriter {
             let svg_path = self.output_directory.join(format!("{stem}.svg"));
             match graphviz::render(&self.graphviz_program, &dot_text, &svg_path) {
                 Ok(()) => report.artifacts.push(svg_path),
-                Err(message) => report.warnings.push(WriteWarning {
+                Err(error) => report.warnings.push(WriteWarning {
                     artifact: svg_path,
-                    message,
+                    kind: error.kind,
+                    message: error.message,
                 }),
             }
         }

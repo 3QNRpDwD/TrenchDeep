@@ -1,6 +1,6 @@
-use super::{CaptureContext, CaptureProfile, NodeRole, VisualizationError};
+use super::{CaptureContext, CaptureProfile, NodeRole, capture};
 use crate::tensor::{NodeId, Tensor, TensorBase};
-use std::{cell::RefCell, collections::HashMap};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub(crate) struct RecordedMetadata {
@@ -13,61 +13,32 @@ pub(crate) struct SessionState {
     pub profile: CaptureProfile,
     pub context: CaptureContext,
     pub metadata: HashMap<NodeId, RecordedMetadata>,
-    label_counters: HashMap<String, usize>,
+    pub(crate) label_counters: HashMap<String, usize>,
 }
 
-#[derive(Debug)]
-enum RecordingState {
-    Disabled,
-    Capturing(SessionState),
-}
-
-thread_local! {
-    static STATE: RefCell<RecordingState> = const { RefCell::new(RecordingState::Disabled) };
-}
-
-pub(crate) fn begin(
-    profile: CaptureProfile,
-    context: CaptureContext,
-) -> Result<(), VisualizationError> {
-    STATE.with(|state| {
-        let mut state = state.borrow_mut();
-        if matches!(*state, RecordingState::Capturing(_)) {
-            return Err(VisualizationError::CaptureAlreadyActive);
-        }
-        *state = RecordingState::Capturing(SessionState {
+impl SessionState {
+    pub(crate) fn new(profile: CaptureProfile, context: CaptureContext) -> Self {
+        Self {
             profile,
             context,
             metadata: HashMap::new(),
             label_counters: HashMap::new(),
-        });
-        Ok(())
-    })
+        }
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.metadata.clear();
+        self.label_counters.clear();
+    }
 }
 
 #[inline(always)]
 pub(crate) fn is_active() -> bool {
-    STATE.with(|state| matches!(*state.borrow(), RecordingState::Capturing(_)))
-}
-
-pub(crate) fn session() -> Result<SessionState, VisualizationError> {
-    STATE.with(|state| match &*state.borrow() {
-        RecordingState::Capturing(session) => Ok(session.clone()),
-        RecordingState::Disabled => Err(VisualizationError::CaptureNotActive),
-    })
-}
-
-pub(crate) fn disable() {
-    STATE.with(|state| *state.borrow_mut() = RecordingState::Disabled);
+    capture::is_active()
 }
 
 pub(crate) fn clear_temporary() {
-    STATE.with(|state| {
-        if let RecordingState::Capturing(session) = &mut *state.borrow_mut() {
-            session.metadata.clear();
-            session.label_counters.clear();
-        }
-    });
+    capture::clear_temporary();
 }
 
 pub(crate) fn record_node(
@@ -80,11 +51,7 @@ pub(crate) fn record_node(
     if !is_active() {
         return;
     }
-    STATE.with(|state| {
-        let mut state = state.borrow_mut();
-        let RecordingState::Capturing(session) = &mut *state else {
-            return;
-        };
+    capture::with_session_mut(|session| {
         if session.metadata.contains_key(&id) {
             return;
         }
@@ -119,8 +86,7 @@ fn inferred_label(shape: &[usize], role: &NodeRole) -> String {
 
 #[cfg(test)]
 pub(crate) fn metadata_len() -> usize {
-    STATE.with(|state| match &*state.borrow() {
-        RecordingState::Disabled => 0,
-        RecordingState::Capturing(session) => session.metadata.len(),
-    })
+    let mut length = 0;
+    capture::with_session_mut(|session| length = session.metadata.len());
+    length
 }

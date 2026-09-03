@@ -4,13 +4,19 @@ use crate::tensor::GlobalTensor;
 // Variable in-place operator overloading (no graph registration, for parameter updates)
 impl std::ops::SubAssign<GlobalTensor<f32>> for Variable {
     fn sub_assign(&mut self, rhs: GlobalTensor<f32>) {
-        Sub::new().unwrap().assign_forward(&[self.tensor(), &rhs], self.node_id()).unwrap();
+        Sub::new()
+            .unwrap()
+            .assign_forward(&[self.tensor(), &rhs], self.node_id())
+            .unwrap();
     }
 }
 
 impl std::ops::AddAssign<GlobalTensor<f32>> for Variable {
     fn add_assign(&mut self, rhs: GlobalTensor<f32>) {
-        Add::new().unwrap().assign_forward(&[self.tensor(), &rhs], self.node_id()).unwrap();
+        Add::new()
+            .unwrap()
+            .assign_forward(&[self.tensor(), &rhs], self.node_id())
+            .unwrap();
     }
 }
 
@@ -29,7 +35,7 @@ impl Parameter for Variable {
             grad: Tensor::new_empty(),
         }
     }
-    
+
     fn node_id(&self) -> NodeId {
         self.tensor.id()
     }
@@ -75,7 +81,10 @@ impl Parameter for Variable {
     /// 현재 라벨 반환
     #[cfg(feature = "enableVisualization")]
     fn label(&self) -> &str {
-        self.label.as_deref().map(String::as_str).unwrap_or("unlabeled")
+        self.label
+            .as_deref()
+            .map(String::as_str)
+            .unwrap_or("unlabeled")
     }
 
     #[cfg(feature = "enableVisualization")]
@@ -112,13 +121,14 @@ impl Parameter for Variable {
     #[cfg(feature = "enableBackward")]
     fn is_grad_dirty(&self) -> bool {
         crate::tensor::TENSOR_STORAGE.with(|storage| {
-            storage.borrow()
+            storage
+                .borrow()
                 .get(&self.grad.id())
                 .map(|gt| gt.dirty)
                 .unwrap_or(false)
         })
     }
-    
+
     #[cfg(feature = "enableBackward")]
     fn accumulate_grad(&self, new_grad: Tensor) -> MlResult<()> {
         // 버퍼 존재 여부에 따라 두 경로로 분기
@@ -138,10 +148,7 @@ impl Parameter for Variable {
             // 이후 에폭에서는 이 경로를 타지 않는다.
             // (clear_grad는 버퍼를 해제하지 않고 0으로만 채우기 때문)
             // dirty=true를 GlobalTensor에 포함하여 replace.
-            let mut buf = GlobalTensor::from_vec(
-                new_grad.data().to_vec(),
-                new_grad.shape(),
-            )?;
+            let mut buf = GlobalTensor::from_vec(new_grad.data().to_vec(), new_grad.shape())?;
             buf.dirty = true;
             self.grad.replace(buf);
         } else {
@@ -150,7 +157,8 @@ impl Parameter for Variable {
                 return Err(TensorError::InvalidShape {
                     expected: self.grad.shape().to_vec(),
                     got: new_grad.shape().to_vec(),
-                }.into());
+                }
+                .into());
             }
             // new_grad.data()는 raw pointer를 통해 TENSOR_STORAGE에 접근한다.
             // .with()의 불변 대여는 as_ptr() 반환 시 즉시 해제되므로
@@ -159,7 +167,8 @@ impl Parameter for Variable {
             let new_data: &[f32] = new_grad.data();
             crate::tensor::TENSOR_STORAGE.with_borrow_mut(|storage| {
                 if let Some(gt) = storage.get_mut(&self.grad.id()) {
-                    gt.data.iter_mut()
+                    gt.data
+                        .iter_mut()
                         .zip(new_data.iter())
                         .for_each(|(d, &v)| *d += v);
                     gt.dirty = true;
@@ -175,7 +184,10 @@ impl Variable {
     pub(crate) fn visualization_metadata(
         &self,
     ) -> (Option<&str>, Option<&crate::visualization::NodeRole>) {
-        (self.label.as_deref().map(String::as_str), self.node_type.as_ref())
+        (
+            self.label.as_deref().map(String::as_str),
+            self.node_type.as_ref(),
+        )
     }
 
     /// 사용자 정의 라벨로 변수 생성
@@ -195,6 +207,21 @@ impl Variable {
                 tensor,
                 requires_grad: false.into(),
             }
+        }
+    }
+
+    #[cfg(feature = "enableVisualization")]
+    pub(crate) fn new_saved(tensor: Tensor) -> Self {
+        if crate::visualization::recording::is_active() {
+            Variable {
+                label: None,
+                node_type: Some(crate::visualization::NodeRole::Saved),
+                grad: Tensor::new_empty(),
+                tensor,
+                requires_grad: false.into(),
+            }
+        } else {
+            Self::new(tensor)
         }
     }
 
@@ -233,7 +260,7 @@ impl Variable {
                 grad: tensor.zeros_like(),
                 tensor,
                 requires_grad: false.into(),
-            }
+            };
         }
 
         Variable {
@@ -309,112 +336,99 @@ impl Variable {
 #[cfg(feature = "enableBackward")]
 impl PartialEq for &Variable {
     fn eq(&self, other: &&Variable) -> bool {
-        self.tensor == other.tensor &&
-            self.requires_grad == other.requires_grad &&
-            self.grad == other.grad
+        self.tensor == other.tensor
+            && self.requires_grad == other.requires_grad
+            && self.grad == other.grad
     }
 }
 
-
 #[macro_export]
 macro_rules! var_input {
-    ($tensor:expr) => {
+    ($tensor:expr) => {{
+        #[cfg(feature = "enableVisualization")]
         {
-            #[cfg(feature = "enableVisualization")]
-            {
-                crate::nn::Variable::new_input($tensor)
-            }
-
-            #[cfg(not(feature = "enableVisualization"))]
-            {
-                crate::nn::Variable::new($tensor)
-            }
+            crate::nn::Variable::new_input($tensor)
         }
-    };
+
+        #[cfg(not(feature = "enableVisualization"))]
+        {
+            crate::nn::Variable::new($tensor)
+        }
+    }};
 }
 
 #[macro_export]
 macro_rules! var_output {
-    ($tensor:expr) => {
+    ($tensor:expr) => {{
+        #[cfg(feature = "enableVisualization")]
         {
-            #[cfg(feature = "enableVisualization")]
-            {
-                crate::nn::Variable::new_output($tensor)
-            }
-
-            #[cfg(not(feature = "enableVisualization"))]
-            {
-                crate::nn::Variable::new($tensor)
-            }
+            crate::nn::Variable::new_output($tensor)
         }
-    };
+
+        #[cfg(not(feature = "enableVisualization"))]
+        {
+            crate::nn::Variable::new($tensor)
+        }
+    }};
 }
 
 #[macro_export]
 macro_rules! var_act {
-    ($tensor:expr, $type_name:expr) => {
+    ($tensor:expr, $type_name:expr) => {{
+        use std::sync::Arc;
+        #[cfg(feature = "enableVisualization")]
         {
-            use std::sync::Arc;
-            #[cfg(feature = "enableVisualization")]
-            {
-                crate::nn::Variable::new_activation($tensor, $type_name)
-            }
-
-            #[cfg(not(feature = "enableVisualization"))]
-            {
-                crate::nn::Variable::new($tensor)
-            }
+            crate::nn::Variable::new_activation($tensor, $type_name)
         }
-    };
+
+        #[cfg(not(feature = "enableVisualization"))]
+        {
+            crate::nn::Variable::new($tensor)
+        }
+    }};
 }
 
 #[macro_export]
 macro_rules! var_weight {
-    ($tensor:expr) => {
+    ($tensor:expr) => {{
+        #[cfg(feature = "enableVisualization")]
         {
-            #[cfg(feature = "enableVisualization")]
-            {
-                crate::nn::Variable::new_weight($tensor)
-            }
-
-            #[cfg(not(feature = "enableVisualization"))]
-            {
-                crate::nn::Variable::new($tensor)
-            }
+            crate::nn::Variable::new_weight($tensor)
         }
-    };
+
+        #[cfg(not(feature = "enableVisualization"))]
+        {
+            crate::nn::Variable::new($tensor)
+        }
+    }};
 }
 
 #[macro_export]
 macro_rules! var_bias {
-    ($tensor:expr) => {
+    ($tensor:expr) => {{
+        #[cfg(feature = "enableVisualization")]
         {
-            #[cfg(feature = "enableVisualization")]
-            {
-                crate::nn::Variable::new_bias($tensor)
-            }
-
-            #[cfg(not(feature = "enableVisualization"))]
-            {
-                crate::nn::Variable::new($tensor)
-            }
+            crate::nn::Variable::new_bias($tensor)
         }
-    };
+
+        #[cfg(not(feature = "enableVisualization"))]
+        {
+            crate::nn::Variable::new($tensor)
+        }
+    }};
 }
 
 #[macro_export]
 macro_rules! var_with_label {
-    ($tensor:expr, $label:expr) => {
+    ($tensor:expr, $label:expr) => {{
+        #[cfg(feature = "enableVisualization")]
         {
-            #[cfg(feature = "enableVisualization")]
-            {
-                crate::nn::Variable::with_label($tensor, $label)
-            }
-
-            #[cfg(not(feature = "enableVisualization"))]
-            {
-                crate::nn::Variable::new($tensor)
-            }
+            crate::nn::Variable::with_label($tensor, $label)
         }
-    };
+
+        #[cfg(not(feature = "enableVisualization"))]
+        {
+            crate::nn::Variable::new($tensor)
+        }
+    }};
 }

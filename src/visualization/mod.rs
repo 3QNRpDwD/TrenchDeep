@@ -10,8 +10,9 @@ mod statistics;
 mod writer;
 
 pub use capture::{VisualizationCapture, VisualizationCaptureBuilder};
-pub use dot::DotEncoder;
+pub use dot::{DotEncoder, DotProfile};
 pub use error::VisualizationError;
+pub use graphviz::{GraphvizFailure, GraphvizFailureKind};
 pub use snapshot::{
     CaptureContext, CaptureProfile, GRAPH_SNAPSHOT_SCHEMA_VERSION, GraphAttributeValue,
     GraphEdgeKind, GraphEdgeSnapshot, GraphNodeSnapshot, GraphSnapshot, NodeRole, TensorStatistics,

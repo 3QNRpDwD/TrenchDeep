@@ -681,6 +681,18 @@ mod tests {
             .build()?;
         // UnsupervisedTrainer::silent() — 로그 없이 빠르게 실행
         let trainer = crate::trainer::Trainer::verbose().unsupervised();
+        #[cfg(feature = "enableVisualization")]
+        let trainer = {
+            let capture_dir = std::env::temp_dir().join("trench-deep-diffusion_capture");
+            let writer = crate::visualization::FileSnapshotWriter::builder(capture_dir)
+                .render_svg(true)
+                .build()?;
+            trainer.with_observer(Box::new(
+                crate::trainer::GraphVisualizationObserver::builder()
+                    .writer(Box::new(writer))
+                    .build()?
+            ))
+        };
         let result = 
             trainer.fit(
                 &mut model, 

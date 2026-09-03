@@ -44,7 +44,7 @@ Code that visualizes a graph without a trainer must now open an explicit scope:
 
 ```rust,ignore
 use trench_deep::visualization::{
-    CaptureProfile, FileSnapshotWriter, SnapshotWriter, VisualizationCapture,
+    CaptureProfile, DotProfile, FileSnapshotWriter, SnapshotWriter, VisualizationCapture,
 };
 
 let capture = VisualizationCapture::builder(CaptureProfile::Analysis)
@@ -54,6 +54,7 @@ let capture = VisualizationCapture::builder(CaptureProfile::Analysis)
 let snapshot = capture.finish()?;
 let mut writer = FileSnapshotWriter::builder("graph")
     .render_svg(true)
+    .dot_profile(DotProfile::Auto)
     .build()?;
 let report = writer.write(&snapshot, "manual-capture")?;
 ```
@@ -61,3 +62,13 @@ let report = writer.write(&snapshot, "manual-capture")?;
 Dropping the scope without calling `finish` disables capture and discards its partial visualization
 state. A completed `GraphSnapshot` owns its data and remains valid after the computation graph is
 reset.
+
+## Large graph layout
+
+`FileSnapshotWriter` uses `DotProfile::Auto` by default. Graphs with at least 180 nodes are rendered
+as a compact top-to-bottom overview. Parameters, scalar constants, and backward-only saved tensors
+are omitted from DOT/SVG, leaving the model's operation path and tensor shapes visible. Labels use
+compact multiline formatting, while JSON still contains every captured node, edge, and statistic.
+
+Use `.dot_profile(DotProfile::Overview)` to force this layout for a small graph, or
+`.dot_profile(DotProfile::Detailed)` to render every node including saved tensors.

@@ -176,7 +176,7 @@ mod graph_observer {
                     Ok(report) => {
                         tracing::info!(target: "trench_deep::trainer::visualization", files = ?report.artifacts, "computation graph capture saved");
                         for warning in report.warnings {
-                            tracing::warn!(target: "trench_deep::trainer::visualization", artifact = ?warning.artifact, message = %warning.message, "computation graph artifact was not generated");
+                            tracing::warn!(target: "trench_deep::trainer::visualization", artifact = ?warning.artifact, kind = ?warning.kind, message = %warning.message, "computation graph artifact was not generated");
                         }
                     }
                     Err(error) => {

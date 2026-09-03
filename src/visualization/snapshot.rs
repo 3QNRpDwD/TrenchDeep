@@ -25,6 +25,7 @@ pub struct CaptureContext {
 pub enum NodeRole {
     Variable,
     Function,
+    Saved,
     Input,
     Weight,
     Bias,
