@@ -77,6 +77,7 @@ enum BuiltinBackward {
     Concat { axis: usize, sizes: Vec<usize> },
     Sum,
     Matmul,
+    Conv2d { stride: (usize, usize), padding: (usize, usize) },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -279,6 +280,7 @@ impl BackwardOp for StructuralBackward {
             BuiltinBackward::Transpose(_) => "transpose",
             BuiltinBackward::Concat { .. } => "concat",
             BuiltinBackward::Matmul => "matmul",
+            BuiltinBackward::Conv2d { .. } => "conv2d",
             _ => "unsupported",
         }
     }
@@ -287,6 +289,7 @@ impl BackwardOp for StructuralBackward {
         match &self.0 {
             BuiltinBackward::Concat { sizes, .. } => sizes.len(),
             BuiltinBackward::Matmul => 2,
+            BuiltinBackward::Conv2d { .. } => 3,
             _ => 1,
         }
     }
@@ -337,6 +340,10 @@ impl BackwardOp for StructuralBackward {
                     }}}
                 }
                 vec![GlobalTensor::from_vec(dl, &lhs.shape)?, GlobalTensor::from_vec(dr, &rhs.shape)?]
+            }
+            BuiltinBackward::Conv2d { stride, padding } => {
+                let (dx, dw, db) = conv2d_backward_data(&values[0], &values[1], &grad, *stride, *padding)?;
+                vec![dx, dw, db]
             }
             _ => return Err(AutogradError::BackwardNotSupported(self.name().into()).into()),
         };
@@ -763,6 +770,29 @@ impl ExecutionContext {
         Ok(output)
     }
 
+    pub fn conv2d(
+        &self,
+        input: &ContextTensor,
+        weight: &ContextTensor,
+        bias: &ContextTensor,
+        stride: (usize, usize),
+        padding: (usize, usize),
+    ) -> MlResult<ContextTensor> {
+        self.validate(input)?;
+        self.validate(weight)?;
+        self.validate(bias)?;
+        let (input_value, weight_value, bias_value) =
+            (input.snapshot()?, weight.snapshot()?, bias.snapshot()?);
+        let output = conv2d_forward_data(&input_value, &weight_value, &bias_value, stride, padding)?;
+        let result = self.tensor(output.data, &output.shape)?;
+        self.record(
+            result.node_id(),
+            vec![input.node_id(), weight.node_id(), bias.node_id()],
+            BuiltinBackward::Conv2d { stride, padding },
+        )?;
+        Ok(result)
+    }
+
     pub fn add_variable(
         &self,
         lhs: &ContextVariable,
@@ -889,6 +919,17 @@ impl ExecutionContext {
         rhs: &ContextVariable,
     ) -> MlResult<ContextVariable> {
         self.variable_from(self.matmul(lhs.tensor(), rhs.tensor())?)
+    }
+
+    pub fn conv2d_variable(
+        &self,
+        input: &ContextVariable,
+        weight: &ContextVariable,
+        bias: &ContextVariable,
+        stride: (usize, usize),
+        padding: (usize, usize),
+    ) -> MlResult<ContextVariable> {
+        self.variable_from(self.conv2d(input.tensor(), weight.tensor(), bias.tensor(), stride, padding)?)
     }
 
     fn is_tracked(&self, tensor: &ContextTensor) -> MlResult<bool> {
@@ -1126,8 +1167,98 @@ fn into_node_backward(backward: BuiltinBackward) -> Box<dyn BackwardOp> {
         | BuiltinBackward::Reshape) => Box::new(ElementwiseBackward(other)),
         other @ (BuiltinBackward::Transpose(_)
         | BuiltinBackward::Concat { .. }
-        | BuiltinBackward::Matmul) => Box::new(StructuralBackward(other)),
+        | BuiltinBackward::Matmul
+        | BuiltinBackward::Conv2d { .. }) => Box::new(StructuralBackward(other)),
     }
+}
+
+fn conv2d_spec(
+    input: &[usize],
+    weight: &[usize],
+    bias: &[usize],
+    stride: (usize, usize),
+    padding: (usize, usize),
+) -> MlResult<(usize, usize)> {
+    let padded_height = padding
+        .0
+        .checked_mul(2)
+        .and_then(|padding| input.get(2)?.checked_add(padding));
+    let padded_width = padding
+        .1
+        .checked_mul(2)
+        .and_then(|padding| input.get(3)?.checked_add(padding));
+    if input.len() != 4
+        || weight.len() != 4
+        || bias.len() != 1
+        || input[1] != weight[1]
+        || bias[0] != weight[0]
+        || stride.0 == 0
+        || stride.1 == 0
+        || padded_height.is_none_or(|height| height < weight[2])
+        || padded_width.is_none_or(|width| width < weight[3])
+    {
+        return Err(TensorError::InvalidOperation {
+            op: "conv2d",
+            reason: format!("expected input [N,C,H,W], weight [O,C,kH,kW], bias [O]; got {input:?}, {weight:?}, {bias:?}"),
+        }.into());
+    }
+    Ok((
+        (padded_height.unwrap_or_default() - weight[2]) / stride.0 + 1,
+        (padded_width.unwrap_or_default() - weight[3]) / stride.1 + 1,
+    ))
+}
+
+fn conv2d_forward_data(input: &GlobalTensor<f32>, weight: &GlobalTensor<f32>, bias: &GlobalTensor<f32>, stride: (usize, usize), padding: (usize, usize)) -> MlResult<GlobalTensor<f32>> {
+    let (oh, ow) = conv2d_spec(&input.shape, &weight.shape, &bias.shape, stride, padding)?;
+    let (n, ci, h, w, co, kh, kw) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3], weight.shape[0], weight.shape[2], weight.shape[3]);
+    let mut output = vec![0.0; n * co * oh * ow];
+    for b in 0..n { for oc in 0..co { for y in 0..oh { for x in 0..ow {
+        let mut sum = bias.data[oc];
+        for ic in 0..ci { for ky in 0..kh { for kx in 0..kw {
+            let iy = y * stride.0 + ky;
+            let ix = x * stride.1 + kx;
+            if iy >= padding.0 && ix >= padding.1 {
+                let sy = iy - padding.0;
+                let sx = ix - padding.1;
+                if sy < h && sx < w {
+                    sum += input.data[((b * ci + ic) * h + sy) * w + sx]
+                        * weight.data[((oc * ci + ic) * kh + ky) * kw + kx];
+                }
+            }
+        }}}
+        output[((b * co + oc) * oh + y) * ow + x] = sum;
+    }}}}
+    GlobalTensor::from_vec(output, &[n, co, oh, ow])
+}
+
+fn conv2d_backward_data(input: &GlobalTensor<f32>, weight: &GlobalTensor<f32>, grad: &GlobalTensor<f32>, stride: (usize, usize), padding: (usize, usize)) -> MlResult<(GlobalTensor<f32>, GlobalTensor<f32>, GlobalTensor<f32>)> {
+    let bias_shape = [weight.shape[0]];
+    let (oh, ow) = conv2d_spec(&input.shape, &weight.shape, &bias_shape, stride, padding)?;
+    let expected = vec![input.shape[0], weight.shape[0], oh, ow];
+    if grad.shape != expected { return Err(AutogradError::GradientShapeMismatch { expected, got: grad.shape.clone() }.into()); }
+    let (n, ci, h, w, co, kh, kw) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3], weight.shape[0], weight.shape[2], weight.shape[3]);
+    let mut dx = vec![0.0; input.data.len()];
+    let mut dw = vec![0.0; weight.data.len()];
+    let mut db = vec![0.0; co];
+    for b in 0..n { for oc in 0..co { for y in 0..oh { for x in 0..ow {
+        let upstream = grad.data[((b * co + oc) * oh + y) * ow + x];
+        db[oc] += upstream;
+        for ic in 0..ci { for ky in 0..kh { for kx in 0..kw {
+            let iy = y * stride.0 + ky;
+            let ix = x * stride.1 + kx;
+            if iy >= padding.0 && ix >= padding.1 {
+                let sy = iy - padding.0;
+                let sx = ix - padding.1;
+                if sy < h && sx < w {
+                    let input_index = ((b * ci + ic) * h + sy) * w + sx;
+                    let weight_index = ((oc * ci + ic) * kh + ky) * kw + kx;
+                    dx[input_index] += upstream * weight.data[weight_index];
+                    dw[weight_index] += upstream * input.data[input_index];
+                }
+            }
+        }}}
+    }}}}
+    Ok((GlobalTensor::from_vec(dx, &input.shape)?, GlobalTensor::from_vec(dw, &weight.shape)?, GlobalTensor::from_vec(db, &bias_shape)?))
 }
 
 struct MatmulSpec {
@@ -1821,6 +1952,61 @@ mod tests {
             let error = (analytic[index] - numeric).abs();
             assert!(error <= 1e-3, "index={index}, analytic={}, numeric={numeric}", analytic[index]);
         }
+        Ok(())
+    }
+
+    #[test]
+    fn conv2d_forward_and_all_gradients_match_finite_difference() -> MlResult<()> {
+        let input_data = vec![0.2, -0.4, 0.7, 1.1, -0.3, 0.5, 0.9, -0.8, 0.6];
+        let weight_data = vec![0.4, -0.2, 0.3, 0.8];
+        let bias_data = vec![0.15];
+        let ctx = ExecutionContext::new();
+        let input = ctx.parameter(input_data.clone(), &[1, 1, 3, 3])?;
+        let weight = ctx.parameter(weight_data.clone(), &[1, 1, 2, 2])?;
+        let bias = ctx.parameter(bias_data.clone(), &[1])?;
+        let output = ctx.conv2d_variable(&input, &weight, &bias, (1, 1), (0, 0))?;
+        assert_eq!(output.tensor().shape()?, vec![1, 1, 2, 2]);
+        ctx.sum_variable(&output)?.backward()?;
+        let analytic_input = input.grad()?.expect("input gradient").data;
+        let analytic_weight = weight.grad()?.expect("weight gradient").data;
+        let analytic_bias = bias.grad()?.expect("bias gradient").data;
+        let objective = |x: &[f32], w: &[f32], b: &[f32]| -> MlResult<f32> {
+            Ok(conv2d_forward_data(
+                &GlobalTensor::from_vec(x.to_vec(), &[1, 1, 3, 3])?,
+                &GlobalTensor::from_vec(w.to_vec(), &[1, 1, 2, 2])?,
+                &GlobalTensor::from_vec(b.to_vec(), &[1])?,
+                (1, 1), (0, 0),
+            )?.data.iter().sum())
+        };
+        let epsilon = 1e-3;
+        for index in 0..input_data.len() {
+            let (mut plus, mut minus) = (input_data.clone(), input_data.clone());
+            plus[index] += epsilon; minus[index] -= epsilon;
+            let numeric = (objective(&plus, &weight_data, &bias_data)? - objective(&minus, &weight_data, &bias_data)?) / (2.0 * epsilon);
+            assert!((analytic_input[index] - numeric).abs() <= 1e-3);
+        }
+        for index in 0..weight_data.len() {
+            let (mut plus, mut minus) = (weight_data.clone(), weight_data.clone());
+            plus[index] += epsilon; minus[index] -= epsilon;
+            let numeric = (objective(&input_data, &plus, &bias_data)? - objective(&input_data, &minus, &bias_data)?) / (2.0 * epsilon);
+            assert!((analytic_weight[index] - numeric).abs() <= 1e-3);
+        }
+        let numeric_bias = (objective(&input_data, &weight_data, &[bias_data[0] + epsilon])?
+            - objective(&input_data, &weight_data, &[bias_data[0] - epsilon])?) / (2.0 * epsilon);
+        assert!((analytic_bias[0] - numeric_bias).abs() <= 1e-3);
+        Ok(())
+    }
+
+    #[test]
+    fn conv2d_supports_batch_channels_stride_and_padding() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let input = ctx.tensor(vec![1.0; 2 * 2 * 4 * 4], &[2, 2, 4, 4])?;
+        let weight = ctx.tensor(vec![1.0; 3 * 2 * 3 * 3], &[3, 2, 3, 3])?;
+        let bias = ctx.tensor(vec![1.0, 2.0, 3.0], &[3])?;
+        let output = ctx.conv2d(&input, &weight, &bias, (2, 2), (1, 1))?;
+        assert_eq!(output.shape()?, vec![2, 3, 2, 2]);
+        let data = output.to_vec()?;
+        assert_eq!(&data[..4], &[9.0, 13.0, 13.0, 19.0]);
         Ok(())
     }
 }
