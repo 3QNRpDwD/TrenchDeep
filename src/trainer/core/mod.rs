@@ -76,10 +76,6 @@ impl TrainerCore {
         &self.config
     }
 
-    pub(crate) fn shuffle<T>(&self, values: &mut [T]) {
-        self.runtime.shuffle(values);
-    }
-
     /// Epoch-derived streams make uninterrupted and resumed epoch ordering identical.
     pub(crate) fn begin_epoch(&self, epoch: usize) {
         const EPOCH_MIX: u64 = 0x9E37_79B9_7F4A_7C15;

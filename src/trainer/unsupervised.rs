@@ -60,11 +60,7 @@ pub trait UnsupervisedModel: TrainableModel {
     ) -> MlResult<(crate::nn::Variable, crate::nn::Variable)>;
 
     /// No-grad 순전파. 초기 손실 표시 및 평가에 사용한다.
-    fn predict_raw(
-        &mut self,
-        x: &dyn TensorBase,
-    ) -> MlResult<crate::tensor::GlobalTensor<f32>>;
-
+    fn predict_raw(&mut self, x: &dyn TensorBase) -> MlResult<crate::tensor::GlobalTensor<f32>>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -102,7 +98,9 @@ impl From<Trainer> for UnsupervisedTrainer {
 impl UnsupervisedTrainer {
     /// 지정된 `LogConfig` 로 트레이너를 생성한다.
     pub fn from_config(config: LogConfig) -> Self {
-        Self { core: TrainerCore::new(config) }
+        Self {
+            core: TrainerCore::new(config),
+        }
     }
 
     /// 기존 `TrainerCore` 를 그대로 주입한다. 훅이 미리 장착된 상태 재사용에 유용.
@@ -119,13 +117,21 @@ impl UnsupervisedTrainer {
     // ── 프리셋 (Trainer 와 동등) ─────────────────────────────────────────
 
     /// 최대 성능 모드. 로그·NaN 검사 비활성.
-    pub fn silent()  -> Self { Trainer::silent().into() }
+    pub fn silent() -> Self {
+        Trainer::silent().into()
+    }
     /// 핵심 메트릭 모드. 배치 손실과 에폭 평균 손실을 표시.
-    pub fn minimal() -> Self { Trainer::minimal().into() }
+    pub fn minimal() -> Self {
+        Trainer::minimal().into()
+    }
     /// 기본 모드. 별도 패러다임 메트릭이 없어 핵심 메트릭을 표시.
-    pub fn default() -> Self { Trainer::default().into() }
+    pub fn default() -> Self {
+        Trainer::default().into()
+    }
     /// 상세 진단 모드. FW/BW, GradNorm, Update Ratio 포함.
-    pub fn verbose() -> Self { Trainer::verbose().into() }
+    pub fn verbose() -> Self {
+        Trainer::verbose().into()
+    }
 
     // ── 메트릭 훅 ─────────────────────────────────────────────────────────
 
@@ -142,41 +148,78 @@ impl UnsupervisedTrainer {
     /// # 파라미터
     /// - `model`     : `UnsupervisedModel` 구현체
     /// - `optimizer` : 옵티마이저 (`register` 완료 필요)
-    /// - `x_set`     : 학습 입력 배치 슬라이스
+    /// - `input`     : `UnsupervisedBatch` loader 또는 pre-batched `UnsupervisedDataset`
     /// - `epochs`    : 최대 에폭 수
     /// - `tolerance` : 연속 두 에폭의 평균 손실 차이가 이 값 미만이면 조기 종료.
     ///                 `0` 이하는 조기 종료 비활성.
     #[cfg(feature = "enableBackward")]
-    pub fn fit<M: UnsupervisedModel>(
+    pub fn fit<M, I>(
         &self,
-        model:     &mut M,
+        model: &mut M,
         optimizer: &mut dyn crate::optimizer::Optimizer,
-        dataset:   UnsupervisedDataset<'_>,
-        schedule:  EpochSchedule,
-    ) -> MlResult<TrainResult> {
-        self.fit_inner(model, optimizer, dataset.samples, schedule.epochs,
-            schedule.convergence, 0, f32::INFINITY, None)
+        input: I,
+        schedule: EpochSchedule,
+    ) -> MlResult<TrainResult>
+    where
+        M: UnsupervisedModel,
+        I: IntoBatchLoader<Batch = UnsupervisedBatch>,
+    {
+        self.fit_inner(
+            model,
+            optimizer,
+            input.into_batch_loader(),
+            schedule.epochs,
+            schedule.convergence,
+            0,
+            f32::INFINITY,
+            None,
+        )
     }
     #[cfg(feature = "enableBackward")]
-    pub fn fit_checkpointed<M: UnsupervisedModel + CheckpointableModel>(&self, model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer, dataset: UnsupervisedDataset<'_>, schedule: EpochSchedule)
-        -> MlResult<TrainResult> {
-        self.fit_inner(model, optimizer, dataset.samples, schedule.epochs, schedule.convergence,
-            0, f32::INFINITY, Some(|m, p| m.save_checkpoint(p)))
+    pub fn fit_checkpointed<M, I>(
+        &self,
+        model: &mut M,
+        optimizer: &mut dyn crate::optimizer::Optimizer,
+        input: I,
+        schedule: EpochSchedule,
+    ) -> MlResult<TrainResult>
+    where
+        M: UnsupervisedModel + CheckpointableModel,
+        I: IntoBatchLoader<Batch = UnsupervisedBatch>,
+    {
+        self.fit_inner(
+            model,
+            optimizer,
+            input.into_batch_loader(),
+            schedule.epochs,
+            schedule.convergence,
+            0,
+            f32::INFINITY,
+            Some(|m, p| m.save_checkpoint(p)),
+        )
     }
 
     /// 체크포인트에서 학습을 재개한다.
     #[cfg(feature = "enableBackward")]
-    pub fn resume<M: UnsupervisedModel + CheckpointableModel>(
+    pub fn resume<M, I>(
         &self,
-        model:           &mut M,
-        optimizer:       &mut dyn crate::optimizer::Optimizer,
-        dataset:         UnsupervisedDataset<'_>,
+        model: &mut M,
+        optimizer: &mut dyn crate::optimizer::Optimizer,
+        input: I,
         checkpoint_path: &str,
-    ) -> MlResult<TrainResult> {
+    ) -> MlResult<TrainResult>
+    where
+        M: UnsupervisedModel + CheckpointableModel,
+        I: IntoBatchLoader<Batch = UnsupervisedBatch>,
+    {
         use tracing::info;
 
-        let ckpt = CheckpointManager::load_into(checkpoint_path, ParadigmTag::Unsupervised, model, optimizer)?;
+        let ckpt = CheckpointManager::load_into(
+            checkpoint_path,
+            ParadigmTag::Unsupervised,
+            model,
+            optimizer,
+        )?;
 
         info!(
             "Resuming unsupervised from checkpoint: epoch {}/{}, loss: {:.6}, lr: {:.2e}",
@@ -186,7 +229,7 @@ impl UnsupervisedTrainer {
         self.fit_inner(
             model,
             optimizer,
-            dataset.samples,
+            input.into_batch_loader(),
             ckpt.total_epochs,
             Convergence::from_tolerance(ckpt.tolerance),
             ckpt.epochs_done,
@@ -196,31 +239,35 @@ impl UnsupervisedTrainer {
     }
 
     #[cfg(feature = "enableBackward")]
-    fn fit_inner<M: UnsupervisedModel>(
+    fn fit_inner<M, L>(
         &self,
-        model:       &mut M,
-        optimizer:   &mut dyn crate::optimizer::Optimizer,
-        x_set:       &[&crate::nn::Variable],
-        epochs:      usize,
+        model: &mut M,
+        optimizer: &mut dyn crate::optimizer::Optimizer,
+        mut loader: L,
+        epochs: usize,
         convergence: Convergence,
         start_epoch: usize,
-        init_loss:   f32,
-        save_model:  Option<fn(&M, &std::path::Path) -> MlResult<()>>,
-    ) -> MlResult<TrainResult> {
+        init_loss: f32,
+        save_model: Option<fn(&M, &std::path::Path) -> MlResult<()>>,
+    ) -> MlResult<TrainResult>
+    where
+        M: UnsupervisedModel,
+        L: BatchLoader<Batch = UnsupervisedBatch>,
+    {
+        use checkpoint::{clear_interrupt, interrupt_flag};
         use std::time::Instant;
         use tracing::info;
-        use checkpoint::{interrupt_flag, clear_interrupt};
 
-        let cfg              = self.config();
-        let training_start   = Instant::now();
+        let cfg = self.config();
+        let training_start = Instant::now();
         let remaining_epochs = epochs.saturating_sub(start_epoch);
         self.core.trace_model(
             "unsupervised",
             &*model,
             remaining_epochs,
-            x_set.len(),
+            loader.batch_count().unwrap_or(0),
         );
-        let progress         = EpochProgress::new(remaining_epochs, cfg.show_progress);
+        let progress = EpochProgress::new(remaining_epochs, cfg.show_progress);
 
         let interrupt = if cfg.checkpoint_dir.is_some() {
             let flag = interrupt_flag();
@@ -230,9 +277,9 @@ impl UnsupervisedTrainer {
             None
         };
 
-        let mut last_loss   = init_loss;
+        let mut last_loss = init_loss;
         let mut epochs_done = start_epoch;
-        let mut converged   = false;
+        let mut converged = false;
         let mut interrupted = false;
         let mut saved_checkpoint = None;
         let mut summary_logs = Vec::new();
@@ -240,19 +287,17 @@ impl UnsupervisedTrainer {
 
         for epoch in start_epoch..epochs {
             self.core.begin_epoch(epoch);
-            // 셔플
-            let mut xs: Vec<&crate::nn::Variable> = x_set.iter().copied().collect();
-            self.core.shuffle(&mut xs);
+            loader.begin_epoch(epoch, &self.core.runtime)?;
 
             let outcome = {
                 let mut step = UnsupervisedEpochStep {
                     model: &mut *model,
                     optimizer: &mut *optimizer,
-                    xs,
                     last_y: None,
                 };
                 self.core.run_epoch(
                     &mut step,
+                    &mut loader,
                     epoch - start_epoch,
                     remaining_epochs,
                     &progress,
@@ -261,18 +306,17 @@ impl UnsupervisedTrainer {
             };
 
             epochs_done = epoch + 1;
-            let avg_loss          = outcome.avg_loss;
+            let avg_loss = outcome.avg_loss;
             let batch_interrupted = outcome.interrupted;
             summary_logs.extend(outcome.batch_summaries.iter().cloned());
             final_metrics = outcome.metrics.clone();
 
             let should_log_epoch =
-                cfg.epoch_log_interval != usize::MAX
-                && (epoch + 1) % cfg.epoch_log_interval == 0;
+                cfg.epoch_log_interval != usize::MAX && (epoch + 1) % cfg.epoch_log_interval == 0;
 
             if should_log_epoch {
                 let loss_change = last_loss.is_finite().then(|| avg_loss - last_loss);
-                let extras_str  = outcome.summary_extras.join(" | ");
+                let extras_str = outcome.summary_extras.join(" | ");
                 let loss_change = loss_change
                     .map(|value| format!("{value:+.6}"))
                     .unwrap_or_else(|| "N/A".to_string());
@@ -300,7 +344,9 @@ impl UnsupervisedTrainer {
                         &progress,
                     )?);
                 } else if cfg.checkpoint_dir.is_some() {
-                    return Err(MlError::StringError("checkpointing requires fit_checkpointed()".into()));
+                    return Err(MlError::StringError(
+                        "checkpointing requires fit_checkpointed()".into(),
+                    ));
                 } else {
                     progress.abandon("Interrupted — no checkpoint_dir configured");
                 }
@@ -340,11 +386,18 @@ impl UnsupervisedTrainer {
             );
         }
 
-        let reason = if interrupted { StopReason::Interrupted }
-            else if converged { StopReason::Converged } else { StopReason::Completed };
-        Ok(TrainResult::epochs(reason, epochs_done, last_loss, total_duration)
-            .with_metrics(final_metrics)
-            .with_checkpoint(saved_checkpoint))
+        let reason = if interrupted {
+            StopReason::Interrupted
+        } else if converged {
+            StopReason::Converged
+        } else {
+            StopReason::Completed
+        };
+        Ok(
+            TrainResult::epochs(reason, epochs_done, last_loss, total_duration)
+                .with_metrics(final_metrics)
+                .with_checkpoint(saved_checkpoint),
+        )
     }
 }
 
@@ -354,15 +407,14 @@ impl UnsupervisedTrainer {
 
 #[cfg(feature = "enableBackward")]
 struct UnsupervisedEpochStep<'a, M: UnsupervisedModel> {
-    model:     &'a mut M,
+    model: &'a mut M,
     optimizer: &'a mut dyn crate::optimizer::Optimizer,
-    xs:        Vec<&'a crate::nn::Variable>,
-    last_y:    Option<crate::nn::Variable>,
+    last_y: Option<crate::nn::Variable>,
 }
 
 #[cfg(feature = "enableBackward")]
 impl<'a, M: UnsupervisedModel> EpochStep for UnsupervisedEpochStep<'a, M> {
-    fn n_batches(&self) -> usize { self.xs.len() }
+    type Batch = UnsupervisedBatch;
 
     fn reset_epoch_state(&mut self) {
         self.last_y = None;
@@ -371,49 +423,76 @@ impl<'a, M: UnsupervisedModel> EpochStep for UnsupervisedEpochStep<'a, M> {
     fn forward_backward(
         &mut self,
         batch_idx: usize,
-        cfg:       &LogConfig,
+        batch: UnsupervisedBatch,
+        cfg: &LogConfig,
     ) -> MlResult<StepOutput> {
-        use std::time::Instant;
         use crate::tensor::ComputationGraph;
+        use std::time::Instant;
 
         ComputationGraph::reset_graph();
-        let x = self.xs[batch_idx];
-
-        let fw_start = if cfg.metrics.fw_bw_timing { Some(Instant::now()) } else { None };
-        let (y, loss_var) = self.model.forward_loss(x)?;
+        let fw_start = if cfg.metrics.fw_bw_timing {
+            Some(Instant::now())
+        } else {
+            None
+        };
+        let (y, loss_var) = self.model.forward_loss(&batch.samples)?;
         let fw_dur = fw_start.map(|s| s.elapsed());
 
         let loss = loss_var.tensor().data()[0];
         self.last_y = Some(y);
 
-        let bw_start = if cfg.metrics.fw_bw_timing { Some(Instant::now()) } else { None };
+        let bw_start = if cfg.metrics.fw_bw_timing {
+            Some(Instant::now())
+        } else {
+            None
+        };
         loss_var.backward()?;
         let bw_dur = bw_start.map(|s| s.elapsed());
 
-        let has_nan = (batch_idx + 1) % cfg.nan_check_interval == 0
-            && has_invalid_grad(&self.model.params());
+        let has_nan =
+            (batch_idx + 1) % cfg.nan_check_interval == 0 && has_invalid_grad(&self.model.params());
 
-        let should_log_batch = cfg.batch_log_interval != usize::MAX
-            && (batch_idx + 1) % cfg.batch_log_interval == 0;
+        let should_log_batch =
+            cfg.batch_log_interval != usize::MAX && (batch_idx + 1) % cfg.batch_log_interval == 0;
         let (gn, ur) = if should_log_batch {
             let params = self.model.params();
             let gn = cfg.metrics.grad_norm.then(|| grad_norm(&params));
-            let ur = cfg.metrics.update_ratio.then(|| update_ratio(&params, self.optimizer.lr()));
+            let ur = cfg
+                .metrics
+                .update_ratio
+                .then(|| update_ratio(&params, self.optimizer.lr()));
             (gn, ur)
         } else {
             (None, None)
         };
 
-        let observations = BatchObservations { pred: self.last_y.clone(), target: None, n_tokens: None, lambda: None };
-        let loss_weight = x.tensor().shape().first().copied().unwrap_or(1).max(1);
-        Ok(StepOutput { loss, loss_weight, observations, diagnostics: StepDiagnostics {
-            has_nan,
-            fw_dur,
-            bw_dur,
-            grad_norm:    gn,
-            update_ratio: ur,
-            extra_msg:    Vec::new(),
-        }})
+        let observations = BatchObservations {
+            pred: self.last_y.clone(),
+            target: None,
+            n_tokens: None,
+            lambda: None,
+        };
+        let loss_weight = batch
+            .samples
+            .tensor()
+            .shape()
+            .first()
+            .copied()
+            .unwrap_or(1)
+            .max(1);
+        Ok(StepOutput {
+            loss,
+            loss_weight,
+            observations,
+            diagnostics: StepDiagnostics {
+                has_nan,
+                fw_dur,
+                bw_dur,
+                grad_norm: gn,
+                update_ratio: ur,
+                extra_msg: Vec::new(),
+            },
+        })
     }
 
     fn optimizer_step(&mut self) -> MlResult<()> {
@@ -422,6 +501,7 @@ impl<'a, M: UnsupervisedModel> EpochStep for UnsupervisedEpochStep<'a, M> {
         Ok(())
     }
 
-    fn current_lr(&self) -> f32 { self.optimizer.lr() }
-
+    fn current_lr(&self) -> f32 {
+        self.optimizer.lr()
+    }
 }

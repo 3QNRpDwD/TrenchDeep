@@ -67,18 +67,14 @@ pub trait SemiSupervisedModel: TrainableModel {
     /// - `lambda`                 : 일관성 가중치. 트레이너가 에폭마다 결정.
     fn forward_loss(
         &mut self,
-        x_labeled:   &crate::nn::Variable,
-        t_labeled:   &crate::nn::Variable,
+        x_labeled: &crate::nn::Variable,
+        t_labeled: &crate::nn::Variable,
         x_unlabeled: &crate::nn::Variable,
-        lambda:      f32,
+        lambda: f32,
     ) -> MlResult<(crate::nn::Variable, crate::nn::Variable)>;
 
     /// No-grad 순전파. 평가·추론용.
-    fn predict_raw(
-        &mut self,
-        x: &dyn TensorBase,
-    ) -> MlResult<crate::tensor::GlobalTensor<f32>>;
-
+    fn predict_raw(&mut self, x: &dyn TensorBase) -> MlResult<crate::tensor::GlobalTensor<f32>>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -103,7 +99,10 @@ impl ConsistencyRamp {
     pub fn value(&self, epoch: usize) -> f32 {
         match *self {
             ConsistencyRamp::Constant(w) => w,
-            ConsistencyRamp::Sigmoid { max_weight, ramp_epochs } => {
+            ConsistencyRamp::Sigmoid {
+                max_weight,
+                ramp_epochs,
+            } => {
                 if ramp_epochs == 0 {
                     return max_weight;
                 }
@@ -120,7 +119,10 @@ impl ConsistencyRamp {
 impl Default for ConsistencyRamp {
     /// 기본 스케줄: 30 에폭 동안 0 → 1.0 으로 시그모이드 램프업.
     fn default() -> Self {
-        ConsistencyRamp::Sigmoid { max_weight: 1.0, ramp_epochs: 30 }
+        ConsistencyRamp::Sigmoid {
+            max_weight: 1.0,
+            ramp_epochs: 30,
+        }
     }
 }
 
@@ -152,7 +154,10 @@ pub struct SemiSupervisedTrainer {
 
 impl From<Trainer> for SemiSupervisedTrainer {
     fn from(t: Trainer) -> Self {
-        let this = Self { core: t.core, ramp: ConsistencyRamp::default() };
+        let this = Self {
+            core: t.core,
+            ramp: ConsistencyRamp::default(),
+        };
         if this.core.config().metrics.paradigm || this.core.config().metrics.accuracy {
             this.with_hook(Box::new(ClassificationAccuracy::new()))
         } else {
@@ -172,7 +177,10 @@ impl SemiSupervisedTrainer {
 
     /// 기존 `TrainerCore` 를 주입.
     pub fn from_core(core: TrainerCore) -> Self {
-        Self { core, ramp: ConsistencyRamp::default() }
+        Self {
+            core,
+            ramp: ConsistencyRamp::default(),
+        }
     }
 
     /// 일관성 가중치 스케줄을 교체.
@@ -187,10 +195,18 @@ impl SemiSupervisedTrainer {
     }
 
     // ── 프리셋 ────────────────────────────────────────────────────────────
-    pub fn silent()  -> Self { Trainer::silent().into() }
-    pub fn minimal() -> Self { Trainer::minimal().into() }
-    pub fn default() -> Self { Trainer::default().into() }
-    pub fn verbose() -> Self { Trainer::verbose().into() }
+    pub fn silent() -> Self {
+        Trainer::silent().into()
+    }
+    pub fn minimal() -> Self {
+        Trainer::minimal().into()
+    }
+    pub fn default() -> Self {
+        Trainer::default().into()
+    }
+    pub fn verbose() -> Self {
+        Trainer::verbose().into()
+    }
 
     // ── 메트릭 훅 ─────────────────────────────────────────────────────────
 
@@ -207,43 +223,77 @@ impl SemiSupervisedTrainer {
     /// # 파라미터
     /// - `model`        : `SemiSupervisedModel` 구현체
     /// - `optimizer`    : 옵티마이저 (`register` 완료 필요)
-    /// - `x_labeled`    : labeled 입력 배치 슬라이스
-    /// - `t_labeled`    : labeled 타깃 배치 슬라이스 (같은 길이)
-    /// - `x_unlabeled`  : unlabeled 입력 배치 슬라이스
+    /// - `input`        : `SemiSupervisedBatch` loader 또는 pre-batched dataset
     /// - `epochs`       : 최대 에폭 수
     /// - `tolerance`    : 조기 종료 임계값 (0 이하 = 비활성)
     #[cfg(feature = "enableBackward")]
-    pub fn fit<M: SemiSupervisedModel>(
+    pub fn fit<M, I>(
         &self,
-        model:       &mut M,
-        optimizer:   &mut dyn crate::optimizer::Optimizer,
-        dataset:     SemiSupervisedDataset<'_>,
-        schedule:    EpochSchedule,
-    ) -> MlResult<TrainResult> {
-        self.fit_inner(model, optimizer, dataset.labeled_inputs, dataset.labeled_targets,
-            dataset.unlabeled_inputs, schedule.epochs, schedule.convergence, 0, f32::INFINITY, None)
+        model: &mut M,
+        optimizer: &mut dyn crate::optimizer::Optimizer,
+        input: I,
+        schedule: EpochSchedule,
+    ) -> MlResult<TrainResult>
+    where
+        M: SemiSupervisedModel,
+        I: IntoBatchLoader<Batch = SemiSupervisedBatch>,
+    {
+        self.fit_inner(
+            model,
+            optimizer,
+            input.into_batch_loader(),
+            schedule.epochs,
+            schedule.convergence,
+            0,
+            f32::INFINITY,
+            None,
+        )
     }
     #[cfg(feature = "enableBackward")]
-    pub fn fit_checkpointed<M: SemiSupervisedModel + CheckpointableModel>(&self, model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer, dataset: SemiSupervisedDataset<'_>, schedule: EpochSchedule)
-        -> MlResult<TrainResult> {
-        self.fit_inner(model, optimizer, dataset.labeled_inputs, dataset.labeled_targets,
-            dataset.unlabeled_inputs, schedule.epochs, schedule.convergence, 0, f32::INFINITY,
-            Some(|m, p| m.save_checkpoint(p)))
+    pub fn fit_checkpointed<M, I>(
+        &self,
+        model: &mut M,
+        optimizer: &mut dyn crate::optimizer::Optimizer,
+        input: I,
+        schedule: EpochSchedule,
+    ) -> MlResult<TrainResult>
+    where
+        M: SemiSupervisedModel + CheckpointableModel,
+        I: IntoBatchLoader<Batch = SemiSupervisedBatch>,
+    {
+        self.fit_inner(
+            model,
+            optimizer,
+            input.into_batch_loader(),
+            schedule.epochs,
+            schedule.convergence,
+            0,
+            f32::INFINITY,
+            Some(|m, p| m.save_checkpoint(p)),
+        )
     }
 
     /// 체크포인트에서 학습을 재개한다.
     #[cfg(feature = "enableBackward")]
-    pub fn resume<M: SemiSupervisedModel + CheckpointableModel>(
+    pub fn resume<M, I>(
         &self,
-        model:           &mut M,
-        optimizer:       &mut dyn crate::optimizer::Optimizer,
-        dataset:         SemiSupervisedDataset<'_>,
+        model: &mut M,
+        optimizer: &mut dyn crate::optimizer::Optimizer,
+        input: I,
         checkpoint_path: &str,
-    ) -> MlResult<TrainResult> {
+    ) -> MlResult<TrainResult>
+    where
+        M: SemiSupervisedModel + CheckpointableModel,
+        I: IntoBatchLoader<Batch = SemiSupervisedBatch>,
+    {
         use tracing::info;
 
-        let ckpt = CheckpointManager::load_into(checkpoint_path, ParadigmTag::SemiSupervised, model, optimizer)?;
+        let ckpt = CheckpointManager::load_into(
+            checkpoint_path,
+            ParadigmTag::SemiSupervised,
+            model,
+            optimizer,
+        )?;
 
         info!(
             "Resuming semi-supervised from checkpoint: epoch {}/{}, loss: {:.6}, lr: {:.2e}",
@@ -251,7 +301,9 @@ impl SemiSupervisedTrainer {
         );
 
         self.fit_inner(
-            model, optimizer, dataset.labeled_inputs, dataset.labeled_targets, dataset.unlabeled_inputs,
+            model,
+            optimizer,
+            input.into_batch_loader(),
             ckpt.total_epochs,
             Convergence::from_tolerance(ckpt.tolerance),
             ckpt.epochs_done,
@@ -261,52 +313,35 @@ impl SemiSupervisedTrainer {
     }
 
     #[cfg(feature = "enableBackward")]
-    fn fit_inner<M: SemiSupervisedModel>(
+    fn fit_inner<M, L>(
         &self,
-        model:       &mut M,
-        optimizer:   &mut dyn crate::optimizer::Optimizer,
-        x_labeled:   &[&crate::nn::Variable],
-        t_labeled:   &[&crate::nn::Variable],
-        x_unlabeled: &[&crate::nn::Variable],
-        epochs:      usize,
+        model: &mut M,
+        optimizer: &mut dyn crate::optimizer::Optimizer,
+        mut loader: L,
+        epochs: usize,
         convergence: Convergence,
         start_epoch: usize,
-        init_loss:   f32,
-        save_model:  Option<fn(&M, &std::path::Path) -> MlResult<()>>,
-    ) -> MlResult<TrainResult> {
+        init_loss: f32,
+        save_model: Option<fn(&M, &std::path::Path) -> MlResult<()>>,
+    ) -> MlResult<TrainResult>
+    where
+        M: SemiSupervisedModel,
+        L: BatchLoader<Batch = SemiSupervisedBatch>,
+    {
+        use checkpoint::{clear_interrupt, interrupt_flag};
         use std::time::Instant;
         use tracing::info;
-        use checkpoint::{interrupt_flag, clear_interrupt};
 
-        if x_labeled.len() != t_labeled.len() {
-            return Err(MlError::StringError(format!(
-                "x_labeled ({}) 와 t_labeled ({}) 길이가 일치해야 합니다.",
-                x_labeled.len(), t_labeled.len()
-            )));
-        }
-        if x_labeled.is_empty() {
-            return Err(MlError::StringError(
-                "labeled 데이터가 비어 있습니다.".into()
-            ));
-        }
-        if x_unlabeled.is_empty() {
-            return Err(MlError::StringError(
-                "unlabeled 데이터가 비어 있습니다. 반지도학습은 unlabeled 배치가 필수입니다.".into()
-            ));
-        }
-
-        let cfg              = self.config();
-        let n_l              = x_labeled.len();
-        let n_u              = x_unlabeled.len();
-        let training_start   = Instant::now();
+        let cfg = self.config();
+        let training_start = Instant::now();
         let remaining_epochs = epochs.saturating_sub(start_epoch);
         self.core.trace_model(
             "semi_supervised",
             &*model,
             remaining_epochs,
-            n_l.max(n_u),
+            loader.batch_count().unwrap_or(0),
         );
-        let progress         = EpochProgress::new(remaining_epochs, cfg.show_progress);
+        let progress = EpochProgress::new(remaining_epochs, cfg.show_progress);
 
         // 인터럽트 핸들러 — 다른 트레이너와 동일 규약.
         let interrupt = if cfg.checkpoint_dir.is_some() {
@@ -317,9 +352,9 @@ impl SemiSupervisedTrainer {
             None
         };
 
-        let mut last_loss   = init_loss;
+        let mut last_loss = init_loss;
         let mut epochs_done = start_epoch;
-        let mut converged   = false;
+        let mut converged = false;
         let mut interrupted = false;
         let mut saved_checkpoint = None;
         let mut summary_logs = Vec::new();
@@ -327,11 +362,7 @@ impl SemiSupervisedTrainer {
 
         for epoch in start_epoch..epochs {
             self.core.begin_epoch(epoch);
-            // 라벨·언라벨 각각 셔플 후, 긴 쪽에 맞춰 순환.
-            let mut labeled_idx:   Vec<usize> = (0..n_l).collect();
-            let mut unlabeled_idx: Vec<usize> = (0..n_u).collect();
-            self.core.shuffle(&mut labeled_idx);
-            self.core.shuffle(&mut unlabeled_idx);
+            loader.begin_epoch(epoch, &self.core.runtime)?;
 
             let lambda = self.ramp.value(epoch);
 
@@ -339,8 +370,6 @@ impl SemiSupervisedTrainer {
                 let mut step = SemiSupervisedEpochStep {
                     model: &mut *model,
                     optimizer: &mut *optimizer,
-                    x_labeled, t_labeled, x_unlabeled,
-                    labeled_idx, unlabeled_idx,
                     lambda,
                     show_paradigm: cfg.metrics.paradigm,
                     last_y: None,
@@ -348,31 +377,29 @@ impl SemiSupervisedTrainer {
                 };
                 self.core.run_epoch(
                     &mut step,
-                    epoch - start_epoch, remaining_epochs,
+                    &mut loader,
+                    epoch - start_epoch,
+                    remaining_epochs,
                     &progress,
                     interrupt.as_deref(),
                 )?
             };
 
             epochs_done = epoch + 1;
-            let avg_loss          = outcome.avg_loss;
+            let avg_loss = outcome.avg_loss;
             let batch_interrupted = outcome.interrupted;
             summary_logs.extend(outcome.batch_summaries.iter().cloned());
             final_metrics = outcome.metrics.clone();
 
             let should_log_epoch =
-                cfg.epoch_log_interval != usize::MAX
-                && (epoch + 1) % cfg.epoch_log_interval == 0;
+                cfg.epoch_log_interval != usize::MAX && (epoch + 1) % cfg.epoch_log_interval == 0;
             if should_log_epoch {
                 let loss_change = last_loss.is_finite().then(|| avg_loss - last_loss);
-                let extras_str  = outcome.summary_extras.join(" | ");
+                let extras_str = outcome.summary_extras.join(" | ");
                 let loss_change = loss_change
                     .map(|value| format!("{value:+.6}"))
                     .unwrap_or_else(|| "N/A".to_string());
-                let msg = format!(
-                    "AL: {:.6} | LC: {} | {}",
-                    avg_loss, loss_change, extras_str
-                );
+                let msg = format!("AL: {:.6} | LC: {} | {}", avg_loss, loss_change, extras_str);
                 progress.set_msg(&msg);
                 summary_logs.push(format!("Epoch {}/{} | {}", epoch + 1, epochs, msg));
             }
@@ -393,7 +420,9 @@ impl SemiSupervisedTrainer {
                         &progress,
                     )?);
                 } else if cfg.checkpoint_dir.is_some() {
-                    return Err(MlError::StringError("checkpointing requires fit_checkpointed()".into()));
+                    return Err(MlError::StringError(
+                        "checkpointing requires fit_checkpointed()".into(),
+                    ));
                 } else {
                     progress.abandon("Interrupted — no checkpoint_dir configured");
                 }
@@ -431,11 +460,18 @@ impl SemiSupervisedTrainer {
             );
         }
 
-        let reason = if interrupted { StopReason::Interrupted }
-            else if converged { StopReason::Converged } else { StopReason::Completed };
-        Ok(TrainResult::epochs(reason, epochs_done, last_loss, total_duration)
-            .with_metrics(final_metrics)
-            .with_checkpoint(saved_checkpoint))
+        let reason = if interrupted {
+            StopReason::Interrupted
+        } else if converged {
+            StopReason::Converged
+        } else {
+            StopReason::Completed
+        };
+        Ok(
+            TrainResult::epochs(reason, epochs_done, last_loss, total_duration)
+                .with_metrics(final_metrics)
+                .with_checkpoint(saved_checkpoint),
+        )
     }
 }
 
@@ -448,22 +484,17 @@ impl SemiSupervisedTrainer {
 
 #[cfg(feature = "enableBackward")]
 struct SemiSupervisedEpochStep<'a, M: SemiSupervisedModel> {
-    model:         &'a mut M,
-    optimizer:     &'a mut dyn crate::optimizer::Optimizer,
-    x_labeled:     &'a [&'a crate::nn::Variable],
-    t_labeled:     &'a [&'a crate::nn::Variable],
-    x_unlabeled:   &'a [&'a crate::nn::Variable],
-    labeled_idx:   Vec<usize>,
-    unlabeled_idx: Vec<usize>,
-    lambda:        f32,
+    model: &'a mut M,
+    optimizer: &'a mut dyn crate::optimizer::Optimizer,
+    lambda: f32,
     show_paradigm: bool,
-    last_y:        Option<crate::nn::Variable>,
-    last_t:        Option<&'a crate::nn::Variable>,
+    last_y: Option<crate::nn::Variable>,
+    last_t: Option<crate::nn::Variable>,
 }
 
 #[cfg(feature = "enableBackward")]
 impl<'a, M: SemiSupervisedModel> EpochStep for SemiSupervisedEpochStep<'a, M> {
-    fn n_batches(&self) -> usize { self.labeled_idx.len().max(self.unlabeled_idx.len()) }
+    type Batch = SemiSupervisedBatch;
 
     fn reset_epoch_state(&mut self) {
         self.last_y = None;
@@ -473,43 +504,54 @@ impl<'a, M: SemiSupervisedModel> EpochStep for SemiSupervisedEpochStep<'a, M> {
     fn forward_backward(
         &mut self,
         batch_idx: usize,
-        cfg:       &LogConfig,
+        batch: SemiSupervisedBatch,
+        cfg: &LogConfig,
     ) -> MlResult<StepOutput> {
-        use std::time::Instant;
         use crate::tensor::ComputationGraph;
+        use std::time::Instant;
 
         ComputationGraph::reset_graph();
 
-        let n_l = self.labeled_idx.len();
-        let n_u = self.unlabeled_idx.len();
-        let li  = self.labeled_idx[batch_idx % n_l];
-        let ui  = self.unlabeled_idx[batch_idx % n_u];
-        let x_l = self.x_labeled[li];
-        let t_l = self.t_labeled[li];
-        let x_u = self.x_unlabeled[ui];
-
-        let fw_start = if cfg.metrics.fw_bw_timing { Some(Instant::now()) } else { None };
-        let (y, loss_var) = self.model.forward_loss(x_l, t_l, x_u, self.lambda)?;
+        let fw_start = if cfg.metrics.fw_bw_timing {
+            Some(Instant::now())
+        } else {
+            None
+        };
+        let (y, loss_var) = self.model.forward_loss(
+            &batch.labeled_inputs,
+            &batch.labeled_targets,
+            &batch.unlabeled_inputs,
+            self.lambda,
+        )?;
         let fw_dur = fw_start.map(|s| s.elapsed());
 
         let loss = loss_var.tensor().data()[0];
         self.last_y = Some(y);
-        self.last_t = Some(t_l);
+        self.last_t = Some(batch.labeled_targets.clone());
 
-        let bw_start = if cfg.metrics.fw_bw_timing { Some(Instant::now()) } else { None };
+        let bw_start = if cfg.metrics.fw_bw_timing {
+            Some(Instant::now())
+        } else {
+            None
+        };
         loss_var.backward()?;
         let bw_dur = bw_start.map(|s| s.elapsed());
 
-        let has_nan = (batch_idx + 1) % cfg.nan_check_interval == 0
-            && has_invalid_grad(&self.model.params());
+        let has_nan =
+            (batch_idx + 1) % cfg.nan_check_interval == 0 && has_invalid_grad(&self.model.params());
 
-        let should_log_batch = cfg.batch_log_interval != usize::MAX
-            && (batch_idx + 1) % cfg.batch_log_interval == 0;
+        let should_log_batch =
+            cfg.batch_log_interval != usize::MAX && (batch_idx + 1) % cfg.batch_log_interval == 0;
         let (gn, ur, extra_msg) = if should_log_batch {
             let params = self.model.params();
             let gn = cfg.metrics.grad_norm.then(|| grad_norm(&params));
-            let ur = cfg.metrics.update_ratio.then(|| update_ratio(&params, self.optimizer.lr()));
-            let extra_msg = cfg.metrics.paradigm
+            let ur = cfg
+                .metrics
+                .update_ratio
+                .then(|| update_ratio(&params, self.optimizer.lr()));
+            let extra_msg = cfg
+                .metrics
+                .paradigm
                 .then(|| format!("λ: {:.3}", self.lambda))
                 .into_iter()
                 .collect();
@@ -518,17 +560,33 @@ impl<'a, M: SemiSupervisedModel> EpochStep for SemiSupervisedEpochStep<'a, M> {
             (None, None, Vec::new())
         };
 
-        let observations = BatchObservations { pred: self.last_y.clone(), target: Some(t_l.clone()),
-            n_tokens: None, lambda: Some(self.lambda) };
-        let loss_weight = t_l.tensor().shape().first().copied().unwrap_or(1).max(1);
-        Ok(StepOutput { loss, loss_weight, observations, diagnostics: StepDiagnostics {
-            has_nan,
-            fw_dur,
-            bw_dur,
-            grad_norm:    gn,
-            update_ratio: ur,
-            extra_msg,
-        }})
+        let observations = BatchObservations {
+            pred: self.last_y.clone(),
+            target: self.last_t.clone(),
+            n_tokens: None,
+            lambda: Some(self.lambda),
+        };
+        let loss_weight = batch
+            .labeled_targets
+            .tensor()
+            .shape()
+            .first()
+            .copied()
+            .unwrap_or(1)
+            .max(1);
+        Ok(StepOutput {
+            loss,
+            loss_weight,
+            observations,
+            diagnostics: StepDiagnostics {
+                has_nan,
+                fw_dur,
+                bw_dur,
+                grad_norm: gn,
+                update_ratio: ur,
+                extra_msg,
+            },
+        })
     }
 
     fn optimizer_step(&mut self) -> MlResult<()> {
@@ -537,7 +595,9 @@ impl<'a, M: SemiSupervisedModel> EpochStep for SemiSupervisedEpochStep<'a, M> {
         Ok(())
     }
 
-    fn current_lr(&self) -> f32 { self.optimizer.lr() }
+    fn current_lr(&self) -> f32 {
+        self.optimizer.lr()
+    }
 
     fn format_epoch_extras(&self, _avg_loss: f32) -> Vec<String> {
         self.show_paradigm
@@ -554,26 +614,40 @@ mod tests {
     #[test]
     fn consistency_ramp_constant() {
         let r = ConsistencyRamp::Constant(0.5);
-        assert_eq!(r.value(0),   0.5);
+        assert_eq!(r.value(0), 0.5);
         assert_eq!(r.value(100), 0.5);
     }
 
     #[test]
     fn consistency_ramp_sigmoid_monotonic() {
-        let r = ConsistencyRamp::Sigmoid { max_weight: 1.0, ramp_epochs: 30 };
-        let v0  = r.value(0);
+        let r = ConsistencyRamp::Sigmoid {
+            max_weight: 1.0,
+            ramp_epochs: 30,
+        };
+        let v0 = r.value(0);
         let v15 = r.value(15);
         let v30 = r.value(30);
         let v40 = r.value(40);
-        assert!(v0  < v15, "0 < 15 실패: {} < {}", v0, v15);
+        assert!(v0 < v15, "0 < 15 실패: {} < {}", v0, v15);
         assert!(v15 < v30, "15 < 30 실패: {} < {}", v15, v30);
-        assert!((v30 - 1.0).abs() < 1e-5, "램프 끝에서 max_weight 수렴 실패: {}", v30);
-        assert!((v40 - 1.0).abs() < 1e-5, "램프 초과 영역에서 max_weight 유지 실패: {}", v40);
+        assert!(
+            (v30 - 1.0).abs() < 1e-5,
+            "램프 끝에서 max_weight 수렴 실패: {}",
+            v30
+        );
+        assert!(
+            (v40 - 1.0).abs() < 1e-5,
+            "램프 초과 영역에서 max_weight 유지 실패: {}",
+            v40
+        );
     }
 
     #[test]
     fn consistency_ramp_sigmoid_zero_length() {
-        let r = ConsistencyRamp::Sigmoid { max_weight: 0.7, ramp_epochs: 0 };
+        let r = ConsistencyRamp::Sigmoid {
+            max_weight: 0.7,
+            ramp_epochs: 0,
+        };
         assert_eq!(r.value(0), 0.7);
     }
 }

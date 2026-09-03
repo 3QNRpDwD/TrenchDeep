@@ -19,13 +19,14 @@
 use super::*;
 
 use crate::{
+    MlResult,
     loss::SoftmaxCrossEntropyLoss,
     nn::Variable,
     tensor::{
-        operators::{Function, Matmul},
         GlobalFunction, GlobalTensor, Tensor, TensorBase,
+        operators::{Function, Matmul},
     },
-    var_with_label, MlResult,
+    var_with_label,
 };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -46,17 +47,14 @@ impl BigramLM {
         let w_data: Vec<f32> = (0..vocab * vocab)
             .map(|_| (rand::random::<f32>() - 0.5) * 0.2)
             .collect();
-        let w = var_with_label!(
-            Tensor::from_vec(w_data, &[vocab, vocab])?,
-            "bigram_w"
-        );
+        let w = var_with_label!(Tensor::from_vec(w_data, &[vocab, vocab])?, "bigram_w");
         Ok(Self { w, loss_fn, vocab })
     }
 
     /// 한 토큰 위치의 one-hot row 를 `[1, V]` Variable 로 만든다.
     fn row_var(&self, data: &[f32], row: usize) -> MlResult<Variable> {
         let v = self.vocab;
-        let slice: Vec<f32> = data[row * v .. (row + 1) * v].to_vec();
+        let slice: Vec<f32> = data[row * v..(row + 1) * v].to_vec();
         Ok(Variable::new(Tensor::from_vec(slice, &[1, v])?))
     }
 }
@@ -67,10 +65,7 @@ impl BigramLM {
 
 #[cfg(feature = "enableBackward")]
 impl crate::trainer::AutoregressiveModel for BigramLM {
-    fn forward_loss(
-        &mut self,
-        x: &Variable,
-    ) -> MlResult<(Variable, Variable, usize)> {
+    fn forward_loss(&mut self, x: &Variable) -> MlResult<(Variable, Variable, usize)> {
         // 입력은 `[L+1, V]` one-hot 시퀀스.
         // `SoftmaxCrossEntropyLoss::forward` 가 `[1, V]` 단일 행 입력에만
         // 올바른 per-row log-sum-exp 를 계산하므로, 각 (t, t+1) 쌍마다
@@ -84,28 +79,28 @@ impl crate::trainer::AutoregressiveModel for BigramLM {
 
         let data = x.tensor().data().to_vec();
 
-        let mut matmul   = Matmul::new()?;
+        let mut matmul = Matmul::new()?;
         let mut last_logits: Option<Variable> = None;
-        let mut total_loss:  Option<Variable> = None;
+        let mut total_loss: Option<Variable> = None;
 
         for t in 0..l {
-            let input_t  = self.row_var(&data, t)?;
+            let input_t = self.row_var(&data, t)?;
             let target_t = self.row_var(&data, t + 1)?;
             let logits_t = matmul.apply(&[&input_t, &self.w])?;
-            let loss_t   = self.loss_fn.apply_with_label(
-                &[&logits_t, &target_t], "bigram_loss"
-            )?;
+            let loss_t = self
+                .loss_fn
+                .apply_with_label(&[&logits_t, &target_t], "bigram_loss")?;
             total_loss = Some(match total_loss {
                 Some(acc) => &acc + &loss_t,
-                None      => loss_t,
+                None => loss_t,
             });
             last_logits = Some(logits_t);
         }
 
         // 평균 NLL 로 변환: total_loss / L
         let loss_sum = total_loss.expect("l>=1 이면 최소 하나의 loss 가 누적됨");
-        let scale    = Variable::new(Tensor::from_vec(vec![1.0 / l as f32], &[1, 1])?);
-        let mut mul  = crate::tensor::operators::Mul::new()?;
+        let scale = Variable::new(Tensor::from_vec(vec![1.0 / l as f32], &[1, 1])?);
+        let mut mul = crate::tensor::operators::Mul::new()?;
         let loss_mean = mul.apply(&[&loss_sum, &scale])?;
 
         Ok((last_logits.unwrap(), loss_mean, l))
@@ -119,7 +114,9 @@ impl crate::trainer::AutoregressiveModel for BigramLM {
 }
 
 impl crate::trainer::TrainableModel for BigramLM {
-    fn params(&self) -> Vec<&dyn Parameter> { vec![&self.w] }
+    fn params(&self) -> Vec<&dyn Parameter> {
+        vec![&self.w]
+    }
 }
 impl crate::trainer::CheckpointableModel for BigramLM {}
 
@@ -133,7 +130,7 @@ mod tests {
     use super::*;
     use crate::{
         optimizer::{Adam, Optimizer},
-        trainer::{AutoregressiveModel, Trainer, TrainableModel},
+        trainer::{AutoregressiveModel, TrainableModel, Trainer},
     };
 
     /// 한 토큰 one-hot 을 한 줄로 만든다 (`[V]` 슬라이스를 누적).
@@ -149,7 +146,10 @@ mod tests {
         for &t in tokens {
             data.extend_from_slice(&one_hot(t, vocab));
         }
-        Ok(Variable::new(Tensor::from_vec(data, &[tokens.len(), vocab])?))
+        Ok(Variable::new(Tensor::from_vec(
+            data,
+            &[tokens.len(), vocab],
+        )?))
     }
 
     /// 작은 합성 코퍼스에서 Bigram LM 이 발산 없이 학습되는지 확인한다.
@@ -158,7 +158,7 @@ mod tests {
     fn bigram_lm_pilot_runs() -> MlResult<()> {
         let vocab = 4;
         let mut model = BigramLM::new(vocab)?;
-        let mut opt   = Adam::new(1e-1, 0.9, 0.999, 1e-8);
+        let mut opt = Adam::new(1e-1, 0.9, 0.999, 1e-8);
         for p in model.params() {
             opt.register(p);
         }
@@ -170,24 +170,51 @@ mod tests {
             vec![2, 3, 0, 1, 2, 3, 0],
             vec![3, 0, 1, 2, 3, 0, 1],
         ];
-        let seq_vars: Vec<Variable> = sequences.iter()
+        let seq_vars: Vec<Variable> = sequences
+            .iter()
             .map(|s| pack_sequence(s, vocab))
             .collect::<MlResult<Vec<_>>>()?;
-        let x_set: Vec<&Variable> = seq_vars.iter().collect();
+        let dataset = crate::trainer::DatasetBuilder::from_source(
+            crate::trainer::MemorySource::new(seq_vars),
+        )
+        .map(|sequence: Variable| {
+            Ok(crate::trainer::AutoregressiveSample::new(
+                sequence.tensor().clone(),
+            ))
+        })
+        .build()?;
+        let mut loader = crate::trainer::DataLoader::builder(dataset)
+            .collator(|samples: &[&crate::trainer::AutoregressiveSample]| {
+                if samples.len() != 1 {
+                    return Err(crate::MlError::StringError(
+                        "single-sequence collator expects one sample".into(),
+                    ));
+                }
+                Ok(crate::trainer::AutoregressiveBatch {
+                    sequences: Variable::new(samples[0].sequence.clone()),
+                })
+            })
+            .batch_size(1)
+            .build()?;
 
         let trainer = Trainer::silent().autoregressive();
-        let result = trainer.fit(&mut model, &mut opt,
-            crate::trainer::AutoregressiveDataset::new(&x_set)?,
-            crate::trainer::EpochSchedule::new(20)?.with_tolerance(1e-10))?;
+        let result = trainer.fit(
+            &mut model,
+            &mut opt,
+            &mut loader,
+            crate::trainer::EpochSchedule::new(20)?.with_tolerance(1e-10),
+        )?;
 
         assert!(result.units_completed > 0, "적어도 1 에폭은 학습되어야 함");
         assert!(
             result.final_loss.is_finite(),
-            "최종 손실이 유한해야 함: got {}", result.final_loss
+            "최종 손실이 유한해야 함: got {}",
+            result.final_loss
         );
         assert!(
             result.final_loss >= 0.0,
-            "손실은 음이 아니어야 함: got {}", result.final_loss
+            "손실은 음이 아니어야 함: got {}",
+            result.final_loss
         );
         Ok(())
     }
@@ -198,37 +225,42 @@ mod tests {
     fn bigram_lm_pilot_loss_decreases() -> MlResult<()> {
         let vocab = 4;
         let mut model = BigramLM::new(vocab)?;
-        let mut opt   = Adam::new(1e-1, 0.9, 0.999, 1e-8);
+        let mut opt = Adam::new(1e-1, 0.9, 0.999, 1e-8);
         for p in model.params() {
             opt.register(p);
         }
 
         // 결정적인 bigram: 항상 t → (t+1) mod V
-        let sequences = [
-            vec![0, 1, 2, 3, 0, 1, 2, 3],
-            vec![1, 2, 3, 0, 1, 2, 3, 0],
-        ];
-        let seq_vars: Vec<Variable> = sequences.iter()
+        let sequences = [vec![0, 1, 2, 3, 0, 1, 2, 3], vec![1, 2, 3, 0, 1, 2, 3, 0]];
+        let seq_vars: Vec<Variable> = sequences
+            .iter()
             .map(|s| pack_sequence(s, vocab))
             .collect::<MlResult<Vec<_>>>()?;
         let x_set: Vec<&Variable> = seq_vars.iter().collect();
 
         let trainer = Trainer::silent().autoregressive();
-        let res_short = trainer.fit(&mut model, &mut opt,
+        let res_short = trainer.fit(
+            &mut model,
+            &mut opt,
             crate::trainer::AutoregressiveDataset::new(&x_set)?,
-            crate::trainer::EpochSchedule::new(1)?.with_tolerance(1e-10))?;
+            crate::trainer::EpochSchedule::new(1)?.with_tolerance(1e-10),
+        )?;
         let init_loss = res_short.final_loss;
 
         // 추가로 더 학습
-        let res_long = trainer.fit(&mut model, &mut opt,
+        let res_long = trainer.fit(
+            &mut model,
+            &mut opt,
             crate::trainer::AutoregressiveDataset::new(&x_set)?,
-            crate::trainer::EpochSchedule::new(40)?.with_tolerance(1e-10))?;
+            crate::trainer::EpochSchedule::new(40)?.with_tolerance(1e-10),
+        )?;
         let final_loss = res_long.final_loss;
 
         assert!(
             final_loss < init_loss,
             "학습 후 손실이 감소해야 함: init={:.4}, final={:.4}",
-            init_loss, final_loss
+            init_loss,
+            final_loss
         );
         Ok(())
     }
@@ -238,13 +270,13 @@ mod tests {
     // 에폭 경계에서 reset 이 호출되는지 확인.
     // ────────────────────────────────────────────────────────────────────────
 
-    use std::cell::Cell;
     use crate::trainer::{BatchContext, MetricHook};
+    use std::cell::Cell;
 
     /// 배치 호출 횟수와 reset 횟수를 세는 스파이 훅.
     struct CallCounterHook {
         updates: Cell<usize>,
-        resets:  Cell<usize>,
+        resets: Cell<usize>,
         last_lr: Cell<f32>,
     }
 
@@ -254,9 +286,16 @@ mod tests {
             self.last_lr.set(ctx.lr);
             Ok(())
         }
-        fn compute(&self) -> f32 { self.updates.get() as f32 }
-        fn reset(&mut self) -> MlResult<()> { self.resets.set(self.resets.get() + 1); Ok(()) }
-        fn name(&self) -> &str { "call_counter" }
+        fn compute(&self) -> f32 {
+            self.updates.get() as f32
+        }
+        fn reset(&mut self) -> MlResult<()> {
+            self.resets.set(self.resets.get() + 1);
+            Ok(())
+        }
+        fn name(&self) -> &str {
+            "call_counter"
+        }
     }
 
     /// 훅이 배치당 1 회 update, 에폭당 1 회 reset 호출되는지 검증.
@@ -264,7 +303,7 @@ mod tests {
     fn hook_is_called_per_batch_and_reset_per_epoch() -> MlResult<()> {
         let vocab = 4;
         let mut model = BigramLM::new(vocab)?;
-        let mut opt   = Adam::new(1e-1, 0.9, 0.999, 1e-8);
+        let mut opt = Adam::new(1e-1, 0.9, 0.999, 1e-8);
         for p in model.params() {
             opt.register(p);
         }
@@ -274,7 +313,8 @@ mod tests {
             vec![1, 2, 3, 0, 1],
             vec![2, 3, 0, 1, 2],
         ];
-        let seq_vars: Vec<Variable> = sequences.iter()
+        let seq_vars: Vec<Variable> = sequences
+            .iter()
             .map(|s| pack_sequence(s, vocab))
             .collect::<MlResult<Vec<_>>>()?;
         let x_set: Vec<&Variable> = seq_vars.iter().collect();
@@ -282,14 +322,17 @@ mod tests {
         let trainer = Trainer::silent().autoregressive();
         trainer.core.add_hook(Box::new(CallCounterHook {
             updates: Cell::new(0),
-            resets:  Cell::new(0),
+            resets: Cell::new(0),
             last_lr: Cell::new(0.0),
         }));
 
         let epochs = 3;
-        let _ = trainer.fit(&mut model, &mut opt,
+        let _ = trainer.fit(
+            &mut model,
+            &mut opt,
             crate::trainer::AutoregressiveDataset::new(&x_set)?,
-            crate::trainer::EpochSchedule::new(epochs)?.with_tolerance(1e-10))?;
+            crate::trainer::EpochSchedule::new(epochs)?.with_tolerance(1e-10),
+        )?;
 
         // 훅 상태는 RefCell 안에 있으므로 borrow 로 접근.
         let hooks = trainer.core.hooks.borrow();
@@ -300,7 +343,9 @@ mod tests {
             updates,
             epochs * x_set.len(),
             "배치당 1 회 update 기대: {} 에폭 × {} 배치 = {}",
-            epochs, x_set.len(), epochs * x_set.len()
+            epochs,
+            x_set.len(),
+            epochs * x_set.len()
         );
         Ok(())
     }

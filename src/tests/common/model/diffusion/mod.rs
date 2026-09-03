@@ -650,7 +650,10 @@ mod tests {
     fn diffusion_train_with_trainer() -> MlResult<()> {
         setup_logging();
         use crate::optimizer::{Adam, Optimizer};
-        use crate::trainer::{UnsupervisedDataset, EpochSchedule};
+        use crate::trainer::{
+            DataLoader, DatasetBuilder, EpochSchedule, MemorySource, UnsupervisedSample,
+            UnsupervisedStackCollator,
+        };
         
         info!("  DDPM Training via UnsupervisedTrainer::fit()");
         
@@ -665,17 +668,24 @@ mod tests {
             optimizer.register(param);
         }
         // 학습 데이터 (단일 배치)
-        let x_0 = Variable::new(
-            Tensor::from_vec(vec![0.5; 2 * 1 * 8 * 8], &[2, 1, 8, 8])?
-        );
+        let dataset = DatasetBuilder::from_source(MemorySource::new(vec![
+            Tensor::from_vec(vec![0.5; 1 * 8 * 8], &[1, 8, 8])?,
+            Tensor::from_vec(vec![0.5; 1 * 8 * 8], &[1, 8, 8])?,
+        ]))
+        .map(|input| Ok(UnsupervisedSample::new(input)))
+        .build()?;
+        let mut loader = DataLoader::builder(dataset)
+            .collator(UnsupervisedStackCollator::new())
+            .batch_size(2)
+            .shuffle(false)
+            .build()?;
         // UnsupervisedTrainer::silent() — 로그 없이 빠르게 실행
         let trainer = crate::trainer::Trainer::verbose().unsupervised();
-        let samples = [&x_0];
         let result = 
             trainer.fit(
                 &mut model, 
                 &mut optimizer, 
-                UnsupervisedDataset::new(&samples)?, 
+                &mut loader,
                 EpochSchedule::new(3)?.with_tolerance(1e-10)
             )?;
         info!("  Trainer result: {} epochs, final_loss = {:.6}", result.units_completed, result.final_loss);

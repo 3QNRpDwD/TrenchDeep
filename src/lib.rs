@@ -84,6 +84,8 @@ pub enum MlError {
     ContextError(#[from] ContextError),
     #[error(transparent)]
     AutogradError(#[from] AutogradError),
+    #[error(transparent)]
+    DataError(#[from] crate::trainer::data::DataError),
 }
 
 impl From<String> for MlError {

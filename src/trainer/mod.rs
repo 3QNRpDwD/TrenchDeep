@@ -29,6 +29,7 @@ pub mod unsupervised;
 pub mod semi_supervised;
 pub mod reinforcement;
 pub mod autoregressive;
+pub mod data;
 pub(crate) mod progress;
 
 pub use core::{
@@ -43,6 +44,14 @@ pub use api::{TrainableModel, CheckpointableModel, StopReason, StepUnit, MetricV
     UnsupervisedDataset, SemiSupervisedDataset, AutoregressiveDataset};
 pub use api::{SupervisedOptions, SemiSupervisedOptions, AutoregressiveOptions, ReinforcementOptions};
 pub use checkpoint::{TrainingCheckpoint, ParadigmTag, CheckpointManager, CHECKPOINT_SCHEMA_VERSION};
+pub use data::{
+    AutoregressiveBatch, AutoregressiveSample, AutoregressiveStackCollator, BatchLoader,
+    Collator, CsvRecord, CsvSource, DataError, DataLoader, DataLoaderBuilder, Dataset,
+    DatasetBuilder, InMemoryDataset, IntoBatchLoader, JsonLinesSource, JsonRecord, MemorySource,
+    RecordSource, SemiSupervisedBatch, SemiSupervisedDataLoader, Transform,
+    SemiSupervisedDataLoaderBuilder, SupervisedBatch, SupervisedSample, SupervisedStackCollator,
+    UnsupervisedBatch, UnsupervisedSample, UnsupervisedStackCollator,
+};
 
 // ── 지도학습 아키텍처 ──────────────────────────────────────────────────────
 #[cfg(feature = "enableBackward")]

@@ -58,11 +58,7 @@ pub trait AutoregressiveModel: TrainableModel {
     ) -> MlResult<(crate::nn::Variable, crate::nn::Variable, usize)>;
 
     /// No-grad 순전파. 초기 손실 표시 및 평가에 사용한다.
-    fn predict_raw(
-        &mut self,
-        x: &dyn TensorBase,
-    ) -> MlResult<crate::tensor::GlobalTensor<f32>>;
-
+    fn predict_raw(&mut self, x: &dyn TensorBase) -> MlResult<crate::tensor::GlobalTensor<f32>>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -102,7 +98,9 @@ impl From<Trainer> for AutoregressiveTrainer {
 impl AutoregressiveTrainer {
     /// 지정된 `LogConfig` 로 트레이너를 생성한다.
     pub fn from_config(config: LogConfig) -> Self {
-        Self { core: TrainerCore::new(config) }
+        Self {
+            core: TrainerCore::new(config),
+        }
     }
 
     /// 기존 `TrainerCore` 를 그대로 주입한다. 훅이 미리 장착된 상태 재사용에 유용.
@@ -119,13 +117,21 @@ impl AutoregressiveTrainer {
     // ── 프리셋 (Trainer 와 동등) ─────────────────────────────────────────
 
     /// 최대 성능 모드. 로그·NaN 검사 비활성.
-    pub fn silent()  -> Self { Trainer::silent().into() }
+    pub fn silent() -> Self {
+        Trainer::silent().into()
+    }
     /// 핵심 메트릭만 출력.
-    pub fn minimal() -> Self { Trainer::minimal().into() }
+    pub fn minimal() -> Self {
+        Trainer::minimal().into()
+    }
     /// 기본 모드. 핵심 메트릭과 PPL 포함.
-    pub fn default() -> Self { Trainer::default().into() }
+    pub fn default() -> Self {
+        Trainer::default().into()
+    }
     /// 상세 진단 모드. FW/BW, GradNorm, Update Ratio 포함.
-    pub fn verbose() -> Self { Trainer::verbose().into() }
+    pub fn verbose() -> Self {
+        Trainer::verbose().into()
+    }
 
     // ── 메트릭 훅 ─────────────────────────────────────────────────────────
 
@@ -147,41 +153,78 @@ impl AutoregressiveTrainer {
     /// # 파라미터
     /// - `model`     : `AutoregressiveModel` 구현체
     /// - `optimizer` : 옵티마이저 (`register` 완료 필요)
-    /// - `x_set`     : 학습 시퀀스 배치 슬라이스. 각 요소 shape 는 모델이 기대하는 형태 (e.g. `[B, L]`).
+    /// - `input`     : `AutoregressiveBatch` loader 또는 pre-batched `AutoregressiveDataset`.
     /// - `epochs`    : 최대 에폭 수
     /// - `tolerance` : 연속 두 에폭의 평균 손실 차이가 이 값 미만이면 조기 종료.
     ///                 `0` 이하는 조기 종료 비활성.
     #[cfg(feature = "enableBackward")]
-    pub fn fit<M: AutoregressiveModel>(
+    pub fn fit<M, I>(
         &self,
-        model:     &mut M,
+        model: &mut M,
         optimizer: &mut dyn crate::optimizer::Optimizer,
-        dataset:   AutoregressiveDataset<'_>,
-        schedule:  EpochSchedule,
-    ) -> MlResult<TrainResult> {
-        self.fit_inner(model, optimizer, dataset.sequences, schedule.epochs,
-            schedule.convergence, 0, f32::INFINITY, None)
+        input: I,
+        schedule: EpochSchedule,
+    ) -> MlResult<TrainResult>
+    where
+        M: AutoregressiveModel,
+        I: IntoBatchLoader<Batch = AutoregressiveBatch>,
+    {
+        self.fit_inner(
+            model,
+            optimizer,
+            input.into_batch_loader(),
+            schedule.epochs,
+            schedule.convergence,
+            0,
+            f32::INFINITY,
+            None,
+        )
     }
     #[cfg(feature = "enableBackward")]
-    pub fn fit_checkpointed<M: AutoregressiveModel + CheckpointableModel>(&self, model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer, dataset: AutoregressiveDataset<'_>, schedule: EpochSchedule)
-        -> MlResult<TrainResult> {
-        self.fit_inner(model, optimizer, dataset.sequences, schedule.epochs, schedule.convergence,
-            0, f32::INFINITY, Some(|m, p| m.save_checkpoint(p)))
+    pub fn fit_checkpointed<M, I>(
+        &self,
+        model: &mut M,
+        optimizer: &mut dyn crate::optimizer::Optimizer,
+        input: I,
+        schedule: EpochSchedule,
+    ) -> MlResult<TrainResult>
+    where
+        M: AutoregressiveModel + CheckpointableModel,
+        I: IntoBatchLoader<Batch = AutoregressiveBatch>,
+    {
+        self.fit_inner(
+            model,
+            optimizer,
+            input.into_batch_loader(),
+            schedule.epochs,
+            schedule.convergence,
+            0,
+            f32::INFINITY,
+            Some(|m, p| m.save_checkpoint(p)),
+        )
     }
 
     /// 체크포인트에서 학습을 재개한다.
     #[cfg(feature = "enableBackward")]
-    pub fn resume<M: AutoregressiveModel + CheckpointableModel>(
+    pub fn resume<M, I>(
         &self,
-        model:           &mut M,
-        optimizer:       &mut dyn crate::optimizer::Optimizer,
-        dataset:         AutoregressiveDataset<'_>,
+        model: &mut M,
+        optimizer: &mut dyn crate::optimizer::Optimizer,
+        input: I,
         checkpoint_path: &str,
-    ) -> MlResult<TrainResult> {
+    ) -> MlResult<TrainResult>
+    where
+        M: AutoregressiveModel + CheckpointableModel,
+        I: IntoBatchLoader<Batch = AutoregressiveBatch>,
+    {
         use tracing::info;
 
-        let ckpt = CheckpointManager::load_into(checkpoint_path, ParadigmTag::Autoregressive, model, optimizer)?;
+        let ckpt = CheckpointManager::load_into(
+            checkpoint_path,
+            ParadigmTag::Autoregressive,
+            model,
+            optimizer,
+        )?;
 
         info!(
             "Resuming autoregressive from checkpoint: epoch {}/{}, loss: {:.6}, lr: {:.2e}",
@@ -191,7 +234,7 @@ impl AutoregressiveTrainer {
         self.fit_inner(
             model,
             optimizer,
-            dataset.sequences,
+            input.into_batch_loader(),
             ckpt.total_epochs,
             Convergence::from_tolerance(ckpt.tolerance),
             ckpt.epochs_done,
@@ -201,31 +244,35 @@ impl AutoregressiveTrainer {
     }
 
     #[cfg(feature = "enableBackward")]
-    fn fit_inner<M: AutoregressiveModel>(
+    fn fit_inner<M, L>(
         &self,
-        model:       &mut M,
-        optimizer:   &mut dyn crate::optimizer::Optimizer,
-        x_set:       &[&crate::nn::Variable],
-        epochs:      usize,
+        model: &mut M,
+        optimizer: &mut dyn crate::optimizer::Optimizer,
+        mut loader: L,
+        epochs: usize,
         convergence: Convergence,
         start_epoch: usize,
-        init_loss:   f32,
-        save_model:  Option<fn(&M, &std::path::Path) -> MlResult<()>>,
-    ) -> MlResult<TrainResult> {
+        init_loss: f32,
+        save_model: Option<fn(&M, &std::path::Path) -> MlResult<()>>,
+    ) -> MlResult<TrainResult>
+    where
+        M: AutoregressiveModel,
+        L: BatchLoader<Batch = AutoregressiveBatch>,
+    {
+        use checkpoint::{clear_interrupt, interrupt_flag};
         use std::time::Instant;
         use tracing::info;
-        use checkpoint::{interrupt_flag, clear_interrupt};
 
-        let cfg              = self.config();
-        let training_start   = Instant::now();
+        let cfg = self.config();
+        let training_start = Instant::now();
         let remaining_epochs = epochs.saturating_sub(start_epoch);
         self.core.trace_model(
             "autoregressive",
             &*model,
             remaining_epochs,
-            x_set.len(),
+            loader.batch_count().unwrap_or(0),
         );
-        let progress         = EpochProgress::new(remaining_epochs, cfg.show_progress);
+        let progress = EpochProgress::new(remaining_epochs, cfg.show_progress);
 
         let interrupt = if cfg.checkpoint_dir.is_some() {
             let flag = interrupt_flag();
@@ -235,9 +282,9 @@ impl AutoregressiveTrainer {
             None
         };
 
-        let mut last_loss   = init_loss;
+        let mut last_loss = init_loss;
         let mut epochs_done = start_epoch;
-        let mut converged   = false;
+        let mut converged = false;
         let mut interrupted = false;
         let mut saved_checkpoint = None;
         let mut summary_logs = Vec::new();
@@ -245,19 +292,18 @@ impl AutoregressiveTrainer {
 
         for epoch in start_epoch..epochs {
             self.core.begin_epoch(epoch);
-            let mut xs: Vec<&crate::nn::Variable> = x_set.iter().copied().collect();
-            self.core.shuffle(&mut xs);
+            loader.begin_epoch(epoch, &self.core.runtime)?;
 
             let outcome = {
                 let mut step = AutoregressiveEpochStep {
                     model: &mut *model,
                     optimizer: &mut *optimizer,
-                    xs,
                     last_y: None,
                     last_n_tokens: None,
                 };
                 self.core.run_epoch(
                     &mut step,
+                    &mut loader,
                     epoch - start_epoch,
                     remaining_epochs,
                     &progress,
@@ -266,25 +312,21 @@ impl AutoregressiveTrainer {
             };
 
             epochs_done = epoch + 1;
-            let avg_loss          = outcome.avg_loss;
+            let avg_loss = outcome.avg_loss;
             let batch_interrupted = outcome.interrupted;
             summary_logs.extend(outcome.batch_summaries.iter().cloned());
             final_metrics = outcome.metrics.clone();
 
             let should_log_epoch =
-                cfg.epoch_log_interval != usize::MAX
-                && (epoch + 1) % cfg.epoch_log_interval == 0;
+                cfg.epoch_log_interval != usize::MAX && (epoch + 1) % cfg.epoch_log_interval == 0;
 
             if should_log_epoch {
                 let loss_change = last_loss.is_finite().then(|| avg_loss - last_loss);
-                let extras_str  = outcome.summary_extras.join(" | ");
+                let extras_str = outcome.summary_extras.join(" | ");
                 let loss_change = loss_change
                     .map(|value| format!("{value:+.6}"))
                     .unwrap_or_else(|| "N/A".to_string());
-                let msg = format!(
-                    "AL: {:.6} | LC: {} | {}",
-                    avg_loss, loss_change, extras_str
-                );
+                let msg = format!("AL: {:.6} | LC: {} | {}", avg_loss, loss_change, extras_str);
                 progress.set_msg(&msg);
                 summary_logs.push(format!("Epoch {}/{} | {}", epoch + 1, epochs, msg));
                 progress.inc();
@@ -308,7 +350,9 @@ impl AutoregressiveTrainer {
                         &progress,
                     )?);
                 } else if cfg.checkpoint_dir.is_some() {
-                    return Err(MlError::StringError("checkpointing requires fit_checkpointed()".into()));
+                    return Err(MlError::StringError(
+                        "checkpointing requires fit_checkpointed()".into(),
+                    ));
                 } else {
                     progress.abandon("Interrupted — no checkpoint_dir configured");
                 }
@@ -348,11 +392,18 @@ impl AutoregressiveTrainer {
             );
         }
 
-        let reason = if interrupted { StopReason::Interrupted }
-            else if converged { StopReason::Converged } else { StopReason::Completed };
-        Ok(TrainResult::epochs(reason, epochs_done, last_loss, total_duration)
-            .with_metrics(final_metrics)
-            .with_checkpoint(saved_checkpoint))
+        let reason = if interrupted {
+            StopReason::Interrupted
+        } else if converged {
+            StopReason::Converged
+        } else {
+            StopReason::Completed
+        };
+        Ok(
+            TrainResult::epochs(reason, epochs_done, last_loss, total_duration)
+                .with_metrics(final_metrics)
+                .with_checkpoint(saved_checkpoint),
+        )
     }
 }
 
@@ -365,19 +416,18 @@ impl AutoregressiveTrainer {
 
 #[cfg(feature = "enableBackward")]
 struct AutoregressiveEpochStep<'a, M: AutoregressiveModel> {
-    model:         &'a mut M,
-    optimizer:     &'a mut dyn crate::optimizer::Optimizer,
-    xs:            Vec<&'a crate::nn::Variable>,
+    model: &'a mut M,
+    optimizer: &'a mut dyn crate::optimizer::Optimizer,
     // Perplexity 누적/에폭 요약 PPL 문자열은 Perplexity 훅(From<Trainer> 에서
     // 자동 장착) 이 담당한다. 배치 레벨 live PPL 도 훅으로 일원화된 경로로 넘어가
     // 이 구조체는 순수 루프 상태만 보관한다.
-    last_y:        Option<crate::nn::Variable>,
+    last_y: Option<crate::nn::Variable>,
     last_n_tokens: Option<usize>,
 }
 
 #[cfg(feature = "enableBackward")]
 impl<'a, M: AutoregressiveModel> EpochStep for AutoregressiveEpochStep<'a, M> {
-    fn n_batches(&self) -> usize { self.xs.len() }
+    type Batch = AutoregressiveBatch;
 
     fn reset_epoch_state(&mut self) {
         self.last_y = None;
@@ -387,50 +437,69 @@ impl<'a, M: AutoregressiveModel> EpochStep for AutoregressiveEpochStep<'a, M> {
     fn forward_backward(
         &mut self,
         batch_idx: usize,
-        cfg:       &LogConfig,
+        batch: AutoregressiveBatch,
+        cfg: &LogConfig,
     ) -> MlResult<StepOutput> {
-        use std::time::Instant;
         use crate::tensor::ComputationGraph;
+        use std::time::Instant;
 
         ComputationGraph::reset_graph();
-        let x = self.xs[batch_idx];
-
-        let fw_start = if cfg.metrics.fw_bw_timing { Some(Instant::now()) } else { None };
-        let (y, loss_var, n_tokens) = self.model.forward_loss(x)?;
+        let fw_start = if cfg.metrics.fw_bw_timing {
+            Some(Instant::now())
+        } else {
+            None
+        };
+        let (y, loss_var, n_tokens) = self.model.forward_loss(&batch.sequences)?;
         let fw_dur = fw_start.map(|s| s.elapsed());
 
         let loss = loss_var.tensor().data()[0];
         self.last_y = Some(y);
         self.last_n_tokens = Some(n_tokens);
 
-        let bw_start = if cfg.metrics.fw_bw_timing { Some(Instant::now()) } else { None };
+        let bw_start = if cfg.metrics.fw_bw_timing {
+            Some(Instant::now())
+        } else {
+            None
+        };
         loss_var.backward()?;
         let bw_dur = bw_start.map(|s| s.elapsed());
 
-        let has_nan = (batch_idx + 1) % cfg.nan_check_interval == 0
-            && has_invalid_grad(&self.model.params());
+        let has_nan =
+            (batch_idx + 1) % cfg.nan_check_interval == 0 && has_invalid_grad(&self.model.params());
 
-        let should_log_batch = cfg.batch_log_interval != usize::MAX
-            && (batch_idx + 1) % cfg.batch_log_interval == 0;
+        let should_log_batch =
+            cfg.batch_log_interval != usize::MAX && (batch_idx + 1) % cfg.batch_log_interval == 0;
         let (gn, ur) = if should_log_batch {
             let params = self.model.params();
             let gn = cfg.metrics.grad_norm.then(|| grad_norm(&params));
-            let ur = cfg.metrics.update_ratio.then(|| update_ratio(&params, self.optimizer.lr()));
+            let ur = cfg
+                .metrics
+                .update_ratio
+                .then(|| update_ratio(&params, self.optimizer.lr()));
             (gn, ur)
         } else {
             (None, None)
         };
 
-        let observations = BatchObservations { pred: self.last_y.clone(), target: None,
-            n_tokens: Some(n_tokens), lambda: None };
-        Ok(StepOutput { loss, loss_weight: n_tokens.max(1), observations, diagnostics: StepDiagnostics {
-            has_nan,
-            fw_dur,
-            bw_dur,
-            grad_norm:    gn,
-            update_ratio: ur,
-            extra_msg:    Vec::new(),
-        }})
+        let observations = BatchObservations {
+            pred: self.last_y.clone(),
+            target: None,
+            n_tokens: Some(n_tokens),
+            lambda: None,
+        };
+        Ok(StepOutput {
+            loss,
+            loss_weight: n_tokens.max(1),
+            observations,
+            diagnostics: StepDiagnostics {
+                has_nan,
+                fw_dur,
+                bw_dur,
+                grad_norm: gn,
+                update_ratio: ur,
+                extra_msg: Vec::new(),
+            },
+        })
     }
 
     fn optimizer_step(&mut self) -> MlResult<()> {
@@ -439,7 +508,9 @@ impl<'a, M: AutoregressiveModel> EpochStep for AutoregressiveEpochStep<'a, M> {
         Ok(())
     }
 
-    fn current_lr(&self) -> f32 { self.optimizer.lr() }
+    fn current_lr(&self) -> f32 {
+        self.optimizer.lr()
+    }
 
     // 에폭 요약의 "PPL: ..." 는 Perplexity 훅이 자동으로 붙인다.
 }
@@ -455,29 +526,41 @@ mod tests {
     #[test]
     fn default_preset_auto_attaches_perplexity_hook() {
         let trainer = AutoregressiveTrainer::default();
-        assert_eq!(trainer.core.hook_count(), 1,
-            "default() 는 Perplexity 훅을 자동 장착해야 함");
+        assert_eq!(
+            trainer.core.hook_count(),
+            1,
+            "default() 는 Perplexity 훅을 자동 장착해야 함"
+        );
     }
 
     #[test]
     fn verbose_preset_auto_attaches_perplexity_hook() {
         let trainer = AutoregressiveTrainer::verbose();
-        assert_eq!(trainer.core.hook_count(), 1,
-            "verbose() 는 Perplexity 훅을 자동 장착해야 함");
+        assert_eq!(
+            trainer.core.hook_count(),
+            1,
+            "verbose() 는 Perplexity 훅을 자동 장착해야 함"
+        );
     }
 
     #[test]
     fn minimal_preset_has_no_perplexity_hook() {
         let trainer = AutoregressiveTrainer::minimal();
-        assert_eq!(trainer.core.hook_count(), 0,
-            "minimal() 은 핵심 메트릭만 표시하므로 PPL 훅이 없어야 함");
+        assert_eq!(
+            trainer.core.hook_count(),
+            0,
+            "minimal() 은 핵심 메트릭만 표시하므로 PPL 훅이 없어야 함"
+        );
     }
 
     #[test]
     fn silent_preset_has_no_auto_hooks() {
         let trainer = AutoregressiveTrainer::silent();
-        assert_eq!(trainer.core.hook_count(), 0,
-            "silent() 은 epoch_log_interval=MAX → 훅 없음 (최대 성능 모드)");
+        assert_eq!(
+            trainer.core.hook_count(),
+            0,
+            "silent() 은 epoch_log_interval=MAX → 훅 없음 (최대 성능 모드)"
+        );
     }
 
     #[test]
@@ -488,10 +571,10 @@ mod tests {
             batch_summary_interval: 100,
             epoch_log_interval: 1,
             nan_check_interval: 1,
-            metrics:            Metrics::default(),
-            show_progress:      false,
-            checkpoint_dir:     None,
-            seed:               0,
+            metrics: Metrics::default(),
+            show_progress: false,
+            checkpoint_dir: None,
+            seed: 0,
         };
         let trainer = AutoregressiveTrainer::from_config(cfg);
         assert_eq!(trainer.core.hook_count(), 0);
@@ -500,7 +583,10 @@ mod tests {
     #[test]
     fn with_perplexity_shortcut_adds_single_hook_from_silent() {
         let trainer = AutoregressiveTrainer::silent().with_perplexity();
-        assert_eq!(trainer.core.hook_count(), 1,
-            "silent() + with_perplexity() 는 훅 1개가 되어야 함");
+        assert_eq!(
+            trainer.core.hook_count(),
+            1,
+            "silent() + with_perplexity() 는 훅 1개가 되어야 함"
+        );
     }
 }

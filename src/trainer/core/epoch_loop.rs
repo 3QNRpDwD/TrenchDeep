@@ -12,10 +12,11 @@
 use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
 
-use super::*;
 use super::metric_hook::BatchContext;
+use super::*;
+use crate::trainer::checkpoint::{clear_interrupt, confirm_interrupt, is_interrupted};
+use crate::trainer::data::BatchLoader;
 use crate::trainer::progress::{BatchProgress, EpochProgress};
-use crate::trainer::checkpoint::{is_interrupted, clear_interrupt, confirm_interrupt};
 
 // ────────────────────────────────────────────────────────────────────────────
 // StepOutput — 한 배치의 forward/backward 결과 요약
@@ -57,8 +58,12 @@ impl StepDiagnostics {
         if let (Some(fw), Some(bw)) = (self.fw_dur, self.bw_dur) {
             parts.push(format!("FW: {:>7.2?} | BW: {:>7.2?}", fw, bw));
         }
-        if let Some(gn) = self.grad_norm    { parts.push(format!("GN: {:.2e}", gn)); }
-        if let Some(ur) = self.update_ratio { parts.push(format!("UR: {:.2e}", ur)); }
+        if let Some(gn) = self.grad_norm {
+            parts.push(format!("GN: {:.2e}", gn));
+        }
+        if let Some(ur) = self.update_ratio {
+            parts.push(format!("UR: {:.2e}", ur));
+        }
         parts.extend(self.extra_msg.iter().cloned());
         parts.join(" | ")
     }
@@ -81,8 +86,7 @@ pub struct StepOutput {
 /// 내부에 보관한다. 보통 `fit_inner` 안에서 스택 로컬 구조체로 만들어져
 /// `run_epoch` 에 `&mut` 로 전달된다.
 pub trait EpochStep {
-    /// 현재 에폭 동안 처리할 배치 수.
-    fn n_batches(&self) -> usize;
+    type Batch;
 
     /// forward → backward → 선택적 메트릭 계산까지 수행. **optimizer.step 는 호출하지 않는다.**
     ///
@@ -96,6 +100,7 @@ pub trait EpochStep {
     fn forward_backward(
         &mut self,
         batch_idx: usize,
+        batch: Self::Batch,
         cfg: &LogConfig,
     ) -> MlResult<StepOutput>;
 
@@ -106,11 +111,12 @@ pub trait EpochStep {
     fn current_lr(&self) -> f32;
 
     /// 에폭 요약 로그에 덧붙일 조각. 예: Supervised 의 `"AC: 87.50%"`, AR 의 `"PPL: 12.34"`.
-    fn format_epoch_extras(&self, _avg_loss: f32) -> Vec<String> { Vec::new() }
+    fn format_epoch_extras(&self, _avg_loss: f32) -> Vec<String> {
+        Vec::new()
+    }
 
     /// 에폭 시작 시 내부 누적 상태를 초기화. accuracy/perplexity 등.
     fn reset_epoch_state(&mut self) {}
-
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -151,16 +157,21 @@ impl TrainerCore {
     /// # 반환
     /// - `Ok(EpochOutcome)` : 정상 완료 또는 사용자 인터럽트 확인.
     /// - `Err(...)`        : NaN/Inf 발산 감지 시.
-    pub(crate) fn run_epoch<S: EpochStep>(
+    pub(crate) fn run_epoch<S, L>(
         &self,
         step: &mut S,
+        loader: &mut L,
         epoch_display_idx: usize,
         total_epochs_display: usize,
         progress: &EpochProgress,
         interrupt: Option<&AtomicBool>,
-    ) -> MlResult<EpochOutcome> {
-        let cfg        = self.config();
-        let n_batches  = step.n_batches();
+    ) -> MlResult<EpochOutcome>
+    where
+        S: EpochStep,
+        L: BatchLoader<Batch = S::Batch>,
+    {
+        let cfg = self.config();
+        let n_batches = loader.batch_count().unwrap_or(0);
 
         #[cfg(feature = "debugging")]
         let epoch_span = tracing::debug_span!(
@@ -178,7 +189,8 @@ impl TrainerCore {
             "epoch execution started"
         );
 
-        let batch_bar  = progress.start_batch_bar(epoch_display_idx, total_epochs_display, n_batches);
+        let batch_bar =
+            progress.start_batch_bar(epoch_display_idx, total_epochs_display, n_batches);
         let epoch_start = Instant::now();
 
         step.reset_epoch_state();
@@ -191,9 +203,9 @@ impl TrainerCore {
             }
         }
 
-        let mut total_loss   = 0.0f32;
+        let mut total_loss = 0.0f32;
         let mut total_weight = 0usize;
-        let mut interrupted  = false;
+        let mut interrupted = false;
         let mut batch_summaries = Vec::new();
         let mut grad_norm_sum = 0.0f32;
         let mut grad_norm_count = 0usize;
@@ -204,7 +216,8 @@ impl TrainerCore {
         let mut bw_secs = 0.0f32;
         let mut bw_count = 0usize;
 
-        for batch_idx in 0..n_batches {
+        let mut batch_idx = 0usize;
+        while let Some(batch) = loader.next_batch()? {
             #[cfg(feature = "debugging")]
             let batch_span = tracing::debug_span!(
                 target: "trench_deep::trainer::debug",
@@ -220,7 +233,7 @@ impl TrainerCore {
                 "batch execution started"
             );
 
-            let info = match step.forward_backward(batch_idx, cfg) {
+            let info = match step.forward_backward(batch_idx, batch, cfg) {
                 Ok(i) => i,
                 Err(e) => {
                     progress.abandon("Error during forward/backward");
@@ -243,10 +256,12 @@ impl TrainerCore {
                 batch_bar.abandon("NaN/Inf Gradient");
                 tracing::error!(
                     "NaN/Inf gradient at epoch {}, batch {}. total_loss so far: {:.6}",
-                    epoch_display_idx + 1, batch_idx + 1, total_loss
+                    epoch_display_idx + 1,
+                    batch_idx + 1,
+                    total_loss
                 );
                 return Err(MlError::StringError(
-                    "Numerical instability during training".to_string()
+                    "Numerical instability during training".to_string(),
                 ));
             }
 
@@ -277,12 +292,20 @@ impl TrainerCore {
             if hooks_active {
                 let ctx = BatchContext {
                     batch_idx,
-                    pred:      info.observations.pred.as_ref().map(|v| v.tensor() as &dyn TensorBase),
-                    target:    info.observations.target.as_ref().map(|v| v.tensor() as &dyn TensorBase),
-                    loss:      info.loss,
-                    n_tokens:  info.observations.n_tokens,
-                    lambda:    info.observations.lambda,
-                    lr:        step.current_lr(),
+                    pred: info
+                        .observations
+                        .pred
+                        .as_ref()
+                        .map(|v| v.tensor() as &dyn TensorBase),
+                    target: info
+                        .observations
+                        .target
+                        .as_ref()
+                        .map(|v| v.tensor() as &dyn TensorBase),
+                    loss: info.loss,
+                    n_tokens: info.observations.n_tokens,
+                    lambda: info.observations.lambda,
+                    lr: step.current_lr(),
                 };
                 for hook in self.hooks.borrow_mut().iter_mut() {
                     hook.update(&ctx)?;
@@ -320,7 +343,9 @@ impl TrainerCore {
                 if is_interrupted(flag) {
                     let should_stop = progress.suspend(|| {
                         let result = confirm_interrupt();
-                        if !result { clear_interrupt(flag); }
+                        if !result {
+                            clear_interrupt(flag);
+                        }
                         result
                     });
                     if should_stop {
@@ -330,13 +355,18 @@ impl TrainerCore {
                     }
                 }
             }
+            batch_idx += 1;
         }
 
         if !interrupted {
             batch_bar.finish();
         }
 
-        let avg_loss  = if total_weight > 0 { total_loss / total_weight as f32 } else { 0.0 };
+        let avg_loss = if total_weight > 0 {
+            total_loss / total_weight as f32
+        } else {
+            0.0
+        };
         let epoch_dur = epoch_start.elapsed();
 
         let mut summary_extras = step.format_epoch_extras(avg_loss);
@@ -358,7 +388,10 @@ impl TrainerCore {
             metrics.insert("grad_norm".into(), grad_norm_sum / grad_norm_count as f32);
         }
         if update_ratio_count > 0 {
-            metrics.insert("update_ratio".into(), update_ratio_sum / update_ratio_count as f32);
+            metrics.insert(
+                "update_ratio".into(),
+                update_ratio_sum / update_ratio_count as f32,
+            );
         }
         if fw_count > 0 {
             metrics.insert("forward_secs".into(), fw_secs / fw_count as f32);
