@@ -81,6 +81,7 @@ enum BuiltinBackward {
     Conv2d { stride: (usize, usize), padding: (usize, usize) },
     MaxPool2d { kernel: (usize, usize), stride: (usize, usize) },
     AvgPool2d { kernel: (usize, usize), stride: (usize, usize) },
+    NearestUpsample2d { scale: (usize, usize) },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -286,6 +287,7 @@ impl BackwardOp for StructuralBackward {
             BuiltinBackward::Conv2d { .. } => "conv2d",
             BuiltinBackward::MaxPool2d { .. } => "max_pool2d",
             BuiltinBackward::AvgPool2d { .. } => "avg_pool2d",
+            BuiltinBackward::NearestUpsample2d { .. } => "nearest_upsample2d",
             _ => "unsupported",
         }
     }
@@ -296,6 +298,7 @@ impl BackwardOp for StructuralBackward {
             BuiltinBackward::Matmul => 2,
             BuiltinBackward::Conv2d { .. } => 3,
             BuiltinBackward::MaxPool2d { .. } | BuiltinBackward::AvgPool2d { .. } => 1,
+            BuiltinBackward::NearestUpsample2d { .. } => 1,
             _ => 1,
         }
     }
@@ -360,6 +363,9 @@ impl BackwardOp for StructuralBackward {
             }
             BuiltinBackward::AvgPool2d { kernel, stride } => {
                 vec![avg_pool2d_backward_data(&values[0], &grad, *kernel, *stride)?]
+            }
+            BuiltinBackward::NearestUpsample2d { scale } => {
+                vec![nearest_upsample2d_backward_data(&values[0], &grad, *scale)?]
             }
             _ => return Err(AutogradError::BackwardNotSupported(self.name().into()).into()),
         };
@@ -866,6 +872,23 @@ impl ExecutionContext {
         Ok(result)
     }
 
+    pub fn nearest_upsample2d(
+        &self,
+        input: &ContextTensor,
+        scale: (usize, usize),
+    ) -> MlResult<ContextTensor> {
+        self.validate(input)?;
+        let input_value = input.snapshot()?;
+        let output = nearest_upsample2d_forward_data(&input_value, scale)?;
+        let result = self.tensor(output.data, &output.shape)?;
+        self.record(
+            result.node_id(),
+            vec![input.node_id()],
+            BuiltinBackward::NearestUpsample2d { scale },
+        )?;
+        Ok(result)
+    }
+
     pub fn add_variable(
         &self,
         lhs: &ContextVariable,
@@ -1021,6 +1044,14 @@ impl ExecutionContext {
         stride: (usize, usize),
     ) -> MlResult<ContextVariable> {
         self.variable_from(self.avg_pool2d(input.tensor(), kernel, stride)?)
+    }
+
+    pub fn nearest_upsample2d_variable(
+        &self,
+        input: &ContextVariable,
+        scale: (usize, usize),
+    ) -> MlResult<ContextVariable> {
+        self.variable_from(self.nearest_upsample2d(input.tensor(), scale)?)
     }
 
     fn is_tracked(&self, tensor: &ContextTensor) -> MlResult<bool> {
@@ -1273,8 +1304,88 @@ fn into_node_backward(backward: BuiltinBackward) -> Box<dyn BackwardOp> {
         | BuiltinBackward::Matmul
         | BuiltinBackward::Conv2d { .. }
         | BuiltinBackward::MaxPool2d { .. }
-        | BuiltinBackward::AvgPool2d { .. }) => Box::new(StructuralBackward(other)),
+        | BuiltinBackward::AvgPool2d { .. }
+        | BuiltinBackward::NearestUpsample2d { .. }) => Box::new(StructuralBackward(other)),
     }
+}
+
+fn nearest_upsample2d_spec(
+    input: &[usize],
+    scale: (usize, usize),
+) -> MlResult<(usize, usize)> {
+    let output_height = input.get(2).and_then(|height| height.checked_mul(scale.0));
+    let output_width = input.get(3).and_then(|width| width.checked_mul(scale.1));
+    if input.len() != 4
+        || scale.0 == 0
+        || scale.1 == 0
+        || output_height.is_none()
+        || output_width.is_none()
+    {
+        return Err(TensorError::InvalidOperation {
+            op: "nearest_upsample2d",
+            reason: format!(
+                "expected input [N,C,H,W] with non-zero scales and representable output dimensions; got {input:?}, scale={scale:?}"
+            ),
+        }
+        .into());
+    }
+    Ok((
+        output_height.unwrap_or_default(),
+        output_width.unwrap_or_default(),
+    ))
+}
+
+fn nearest_upsample2d_forward_data(
+    input: &GlobalTensor<f32>,
+    scale: (usize, usize),
+) -> MlResult<GlobalTensor<f32>> {
+    let (oh, ow) = nearest_upsample2d_spec(&input.shape, scale)?;
+    let (n, c, h, w) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
+    let mut output = vec![0.0; n * c * oh * ow];
+    for batch in 0..n {
+        for channel in 0..c {
+            for y in 0..oh {
+                for x in 0..ow {
+                    let input_index = ((batch * c + channel) * h + y / scale.0) * w
+                        + x / scale.1;
+                    let output_index = ((batch * c + channel) * oh + y) * ow + x;
+                    output[output_index] = input.data[input_index];
+                }
+            }
+        }
+    }
+    GlobalTensor::from_vec(output, &[n, c, oh, ow])
+}
+
+fn nearest_upsample2d_backward_data(
+    input: &GlobalTensor<f32>,
+    grad: &GlobalTensor<f32>,
+    scale: (usize, usize),
+) -> MlResult<GlobalTensor<f32>> {
+    let (oh, ow) = nearest_upsample2d_spec(&input.shape, scale)?;
+    let expected = vec![input.shape[0], input.shape[1], oh, ow];
+    if grad.shape != expected {
+        return Err(AutogradError::GradientShapeMismatch {
+            expected,
+            got: grad.shape.clone(),
+        }
+        .into());
+    }
+    let (n, c, h, w) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
+    let mut dx = vec![0.0; input.data.len()];
+    for batch in 0..n {
+        for channel in 0..c {
+            for y in 0..oh {
+                for x in 0..ow {
+                    let input_index = ((batch * c + channel) * h + y / scale.0) * w
+                        + x / scale.1;
+                    let output_index = ((batch * c + channel) * oh + y) * ow + x;
+                    dx[input_index] += grad.data[output_index];
+                }
+            }
+        }
+    }
+    GlobalTensor::from_vec(dx, &input.shape)
 }
 
 fn pool2d_spec(
@@ -2343,6 +2454,52 @@ mod tests {
         assert_eq!(stats.graph_nodes, 0);
         assert_eq!(stats.saved_tensor_references, 0);
         assert_eq!(output.tensor().item()?, 4.0);
+        Ok(())
+    }
+
+    #[test]
+    fn nearest_upsample2d_supports_asymmetric_scale_and_vjp() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let input_data = vec![1.0, 2.0, 3.0, 4.0];
+        let input = ctx.parameter(input_data.clone(), &[1, 1, 2, 2])?;
+        let output = ctx.nearest_upsample2d_variable(&input, (2, 3))?;
+        assert_eq!(output.tensor().shape()?, vec![1, 1, 4, 6]);
+        assert_eq!(output.tensor().to_vec()?, vec![
+            1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
+            1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
+            3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
+            3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
+        ]);
+        let cotangent = ctx.tensor((1..=24).map(|value| value as f32).collect(), &[1, 1, 4, 6])?;
+        output.backward_with_grad(&cotangent)?;
+        let analytic = input.grad()?.expect("upsample input gradient").data;
+        assert_eq!(analytic, vec![30.0, 48.0, 102.0, 120.0]);
+        let cotangent_data: Vec<_> = (1..=24).map(|value| value as f32).collect();
+        let objective = |values: &[f32]| -> MlResult<f32> {
+            let output = nearest_upsample2d_forward_data(
+                &GlobalTensor::from_vec(values.to_vec(), &[1, 1, 2, 2])?,
+                (2, 3),
+            )?;
+            Ok(output.data.iter().zip(&cotangent_data).map(|(x, g)| x * g).sum())
+        };
+        let epsilon = 1e-3;
+        for index in 0..input_data.len() {
+            let (mut plus, mut minus) = (input_data.clone(), input_data.clone());
+            plus[index] += epsilon;
+            minus[index] -= epsilon;
+            let numeric = (objective(&plus)? - objective(&minus)?) / (2.0 * epsilon);
+            let absolute_error = (analytic[index] - numeric).abs();
+            let relative_error = absolute_error / analytic[index].abs().max(numeric.abs()).max(1e-12);
+            assert!(absolute_error <= 1e-3 || relative_error <= 1e-3);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn nearest_upsample2d_rejects_zero_scale() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let input = ctx.tensor(vec![1.0], &[1, 1, 1, 1])?;
+        assert!(ctx.nearest_upsample2d(&input, (0, 2)).is_err());
         Ok(())
     }
 }
