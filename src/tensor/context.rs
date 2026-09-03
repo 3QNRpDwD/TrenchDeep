@@ -82,6 +82,7 @@ enum BuiltinBackward {
     MaxPool2d { kernel: (usize, usize), stride: (usize, usize) },
     AvgPool2d { kernel: (usize, usize), stride: (usize, usize) },
     NearestUpsample2d { scale: (usize, usize) },
+    GroupNorm { groups: usize, epsilon: f32 },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -288,6 +289,7 @@ impl BackwardOp for StructuralBackward {
             BuiltinBackward::MaxPool2d { .. } => "max_pool2d",
             BuiltinBackward::AvgPool2d { .. } => "avg_pool2d",
             BuiltinBackward::NearestUpsample2d { .. } => "nearest_upsample2d",
+            BuiltinBackward::GroupNorm { .. } => "group_norm",
             _ => "unsupported",
         }
     }
@@ -299,6 +301,7 @@ impl BackwardOp for StructuralBackward {
             BuiltinBackward::Conv2d { .. } => 3,
             BuiltinBackward::MaxPool2d { .. } | BuiltinBackward::AvgPool2d { .. } => 1,
             BuiltinBackward::NearestUpsample2d { .. } => 1,
+            BuiltinBackward::GroupNorm { .. } => 3,
             _ => 1,
         }
     }
@@ -366,6 +369,17 @@ impl BackwardOp for StructuralBackward {
             }
             BuiltinBackward::NearestUpsample2d { scale } => {
                 vec![nearest_upsample2d_backward_data(&values[0], &grad, *scale)?]
+            }
+            BuiltinBackward::GroupNorm { groups, epsilon } => {
+                let (dx, dgamma, dbeta) = group_norm_backward_data(
+                    &values[0],
+                    &values[1],
+                    saved,
+                    &grad,
+                    *groups,
+                    *epsilon,
+                )?;
+                vec![dx, dgamma, dbeta]
             }
             _ => return Err(AutogradError::BackwardNotSupported(self.name().into()).into()),
         };
@@ -889,6 +903,31 @@ impl ExecutionContext {
         Ok(result)
     }
 
+    pub fn group_norm(
+        &self,
+        input: &ContextTensor,
+        gamma: &ContextTensor,
+        beta: &ContextTensor,
+        groups: usize,
+        epsilon: f32,
+    ) -> MlResult<ContextTensor> {
+        self.validate(input)?;
+        self.validate(gamma)?;
+        self.validate(beta)?;
+        let (input_value, gamma_value, beta_value) =
+            (input.snapshot()?, gamma.snapshot()?, beta.snapshot()?);
+        let (output, saved) =
+            group_norm_forward_data(&input_value, &gamma_value, &beta_value, groups, epsilon)?;
+        let result = self.tensor(output.data, &output.shape)?;
+        self.record_with_saved(
+            result.node_id(),
+            vec![input.node_id(), gamma.node_id(), beta.node_id()],
+            BuiltinBackward::GroupNorm { groups, epsilon },
+            saved,
+        )?;
+        Ok(result)
+    }
+
     pub fn add_variable(
         &self,
         lhs: &ContextVariable,
@@ -1052,6 +1091,23 @@ impl ExecutionContext {
         scale: (usize, usize),
     ) -> MlResult<ContextVariable> {
         self.variable_from(self.nearest_upsample2d(input.tensor(), scale)?)
+    }
+
+    pub fn group_norm_variable(
+        &self,
+        input: &ContextVariable,
+        gamma: &ContextVariable,
+        beta: &ContextVariable,
+        groups: usize,
+        epsilon: f32,
+    ) -> MlResult<ContextVariable> {
+        self.variable_from(self.group_norm(
+            input.tensor(),
+            gamma.tensor(),
+            beta.tensor(),
+            groups,
+            epsilon,
+        )?)
     }
 
     fn is_tracked(&self, tensor: &ContextTensor) -> MlResult<bool> {
@@ -1305,8 +1361,184 @@ fn into_node_backward(backward: BuiltinBackward) -> Box<dyn BackwardOp> {
         | BuiltinBackward::Conv2d { .. }
         | BuiltinBackward::MaxPool2d { .. }
         | BuiltinBackward::AvgPool2d { .. }
-        | BuiltinBackward::NearestUpsample2d { .. }) => Box::new(StructuralBackward(other)),
+        | BuiltinBackward::NearestUpsample2d { .. }
+        | BuiltinBackward::GroupNorm { .. }) => Box::new(StructuralBackward(other)),
     }
+}
+
+fn group_norm_spec(
+    input: &[usize],
+    gamma: &[usize],
+    beta: &[usize],
+    groups: usize,
+    epsilon: f32,
+) -> MlResult<(usize, usize, usize, usize, usize, usize)> {
+    let channels = input.get(1).copied().unwrap_or_default();
+    let group_size = if groups == 0 { 0 } else { channels / groups };
+    let elements_per_group = input
+        .get(2)
+        .and_then(|height| height.checked_mul(*input.get(3)?))
+        .and_then(|spatial| spatial.checked_mul(group_size));
+    if input.len() != 4
+        || groups == 0
+        || channels == 0
+        || channels % groups != 0
+        || gamma != [channels]
+        || beta != [channels]
+        || !epsilon.is_finite()
+        || epsilon <= 0.0
+        || elements_per_group.is_none_or(|elements| elements == 0)
+    {
+        return Err(TensorError::InvalidOperation {
+            op: "group_norm",
+            reason: format!(
+                "expected input [N,C,H,W], gamma/beta [C], C divisible by non-zero groups, and finite positive epsilon; got input={input:?}, gamma={gamma:?}, beta={beta:?}, groups={groups}, epsilon={epsilon}"
+            ),
+        }
+        .into());
+    }
+    Ok((
+        input[0],
+        channels,
+        input[2],
+        input[3],
+        group_size,
+        elements_per_group.unwrap_or_default(),
+    ))
+}
+
+fn group_norm_forward_data(
+    input: &GlobalTensor<f32>,
+    gamma: &GlobalTensor<f32>,
+    beta: &GlobalTensor<f32>,
+    groups: usize,
+    epsilon: f32,
+) -> MlResult<(GlobalTensor<f32>, Vec<GlobalTensor<f32>>)> {
+    let (n, c, h, w, channels_per_group, elements_per_group) =
+        group_norm_spec(&input.shape, &gamma.shape, &beta.shape, groups, epsilon)?;
+    let mut output = vec![0.0; input.data.len()];
+    let mut normalized = vec![0.0; input.data.len()];
+    let mut means = vec![0.0; n * groups];
+    let mut variances = vec![0.0; n * groups];
+    for batch in 0..n {
+        for group in 0..groups {
+            let channel_start = group * channels_per_group;
+            let statistic_index = batch * groups + group;
+            let mut sum = 0.0;
+            for channel in channel_start..channel_start + channels_per_group {
+                let base = (batch * c + channel) * h * w;
+                sum += input.data[base..base + h * w].iter().sum::<f32>();
+            }
+            let mean = sum / elements_per_group as f32;
+            means[statistic_index] = mean;
+            let mut squared_deviation = 0.0;
+            for channel in channel_start..channel_start + channels_per_group {
+                let base = (batch * c + channel) * h * w;
+                squared_deviation += input.data[base..base + h * w]
+                    .iter()
+                    .map(|value| (value - mean) * (value - mean))
+                    .sum::<f32>();
+            }
+            let variance = squared_deviation / elements_per_group as f32;
+            variances[statistic_index] = variance;
+            let inverse_std = 1.0 / (variance + epsilon).sqrt();
+            for channel in channel_start..channel_start + channels_per_group {
+                let base = (batch * c + channel) * h * w;
+                for offset in 0..h * w {
+                    let index = base + offset;
+                    normalized[index] = (input.data[index] - mean) * inverse_std;
+                    output[index] = gamma.data[channel] * normalized[index] + beta.data[channel];
+                }
+            }
+        }
+    }
+    Ok((
+        GlobalTensor::from_vec(output, &input.shape)?,
+        vec![
+            GlobalTensor::from_vec(normalized, &input.shape)?,
+            GlobalTensor::from_vec(means, &[n, groups])?,
+            GlobalTensor::from_vec(variances, &[n, groups])?,
+        ],
+    ))
+}
+
+fn group_norm_backward_data(
+    input: &GlobalTensor<f32>,
+    gamma: &GlobalTensor<f32>,
+    saved: &[TensorView<'_>],
+    grad: &GlobalTensor<f32>,
+    groups: usize,
+    epsilon: f32,
+) -> MlResult<(GlobalTensor<f32>, GlobalTensor<f32>, GlobalTensor<f32>)> {
+    let beta_shape = [gamma.shape.first().copied().unwrap_or_default()];
+    let (n, c, h, w, channels_per_group, elements_per_group) =
+        group_norm_spec(&input.shape, &gamma.shape, &beta_shape, groups, epsilon)?;
+    if saved.len() != 3 {
+        return Err(AutogradError::BackwardArityMismatch {
+            expected: 3,
+            got: saved.len(),
+        }
+        .into());
+    }
+    let expected_statistics = [n, groups];
+    if grad.shape != input.shape
+        || saved[0].shape != input.shape
+        || saved[1].shape != expected_statistics
+        || saved[2].shape != expected_statistics
+    {
+        return Err(TensorError::InvalidOperation {
+            op: "group_norm_backward",
+            reason: "gradient or saved tensor shape does not match the forward contract".into(),
+        }
+        .into());
+    }
+    let normalized = saved[0].data;
+    let variances = saved[2].data;
+    let mut dx = vec![0.0; input.data.len()];
+    let mut dgamma = vec![0.0; c];
+    let mut dbeta = vec![0.0; c];
+    for batch in 0..n {
+        for channel in 0..c {
+            let base = (batch * c + channel) * h * w;
+            for offset in 0..h * w {
+                let index = base + offset;
+                dgamma[channel] += grad.data[index] * normalized[index];
+                dbeta[channel] += grad.data[index];
+            }
+        }
+        for group in 0..groups {
+            let channel_start = group * channels_per_group;
+            let mut sum_scaled_grad = 0.0;
+            let mut sum_scaled_grad_normalized = 0.0;
+            for channel in channel_start..channel_start + channels_per_group {
+                let base = (batch * c + channel) * h * w;
+                for offset in 0..h * w {
+                    let index = base + offset;
+                    let scaled_grad = grad.data[index] * gamma.data[channel];
+                    sum_scaled_grad += scaled_grad;
+                    sum_scaled_grad_normalized += scaled_grad * normalized[index];
+                }
+            }
+            let inverse_std = 1.0 / (variances[batch * groups + group] + epsilon).sqrt();
+            let count = elements_per_group as f32;
+            for channel in channel_start..channel_start + channels_per_group {
+                let base = (batch * c + channel) * h * w;
+                for offset in 0..h * w {
+                    let index = base + offset;
+                    let scaled_grad = grad.data[index] * gamma.data[channel];
+                    dx[index] = inverse_std / count
+                        * (count * scaled_grad
+                            - sum_scaled_grad
+                            - normalized[index] * sum_scaled_grad_normalized);
+                }
+            }
+        }
+    }
+    Ok((
+        GlobalTensor::from_vec(dx, &input.shape)?,
+        GlobalTensor::from_vec(dgamma, &gamma.shape)?,
+        GlobalTensor::from_vec(dbeta, &beta_shape)?,
+    ))
 }
 
 fn nearest_upsample2d_spec(
@@ -2500,6 +2732,86 @@ mod tests {
         let ctx = ExecutionContext::new();
         let input = ctx.tensor(vec![1.0], &[1, 1, 1, 1])?;
         assert!(ctx.nearest_upsample2d(&input, (0, 2)).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn group_norm_all_gradients_match_finite_difference_and_release_saved() -> MlResult<()> {
+        let input_data = vec![0.2, -0.7, 1.1, 0.4, -0.3, 0.8, 1.5, -1.2];
+        let gamma_data = vec![1.3, -0.6, 0.8, 1.1];
+        let beta_data = vec![0.1, -0.2, 0.3, -0.4];
+        let cotangent_data = vec![0.5, -0.4, 0.7, 0.2, -0.8, 0.3, 0.6, -0.1];
+        let ctx = ExecutionContext::new();
+        let input = ctx.parameter(input_data.clone(), &[1, 4, 1, 2])?;
+        let gamma = ctx.parameter(gamma_data.clone(), &[4])?;
+        let beta = ctx.parameter(beta_data.clone(), &[4])?;
+        let output = ctx.group_norm_variable(&input, &gamma, &beta, 2, 1e-3)?;
+        let stats = ctx.graph_stats()?;
+        assert_eq!(stats.saved_tensor_references, 3);
+        assert_eq!(stats.tensors, 7);
+        let cotangent = ctx.tensor(cotangent_data.clone(), &[1, 4, 1, 2])?;
+        output.backward_with_grad(&cotangent)?;
+        let analytic_input = input.grad()?.expect("group norm input gradient").data;
+        let analytic_gamma = gamma.grad()?.expect("group norm gamma gradient").data;
+        let analytic_beta = beta.grad()?.expect("group norm beta gradient").data;
+        let stats = ctx.graph_stats()?;
+        assert_eq!(stats.saved_tensor_references, 0);
+        assert_eq!(stats.tensors, 5);
+
+        let objective = |x: &[f32], scale: &[f32], shift: &[f32]| -> MlResult<f32> {
+            let (output, _) = group_norm_forward_data(
+                &GlobalTensor::from_vec(x.to_vec(), &[1, 4, 1, 2])?,
+                &GlobalTensor::from_vec(scale.to_vec(), &[4])?,
+                &GlobalTensor::from_vec(shift.to_vec(), &[4])?,
+                2,
+                1e-3,
+            )?;
+            Ok(output.data.iter().zip(&cotangent_data).map(|(y, g)| y * g).sum())
+        };
+        let assert_gradient = |analytic: f32, numeric: f32| {
+            let absolute_error = (analytic - numeric).abs();
+            let relative_error = absolute_error / analytic.abs().max(numeric.abs()).max(1e-12);
+            assert!(absolute_error <= 1e-3 || relative_error <= 1e-3,
+                "analytic={analytic}, numeric={numeric}, absolute={absolute_error}, relative={relative_error}");
+        };
+        let epsilon = 1e-3;
+        for index in 0..input_data.len() {
+            let (mut plus, mut minus) = (input_data.clone(), input_data.clone());
+            plus[index] += epsilon;
+            minus[index] -= epsilon;
+            let numeric = (objective(&plus, &gamma_data, &beta_data)?
+                - objective(&minus, &gamma_data, &beta_data)?) / (2.0 * epsilon);
+            assert_gradient(analytic_input[index], numeric);
+        }
+        for index in 0..gamma_data.len() {
+            let (mut plus, mut minus) = (gamma_data.clone(), gamma_data.clone());
+            plus[index] += epsilon;
+            minus[index] -= epsilon;
+            let numeric = (objective(&input_data, &plus, &beta_data)?
+                - objective(&input_data, &minus, &beta_data)?) / (2.0 * epsilon);
+            assert_gradient(analytic_gamma[index], numeric);
+        }
+        for index in 0..beta_data.len() {
+            let (mut plus, mut minus) = (beta_data.clone(), beta_data.clone());
+            plus[index] += epsilon;
+            minus[index] -= epsilon;
+            let numeric = (objective(&input_data, &gamma_data, &plus)?
+                - objective(&input_data, &gamma_data, &minus)?) / (2.0 * epsilon);
+            assert_gradient(analytic_beta[index], numeric);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn group_norm_validates_groups_and_parameter_shapes() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let input = ctx.tensor(vec![1.0; 8], &[1, 4, 1, 2])?;
+        let gamma = ctx.tensor(vec![1.0; 4], &[4])?;
+        let beta = ctx.tensor(vec![0.0; 4], &[4])?;
+        assert!(ctx.group_norm(&input, &gamma, &beta, 0, 1e-5).is_err());
+        assert!(ctx.group_norm(&input, &gamma, &beta, 3, 1e-5).is_err());
+        let wrong_gamma = ctx.tensor(vec![1.0; 3], &[3])?;
+        assert!(ctx.group_norm(&input, &wrong_gamma, &beta, 2, 1e-5).is_err());
         Ok(())
     }
 }
