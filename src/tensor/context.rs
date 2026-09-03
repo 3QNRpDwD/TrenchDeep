@@ -249,6 +249,80 @@ impl BackwardOp for ElementwiseBackward {
     }
 }
 
+#[derive(Debug)]
+struct StructuralBackward(BuiltinBackward);
+
+impl BackwardOp for StructuralBackward {
+    fn name(&self) -> &'static str {
+        match &self.0 {
+            BuiltinBackward::Transpose(_) => "transpose",
+            BuiltinBackward::Concat { .. } => "concat",
+            BuiltinBackward::Matmul => "matmul",
+            _ => "unsupported",
+        }
+    }
+
+    fn input_count(&self) -> usize {
+        match &self.0 {
+            BuiltinBackward::Concat { sizes, .. } => sizes.len(),
+            BuiltinBackward::Matmul => 2,
+            _ => 1,
+        }
+    }
+
+    fn backward(&self, inputs: &[TensorView<'_>], _saved: &[TensorView<'_>], grad: TensorView<'_>) -> MlResult<Vec<Option<GlobalTensor<f32>>>> {
+        if inputs.len() != self.input_count() {
+            return Err(AutogradError::BackwardArityMismatch { expected: self.input_count(), got: inputs.len() }.into());
+        }
+        let values = inputs.iter().map(|view| GlobalTensor::from_vec(view.data.to_vec(), view.shape)).collect::<MlResult<Vec<_>>>()?;
+        let grad = GlobalTensor::from_vec(grad.data.to_vec(), grad.shape)?;
+        let results = match &self.0 {
+            BuiltinBackward::Transpose(axes) => {
+                let mut inverse = vec![0; axes.len()];
+                for (output_axis, &input_axis) in axes.iter().enumerate() { inverse[input_axis] = output_axis; }
+                vec![GlobalTensor::from_vec(permute_data(&grad.data, &grad.shape, &inverse), &values[0].shape)?]
+            }
+            BuiltinBackward::Concat { axis, sizes } => {
+                let outer: usize = grad.shape[..*axis].iter().product();
+                let inner: usize = grad.shape[*axis + 1..].iter().product();
+                let axis_width = grad.shape[*axis] * inner;
+                let mut running = 0;
+                let offsets: Vec<_> = sizes.iter().map(|size| { let offset = running; running += size * inner; offset }).collect();
+                let mut split = Vec::with_capacity(values.len());
+                for (index, value) in values.iter().enumerate() {
+                    let chunk = sizes[index] * inner;
+                    let mut data = Vec::with_capacity(value.data.len());
+                    for outer_index in 0..outer {
+                        let start = outer_index * axis_width + offsets[index];
+                        data.extend_from_slice(&grad.data[start..start + chunk]);
+                    }
+                    split.push(GlobalTensor::from_vec(data, &value.shape)?);
+                }
+                split
+            }
+            BuiltinBackward::Matmul => {
+                let (lhs, rhs) = (&values[0], &values[1]);
+                let spec = MatmulSpec::new(&lhs.shape, &rhs.shape)?;
+                let batch_count: usize = spec.batch_shape.iter().product();
+                let mut dl = vec![0.0; lhs.data.len()];
+                let mut dr = vec![0.0; rhs.data.len()];
+                for batch in 0..batch_count {
+                    let lb = broadcast_offset(batch, &spec.batch_shape, &spec.left_batch);
+                    let rb = broadcast_offset(batch, &spec.batch_shape, &spec.right_batch);
+                    for i in 0..spec.m { for p in 0..spec.k { for j in 0..spec.n {
+                        let upstream = grad.data[(batch * spec.m + i) * spec.n + j];
+                        dl[(lb * spec.m + i) * spec.k + p] += upstream * rhs.data[(rb * spec.k + p) * spec.n + j];
+                        dr[(rb * spec.k + p) * spec.n + j] += lhs.data[(lb * spec.m + i) * spec.k + p] * upstream;
+                    }}}
+                }
+                vec![GlobalTensor::from_vec(dl, &lhs.shape)?, GlobalTensor::from_vec(dr, &rhs.shape)?]
+            }
+            _ => return Err(AutogradError::BackwardNotSupported(self.name().into()).into()),
+        };
+        Ok(results.into_iter().map(Some).collect())
+    }
+}
+
 impl<'a> TensorView<'a> {
     pub fn data(&self) -> &'a [f32] {
         self.data
@@ -1142,6 +1216,9 @@ fn into_node_backward(backward: BuiltinBackward) -> NodeBackward {
         | BuiltinBackward::Relu
         | BuiltinBackward::Sum
         | BuiltinBackward::Reshape) => NodeBackward::Dynamic(Box::new(ElementwiseBackward(other))),
+        other @ (BuiltinBackward::Transpose(_)
+        | BuiltinBackward::Concat { .. }
+        | BuiltinBackward::Matmul) => NodeBackward::Dynamic(Box::new(StructuralBackward(other))),
         other => NodeBackward::Legacy(other),
     }
 }
@@ -1714,6 +1791,7 @@ mod tests {
         let left = ctx.parameter(vec![10.0, 20.0], &[2, 1])?;
         let right = ctx.parameter(vec![1.0, 2.0, 3.0, 4.0], &[2, 2])?;
         let joined = ctx.concat_variables(&[&left, &right], 1)?;
+        assert_eq!(ctx.graph_stats()?.dynamic_backward_nodes, 1);
         assert_eq!(joined.tensor().to_vec()?, vec![10.0, 1.0, 2.0, 20.0, 3.0, 4.0]);
         let cotangent = ctx.tensor(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?;
         joined.backward_with_grad(&cotangent)?;
@@ -1742,6 +1820,7 @@ mod tests {
         let lhs = ctx.parameter(vec![1.0; 4].into_iter().chain(vec![2.0; 4]).collect(), &[2, 2, 2])?;
         let rhs = ctx.parameter(vec![1.0, 2.0, 3.0, 4.0], &[2, 2])?;
         let output = ctx.matmul_variable(&lhs, &rhs)?;
+        assert_eq!(ctx.graph_stats()?.dynamic_backward_nodes, 1);
         assert_eq!(output.tensor().shape()?, vec![2, 2, 2]);
         ctx.sum_variable(&output)?.backward()?;
         assert_eq!(lhs.grad()?.expect("lhs gradient").data,
