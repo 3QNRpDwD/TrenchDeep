@@ -49,6 +49,7 @@ struct ContextState {
 struct GraphNode {
     inputs: Vec<NodeId>,
     saved: Vec<NodeId>,
+    owned_saved: Vec<NodeId>,
     backward: Box<dyn BackwardOp>,
 }
 
@@ -78,6 +79,8 @@ enum BuiltinBackward {
     Sum,
     Matmul,
     Conv2d { stride: (usize, usize), padding: (usize, usize) },
+    MaxPool2d { kernel: (usize, usize), stride: (usize, usize) },
+    AvgPool2d { kernel: (usize, usize), stride: (usize, usize) },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -281,6 +284,8 @@ impl BackwardOp for StructuralBackward {
             BuiltinBackward::Concat { .. } => "concat",
             BuiltinBackward::Matmul => "matmul",
             BuiltinBackward::Conv2d { .. } => "conv2d",
+            BuiltinBackward::MaxPool2d { .. } => "max_pool2d",
+            BuiltinBackward::AvgPool2d { .. } => "avg_pool2d",
             _ => "unsupported",
         }
     }
@@ -290,11 +295,12 @@ impl BackwardOp for StructuralBackward {
             BuiltinBackward::Concat { sizes, .. } => sizes.len(),
             BuiltinBackward::Matmul => 2,
             BuiltinBackward::Conv2d { .. } => 3,
+            BuiltinBackward::MaxPool2d { .. } | BuiltinBackward::AvgPool2d { .. } => 1,
             _ => 1,
         }
     }
 
-    fn backward(&self, inputs: &[TensorView<'_>], _saved: &[TensorView<'_>], grad: TensorView<'_>) -> MlResult<Vec<Option<GlobalTensor<f32>>>> {
+    fn backward(&self, inputs: &[TensorView<'_>], saved: &[TensorView<'_>], grad: TensorView<'_>) -> MlResult<Vec<Option<GlobalTensor<f32>>>> {
         if inputs.len() != self.input_count() {
             return Err(AutogradError::BackwardArityMismatch { expected: self.input_count(), got: inputs.len() }.into());
         }
@@ -344,6 +350,16 @@ impl BackwardOp for StructuralBackward {
             BuiltinBackward::Conv2d { stride, padding } => {
                 let (dx, dw, db) = conv2d_backward_data(&values[0], &values[1], &grad, *stride, *padding)?;
                 vec![dx, dw, db]
+            }
+            BuiltinBackward::MaxPool2d { kernel, stride } => {
+                let mask = saved.first().ok_or(AutogradError::BackwardArityMismatch {
+                    expected: 1,
+                    got: 0,
+                })?;
+                vec![max_pool2d_backward_data(&values[0], mask, &grad, *kernel, *stride)?]
+            }
+            BuiltinBackward::AvgPool2d { kernel, stride } => {
+                vec![avg_pool2d_backward_data(&values[0], &grad, *kernel, *stride)?]
             }
             _ => return Err(AutogradError::BackwardNotSupported(self.name().into()).into()),
         };
@@ -523,6 +539,7 @@ impl ExecutionContext {
                 GraphNode {
                     inputs: vec![lhs.node_id(), rhs.node_id()],
                     saved: Vec::new(),
+                    owned_saved: Vec::new(),
                     backward: into_node_backward(backward),
                 },
             );
@@ -566,13 +583,23 @@ impl ExecutionContext {
         inputs: Vec<NodeId>,
         backward: BuiltinBackward,
     ) -> MlResult<()> {
+        self.record_with_saved(output, inputs, backward, Vec::new())
+    }
+
+    fn record_with_saved(
+        &self,
+        output: NodeId,
+        inputs: Vec<NodeId>,
+        backward: BuiltinBackward,
+        saved_values: Vec<GlobalTensor<f32>>,
+    ) -> MlResult<()> {
         let mut state = self
             .state
             .try_borrow_mut()
             .map_err(|_| ContextError::BorrowConflict)?;
         if state.no_grad_depth == 0 && inputs.iter().any(|id| state.tracked.contains(id)) {
             state.tracked.insert(output);
-            let saved = match backward {
+            let mut saved = match backward {
                 BuiltinBackward::Exp
                 | BuiltinBackward::Sqrt
                 | BuiltinBackward::Tanh
@@ -580,9 +607,18 @@ impl ExecutionContext {
                 | BuiltinBackward::Softmax { .. } => vec![output],
                 _ => Vec::new(),
             };
+            let mut owned_saved = Vec::with_capacity(saved_values.len());
+            for value in saved_values {
+                let id = NodeId::from_raw(state.next_node);
+                state.next_node += 1;
+                state.tensors.insert(id, value);
+                owned_saved.push(id);
+            }
+            saved.extend(owned_saved.iter().copied());
             state.graph.insert(output, GraphNode {
                 inputs,
                 saved,
+                owned_saved,
                 backward: into_node_backward(backward),
             });
         }
@@ -793,6 +829,43 @@ impl ExecutionContext {
         Ok(result)
     }
 
+    pub fn max_pool2d(
+        &self,
+        input: &ContextTensor,
+        kernel: (usize, usize),
+        stride: (usize, usize),
+    ) -> MlResult<ContextTensor> {
+        self.validate(input)?;
+        let input_value = input.snapshot()?;
+        let (output, mask) = max_pool2d_forward_data(&input_value, kernel, stride)?;
+        let result = self.tensor(output.data, &output.shape)?;
+        self.record_with_saved(
+            result.node_id(),
+            vec![input.node_id()],
+            BuiltinBackward::MaxPool2d { kernel, stride },
+            vec![mask],
+        )?;
+        Ok(result)
+    }
+
+    pub fn avg_pool2d(
+        &self,
+        input: &ContextTensor,
+        kernel: (usize, usize),
+        stride: (usize, usize),
+    ) -> MlResult<ContextTensor> {
+        self.validate(input)?;
+        let input_value = input.snapshot()?;
+        let output = avg_pool2d_forward_data(&input_value, kernel, stride)?;
+        let result = self.tensor(output.data, &output.shape)?;
+        self.record(
+            result.node_id(),
+            vec![input.node_id()],
+            BuiltinBackward::AvgPool2d { kernel, stride },
+        )?;
+        Ok(result)
+    }
+
     pub fn add_variable(
         &self,
         lhs: &ContextVariable,
@@ -932,6 +1005,24 @@ impl ExecutionContext {
         self.variable_from(self.conv2d(input.tensor(), weight.tensor(), bias.tensor(), stride, padding)?)
     }
 
+    pub fn max_pool2d_variable(
+        &self,
+        input: &ContextVariable,
+        kernel: (usize, usize),
+        stride: (usize, usize),
+    ) -> MlResult<ContextVariable> {
+        self.variable_from(self.max_pool2d(input.tensor(), kernel, stride)?)
+    }
+
+    pub fn avg_pool2d_variable(
+        &self,
+        input: &ContextVariable,
+        kernel: (usize, usize),
+        stride: (usize, usize),
+    ) -> MlResult<ContextVariable> {
+        self.variable_from(self.avg_pool2d(input.tensor(), kernel, stride)?)
+    }
+
     fn is_tracked(&self, tensor: &ContextTensor) -> MlResult<bool> {
         self.validate(tensor)?;
         Ok(self
@@ -947,7 +1038,15 @@ impl ExecutionContext {
             .state
             .try_borrow_mut()
             .map_err(|_| ContextError::BorrowConflict)?;
+        let owned_saved: Vec<_> = state
+            .graph
+            .values()
+            .flat_map(|node| node.owned_saved.iter().copied())
+            .collect();
         state.graph.clear();
+        for id in owned_saved {
+            state.tensors.remove(&id);
+        }
         state.consumed.clear();
         Ok(())
     }
@@ -1129,7 +1228,11 @@ impl ExecutionContext {
         }
         if !options.retain_graph {
             for id in seen {
-                state.graph.remove(&id);
+                if let Some(node) = state.graph.remove(&id) {
+                    for saved in node.owned_saved {
+                        state.tensors.remove(&saved);
+                    }
+                }
             }
             state.consumed.insert(output.tensor.node_id());
         }
@@ -1168,8 +1271,175 @@ fn into_node_backward(backward: BuiltinBackward) -> Box<dyn BackwardOp> {
         other @ (BuiltinBackward::Transpose(_)
         | BuiltinBackward::Concat { .. }
         | BuiltinBackward::Matmul
-        | BuiltinBackward::Conv2d { .. }) => Box::new(StructuralBackward(other)),
+        | BuiltinBackward::Conv2d { .. }
+        | BuiltinBackward::MaxPool2d { .. }
+        | BuiltinBackward::AvgPool2d { .. }) => Box::new(StructuralBackward(other)),
     }
+}
+
+fn pool2d_spec(
+    input: &[usize],
+    kernel: (usize, usize),
+    stride: (usize, usize),
+    op: &'static str,
+) -> MlResult<(usize, usize)> {
+    if input.len() != 4
+        || kernel.0 == 0
+        || kernel.1 == 0
+        || stride.0 == 0
+        || stride.1 == 0
+        || input.get(2).is_none_or(|height| *height < kernel.0)
+        || input.get(3).is_none_or(|width| *width < kernel.1)
+    {
+        return Err(TensorError::InvalidOperation {
+            op,
+            reason: format!(
+                "expected input [N,C,H,W] with non-zero kernel/stride fitting the input; got {input:?}, kernel={kernel:?}, stride={stride:?}"
+            ),
+        }
+        .into());
+    }
+    Ok((
+        (input[2] - kernel.0) / stride.0 + 1,
+        (input[3] - kernel.1) / stride.1 + 1,
+    ))
+}
+
+fn max_pool2d_forward_data(
+    input: &GlobalTensor<f32>,
+    kernel: (usize, usize),
+    stride: (usize, usize),
+) -> MlResult<(GlobalTensor<f32>, GlobalTensor<f32>)> {
+    let (oh, ow) = pool2d_spec(&input.shape, kernel, stride, "max_pool2d")?;
+    let (n, c, h, w) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
+    let mut output = vec![f32::NEG_INFINITY; n * c * oh * ow];
+    let mut mask = vec![0.0; output.len()];
+    for batch in 0..n {
+        for channel in 0..c {
+            for y in 0..oh {
+                for x in 0..ow {
+                    let output_index = ((batch * c + channel) * oh + y) * ow + x;
+                    for ky in 0..kernel.0 {
+                        for kx in 0..kernel.1 {
+                            let input_index = ((batch * c + channel) * h + y * stride.0 + ky)
+                                * w
+                                + x * stride.1
+                                + kx;
+                            if input.data[input_index] > output[output_index] {
+                                output[output_index] = input.data[input_index];
+                                mask[output_index] = input_index as f32;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let shape = [n, c, oh, ow];
+    Ok((
+        GlobalTensor::from_vec(output, &shape)?,
+        GlobalTensor::from_vec(mask, &shape)?,
+    ))
+}
+
+fn max_pool2d_backward_data(
+    input: &GlobalTensor<f32>,
+    mask: &TensorView<'_>,
+    grad: &GlobalTensor<f32>,
+    kernel: (usize, usize),
+    stride: (usize, usize),
+) -> MlResult<GlobalTensor<f32>> {
+    let (oh, ow) = pool2d_spec(&input.shape, kernel, stride, "max_pool2d")?;
+    let expected = vec![input.shape[0], input.shape[1], oh, ow];
+    if grad.shape != expected || mask.shape != expected {
+        return Err(AutogradError::GradientShapeMismatch {
+            expected,
+            got: grad.shape.clone(),
+        }
+        .into());
+    }
+    let mut dx = vec![0.0; input.data.len()];
+    for (&upstream, &saved_index) in grad.data.iter().zip(mask.data) {
+        let index = saved_index as usize;
+        if !saved_index.is_finite() || saved_index < 0.0 || index >= dx.len() {
+            return Err(TensorError::InvalidOperation {
+                op: "max_pool2d_backward",
+                reason: "saved maximum index is invalid".into(),
+            }
+            .into());
+        }
+        dx[index] += upstream;
+    }
+    GlobalTensor::from_vec(dx, &input.shape)
+}
+
+fn avg_pool2d_forward_data(
+    input: &GlobalTensor<f32>,
+    kernel: (usize, usize),
+    stride: (usize, usize),
+) -> MlResult<GlobalTensor<f32>> {
+    let (oh, ow) = pool2d_spec(&input.shape, kernel, stride, "avg_pool2d")?;
+    let (n, c, h, w) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
+    let mut output = vec![0.0; n * c * oh * ow];
+    let area = (kernel.0 * kernel.1) as f32;
+    for batch in 0..n {
+        for channel in 0..c {
+            for y in 0..oh {
+                for x in 0..ow {
+                    let output_index = ((batch * c + channel) * oh + y) * ow + x;
+                    for ky in 0..kernel.0 {
+                        for kx in 0..kernel.1 {
+                            let input_index = ((batch * c + channel) * h + y * stride.0 + ky)
+                                * w
+                                + x * stride.1
+                                + kx;
+                            output[output_index] += input.data[input_index] / area;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    GlobalTensor::from_vec(output, &[n, c, oh, ow])
+}
+
+fn avg_pool2d_backward_data(
+    input: &GlobalTensor<f32>,
+    grad: &GlobalTensor<f32>,
+    kernel: (usize, usize),
+    stride: (usize, usize),
+) -> MlResult<GlobalTensor<f32>> {
+    let (oh, ow) = pool2d_spec(&input.shape, kernel, stride, "avg_pool2d")?;
+    let expected = vec![input.shape[0], input.shape[1], oh, ow];
+    if grad.shape != expected {
+        return Err(AutogradError::GradientShapeMismatch {
+            expected,
+            got: grad.shape.clone(),
+        }
+        .into());
+    }
+    let (n, c, h, w) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
+    let mut dx = vec![0.0; input.data.len()];
+    let area = (kernel.0 * kernel.1) as f32;
+    for batch in 0..n {
+        for channel in 0..c {
+            for y in 0..oh {
+                for x in 0..ow {
+                    let upstream = grad.data[((batch * c + channel) * oh + y) * ow + x] / area;
+                    for ky in 0..kernel.0 {
+                        for kx in 0..kernel.1 {
+                            let input_index = ((batch * c + channel) * h + y * stride.0 + ky)
+                                * w
+                                + x * stride.1
+                                + kx;
+                            dx[input_index] += upstream;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    GlobalTensor::from_vec(dx, &input.shape)
 }
 
 fn conv2d_spec(
@@ -2007,6 +2277,72 @@ mod tests {
         assert_eq!(output.shape()?, vec![2, 3, 2, 2]);
         let data = output.to_vec()?;
         assert_eq!(&data[..4], &[9.0, 13.0, 13.0, 19.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn max_pool2d_uses_saved_mask_and_releases_it_with_the_graph() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let input_data = vec![
+            1.0, 4.0, 2.0,
+            3.0, 8.0, 5.0,
+            0.0, 6.0, 7.0,
+        ];
+        let input = ctx.parameter(input_data.clone(), &[1, 1, 3, 3])?;
+        let output = ctx.max_pool2d_variable(&input, (2, 2), (1, 1))?;
+        assert_eq!(output.tensor().to_vec()?, vec![8.0, 8.0, 8.0, 8.0]);
+        let stats = ctx.graph_stats()?;
+        assert_eq!(stats.saved_tensor_references, 1);
+        assert_eq!(stats.tensors, 3);
+        ctx.sum_variable(&output)?.backward()?;
+        assert_eq!(input.grad()?.expect("max pool input gradient").data,
+            vec![0.0, 0.0, 0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 0.0]);
+        assert_eq!(ctx.graph_stats()?.saved_tensor_references, 0);
+        assert_eq!(ctx.graph_stats()?.tensors, 3);
+
+        let objective = |values: &[f32]| -> MlResult<f32> {
+            Ok(max_pool2d_forward_data(
+                &GlobalTensor::from_vec(values.to_vec(), &[1, 1, 3, 3])?,
+                (2, 2),
+                (1, 1),
+            )?.0.data.iter().sum())
+        };
+        let epsilon = 1e-3;
+        for index in 0..input_data.len() {
+            let (mut plus, mut minus) = (input_data.clone(), input_data.clone());
+            plus[index] += epsilon;
+            minus[index] -= epsilon;
+            let numeric = (objective(&plus)? - objective(&minus)?) / (2.0 * epsilon);
+            let analytic = if index == 4 { 4.0 } else { 0.0 };
+            assert!((analytic - numeric).abs() <= 1e-3);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn avg_pool2d_accumulates_overlapping_window_gradients() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let input = ctx.parameter((1..=9).map(|value| value as f32).collect(), &[1, 1, 3, 3])?;
+        let output = ctx.avg_pool2d_variable(&input, (2, 2), (1, 1))?;
+        assert_eq!(output.tensor().to_vec()?, vec![3.0, 4.0, 6.0, 7.0]);
+        ctx.sum_variable(&output)?.backward()?;
+        assert_eq!(input.grad()?.expect("average pool input gradient").data,
+            vec![0.25, 0.5, 0.25, 0.5, 1.0, 0.5, 0.25, 0.5, 0.25]);
+        Ok(())
+    }
+
+    #[test]
+    fn clear_graph_releases_owned_max_pool_mask() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let input = ctx.parameter(vec![1.0, 2.0, 3.0, 4.0], &[1, 1, 2, 2])?;
+        let output = ctx.max_pool2d_variable(&input, (2, 2), (2, 2))?;
+        assert_eq!(ctx.graph_stats()?.tensors, 3);
+        ctx.clear_graph()?;
+        let stats = ctx.graph_stats()?;
+        assert_eq!(stats.tensors, 2);
+        assert_eq!(stats.graph_nodes, 0);
+        assert_eq!(stats.saved_tensor_references, 0);
+        assert_eq!(output.tensor().item()?, 4.0);
         Ok(())
     }
 }
