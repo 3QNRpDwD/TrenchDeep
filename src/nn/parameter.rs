@@ -16,20 +16,11 @@ impl std::ops::AddAssign<GlobalTensor<f32>> for Variable {
 
 impl Parameter for Variable {
     fn new(tensor: Tensor) -> Self {
-        let mut tensor = tensor;
-
-        #[cfg(feature = "enableVisualization")]
-        let label = Arc::new(crate::tensor::creation::LabelGenerator::generate_label(&tensor, None));
-
-        // 생성된 라벨을 Tensor 핸들에도 반영 (debugging 시 추적 가능)
-        #[cfg(feature = "enableVisualization")]
-        tensor.set_label(&label);
-
         Variable {
             #[cfg(feature = "enableVisualization")]
-            label,
+            label: None,
             #[cfg(feature = "enableVisualization")]
-            node_type: crate::tensor::NodeType::Variable,
+            node_type: None,
             tensor,
             requires_grad: false.into(),
             //  zeros_like() → new_empty()
@@ -78,18 +69,19 @@ impl Parameter for Variable {
 
     #[cfg(feature = "enableVisualization")]
     fn set_label(&mut self, new_label: &str) {
-        self.label = Arc::new(crate::tensor::creation::LabelGenerator::get_unique_label(new_label));
+        self.label = Some(Arc::new(new_label.to_string()));
     }
 
     /// 현재 라벨 반환
     #[cfg(feature = "enableVisualization")]
     fn label(&self) -> &str {
-        &self.label
+        self.label.as_deref().map(String::as_str).unwrap_or("unlabeled")
     }
 
     #[cfg(feature = "enableVisualization")]
-    fn node_type(&self) -> &crate::tensor::NodeType {
-        &self.node_type
+    fn node_type(&self) -> &crate::visualization::NodeRole {
+        static VARIABLE: crate::visualization::NodeRole = crate::visualization::NodeRole::Variable;
+        self.node_type.as_ref().unwrap_or(&VARIABLE)
     }
 
     ///
@@ -179,40 +171,65 @@ impl Parameter for Variable {
 }
 
 impl Variable {
+    #[cfg(feature = "enableVisualization")]
+    pub(crate) fn visualization_metadata(
+        &self,
+    ) -> (Option<&str>, Option<&crate::visualization::NodeRole>) {
+        (self.label.as_deref().map(String::as_str), self.node_type.as_ref())
+    }
+
     /// 사용자 정의 라벨로 변수 생성
     pub fn with_label(tensor: Tensor, label_hint: &str) -> Self {
+        Self::with_persistent_label(tensor, label_hint)
+    }
+
+    #[cfg(feature = "enableVisualization")]
+    fn with_transient_label(tensor: Tensor, label_hint: &str) -> Self {
+        if crate::visualization::recording::is_active() {
+            Self::with_persistent_label(tensor, label_hint)
+        } else {
+            Variable {
+                label: None,
+                node_type: None,
+                grad: tensor.zeros_like(),
+                tensor,
+                requires_grad: false.into(),
+            }
+        }
+    }
+
+    fn with_persistent_label(tensor: Tensor, label_hint: &str) -> Self {
         let mut tensor = tensor;
-        let label = Arc::new("unlabeled".to_string());
 
         #[cfg(feature = "enableVisualization")]
         {
-            use crate::tensor::NodeType;
-            let label = Arc::new(crate::tensor::creation::LabelGenerator::generate_label(&tensor, Some(label_hint)));
+            use crate::visualization::NodeRole;
+            let label = Arc::new(label_hint.to_string());
 
             // 라벨을 Tensor 핸들에 반영
             tensor.set_label(&label);
 
             let node_type = if label.contains("input") {
-                NodeType::Input
+                NodeRole::Input
             } else if label.contains("weight") {
-                NodeType::Weight
+                NodeRole::Weight
             } else if label.contains("bias") {
-                NodeType::Bias
+                NodeRole::Bias
             } else if label.contains("output") {
-                NodeType::Output
+                NodeRole::Output
             } else if label.contains("act") {
-                NodeType::Activation
+                NodeRole::Activation
             } else if label.contains("loss") {
-                NodeType::Loss
+                NodeRole::Loss
             } else {
-                NodeType::Variable
+                NodeRole::Variable
             };
 
             return Variable {
                 #[cfg(feature = "enableVisualization")]
-                label,
+                label: Some(label),
                 #[cfg(feature = "enableVisualization")]
-                node_type,
+                node_type: Some(node_type),
                 grad: tensor.zeros_like(),
                 tensor,
                 requires_grad: false.into(),
@@ -221,9 +238,9 @@ impl Variable {
 
         Variable {
             #[cfg(feature = "enableVisualization")]
-            label,
+            label: None,
             #[cfg(feature = "enableVisualization")]
-            node_type: crate::tensor::NodeType::Variable,
+            node_type: None,
             grad: tensor.zeros_like(),
             tensor,
             requires_grad: false.into(),
@@ -233,42 +250,42 @@ impl Variable {
     /// 특정 용도에 맞는 변수 생성자들
     #[cfg(feature = "enableVisualization")]
     pub fn new_input(tensor: Tensor) -> Self {
-        Self::with_label(tensor, "input")
+        Self::with_transient_label(tensor, "input")
     }
 
     #[cfg(feature = "enableVisualization")]
     pub fn new_weight(tensor: Tensor) -> Self {
-        Self::with_label(tensor, "weight")
+        Self::with_persistent_label(tensor, "weight")
     }
 
     #[cfg(feature = "enableVisualization")]
     pub fn new_bias(tensor: Tensor) -> Self {
-        Self::with_label(tensor, "bias")
+        Self::with_persistent_label(tensor, "bias")
     }
 
     #[cfg(feature = "enableVisualization")]
     pub fn new_output(tensor: Tensor) -> Self {
-        Self::with_label(tensor, "output")
+        Self::with_transient_label(tensor, "output")
     }
 
     #[cfg(feature = "enableVisualization")]
     pub fn new_hidden(tensor: Tensor) -> Self {
-        Self::with_label(tensor, "hidden")
+        Self::with_transient_label(tensor, "hidden")
     }
 
     #[cfg(feature = "enableVisualization")]
     pub fn new_conv_weight(tensor: Tensor, layer_idx: usize) -> Self {
-        Self::with_label(tensor, &format!("conv{}_weight", layer_idx))
+        Self::with_persistent_label(tensor, &format!("conv{}_weight", layer_idx))
     }
 
     #[cfg(feature = "enableVisualization")]
     pub fn new_linear_weight(tensor: Tensor, layer_idx: usize) -> Self {
-        Self::with_label(tensor, &format!("fc{}_weight", layer_idx))
+        Self::with_persistent_label(tensor, &format!("fc{}_weight", layer_idx))
     }
 
     #[cfg(feature = "enableVisualization")]
     pub fn new_activation(tensor: Tensor, activation_type: &str) -> Self {
-        Self::with_label(tensor, &format!("{}_act", activation_type))
+        Self::with_transient_label(tensor, &format!("{}_act", activation_type))
     }
 
     /// 라벨 변경

@@ -24,7 +24,6 @@ use crate::{
         data::mnist::{MnistConfig, MnistDataset},
         logging::setup_logging,
         model::{MLP, SoftmaxRegression},
-        utils::generate_visualization,
     }
 };
 use tracing::{info, warn};

@@ -141,6 +141,11 @@ impl UnsupervisedTrainer {
         self
     }
 
+    pub fn with_observer(self, observer: Box<dyn TrainingObserver>) -> Self {
+        self.core.add_observer(observer);
+        self
+    }
+
     // ── 학습 루프 ─────────────────────────────────────────────────────────
 
     /// 비지도 모델을 학습시킨다.
@@ -265,9 +270,10 @@ impl UnsupervisedTrainer {
             "unsupervised",
             &*model,
             remaining_epochs,
-            loader.batch_count().unwrap_or(0),
+            loader.batch_count(),
         );
         let progress = EpochProgress::new(remaining_epochs, cfg.show_progress);
+        self.core.notify_train_start(&TrainStartContext { paradigm: "unsupervised", total_units: remaining_epochs });
 
         let interrupt = if cfg.checkpoint_dir.is_some() {
             let flag = interrupt_flag();
@@ -298,6 +304,9 @@ impl UnsupervisedTrainer {
                 self.core.run_epoch(
                     &mut step,
                     &mut loader,
+                    "unsupervised",
+                    epoch + 1,
+                    epochs,
                     epoch - start_epoch,
                     remaining_epochs,
                     &progress,
@@ -311,8 +320,8 @@ impl UnsupervisedTrainer {
             summary_logs.extend(outcome.batch_summaries.iter().cloned());
             final_metrics = outcome.metrics.clone();
 
-            let should_log_epoch =
-                cfg.epoch_log_interval != usize::MAX && (epoch + 1) % cfg.epoch_log_interval == 0;
+            let should_log_epoch = cfg.epoch_log_interval != usize::MAX
+                && ((epoch + 1) % cfg.epoch_log_interval == 0 || epoch + 1 == epochs);
 
             if should_log_epoch {
                 let loss_change = last_loss.is_finite().then(|| avg_loss - last_loss);
@@ -376,6 +385,7 @@ impl UnsupervisedTrainer {
         }
 
         let total_duration = training_start.elapsed();
+        self.core.notify_train_end(&TrainEndContext { paradigm: "unsupervised", units_completed: epochs_done, interrupted });
         for summary in &summary_logs {
             info!("{}", summary);
         }

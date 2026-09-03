@@ -16,7 +16,7 @@ pub fn setup_logging() -> &'static tracing_appender::non_blocking::WorkerGuard {
         // 테스트 전용 환경 변수를 사용한다. 예: TEST_LOG=trace cargo test ...
         let filter = EnvFilter::try_from_env("TEST_LOG").unwrap_or_else(|_| {
             if cfg!(feature = "debugging") {
-                EnvFilter::new("trench_deep=trace")
+                EnvFilter::new("debug")
             } else {
                 EnvFilter::new("debug")
             }

@@ -1,7 +1,7 @@
 use std::{
     cell::RefCell,
-    collections::{HashMap, HashSet},
-    fmt::{Debug, Display, Formatter, Result},
+    collections::HashMap,
+    fmt::{Debug, Formatter, Result},
     sync::{Arc, atomic::Ordering},
 };
 
@@ -13,7 +13,6 @@ pub mod creation;
 pub mod display;
 pub mod graph;
 pub mod operators;
-pub mod visualization;
 pub use context::{
     BackwardOp, BackwardOptions, ContextId, ContextTensor, ContextVariable, ExecutionContext, GraphStats,
     RequiresGrad, TensorView,
@@ -136,7 +135,7 @@ pub struct GlobalTensor<Type> {
 //     #[cfg(all(feature = "enableVisualization"))]
 //     label: String,
 //     #[cfg(all(feature = "enableVisualization"))]
-//     node_type: NodeType,
+//     node_type: crate::visualization::NodeRole,
 //     tensor: Tensor,
 //     requires_grad: RefCell<bool>,
 //     grad: RefCell<Option<Tensor>>,
@@ -152,7 +151,7 @@ pub struct GlobalFunction {
 pub struct TensorHandle {
     id: NodeId,
     #[cfg(feature = "enableVisualization")]
-    label: String,
+    label: Option<String>,
     owns_data: bool,
 }
 
@@ -162,17 +161,21 @@ impl Drop for TensorHandle {
             return;
         }
         let id = self.id;
-        TENSOR_STORAGE.with_borrow_mut(|storage| {
+        // A computation graph can own the final Tensor handle on a worker thread.
+        // During TLS teardown TENSOR_STORAGE may already have been destroyed, and
+        // Drop must never panic in that situation (nor during an active borrow).
+        let _ = TENSOR_STORAGE.try_with(|storage| {
+            let Ok(mut storage) = storage.try_borrow_mut() else { return; };
             if storage.remove(&id).is_some() {
                 #[cfg(feature = "debugging")]
                 {
                     #[cfg(feature = "enableVisualization")]
                     {
-                        if tensor_is_labeled(&self.label) {
+                        if self.label.as_deref().is_some_and(tensor_is_labeled) {
                             tracing::debug!(
                                 "[Tensor::drop] id={:?} label='{}' freed",
                                 id,
-                                self.label
+                                self.label.as_deref().unwrap_or("unlabeled")
                             );
                         } else {
                             tracing::trace!("[Tensor::drop] id={:?} freed", id);
@@ -195,11 +198,11 @@ impl Clone for Tensor {
         {
             #[cfg(feature = "enableVisualization")]
             {
-                if tensor_is_labeled(&self.0.label) {
+                if self.0.label.as_deref().is_some_and(tensor_is_labeled) {
                     tracing::debug!(
                         "[Tensor::clone] id={:?} label='{}' rc={}",
                         self.id(),
-                        self.0.label,
+                        self.0.label.as_deref().unwrap_or("unlabeled"),
                         Arc::strong_count(&self.0)
                     );
                 } else {
@@ -229,7 +232,7 @@ impl Tensor {
         Self(Arc::new(TensorHandle {
             id,
             #[cfg(feature = "enableVisualization")]
-            label: format!("tensor_{:?}", id),
+            label: None,
             owns_data: true,
         }))
     }
@@ -242,7 +245,7 @@ impl Tensor {
         Self(Arc::new(TensorHandle {
             id,
             #[cfg(feature = "enableVisualization")]
-            label: label.to_string(),
+            label: Some(label.to_string()),
             owns_data: true,
         }))
     }
@@ -251,7 +254,7 @@ impl Tensor {
         Self(Arc::new(TensorHandle {
             id,
             #[cfg(feature = "enableVisualization")]
-            label: format!("tensor_ref_{:?}", id),
+            label: None,
             owns_data: false,
         }))
     }
@@ -265,7 +268,7 @@ impl Tensor {
             if tensor_is_labeled(label) {
                 tracing::debug!("[Tensor::label] id={:?} → '{}'", handle.id, label);
             }
-            handle.label = label.to_string();
+            handle.label = Some(label.to_string());
         }
         // Arc가 이미 공유된 경우(비정상 상황)에는 라벨 변경을 생략합니다.
     }
@@ -358,6 +361,10 @@ impl NodeId {
     pub(crate) const fn from_raw(value: u64) -> Self {
         Self(value)
     }
+
+    pub const fn as_raw(self) -> u64 {
+        self.0
+    }
 }
 
 pub(crate) struct ComputationNode {
@@ -370,6 +377,17 @@ pub(crate) struct ComputationNode {
     is_leaf: bool,
 }
 
+/// Borrowed, read-only computation-node view used by optional diagnostics.
+pub(crate) struct ComputationNodeView<'a> {
+    pub(crate) id: NodeId,
+    pub(crate) tensor: &'a Tensor,
+    pub(crate) grad: &'a Tensor,
+    pub(crate) requires_grad: bool,
+    pub(crate) operation: Option<&'a str>,
+    pub(crate) inputs: &'a [NodeId],
+    pub(crate) is_leaf: bool,
+}
+
 pub(crate) struct ComputationGraph {
     nodes: Vec<ComputationNode>,
     pub(crate) node_map: HashMap<NodeId, usize>,
@@ -379,37 +397,12 @@ pub(crate) struct ComputationGraph {
     is_sorted: bool,
 }
 
-#[cfg(feature = "enableVisualization")]
-#[derive(Debug, Clone)]
-pub struct VisualizationGraph {
-    pub nodes: HashSet<String>,
-    pub edges: Vec<String>,
-    pub node_types: HashMap<String, NodeType>,
-    pub node_labels: HashMap<String, String>,
-}
-
-#[cfg(feature = "enableVisualization")]
-#[derive(Debug, Clone, PartialEq)]
-pub enum NodeType {
-    Variable,
-    Function,
-    Input,
-    Weight,
-    Bias,
-    Loss,
-    Activation,
-    Output,
-}
-
 #[deprecated(note = "use tensor::ExecutionContext")]
 pub struct LegacyExecutionContext {
     #[cfg(all(feature = "enableBackward"))]
     pub graph: ComputationGraph,
     pub tensor_storage: HashMap<NodeId, GlobalTensor<f32>>,
     pub node_id_generator: NodeIdGenerator, // NodeId 생성기도 컨텍스트에 포함
-    // 필요하다면 시각화 그래프나 다른 상태도 여기에 추가할 수 있습니다.
-    #[cfg(feature = "enableVisualization")]
-    pub visualization_graph: VisualizationGraph,
 }
 
 impl LegacyExecutionContext {
@@ -419,8 +412,6 @@ impl LegacyExecutionContext {
             graph: ComputationGraph::new(),
             tensor_storage: HashMap::new(),
             node_id_generator: NodeIdGenerator::new(),
-            #[cfg(feature = "enableVisualization")]
-            visualization_graph: VisualizationGraph::new(),
         }
     }
 
@@ -443,12 +434,6 @@ thread_local! {
     pub(crate) static   OPERATOR_STORAGE    : RefCell<HashMap<String, Box<dyn Function>>> = RefCell::new(HashMap::new());
     pub(crate) static   TENSOR_STORAGE      : RefCell<HashMap<NodeId, GlobalTensor<f32>>> = RefCell::new(HashMap::new());
     // pub(crate) static   EXECUTION_CONTEXT    : RefCell<ExecutionContext> = RefCell::new(ExecutionContext::new());
-    #[cfg(feature = "enableVisualization")]
-    pub(crate) static   VISUALIZATION_GRAPH : RefCell<VisualizationGraph> = RefCell::new(VisualizationGraph::new());
-    #[cfg(feature = "enableVisualization")]
-    static              LABEL_COUNTERS      : RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
-    #[cfg(feature = "enableVisualization")]
-    static              SHAPE_REGISTRY      : RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
 }
 
 // TensorBase를 구현하는 모든 타입 간 비교 (data + shape 기반, dirty 등 메타데이터 무시)

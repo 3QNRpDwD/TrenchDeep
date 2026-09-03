@@ -25,6 +25,21 @@ impl Variable {
 #[cfg(feature = "enableBackward")]
 impl ComputationGraph {
 
+    /// Visits the graph without cloning tensors or exposing mutable graph storage.
+    pub(crate) fn visit_nodes(&self, mut visitor: impl FnMut(ComputationNodeView<'_>)) {
+        for node in &self.nodes {
+            visitor(ComputationNodeView {
+                id: node.id,
+                tensor: &node.tensor,
+                grad: &node.grad,
+                requires_grad: node.requires_grad,
+                operation: node.function.as_deref(),
+                inputs: &node.inputs,
+                is_leaf: node.is_leaf,
+            });
+        }
+    }
+
     pub fn new() -> Self {
         Self {
             nodes: Vec::new(),
@@ -49,11 +64,16 @@ impl ComputationGraph {
 
         #[cfg(feature = "enableVisualization")]
         {
-            VISUALIZATION_GRAPH.with(|viz_graph| {
-                let mut viz = viz_graph.borrow_mut();
-                let id_str = format!("{:?}",node_id);
-                viz.add_variable_node(&id_str, variable.label(), variable.node_type());
-            });
+            if crate::visualization::recording::is_active() {
+                let (label, role) = variable.visualization_metadata();
+                crate::visualization::recording::record_node(
+                    node_id,
+                    variable.tensor(),
+                    label,
+                    role,
+                    crate::visualization::NodeRole::Input,
+                );
+            }
         }
 
         let node = ComputationNode {
@@ -82,11 +102,16 @@ impl ComputationGraph {
             operator_name, inputs, variable.node_id(), self.nodes.len() + 1
         );
         #[cfg(feature = "enableVisualization")]
-        VISUALIZATION_GRAPH.with(|viz_graph| {
-            let mut viz = viz_graph.borrow_mut();
-            viz.register_operation(operator_name, &inputs, variable.node_id());
-            viz.add_variable_node(&format!("{:?}", variable.node_id()), variable.label(), variable.node_type());
-        });
+        if crate::visualization::recording::is_active() {
+            let (label, role) = variable.visualization_metadata();
+            crate::visualization::recording::record_node(
+                variable.node_id(),
+                variable.tensor(),
+                label,
+                role,
+                crate::visualization::NodeRole::Variable,
+            );
+        }
 
 
         let output_id = variable.node_id();
@@ -130,10 +155,8 @@ impl ComputationGraph {
             g.clear();
         });
         #[cfg(feature = "enableVisualization")]
-        {
-            VISUALIZATION_GRAPH.with(|viz_graph| {
-                viz_graph.borrow_mut().clear();
-            });
+        if crate::visualization::recording::is_active() {
+            crate::visualization::recording::clear_temporary();
         }
     }
 
@@ -398,7 +421,15 @@ impl AutogradFunction for GlobalFunction {
             .iter()
             .map(|&var| var.tensor() as &dyn TensorBase)
             .collect::<Vec<&dyn TensorBase>>();
-        let output = crate::var_with_label!(self.forward(&tensors)?.remove(0).to_id()?, label);
+        let output_tensor = self.forward(&tensors)?.remove(0).to_id()?;
+        #[cfg(feature = "enableVisualization")]
+        let output = if crate::visualization::recording::is_active() {
+            Variable::with_label(output_tensor, label)
+        } else {
+            Variable::new(output_tensor)
+        };
+        #[cfg(not(feature = "enableVisualization"))]
+        let output = Variable::new(output_tensor);
         #[cfg(feature = "enableBackward")]
         {
             output.with_grad_fn(self.name(), inputs);

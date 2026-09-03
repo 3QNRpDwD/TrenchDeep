@@ -49,7 +49,7 @@ impl EpochProgress {
         &self,
         epoch:     usize,
         epochs:    usize,
-        n_batches: usize,
+        n_batches: Option<usize>,
     ) -> BatchProgress {
         if !self.show {
             return BatchProgress { bar: ProgressBar::hidden(), active: false };
@@ -63,13 +63,19 @@ impl EpochProgress {
              [ {{wide_bar:.green/blue}} ] {{percent:>3}}% Batches ({{eta}}) | {{msg}}",
             epoch_percent,
         );
-        let bar = self.multi.add(ProgressBar::new(n_batches as u64));
-        bar.set_style(
-            ProgressStyle::default_bar()
-                .template(&template)
-                .unwrap()
-                .progress_chars("█ "),
-        );
+        let bar = if let Some(n_batches) = n_batches {
+            let bar = self.multi.add(ProgressBar::new(n_batches as u64));
+            bar.set_style(ProgressStyle::default_bar().template(&template).unwrap().progress_chars("█ "));
+            bar
+        } else {
+            let bar = self.multi.add(ProgressBar::new_spinner());
+            let spinner_template = format!(
+                "  > Epoch {:>3}% [ {{spinner:.green}} ] {{pos}} Batches ({{elapsed_precise}}) | {{msg}}",
+                epoch_percent,
+            );
+            bar.set_style(ProgressStyle::default_spinner().template(&spinner_template).unwrap());
+            bar
+        };
         // 배치 연산 중에는 상태 변경이 없으므로 ticker가 없으면 짧은 배치 바가
         // 첫 redraw 전에 finish_and_clear 되어 화면에 나타나지 않을 수 있다.
         bar.enable_steady_tick(Duration::from_millis(16));

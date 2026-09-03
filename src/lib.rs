@@ -4,6 +4,8 @@ pub mod nn;
 pub mod optimizer;
 pub mod loss;
 pub mod trainer;
+#[cfg(feature = "enableVisualization")]
+pub mod visualization;
 pub use tensor::{
     BackwardOp, BackwardOptions, ContextId, ContextTensor, ContextVariable, ExecutionContext, GraphStats,
     RequiresGrad, TensorView,
@@ -86,6 +88,9 @@ pub enum MlError {
     AutogradError(#[from] AutogradError),
     #[error(transparent)]
     DataError(#[from] crate::trainer::data::DataError),
+    #[cfg(feature = "enableVisualization")]
+    #[error(transparent)]
+    VisualizationError(#[from] crate::visualization::VisualizationError),
 }
 
 impl From<String> for MlError {
@@ -250,6 +255,10 @@ mod benchmark {
 
     #[test]
     fn goldstein() -> MlResult<()> {
+        #[cfg(feature = "enableVisualization")]
+        let capture = crate::visualization::VisualizationCapture::builder(
+            crate::visualization::CaptureProfile::Analysis,
+        ).begin()?;
         let x = var_input!(Tensor::from_vec(vec![1.0], &[1,1])?);
         let y = var_input!(Tensor::from_vec(vec![1.0], &[1,1])?);
         let z = goldstein_price_function(&x, &y)?;
@@ -262,7 +271,17 @@ mod benchmark {
         }
 
         #[cfg(feature = "enableVisualization")]
-        crate::tensor::VisualizationGraph::save_graph("graph/goldstein.dot").unwrap();
+        {
+            let snapshot = capture.finish()?;
+            use crate::visualization::SnapshotWriter;
+            let directory = std::env::temp_dir().join(format!(
+                "trench-deep-goldstein-{}",
+                std::process::id()
+            ));
+            let mut writer = crate::visualization::FileSnapshotWriter::builder(&directory).build()?;
+            writer.write(&snapshot, "goldstein")?;
+            let _ = std::fs::remove_dir_all(directory);
+        }
         Ok(())
     }
 
@@ -283,6 +302,10 @@ mod benchmark {
 
     #[test]
     fn rosenbrock() -> MlResult<()> {
+        #[cfg(feature = "enableVisualization")]
+        let capture = crate::visualization::VisualizationCapture::builder(
+            crate::visualization::CaptureProfile::Analysis,
+        ).begin()?;
         let x0 = var_with_label!(Tensor::from_vec(vec![0.0], &[1,1])?, "x0");
         let x1 = var_with_label!(Tensor::from_vec(vec![2.0], &[1,1])?, "x1");
         let y = rosenbrock_function(&x0, &x1)?;
@@ -297,8 +320,15 @@ mod benchmark {
 
         #[cfg(feature = "enableVisualization")]
         {
-            crate::tensor::VisualizationGraph::save_graph("graph/rosenbrock.dot").unwrap();
-            crate::tensor::VisualizationGraph::render_to_svg("graph/rosenbrock.svg").unwrap();
+            let snapshot = capture.finish()?;
+            let directory = std::env::temp_dir().join(format!(
+                "trench-deep-rosenbrock-{}",
+                std::process::id()
+            ));
+            use crate::visualization::SnapshotWriter;
+            let mut writer = crate::visualization::FileSnapshotWriter::builder(&directory).build()?;
+            writer.write(&snapshot, "rosenbrock")?;
+            let _ = std::fs::remove_dir_all(directory);
         }
         Ok(())
     }

@@ -13,6 +13,5 @@ use tracing::info;
 use crate::MlResult;
 
 pub(crate) mod logging;
-pub(crate) mod utils;
 pub(crate) mod data;
 pub mod model;

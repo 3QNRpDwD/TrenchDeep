@@ -26,7 +26,7 @@ impl Default for MnistConfig {
             n_hidden_1: 128,
             n_hidden_2: 30,
             learning_rate: 0.02,
-            epochs: 100,
+            epochs: 10,
             tolerance: 1e-5,
             required_accuracy: 80.0,
             model_save_path: "model_parameters.json".to_string(),

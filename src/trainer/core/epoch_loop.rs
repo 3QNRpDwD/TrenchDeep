@@ -138,6 +138,8 @@ pub struct EpochOutcome {
     pub batch_summaries: Vec<String>,
     /// 마지막 에폭에서 계산된 수치 메트릭.
     pub metrics: crate::trainer::MetricValues,
+    /// 실제로 처리한 배치 수. 길이를 미리 알 수 없는 loader에서도 정확하다.
+    pub processed_batches: usize,
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -161,6 +163,9 @@ impl TrainerCore {
         &self,
         step: &mut S,
         loader: &mut L,
+        paradigm: &'static str,
+        epoch_number: usize,
+        total_epochs: usize,
         epoch_display_idx: usize,
         total_epochs_display: usize,
         progress: &EpochProgress,
@@ -171,15 +176,15 @@ impl TrainerCore {
         L: BatchLoader<Batch = S::Batch>,
     {
         let cfg = self.config();
-        let n_batches = loader.batch_count().unwrap_or(0);
+        let n_batches = loader.batch_count();
 
         #[cfg(feature = "debugging")]
         let epoch_span = tracing::debug_span!(
             target: "trench_deep::trainer::debug",
             "trainer_epoch",
-            epoch = epoch_display_idx + 1,
-            total_epochs = total_epochs_display,
-            batches = n_batches,
+            epoch = epoch_number,
+            total_epochs,
+            batches = ?n_batches,
         );
         #[cfg(feature = "debugging")]
         let _epoch_guard = epoch_span.enter();
@@ -194,12 +199,24 @@ impl TrainerCore {
         let epoch_start = Instant::now();
 
         step.reset_epoch_state();
+        let epoch_context = EpochContext {
+            paradigm,
+            epoch: epoch_number,
+            total_epochs,
+            total_batches: n_batches,
+        };
+        self.notify_epoch_start(&epoch_context);
 
         // 훅 활성 여부는 에폭 진입 시 한 번만 확인. 빈 목록이면 zero-overhead.
         let hooks_active = !self.hooks.borrow().is_empty();
         if hooks_active {
             for hook in self.hooks.borrow_mut().iter_mut() {
-                hook.reset()?;
+                if let Err(error) = hook.reset() {
+                    progress.abandon("Error while resetting training hook");
+                    batch_bar.abandon("Hook error");
+                    self.notify_train_error(&error.to_string());
+                    return Err(error);
+                }
             }
         }
 
@@ -217,13 +234,43 @@ impl TrainerCore {
         let mut bw_count = 0usize;
 
         let mut batch_idx = 0usize;
-        while let Some(batch) = loader.next_batch()? {
+        loop {
+            let batch = match loader.next_batch() {
+                Ok(Some(batch)) => batch,
+                Ok(None) => break,
+                Err(error) => {
+                    progress.abandon("Error while loading batch");
+                    batch_bar.abandon("Loader error");
+                    self.notify_train_error(&error.to_string());
+                    return Err(error);
+                }
+            };
+            let batch_context = BatchStartContext {
+                paradigm,
+                epoch: epoch_number,
+                batch: batch_idx + 1,
+                total_epochs,
+                total_batches: n_batches,
+                episode: None,
+            };
+            #[cfg(feature = "enableVisualization")]
+            let capture = self.begin_graph_capture(&batch_context);
+            #[cfg(feature = "enableVisualization")]
+            let capture = match capture {
+                Ok(capture) => capture,
+                Err(error) => {
+                    progress.abandon("Error while starting computation graph capture");
+                    batch_bar.abandon("Capture error");
+                    self.notify_train_error(&error.to_string());
+                    return Err(error);
+                }
+            };
             #[cfg(feature = "debugging")]
             let batch_span = tracing::debug_span!(
                 target: "trench_deep::trainer::debug",
                 "trainer_batch",
                 batch = batch_idx + 1,
-                total_batches = n_batches,
+                total_batches = ?n_batches,
             );
             #[cfg(feature = "debugging")]
             let _batch_guard = batch_span.enter();
@@ -238,6 +285,7 @@ impl TrainerCore {
                 Err(e) => {
                     progress.abandon("Error during forward/backward");
                     batch_bar.abandon("Error");
+                    self.notify_train_error(&e.to_string());
                     return Err(e);
                 }
             };
@@ -256,10 +304,11 @@ impl TrainerCore {
                 batch_bar.abandon("NaN/Inf Gradient");
                 tracing::error!(
                     "NaN/Inf gradient at epoch {}, batch {}. total_loss so far: {:.6}",
-                    epoch_display_idx + 1,
+                    epoch_number,
                     batch_idx + 1,
                     total_loss
                 );
+                self.notify_train_error("Numerical instability during training");
                 return Err(MlError::StringError(
                     "Numerical instability during training".to_string(),
                 ));
@@ -308,7 +357,12 @@ impl TrainerCore {
                     lr: step.current_lr(),
                 };
                 for hook in self.hooks.borrow_mut().iter_mut() {
-                    hook.update(&ctx)?;
+                    if let Err(error) = hook.update(&ctx) {
+                        progress.abandon("Error while updating training hook");
+                        batch_bar.abandon("Hook error");
+                        self.notify_train_error(&error.to_string());
+                        return Err(error);
+                    }
                 }
             }
 
@@ -324,20 +378,41 @@ impl TrainerCore {
                 batch_bar.set_msg(&message);
                 let summary_interval = cfg.batch_summary_interval;
                 let should_summarize = summary_interval != usize::MAX
-                    && ((batch_idx + 1) % summary_interval == 0 || batch_idx + 1 == n_batches);
+                    && ((batch_idx + 1) % summary_interval == 0
+                        || n_batches.is_some_and(|total| batch_idx + 1 == total));
                 if should_summarize {
-                    batch_summaries.push(format!(
-                        "Epoch {}/{} | Batch {:>3}% | {}",
-                        epoch_display_idx + 1,
-                        total_epochs_display,
-                        (batch_idx + 1) * 100 / n_batches.max(1),
-                        message,
-                    ));
+                    let batch_progress = n_batches
+                        .map(|total| format!("Batch {:>3}%", (batch_idx + 1) * 100 / total.max(1)))
+                        .unwrap_or_else(|| format!("Batch {}", batch_idx + 1));
+                    batch_summaries.push(format!("Epoch {}/{} | {} | {}",
+                        epoch_number, total_epochs, batch_progress, message));
                 }
             }
 
             batch_bar.inc();
-            step.optimizer_step()?;
+            #[cfg(feature = "enableVisualization")]
+            let pending_snapshot = match capture.finish() {
+                Ok(snapshot) => snapshot,
+                Err(error) => {
+                    progress.abandon("Error while capturing computation graph");
+                    batch_bar.abandon("Capture error");
+                    self.notify_train_error(&error.to_string());
+                    return Err(error);
+                }
+            };
+            if let Err(error) = step.optimizer_step() {
+                progress.abandon("Error during optimizer step");
+                batch_bar.abandon("Optimizer error");
+                self.notify_train_error(&error.to_string());
+                return Err(error);
+            }
+            #[cfg(feature = "enableVisualization")]
+            pending_snapshot.commit(self);
+            let batch_end = BatchEndContext { batch: batch_context, loss: info.loss };
+            for observer in self.observers.borrow_mut().iter_mut() {
+                observer.on_batch_end(&batch_end);
+            }
+            batch_idx += 1;
 
             if let Some(flag) = interrupt {
                 if is_interrupted(flag) {
@@ -355,7 +430,6 @@ impl TrainerCore {
                     }
                 }
             }
-            batch_idx += 1;
         }
 
         if !interrupted {
@@ -368,6 +442,7 @@ impl TrainerCore {
             0.0
         };
         let epoch_dur = epoch_start.elapsed();
+        self.notify_epoch_end(&epoch_context);
 
         let mut summary_extras = step.format_epoch_extras(avg_loss);
 
@@ -421,6 +496,7 @@ impl TrainerCore {
             summary_extras,
             batch_summaries,
             metrics,
+            processed_batches: batch_idx,
         })
     }
 }
@@ -433,3 +509,174 @@ impl TrainerCore {
 // 직접 임포트로만 사용하며 이 모듈에서 별도 재노출은 하지 않는다.
 #[allow(unused_imports)]
 use BatchProgress as _BatchProgressImportWitness;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct UnknownLengthLoader { next: usize }
+    impl BatchLoader for UnknownLengthLoader {
+        type Batch = usize;
+        fn begin_epoch(&mut self, _epoch: usize, _runtime: &TrainingRuntime) -> MlResult<()> { self.next = 0; Ok(()) }
+        fn next_batch(&mut self) -> MlResult<Option<Self::Batch>> {
+            if self.next == 3 { return Ok(None); }
+            let value = self.next;
+            self.next += 1;
+            Ok(Some(value))
+        }
+        fn batch_count(&self) -> Option<usize> { None }
+    }
+
+    struct TestStep;
+    impl EpochStep for TestStep {
+        type Batch = usize;
+        fn forward_backward(&mut self, batch: usize, _value: usize, _cfg: &LogConfig) -> MlResult<StepOutput> {
+            Ok(StepOutput {
+                loss: batch as f32 + 1.0,
+                loss_weight: 1,
+                observations: BatchObservations::default(),
+                diagnostics: StepDiagnostics {
+                    has_nan: false, fw_dur: None, bw_dur: None, grad_norm: None,
+                    update_ratio: None, extra_msg: Vec::new(),
+                },
+            })
+        }
+        fn optimizer_step(&mut self) -> MlResult<()> { Ok(()) }
+        fn current_lr(&self) -> f32 { 0.0 }
+    }
+
+    #[test]
+    fn unknown_batch_count_uses_processed_count_without_fake_percentage() -> MlResult<()> {
+        let config = LogConfig {
+            batch_log_interval: 1,
+            batch_summary_interval: 2,
+            epoch_log_interval: 1,
+            nan_check_interval: usize::MAX,
+            metrics: Metrics::none(),
+            show_progress: false,
+            checkpoint_dir: None,
+            seed: 0,
+        };
+        let core = TrainerCore::new(config);
+        let mut loader = UnknownLengthLoader { next: 0 };
+        let mut step = TestStep;
+        let outcome = core.run_epoch(
+            &mut step, &mut loader, "test", 1, 1, 0, 1, &EpochProgress::new(1, false), None,
+        )?;
+        assert_eq!(outcome.processed_batches, 3);
+        assert!(outcome.batch_summaries.iter().any(|line| line.contains("Batch 2")));
+        assert!(outcome.batch_summaries.iter().all(|line| !line.contains("Batch  %")));
+        Ok(())
+    }
+
+    #[cfg(feature = "enableVisualization")]
+    #[test]
+    fn trainer_captures_only_the_requested_batch() -> MlResult<()> {
+        use crate::{
+            nn::{Parameter, Variable},
+            tensor::{AutogradFunction, Tensor, TensorBase, operators::{Add, Function}},
+            visualization::{CaptureProfile, GraphSnapshot},
+        };
+        use std::{cell::RefCell, rc::Rc};
+
+        struct Collector(Rc<RefCell<Vec<GraphSnapshot>>>);
+        impl TrainingObserver for Collector {
+            fn capture_profile(&self, context: &BatchStartContext) -> Option<CaptureProfile> {
+                (context.epoch == 1 && context.batch == 2).then_some(CaptureProfile::Analysis)
+            }
+            fn on_graph_snapshot(&mut self, snapshot: GraphSnapshot) { self.0.borrow_mut().push(snapshot); }
+        }
+
+        struct GraphStep;
+        impl EpochStep for GraphStep {
+            type Batch = usize;
+            fn forward_backward(&mut self, _batch: usize, value: usize, _cfg: &LogConfig) -> MlResult<StepOutput> {
+                let x = Variable::new(Tensor::from_vec(vec![value as f32], &[1])?);
+                x.retain_grad();
+                let y = Variable::new(Tensor::from_vec(vec![1.0], &[1])?);
+                let output = Add::new()?.apply(&[&x, &y])?;
+                output.backward()?;
+                Ok(StepOutput {
+                    loss: value as f32,
+                    loss_weight: 1,
+                    observations: BatchObservations::default(),
+                    diagnostics: StepDiagnostics { has_nan: false, fw_dur: None, bw_dur: None, grad_norm: None, update_ratio: None, extra_msg: Vec::new() },
+                })
+            }
+            fn optimizer_step(&mut self) -> MlResult<()> { Ok(()) }
+            fn current_lr(&self) -> f32 { 0.0 }
+        }
+
+        let config = LogConfig {
+            batch_log_interval: usize::MAX, batch_summary_interval: usize::MAX,
+            epoch_log_interval: usize::MAX, nan_check_interval: usize::MAX,
+            metrics: Metrics::none(), show_progress: false, checkpoint_dir: None, seed: 0,
+        };
+        let core = TrainerCore::new(config);
+        let snapshots = Rc::new(RefCell::new(Vec::new()));
+        core.add_observer(Box::new(Collector(snapshots.clone())));
+        let mut loader = UnknownLengthLoader { next: 0 };
+        let mut step = GraphStep;
+        core.run_epoch(&mut step, &mut loader, "test", 1, 1, 0, 1, &EpochProgress::new(1, false), None)?;
+        let snapshots = snapshots.borrow();
+        assert_eq!(snapshots.len(), 1);
+        assert_eq!(snapshots[0].context.batch, Some(2));
+        Ok(())
+    }
+
+    #[cfg(feature = "enableVisualization")]
+    #[test]
+    fn optimizer_failure_discards_pending_snapshot_and_restores_capture() {
+        use crate::{
+            nn::{Parameter, Variable},
+            tensor::{AutogradFunction, Tensor, operators::{Add, Function}},
+            visualization::{CaptureProfile, GraphSnapshot},
+        };
+        use std::{cell::RefCell, rc::Rc};
+
+        struct Collector(Rc<RefCell<Vec<GraphSnapshot>>>);
+        impl TrainingObserver for Collector {
+            fn capture_profile(&self, _context: &BatchStartContext) -> Option<CaptureProfile> {
+                Some(CaptureProfile::Analysis)
+            }
+            fn on_graph_snapshot(&mut self, snapshot: GraphSnapshot) {
+                self.0.borrow_mut().push(snapshot);
+            }
+        }
+
+        struct FailingOptimizerStep;
+        impl EpochStep for FailingOptimizerStep {
+            type Batch = usize;
+            fn forward_backward(&mut self, _batch: usize, _value: usize, _cfg: &LogConfig) -> MlResult<StepOutput> {
+                let x = Variable::new(Tensor::from_vec(vec![1.0], &[1])?);
+                let y = Variable::new(Tensor::from_vec(vec![2.0], &[1])?);
+                Add::new()?.apply(&[&x, &y])?.backward()?;
+                Ok(StepOutput {
+                    loss: 1.0,
+                    loss_weight: 1,
+                    observations: BatchObservations::default(),
+                    diagnostics: StepDiagnostics { has_nan: false, fw_dur: None, bw_dur: None, grad_norm: None, update_ratio: None, extra_msg: Vec::new() },
+                })
+            }
+            fn optimizer_step(&mut self) -> MlResult<()> { Err("optimizer failed".into()) }
+            fn current_lr(&self) -> f32 { 0.0 }
+        }
+
+        let config = LogConfig {
+            batch_log_interval: usize::MAX, batch_summary_interval: usize::MAX,
+            epoch_log_interval: usize::MAX, nan_check_interval: usize::MAX,
+            metrics: Metrics::none(), show_progress: false, checkpoint_dir: None, seed: 0,
+        };
+        let core = TrainerCore::new(config);
+        let snapshots = Rc::new(RefCell::new(Vec::new()));
+        core.add_observer(Box::new(Collector(snapshots.clone())));
+        let mut loader = UnknownLengthLoader { next: 0 };
+        let result = core.run_epoch(
+            &mut FailingOptimizerStep, &mut loader, "test", 1, 1, 0, 1,
+            &EpochProgress::new(1, false), None,
+        );
+        assert!(result.is_err());
+        assert!(snapshots.borrow().is_empty());
+        assert!(!crate::visualization::recording::is_active());
+    }
+}

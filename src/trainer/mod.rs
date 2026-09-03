@@ -38,7 +38,11 @@ pub use core::{
     grad_norm, weight_norm, update_ratio, has_invalid_grad,
     argmax, ClassificationAccuracy, Perplexity,
     EpochStep, StepOutput, StepDiagnostics, BatchObservations, EpochOutcome,
+    TrainingObserver, BatchStartContext, BatchEndContext, EpochContext, TrainStartContext,
+    TrainEndContext,
 };
+#[cfg(feature = "enableVisualization")]
+pub use core::{CaptureSelector, GraphVisualizationObserver, GraphVisualizationObserverBuilder};
 pub use api::{TrainableModel, CheckpointableModel, StopReason, StepUnit, MetricValues,
     CheckpointPaths, TrainResult, EpochSchedule, EpisodeSchedule, SupervisedDataset,
     UnsupervisedDataset, SemiSupervisedDataset, AutoregressiveDataset};
@@ -120,6 +124,11 @@ impl Trainer {
         TrainerBuilder::new()
     }
 
+    pub fn with_observer(self, observer: Box<dyn TrainingObserver>) -> Self {
+        self.core.add_observer(observer);
+        self
+    }
+
     // ── 프리셋 ────────────────────────────────────────────────────────────
 
     /// 최대 성능 모드. 모든 로그·NaN 검사가 비활성화.
@@ -143,6 +152,7 @@ impl Trainer {
         Self::builder()
             .log_every_n_batches(1)
             .summarize_every_n_batches(0)
+            .log_every_n_epochs(10)
             .nan_check(true)
             .metrics(Metrics::none())
             .show_progress(true)
@@ -154,6 +164,7 @@ impl Trainer {
         Self::builder()
             .log_every_n_batches(1)
             .summarize_every_n_batches(0)
+            .log_every_n_epochs(10)
             .nan_check(true)
             .metrics(Metrics::default())
             .show_progress(true)
@@ -166,6 +177,7 @@ impl Trainer {
         Self::builder()
             .log_every_n_batches(1)
             .summarize_every_n_batches(100)
+            .log_every_n_epochs(1)
             .nan_check(true)
             .metrics(Metrics::all())
             .show_progress(true)
@@ -195,6 +207,7 @@ mod preset_tests {
         assert!(minimal.config().show_progress);
         assert_eq!(minimal.config().batch_log_interval, 1);
         assert_eq!(minimal.config().batch_summary_interval, usize::MAX);
+        assert_eq!(minimal.config().epoch_log_interval, 10);
         assert!(!minimal.config().metrics.paradigm);
         assert!(!minimal.config().metrics.grad_norm);
         assert!(!minimal.config().metrics.update_ratio);
@@ -206,6 +219,7 @@ mod preset_tests {
         assert!(!default.config().metrics.update_ratio);
         assert!(!default.config().metrics.fw_bw_timing);
         assert_eq!(default.config().batch_summary_interval, usize::MAX);
+        assert_eq!(default.config().epoch_log_interval, 10);
 
         let verbose = Trainer::verbose().core;
         assert!(verbose.config().metrics.paradigm);
@@ -214,5 +228,6 @@ mod preset_tests {
         assert!(verbose.config().metrics.accuracy);
         assert!(verbose.config().metrics.fw_bw_timing);
         assert_eq!(verbose.config().batch_summary_interval, 100);
+        assert_eq!(verbose.config().epoch_log_interval, 1);
     }
 }

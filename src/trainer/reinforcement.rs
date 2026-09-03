@@ -180,6 +180,11 @@ impl RLTrainer {
         self
     }
 
+    pub fn with_observer(self, observer: Box<dyn TrainingObserver>) -> Self {
+        self.core.add_observer(observer);
+        self
+    }
+
     // ── 학습 루프 ─────────────────────────────────────────────────────────
 
     /// REINFORCE 로 정책을 학습시킨다.
@@ -215,9 +220,10 @@ impl RLTrainer {
             "reinforcement",
             &*model,
             num_episodes,
-            max_steps_per_episode,
+            Some(max_steps_per_episode),
         );
         let progress       = EpochProgress::new(num_episodes, cfg.show_progress);
+        self.core.notify_train_start(&TrainStartContext { paradigm: "reinforcement", total_units: num_episodes });
 
         let mut last_loss         = f32::INFINITY;
         let mut last_episode_ret  = 0.0f32;
@@ -229,6 +235,32 @@ impl RLTrainer {
         let mut sce = SoftmaxCrossEntropyLoss::new()?;
 
         for episode in 0..num_episodes {
+            let batch_context = BatchStartContext {
+                paradigm: "reinforcement",
+                epoch: episode + 1,
+                batch: 1,
+                total_epochs: num_episodes,
+                total_batches: Some(1),
+                episode: Some(episode + 1),
+            };
+            let epoch_context = EpochContext {
+                paradigm: "reinforcement",
+                epoch: episode + 1,
+                total_epochs: num_episodes,
+                total_batches: Some(1),
+            };
+            self.core.notify_epoch_start(&epoch_context);
+            #[cfg(feature = "enableVisualization")]
+            let capture = self.core.begin_graph_capture(&batch_context);
+            #[cfg(feature = "enableVisualization")]
+            let capture = match capture {
+                Ok(capture) => capture,
+                Err(error) => {
+                    progress.abandon("Error while starting computation graph capture");
+                    self.core.notify_train_error(&error.to_string());
+                    return Err(error);
+                }
+            };
             #[cfg(feature = "debugging")]
             let episode_span = tracing::debug_span!(
                 target: "trench_deep::trainer::debug",
@@ -326,14 +358,34 @@ impl RLTrainer {
                             "NaN/Inf gradient at episode {}. step_loss: {:.6}",
                             episode + 1, scalar
                         );
+                        self.core.notify_train_error("Numerical instability during RL training");
                         return Err(MlError::StringError(
                             "Numerical instability during RL training".into()
                         ));
                     }
                 }
 
-                optimizer.step()?;
-                optimizer.zero_grad()?;
+                #[cfg(feature = "enableVisualization")]
+                let pending_snapshot = match capture.finish() {
+                    Ok(snapshot) => snapshot,
+                    Err(error) => {
+                        progress.abandon("Error while capturing computation graph");
+                        self.core.notify_train_error(&error.to_string());
+                        return Err(error);
+                    }
+                };
+                if let Err(error) = optimizer.step() {
+                    progress.abandon("Error during optimizer step");
+                    self.core.notify_train_error(&error.to_string());
+                    return Err(error.into());
+                }
+                if let Err(error) = optimizer.zero_grad() {
+                    progress.abandon("Error while clearing gradients");
+                    self.core.notify_train_error(&error.to_string());
+                    return Err(error.into());
+                }
+                #[cfg(feature = "enableVisualization")]
+                pending_snapshot.commit(&self.core);
                 scalar
             } else {
                 0.0
@@ -345,9 +397,9 @@ impl RLTrainer {
 
             let ep_dur = episode_start.elapsed();
 
-            let should_log_epoch =
-                cfg.epoch_log_interval != usize::MAX
-                && (episode + 1) % cfg.epoch_log_interval == 0;
+            let should_log_epoch = cfg.epoch_log_interval != usize::MAX
+                && ((episode + 1) % cfg.epoch_log_interval == 0
+                    || episode + 1 == num_episodes);
             if should_log_epoch {
                 let mut parts = Vec::with_capacity(4);
                 parts.push(format!("L: {:+.4}", step_loss));
@@ -375,6 +427,10 @@ impl RLTrainer {
             final_metrics.insert("episode_steps".into(), t_len as f32);
             final_metrics.insert("episode_duration_secs".into(), ep_dur.as_secs_f32());
             final_metrics.insert("loss".into(), step_loss);
+            for observer in self.core.observers.borrow_mut().iter_mut() {
+                observer.on_batch_end(&BatchEndContext { batch: batch_context.clone(), loss: step_loss });
+            }
+            self.core.notify_epoch_end(&epoch_context);
 
             #[cfg(feature = "debugging")]
             tracing::debug!(
@@ -392,6 +448,7 @@ impl RLTrainer {
         }
 
         let total_duration = training_start.elapsed();
+        self.core.notify_train_end(&TrainEndContext { paradigm: "reinforcement", units_completed: episodes_done, interrupted: false });
         for summary in &summary_logs {
             info!("{}", summary);
         }

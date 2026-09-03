@@ -15,7 +15,10 @@ pub mod metrics;
 pub mod convergence;
 pub mod epoch_loop;
 pub mod runtime;
+pub mod observer;
 mod debug_trace;
+#[cfg(feature = "enableVisualization")]
+mod graph_capture;
 
 use std::cell::RefCell;
 
@@ -33,6 +36,12 @@ pub use metrics::{
 pub use convergence::Convergence;
 pub use epoch_loop::{EpochStep, StepOutput, StepDiagnostics, BatchObservations, EpochOutcome};
 pub use runtime::TrainingRuntime;
+pub use observer::{
+    BatchEndContext, BatchStartContext, EpochContext, TrainEndContext, TrainStartContext,
+    TrainingObserver,
+};
+#[cfg(feature = "enableVisualization")]
+pub use observer::{CaptureSelector, GraphVisualizationObserver, GraphVisualizationObserverBuilder};
 
 /// 아키텍처-불문 공용 상태.
 ///
@@ -44,13 +53,14 @@ pub struct TrainerCore {
     pub(crate) config: LogConfig,
     pub(crate) hooks:  RefCell<Vec<Box<dyn MetricHook>>>,
     pub(crate) runtime: TrainingRuntime,
+    pub(crate) observers: RefCell<Vec<Box<dyn TrainingObserver>>>,
 }
 
 impl TrainerCore {
     /// 빈 훅 목록과 함께 `LogConfig` 로부터 새 `TrainerCore` 를 생성함.
     pub fn new(config: LogConfig) -> Self {
         let runtime = TrainingRuntime::new(config.seed);
-        Self { config, hooks: RefCell::new(Vec::new()), runtime }
+        Self { config, hooks: RefCell::new(Vec::new()), runtime, observers: RefCell::new(Vec::new()) }
     }
 
     /// 훅을 하나 추가함. 에폭당 순서대로 `update` → `format` 이 호출된다.
@@ -69,6 +79,46 @@ impl TrainerCore {
     /// 모든 훅을 제거한다. 테스트에서 상태를 리셋할 때 유용.
     pub fn clear_hooks(&self) {
         self.hooks.borrow_mut().clear();
+    }
+
+    pub fn add_observer(&self, observer: Box<dyn TrainingObserver>) {
+        self.observers.borrow_mut().push(observer);
+    }
+
+    pub fn observer_count(&self) -> usize { self.observers.borrow().len() }
+
+    pub(crate) fn notify_train_start(&self, context: &TrainStartContext) {
+        for observer in self.observers.borrow_mut().iter_mut() { observer.on_train_start(context); }
+    }
+
+    pub(crate) fn notify_epoch_start(&self, context: &EpochContext) {
+        for observer in self.observers.borrow_mut().iter_mut() { observer.on_epoch_start(context); }
+    }
+
+    pub(crate) fn notify_epoch_end(&self, context: &EpochContext) {
+        for observer in self.observers.borrow_mut().iter_mut() { observer.on_epoch_end(context); }
+    }
+
+    pub(crate) fn notify_train_end(&self, context: &TrainEndContext) {
+        for observer in self.observers.borrow_mut().iter_mut() { observer.on_train_end(context); }
+    }
+
+    pub(crate) fn notify_train_error(&self, message: &str) {
+        for observer in self.observers.borrow_mut().iter_mut() { observer.on_train_error(message); }
+    }
+
+    #[cfg(feature = "enableVisualization")]
+    pub(crate) fn requested_capture_profile(&self, context: &BatchStartContext) -> Option<crate::visualization::CaptureProfile> {
+        self.observers.borrow().iter().filter_map(|observer| observer.capture_profile(context)).max()
+    }
+
+    #[cfg(feature = "enableVisualization")]
+    pub(crate) fn deliver_graph_snapshot(&self, context: &BatchStartContext, snapshot: crate::visualization::GraphSnapshot) {
+        for observer in self.observers.borrow_mut().iter_mut() {
+            if observer.capture_profile(context).is_some() {
+                observer.on_graph_snapshot(snapshot.clone());
+            }
+        }
     }
 
     /// 내부 `LogConfig` 에 대한 읽기 전용 접근.

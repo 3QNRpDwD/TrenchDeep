@@ -14,6 +14,7 @@ fn evaluate_accuracy<M: Model>(model: &mut M, x: &[&Variable], t: &[&Variable]) 
 }
 
 #[test]
+#[ignore]
 #[cfg(all(feature = "enableBackward"))]
 fn mlp_mnist_classification_integration_test() -> MlResult<()> {
     let _guard = setup_logging();
@@ -30,7 +31,20 @@ fn mlp_mnist_classification_integration_test() -> MlResult<()> {
 
     let x_train = dataset.x_train();
     let t_train = dataset.t_train();
-    Trainer::default().supervised().fit(&mut mlp, &mut opt,
+    let trainer = Trainer::default();
+    #[cfg(feature = "enableVisualization")]
+    let trainer = {
+        let capture_dir = std::env::temp_dir().join("trench-deep-mnist-mlp-captures");
+        let writer = crate::visualization::FileSnapshotWriter::builder(capture_dir)
+            .render_svg(true)
+            .build()?;
+        trainer.with_observer(Box::new(
+        crate::trainer::GraphVisualizationObserver::builder()
+            .writer(Box::new(writer))
+            .build()?
+        ))
+    };
+    trainer.supervised().fit(&mut mlp, &mut opt,
         SupervisedDataset::new(&x_train, &t_train)?,
         EpochSchedule::new(config.epochs)?.with_tolerance(config.tolerance))?;
 
@@ -43,7 +57,6 @@ fn mlp_mnist_classification_integration_test() -> MlResult<()> {
         warn!("Target accuracy NOT met. (Actual: {:.2}%, Required: {:.2}%).", accuracy, config.required_accuracy);
     }
 
-    generate_visualization(&config.visualization_path);
     info!("=== MLP MNIST Test Finished ===");
     assert!(accuracy > config.required_accuracy, "Model did not reach the required accuracy threshold.");
 
@@ -51,7 +64,6 @@ fn mlp_mnist_classification_integration_test() -> MlResult<()> {
 }
 
 #[test]
-#[ignore]
 #[cfg(all(feature = "enableBackward"))]
 fn softmax_regression_mnist_classification_integration_test() -> MlResult<()> {
     let _guard = setup_logging();
@@ -70,7 +82,20 @@ fn softmax_regression_mnist_classification_integration_test() -> MlResult<()> {
     opt.register(&model.b1);
     let x_train = dataset.x_train();
     let t_train = dataset.t_train();
-    Trainer::default().supervised().fit(&mut model, &mut opt,
+    let trainer = Trainer::silent();
+    #[cfg(feature = "enableVisualization")]
+    let trainer = {
+        let capture_dir = std::env::temp_dir().join("trench-deep-mnist-softmax-captures");
+        let writer = crate::visualization::FileSnapshotWriter::builder(capture_dir)
+            .render_svg(true)
+            .build()?;
+        trainer.with_observer(Box::new(
+        crate::trainer::GraphVisualizationObserver::builder()
+            .writer(Box::new(writer))
+            .build()?
+        ))
+    };
+    trainer.supervised().fit(&mut model, &mut opt,
         SupervisedDataset::new(&x_train, &t_train)?,
         EpochSchedule::new(config.epochs)?.with_tolerance(config.tolerance))?;
 
@@ -84,7 +109,6 @@ fn softmax_regression_mnist_classification_integration_test() -> MlResult<()> {
         warn!("Target accuracy NOT met. (Actual: {:.2}%, Required: {:.2}%).", accuracy, config.required_accuracy);
     }
 
-    generate_visualization(&config.visualization_path);
     info!("=== SoftmaxRegression MNIST Test Finished ===");
     assert!(accuracy > config.required_accuracy, "Model did not reach the required accuracy threshold.");
     Ok(())

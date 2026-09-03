@@ -141,6 +141,11 @@ impl AutoregressiveTrainer {
         self
     }
 
+    pub fn with_observer(self, observer: Box<dyn TrainingObserver>) -> Self {
+        self.core.add_observer(observer);
+        self
+    }
+
     /// Perplexity 훅을 자동 장착한다. 토큰 수로 가중 평균한 PPL 을 에폭 요약에 포함.
     pub fn with_perplexity(self) -> Self {
         self.with_hook(Box::new(Perplexity::new()))
@@ -270,9 +275,10 @@ impl AutoregressiveTrainer {
             "autoregressive",
             &*model,
             remaining_epochs,
-            loader.batch_count().unwrap_or(0),
+            loader.batch_count(),
         );
         let progress = EpochProgress::new(remaining_epochs, cfg.show_progress);
+        self.core.notify_train_start(&TrainStartContext { paradigm: "autoregressive", total_units: remaining_epochs });
 
         let interrupt = if cfg.checkpoint_dir.is_some() {
             let flag = interrupt_flag();
@@ -304,6 +310,9 @@ impl AutoregressiveTrainer {
                 self.core.run_epoch(
                     &mut step,
                     &mut loader,
+                    "autoregressive",
+                    epoch + 1,
+                    epochs,
                     epoch - start_epoch,
                     remaining_epochs,
                     &progress,
@@ -317,8 +326,8 @@ impl AutoregressiveTrainer {
             summary_logs.extend(outcome.batch_summaries.iter().cloned());
             final_metrics = outcome.metrics.clone();
 
-            let should_log_epoch =
-                cfg.epoch_log_interval != usize::MAX && (epoch + 1) % cfg.epoch_log_interval == 0;
+            let should_log_epoch = cfg.epoch_log_interval != usize::MAX
+                && ((epoch + 1) % cfg.epoch_log_interval == 0 || epoch + 1 == epochs);
 
             if should_log_epoch {
                 let loss_change = last_loss.is_finite().then(|| avg_loss - last_loss);
@@ -382,6 +391,7 @@ impl AutoregressiveTrainer {
         }
 
         let total_duration = training_start.elapsed();
+        self.core.notify_train_end(&TrainEndContext { paradigm: "autoregressive", units_completed: epochs_done, interrupted });
         for summary in &summary_logs {
             info!("{}", summary);
         }

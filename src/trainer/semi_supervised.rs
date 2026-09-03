@@ -216,6 +216,11 @@ impl SemiSupervisedTrainer {
         self
     }
 
+    pub fn with_observer(self, observer: Box<dyn TrainingObserver>) -> Self {
+        self.core.add_observer(observer);
+        self
+    }
+
     // ── 학습 루프 ─────────────────────────────────────────────────────────
 
     /// 반지도 모델을 학습시킨다.
@@ -339,9 +344,10 @@ impl SemiSupervisedTrainer {
             "semi_supervised",
             &*model,
             remaining_epochs,
-            loader.batch_count().unwrap_or(0),
+            loader.batch_count(),
         );
         let progress = EpochProgress::new(remaining_epochs, cfg.show_progress);
+        self.core.notify_train_start(&TrainStartContext { paradigm: "semi_supervised", total_units: remaining_epochs });
 
         // 인터럽트 핸들러 — 다른 트레이너와 동일 규약.
         let interrupt = if cfg.checkpoint_dir.is_some() {
@@ -378,6 +384,9 @@ impl SemiSupervisedTrainer {
                 self.core.run_epoch(
                     &mut step,
                     &mut loader,
+                    "semi_supervised",
+                    epoch + 1,
+                    epochs,
                     epoch - start_epoch,
                     remaining_epochs,
                     &progress,
@@ -391,8 +400,8 @@ impl SemiSupervisedTrainer {
             summary_logs.extend(outcome.batch_summaries.iter().cloned());
             final_metrics = outcome.metrics.clone();
 
-            let should_log_epoch =
-                cfg.epoch_log_interval != usize::MAX && (epoch + 1) % cfg.epoch_log_interval == 0;
+            let should_log_epoch = cfg.epoch_log_interval != usize::MAX
+                && ((epoch + 1) % cfg.epoch_log_interval == 0 || epoch + 1 == epochs);
             if should_log_epoch {
                 let loss_change = last_loss.is_finite().then(|| avg_loss - last_loss);
                 let extras_str = outcome.summary_extras.join(" | ");
@@ -450,6 +459,7 @@ impl SemiSupervisedTrainer {
         }
 
         let total_duration = training_start.elapsed();
+        self.core.notify_train_end(&TrainEndContext { paradigm: "semi_supervised", units_completed: epochs_done, interrupted });
         for summary in &summary_logs {
             info!("{}", summary);
         }

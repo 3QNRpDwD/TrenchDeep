@@ -11,7 +11,7 @@ impl TrainerCore {
         paradigm: &str,
         model: &M,
         work_units: usize,
-        batches_per_unit: usize,
+        batches_per_unit: Option<usize>,
     ) {
         let params = model.params();
         let total_elements: usize = params.iter().map(|p| p.tensor().data().len()).sum();
@@ -23,7 +23,7 @@ impl TrainerCore {
             parameters = params.len(),
             total_elements,
             work_units,
-            batches_per_unit,
+            batches_per_unit = ?batches_per_unit,
             "training model structure"
         );
 
@@ -57,7 +57,7 @@ impl TrainerCore {
         _paradigm: &str,
         _model: &M,
         _work_units: usize,
-        _batches_per_unit: usize,
+        _batches_per_unit: Option<usize>,
     ) {
     }
 }

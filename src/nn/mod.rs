@@ -201,7 +201,7 @@ pub trait Parameter: Debug {
     #[cfg(feature = "enableVisualization")]
     fn label(&self) -> &str;
     #[cfg(feature = "enableVisualization")]
-    fn node_type(&self) -> &crate::tensor::NodeType;
+    fn node_type(&self) -> &crate::visualization::NodeRole;
     #[cfg(feature = "enableBackward")]
     fn clear_grad(&self);
     // TENSOR_STORAGE의 GlobalTensor.dirty 플래그를 조회 (O(1))
@@ -239,7 +239,7 @@ pub trait Parameter: Debug {
 //     #[cfg(all(feature = "enableVisualization"))]
 //     label: String,
 // #[cfg(all(feature = "enableVisualization"))]
-//     node_type: crate::tensor::NodeType,
+//     node_type: crate::visualization::NodeRole,
 //     tensor: Tensor,
 //     requires_grad: RefCell<bool>,
 //     grad: Tensor,
@@ -248,9 +248,9 @@ pub trait Parameter: Debug {
 #[derive(Clone)]
 pub struct Variable {
     #[cfg(feature = "enableVisualization")]
-    label: Arc<String>,
+    label: Option<Arc<String>>,
     #[cfg(feature = "enableVisualization")]
-    node_type: crate::tensor::NodeType,
+    node_type: Option<crate::visualization::NodeRole>,
     tensor: Tensor,
     requires_grad: std::cell::Cell<bool>,
     grad: Tensor,
