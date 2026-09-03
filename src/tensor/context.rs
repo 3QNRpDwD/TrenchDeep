@@ -70,6 +70,8 @@ enum BuiltinBackward {
     Sigmoid,
     Silu,
     Relu,
+    Abs,
+    Softmax { axis: usize },
     Reshape,
     Transpose(Vec<usize>),
     Concat { axis: usize, sizes: Vec<usize> },
@@ -185,6 +187,7 @@ impl BackwardOp for ElementwiseBackward {
             BuiltinBackward::Sin => "sin", BuiltinBackward::Cos => "cos",
             BuiltinBackward::Tanh => "tanh", BuiltinBackward::Sigmoid => "sigmoid",
             BuiltinBackward::Silu => "silu", BuiltinBackward::Relu => "relu",
+            BuiltinBackward::Abs => "abs", BuiltinBackward::Softmax { .. } => "softmax",
             BuiltinBackward::Sum => "sum", BuiltinBackward::Reshape => "reshape",
             _ => "unsupported",
         }
@@ -232,6 +235,30 @@ impl BackwardOp for ElementwiseBackward {
                 g * sigmoid * (1.0 + x * (1.0 - sigmoid))
             })?],
             BuiltinBackward::Relu => vec![tensor_zip(&grad, &values[0], |g, x| if x > 0.0 { g } else { 0.0 })?],
+            BuiltinBackward::Abs => vec![tensor_zip(&grad, &values[0], |g, x| {
+                if x > 0.0 { g } else if x < 0.0 { -g } else { 0.0 }
+            })?],
+            BuiltinBackward::Softmax { axis } => {
+                let output = saved_output()?;
+                let axis = *axis;
+                let outer: usize = output.shape[..axis].iter().product();
+                let width = output.shape[axis];
+                let inner: usize = output.shape[axis + 1..].iter().product();
+                let mut data = vec![0.0; output.data.len()];
+                for outer_index in 0..outer {
+                    for inner_index in 0..inner {
+                        let dot: f32 = (0..width).map(|i| {
+                            let index = (outer_index * width + i) * inner + inner_index;
+                            grad.data[index] * output.data[index]
+                        }).sum();
+                        for i in 0..width {
+                            let index = (outer_index * width + i) * inner + inner_index;
+                            data[index] = output.data[index] * (grad.data[index] - dot);
+                        }
+                    }
+                }
+                vec![GlobalTensor::from_vec(data, &output.shape)?]
+            }
             BuiltinBackward::Sum => {
                 let scalar = grad.data.first().copied().ok_or(TensorError::EmptyTensor)?;
                 vec![GlobalTensor::from_vec(vec![scalar; values[0].data.len()], &values[0].shape)?]
@@ -539,7 +566,11 @@ impl ExecutionContext {
         if state.no_grad_depth == 0 && inputs.iter().any(|id| state.tracked.contains(id)) {
             state.tracked.insert(output);
             let saved = match backward {
-                BuiltinBackward::Exp | BuiltinBackward::Sqrt | BuiltinBackward::Tanh | BuiltinBackward::Sigmoid => vec![output],
+                BuiltinBackward::Exp
+                | BuiltinBackward::Sqrt
+                | BuiltinBackward::Tanh
+                | BuiltinBackward::Sigmoid
+                | BuiltinBackward::Softmax { .. } => vec![output],
                 _ => Vec::new(),
             };
             state.graph.insert(output, GraphNode {
@@ -597,6 +628,38 @@ impl ExecutionContext {
 
     pub fn relu(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
         self.unary(input, BuiltinBackward::Relu, |x| x.max(0.0))
+    }
+
+    pub fn abs(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
+        self.unary(input, BuiltinBackward::Abs, f32::abs)
+    }
+
+    pub fn softmax(&self, input: &ContextTensor, axis: usize) -> MlResult<ContextTensor> {
+        self.validate(input)?;
+        let value = input.snapshot()?;
+        if axis >= value.shape.len() {
+            return Err(TensorError::InvalidAxis { axis, shape: value.shape }.into());
+        }
+        let outer: usize = value.shape[..axis].iter().product();
+        let width = value.shape[axis];
+        let inner: usize = value.shape[axis + 1..].iter().product();
+        let mut data = vec![0.0; value.data.len()];
+        for outer_index in 0..outer {
+            for inner_index in 0..inner {
+                let maximum = (0..width).map(|i| value.data[(outer_index * width + i) * inner + inner_index])
+                    .fold(f32::NEG_INFINITY, f32::max);
+                let normalizer: f32 = (0..width).map(|i| {
+                    (value.data[(outer_index * width + i) * inner + inner_index] - maximum).exp()
+                }).sum();
+                for i in 0..width {
+                    let index = (outer_index * width + i) * inner + inner_index;
+                    data[index] = (value.data[index] - maximum).exp() / normalizer;
+                }
+            }
+        }
+        let output = self.tensor(data, &value.shape)?;
+        self.record(output.node_id(), vec![input.node_id()], BuiltinBackward::Softmax { axis })?;
+        Ok(output)
     }
 
     pub fn sum(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
@@ -793,6 +856,14 @@ impl ExecutionContext {
 
     pub fn relu_variable(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
         self.variable_from(self.relu(input.tensor())?)
+    }
+
+    pub fn abs_variable(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.variable_from(self.abs(input.tensor())?)
+    }
+
+    pub fn softmax_variable(&self, input: &ContextVariable, axis: usize) -> MlResult<ContextVariable> {
+        self.variable_from(self.softmax(input.tensor(), axis)?)
     }
 
     pub fn sum_variable(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
@@ -1049,6 +1120,8 @@ fn into_node_backward(backward: BuiltinBackward) -> Box<dyn BackwardOp> {
         | BuiltinBackward::Sigmoid
         | BuiltinBackward::Silu
         | BuiltinBackward::Relu
+        | BuiltinBackward::Abs
+        | BuiltinBackward::Softmax { .. }
         | BuiltinBackward::Sum
         | BuiltinBackward::Reshape) => Box::new(ElementwiseBackward(other)),
         other @ (BuiltinBackward::Transpose(_)
@@ -1708,6 +1781,46 @@ mod tests {
         assert_eq!(stats.graph_nodes, 3);
         assert_eq!(stats.dynamic_backward_nodes, 3);
         assert_eq!(stats.saved_tensor_references, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn abs_gradient_matches_finite_difference_away_from_zero() -> MlResult<()> {
+        finite_difference_check(-0.7, f32::abs, |ctx, x| ctx.abs_variable(x))
+    }
+
+    #[test]
+    fn softmax_axis_vjp_matches_finite_difference() -> MlResult<()> {
+        let input_data = vec![0.2, -0.4, 1.1, 2.0, 0.3, -0.5];
+        let cotangent_data = vec![1.0, -2.0, 0.5, 0.3, 0.7, -1.0];
+        let ctx = ExecutionContext::new();
+        let input = ctx.parameter(input_data.clone(), &[2, 3])?;
+        let output = ctx.softmax_variable(&input, 1)?;
+        let probabilities = output.tensor().to_vec()?;
+        assert!((probabilities[..3].iter().sum::<f32>() - 1.0).abs() < 1e-6);
+        assert!((probabilities[3..].iter().sum::<f32>() - 1.0).abs() < 1e-6);
+        let cotangent = ctx.tensor(cotangent_data.clone(), &[2, 3])?;
+        output.backward_with_grad(&cotangent)?;
+        let analytic = input.grad()?.expect("softmax input gradient").data;
+
+        let objective = |values: &[f32]| -> f32 {
+            values.chunks_exact(3).zip(cotangent_data.chunks_exact(3)).map(|(row, weights)| {
+                let maximum = row.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+                let exps: Vec<_> = row.iter().map(|x| (x - maximum).exp()).collect();
+                let normalizer: f32 = exps.iter().sum();
+                exps.iter().zip(weights).map(|(value, weight)| value / normalizer * weight).sum::<f32>()
+            }).sum()
+        };
+        let epsilon = 1e-3;
+        for index in 0..input_data.len() {
+            let mut plus = input_data.clone();
+            let mut minus = input_data.clone();
+            plus[index] += epsilon;
+            minus[index] -= epsilon;
+            let numeric = (objective(&plus) - objective(&minus)) / (2.0 * epsilon);
+            let error = (analytic[index] - numeric).abs();
+            assert!(error <= 1e-3, "index={index}, analytic={}, numeric={numeric}", analytic[index]);
+        }
         Ok(())
     }
 }
