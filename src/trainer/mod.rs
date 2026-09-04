@@ -49,8 +49,15 @@ pub use api::{TrainableModel, CheckpointableModel, StopReason, StepUnit, MetricV
     UnsupervisedDataset, SemiSupervisedDataset, AutoregressiveDataset};
 pub use api::{SupervisedOptions, SemiSupervisedOptions, AutoregressiveOptions, ReinforcementOptions};
 pub use context::{
+    ContextAutoregressiveBatch, ContextAutoregressiveDataLoader, ContextAutoregressiveDataset,
+    ContextAutoregressiveModel, ContextAutoregressiveTrainer,
     ContextSupervisedBatch, ContextSupervisedDataLoader, ContextSupervisedDataset,
     ContextSupervisedModel, ContextSupervisedTrainer, ContextTrainableModel,
+    ContextSemiSupervisedBatch, ContextSemiSupervisedDataLoader,
+    ContextSemiSupervisedDataset, ContextSemiSupervisedModel, ContextSemiSupervisedTrainer,
+    ContextEnvironment, ContextRLModel, ContextRLTrainer, ContextStepResult,
+    ContextUnsupervisedBatch, ContextUnsupervisedDataLoader, ContextUnsupervisedDataset,
+    ContextUnsupervisedModel, ContextUnsupervisedTrainer,
 };
 pub use checkpoint::{TrainingCheckpoint, ParadigmTag, CheckpointManager, CHECKPOINT_SCHEMA_VERSION};
 pub use data::{
