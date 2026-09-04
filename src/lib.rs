@@ -1,14 +1,15 @@
-pub mod tensor;
 pub mod backend;
+pub mod loss;
 pub mod nn;
 pub mod optimizer;
-pub mod loss;
+pub mod tensor;
 pub mod trainer;
+pub use loss::Reduction;
 #[cfg(feature = "enableVisualization")]
 pub mod visualization;
 pub use tensor::{
-    BackwardOp, BackwardOptions, ContextId, ContextTensor, ContextVariable, ExecutionContext, GraphStats,
-    RequiresGrad, TensorView,
+    BackwardOp, BackwardOptions, ContextId, ContextTensor, ContextVariable, ExecutionContext,
+    GraphStats, MaxResult, RequiresGrad, TensorView, TopKResult,
 };
 #[cfg(test)]
 mod tests;
@@ -21,15 +22,25 @@ use thiserror::Error;
 #[derive(Error, Debug, Clone)]
 pub enum TensorError {
     #[error("Invalid shape: expected {:?}, got {:?}", expected, got)]
-    InvalidShape { expected: Vec<usize>, got: Vec<usize>, },
+    InvalidShape {
+        expected: Vec<usize>,
+        got: Vec<usize>,
+    },
     #[error("Invalid data length: expected {}, got {}", expected, got)]
-    InvalidDataLength { expected: usize, got: usize, },
+    InvalidDataLength { expected: usize, got: usize },
     #[error("Invalid operation '{}': {}", op, reason)]
-    InvalidOperation { op: &'static str, reason: String, },
+    InvalidOperation { op: &'static str, reason: String },
     #[error("Invalid axis {} for tensor with shape {:?}", axis, shape)]
-    InvalidAxis { axis: usize, shape: Vec<usize>, },
-    #[error("Invalid dimensions for matrix multiplication: left shape {:?}, right shape {:?}", left_shape, right_shape)]
-    MatrixMultiplicationError { left_shape: Vec<usize>, right_shape: Vec<usize>, },
+    InvalidAxis { axis: usize, shape: Vec<usize> },
+    #[error(
+        "Invalid dimensions for matrix multiplication: left shape {:?}, right shape {:?}",
+        left_shape,
+        right_shape
+    )]
+    MatrixMultiplicationError {
+        left_shape: Vec<usize>,
+        right_shape: Vec<usize>,
+    },
     #[error("InvalidInputCount: expected {:?}, got {:?}", expected, got)]
     InvalidInputCount { expected: i32, got: usize },
     #[error("Empty tensor")]
@@ -37,7 +48,10 @@ pub enum TensorError {
     #[error("Expected a scalar tensor, got shape {shape:?}")]
     NotScalar { shape: Vec<usize> },
     #[error("Invalid tensor index {indices:?} for shape {shape:?}")]
-    InvalidIndex { indices: Vec<usize>, shape: Vec<usize> },
+    InvalidIndex {
+        indices: Vec<usize>,
+        shape: Vec<usize>,
+    },
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -57,7 +71,10 @@ pub enum AutogradError {
     #[error("backward() requires a scalar output, got shape {0:?}")]
     OutputNotScalar(Vec<usize>),
     #[error("Gradient shape mismatch: expected {expected:?}, got {got:?}")]
-    GradientShapeMismatch { expected: Vec<usize>, got: Vec<usize> },
+    GradientShapeMismatch {
+        expected: Vec<usize>,
+        got: Vec<usize>,
+    },
     #[error("Operator '{0}' does not support backward")]
     BackwardNotSupported(String),
     #[error("The computation graph for node {0:?} has already been freed")]
@@ -109,12 +126,12 @@ pub type MlResult<T> = Result<T, MlError>;
 
 #[cfg(test)]
 mod benchmark {
-    use std::ops::SubAssign;
+    use crate::nn::{Parameter, Variable};
     use crate::tensor::operators::{Add, Function, Mul, Square};
     use crate::tensor::{AutogradFunction, ComputationGraph, Tensor, TensorBase};
-    use crate::{MlResult, scalar, var_input, var_with_label, variable};
-    use crate::nn::{Parameter, Variable};
     use crate::tests::common::logging::setup_logging;
+    use crate::{MlResult, scalar, var_input, var_with_label, variable};
+    use std::ops::SubAssign;
 
     fn assert_tensor_eq(tensor: &Tensor, expected_tensor: &Tensor) -> MlResult<()> {
         if tensor.shape() != expected_tensor.shape() {
@@ -143,8 +160,8 @@ mod benchmark {
         let O_48 = variable!(vec![vec![0.48]]);
 
         let sphere = sphere_function(x, y)?;
-        let t = x * y;                                    // x * y
-        Ok(&(&O_26 * &sphere) - &(&O_48 * &t))            // 0.26 * sphere - 0.48 * x * y
+        let t = x * y; // x * y
+        Ok(&(&O_26 * &sphere) - &(&O_48 * &t)) // 0.26 * sphere - 0.48 * x * y
     }
 
     fn goldstein_price_function(x: &Variable, y: &Variable) -> MlResult<Variable> {
@@ -156,14 +173,14 @@ mod benchmark {
         let mut square = Square::new()?;
         let mut mul = Mul::new()?;
 
-        let num_1   = constant(1.0);
-        let num_2   = constant(2.0);
-        let num_3   = constant(3.0);
-        let num_6   = constant(6.0);
-        let num_12  = constant(12.0);
-        let neg_14  = constant(-14.0);
-        let neg_32  = constant(-32.0);
-        let neg_36  = constant(-36.0);
+        let num_1 = constant(1.0);
+        let num_2 = constant(2.0);
+        let num_3 = constant(3.0);
+        let num_6 = constant(6.0);
+        let num_12 = constant(12.0);
+        let neg_14 = constant(-14.0);
+        let neg_32 = constant(-32.0);
+        let neg_36 = constant(-36.0);
 
         // a = x + y + 1
         let a = &(x + y) + &num_1;
@@ -173,8 +190,7 @@ mod benchmark {
         let y_squared = square.apply(&[y])?;
 
         // b = 19 - 14x + 3x^2 - 14y + 6xy + 3y^2
-        let b = &(&(&(&(&constant(19.0) + &(&neg_14 * x))
-            + &(&num_3 * &x_squared))
+        let b = &(&(&(&(&constant(19.0) + &(&neg_14 * x)) + &(&num_3 * &x_squared))
             + &(&neg_14 * y))
             + &(&num_6 * &(x * y)))
             + &(&num_3 * &y_squared);
@@ -187,8 +203,7 @@ mod benchmark {
         let c = &(&num_2 * x) - &(&num_3 * y);
 
         // d = 18 - 32x + 12x^2 + 48y - 36xy + 27y^2
-        let d = &(&(&(&(&constant(18.0) + &(&neg_32 * x))
-            + &(&num_12 * &x_squared))
+        let d = &(&(&(&(&constant(18.0) + &(&neg_32 * x)) + &(&num_12 * &x_squared))
             + &(&constant(48.0) * y))
             + &(&neg_36 * &(x * y)))
             + &(&constant(27.0) * &y_squared);
@@ -206,13 +221,17 @@ mod benchmark {
         let mut s = Square::new()?;
         let (x2, y2, xy) = (s.apply(&[x])?, s.apply(&[y])?, x * y);
 
-        let f1 = &c(1.0) + &(&s.apply(&[&(x + y + &c(1.0))])? * &(
-            &c(19.0) - &(x * &c(14.0)) + &(&x2 * &c(3.0)) - &(y * &c(14.0)) + &(&xy * &c(6.0)) + &(&y2 * &c(3.0))
-        ));
+        let f1 = &c(1.0)
+            + &(&s.apply(&[&(x + y + &c(1.0))])?
+                * &(&c(19.0) - &(x * &c(14.0)) + &(&x2 * &c(3.0)) - &(y * &c(14.0))
+                    + &(&xy * &c(6.0))
+                    + &(&y2 * &c(3.0))));
 
-        let f2 = &c(30.0) + &(&s.apply(&[&(&(x * &c(2.0)) - &(y * &c(3.0)))])? * &(
-            &c(18.0) - &(x * &c(32.0)) + &(&x2 * &c(12.0)) + &(y * &c(48.0)) - &(&xy * &c(36.0)) + &(&y2 * &c(27.0))
-        ));
+        let f2 = &c(30.0)
+            + &(&s.apply(&[&(&(x * &c(2.0)) - &(y * &c(3.0)))])?
+                * &(&c(18.0) - &(x * &c(32.0)) + &(&x2 * &c(12.0)) + &(y * &c(48.0))
+                    - &(&xy * &c(36.0))
+                    + &(&y2 * &c(27.0))));
 
         Ok(f1 * f2)
     }
@@ -221,7 +240,7 @@ mod benchmark {
         let mut square = Square::new()?;
         let mut add = Add::new()?;
 
-        let sq = square.apply(&[&x0])?;//x0^2
+        let sq = square.apply(&[&x0])?; //x0^2
         // 100 * (x1 - x0^2)^2 + (1 - x0)^2
         let term1 = &variable!(vec![vec![100.0]]) * &square.apply(&[&(x1 - &sq)])?;
         let term2 = square.apply(&[&(&variable!(vec![vec![1.0]]) - x0)])?;
@@ -258,9 +277,10 @@ mod benchmark {
         #[cfg(feature = "enableVisualization")]
         let capture = crate::visualization::VisualizationCapture::builder(
             crate::visualization::CaptureProfile::Analysis,
-        ).begin()?;
-        let x = var_input!(Tensor::from_vec(vec![1.0], &[1,1])?);
-        let y = var_input!(Tensor::from_vec(vec![1.0], &[1,1])?);
+        )
+        .begin()?;
+        let x = var_input!(Tensor::from_vec(vec![1.0], &[1, 1])?);
+        let y = var_input!(Tensor::from_vec(vec![1.0], &[1, 1])?);
         let z = goldstein_price_function(&x, &y)?;
         #[cfg(feature = "enableBackward")]
         {
@@ -274,11 +294,10 @@ mod benchmark {
         {
             let snapshot = capture.finish()?;
             use crate::visualization::SnapshotWriter;
-            let directory = std::env::temp_dir().join(format!(
-                "trench-deep-goldstein-{}",
-                std::process::id()
-            ));
-            let mut writer = crate::visualization::FileSnapshotWriter::builder(&directory).build()?;
+            let directory =
+                std::env::temp_dir().join(format!("trench-deep-goldstein-{}", std::process::id()));
+            let mut writer =
+                crate::visualization::FileSnapshotWriter::builder(&directory).build()?;
             writer.write(&snapshot, "goldstein")?;
             let _ = std::fs::remove_dir_all(directory);
         }
@@ -305,9 +324,10 @@ mod benchmark {
         #[cfg(feature = "enableVisualization")]
         let capture = crate::visualization::VisualizationCapture::builder(
             crate::visualization::CaptureProfile::Analysis,
-        ).begin()?;
-        let x0 = var_with_label!(Tensor::from_vec(vec![0.0], &[1,1])?, "x0");
-        let x1 = var_with_label!(Tensor::from_vec(vec![2.0], &[1,1])?, "x1");
+        )
+        .begin()?;
+        let x0 = var_with_label!(Tensor::from_vec(vec![0.0], &[1, 1])?, "x0");
+        let x1 = var_with_label!(Tensor::from_vec(vec![2.0], &[1, 1])?, "x1");
         let y = rosenbrock_function(&x0, &x1)?;
 
         #[cfg(feature = "enableBackward")]
@@ -321,12 +341,11 @@ mod benchmark {
         #[cfg(feature = "enableVisualization")]
         {
             let snapshot = capture.finish()?;
-            let directory = std::env::temp_dir().join(format!(
-                "trench-deep-rosenbrock-{}",
-                std::process::id()
-            ));
+            let directory =
+                std::env::temp_dir().join(format!("trench-deep-rosenbrock-{}", std::process::id()));
             use crate::visualization::SnapshotWriter;
-            let mut writer = crate::visualization::FileSnapshotWriter::builder(&directory).build()?;
+            let mut writer =
+                crate::visualization::FileSnapshotWriter::builder(&directory).build()?;
             writer.write(&snapshot, "rosenbrock")?;
             let _ = std::fs::remove_dir_all(directory);
         }
@@ -342,20 +361,25 @@ mod benchmark {
         let iter: usize = 1000;
         let learning_rate = Tensor::scalar(0.001);
 
-        for i in 0..iter { // 0부터
+        for i in 0..iter {
+            // 0부터
             ComputationGraph::reset_graph();
             let y = rosenbrock_function(&x0, &x1)?;
             y.backward()?;
-            
+
             if i % 1 == 0 {
                 println!(
                     "iter - {}\n\
             [ x0.tensor: {:?}, x0.grad: {:?} ]\n\
-            [ x1.tensor: {:?}, x1.grad: {:?} ]"
-                    , i, x0.tensor(), x0.grad(), x1.tensor(), x1.grad()
+            [ x1.tensor: {:?}, x1.grad: {:?} ]",
+                    i,
+                    x0.tensor(),
+                    x0.grad(),
+                    x1.tensor(),
+                    x1.grad()
                 );
             }
-            
+
             // 파라미터 갱신
             x0 -= Variable::new(x0.grad() * &learning_rate);
             x1 -= Variable::new(x1.grad() * &learning_rate);

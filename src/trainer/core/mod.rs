@@ -99,6 +99,10 @@ impl TrainerCore {
         for observer in self.observers.borrow_mut().iter_mut() { observer.on_epoch_end(context); }
     }
 
+    pub(crate) fn notify_batch_end(&self, context: &BatchEndContext) {
+        for observer in self.observers.borrow_mut().iter_mut() { observer.on_batch_end(context); }
+    }
+
     pub(crate) fn notify_train_end(&self, context: &TrainEndContext) {
         for observer in self.observers.borrow_mut().iter_mut() { observer.on_train_end(context); }
     }

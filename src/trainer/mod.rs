@@ -23,6 +23,7 @@
 
 pub mod core;
 pub mod api;
+pub mod context;
 pub mod checkpoint;
 pub mod supervised;
 pub mod unsupervised;
@@ -47,6 +48,10 @@ pub use api::{TrainableModel, CheckpointableModel, StopReason, StepUnit, MetricV
     CheckpointPaths, TrainResult, EpochSchedule, EpisodeSchedule, SupervisedDataset,
     UnsupervisedDataset, SemiSupervisedDataset, AutoregressiveDataset};
 pub use api::{SupervisedOptions, SemiSupervisedOptions, AutoregressiveOptions, ReinforcementOptions};
+pub use context::{
+    ContextSupervisedBatch, ContextSupervisedDataLoader, ContextSupervisedDataset,
+    ContextSupervisedModel, ContextSupervisedTrainer, ContextTrainableModel,
+};
 pub use checkpoint::{TrainingCheckpoint, ParadigmTag, CheckpointManager, CHECKPOINT_SCHEMA_VERSION};
 pub use data::{
     AutoregressiveBatch, AutoregressiveSample, AutoregressiveStackCollator, BatchLoader,

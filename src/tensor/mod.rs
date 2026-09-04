@@ -14,8 +14,8 @@ pub mod display;
 pub mod graph;
 pub mod operators;
 pub use context::{
-    BackwardOp, BackwardOptions, ContextId, ContextTensor, ContextVariable, ExecutionContext, GraphStats,
-    RequiresGrad, TensorView,
+    BackwardOp, BackwardOptions, ContextId, ContextTensor, ContextVariable, ExecutionContext,
+    GraphStats, MaxResult, RequiresGrad, TensorView, TopKResult,
 };
 
 /// 명시적으로 라벨이 부여된 텐서인지 판별합니다.
@@ -165,7 +165,9 @@ impl Drop for TensorHandle {
         // During TLS teardown TENSOR_STORAGE may already have been destroyed, and
         // Drop must never panic in that situation (nor during an active borrow).
         let _ = TENSOR_STORAGE.try_with(|storage| {
-            let Ok(mut storage) = storage.try_borrow_mut() else { return; };
+            let Ok(mut storage) = storage.try_borrow_mut() else {
+                return;
+            };
             if storage.remove(&id).is_some() {
                 #[cfg(feature = "debugging")]
                 {

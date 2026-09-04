@@ -6,6 +6,12 @@ mod function;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reduction { Mean, Sum, None }
 
+impl Default for Reduction {
+    fn default() -> Self {
+        Self::Mean
+    }
+}
+
 
 use std::{
     fmt::{Debug, Display, Formatter},

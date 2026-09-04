@@ -71,7 +71,16 @@ pub mod linear;
 pub mod group_norm;
 mod parameter;
 pub mod checkpoint;
+pub mod context;
+pub mod pilots;
 mod reshape;
+
+pub use context::{
+    ContextActivation, ContextActivationKind, ContextConv2D, ContextGroupNorm, ContextLayer,
+    ContextLinear, ContextParameter, ContextPooling, ContextPoolingMode, ContextReshape,
+    ContextSequential, ContextUpsample2D,
+};
+pub use pilots::{ContextLinearRegression, ContextMlp};
 
 use crate::{
     register_operator,

@@ -4,6 +4,7 @@ pub mod adagrad;
 pub mod rmsprop;
 pub mod adam;
 pub mod adamw;
+pub mod context;
 
 pub use sgd::SGD;
 pub use momentum::Momentum;
@@ -11,6 +12,10 @@ pub use adagrad::AdaGrad;
 pub use rmsprop::RMSProp;
 pub use adam::Adam;
 pub use adamw::AdamW;
+pub use context::{
+    clip_context_grad_norm, ContextAdaGrad, ContextAdam, ContextAdamW, ContextMomentum,
+    ContextOptimizer, ContextRMSProp, ContextSGD,
+};
 
 use crate::{
     MlResult,
@@ -41,6 +46,10 @@ pub struct OptimizerSnapshot {
 pub enum OptimError {
     #[error("Gradient Error: {0}")]
     GradientError(String),
+    #[error("invalid optimizer hyperparameter '{name}': {reason}")]
+    InvalidHyperparameter { name: &'static str, reason: String },
+    #[error("parameter {0:?} is already registered")]
+    DuplicateParameter(NodeId),
 }
 
 /// 모든 옵티마이저가 구현해야 하는 공통 인터페이스.
