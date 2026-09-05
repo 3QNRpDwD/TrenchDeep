@@ -2,7 +2,7 @@
 use super::*;
 
 impl ContextTensor {
-    pub(super) fn execution_context(&self) -> MlResult<ExecutionContext> {
+    pub(crate) fn execution_context(&self) -> MlResult<ExecutionContext> {
         let runtime = self.0.runtime.upgrade().ok_or(ContextError::Dropped)?;
         Ok(ExecutionContext {
             id: self.context_id(), runtime, _not_sync: Rc::new(Cell::new(())),
@@ -72,7 +72,7 @@ mod tests {
         assert_eq!(w.grad()?.ok_or(ContextError::Dropped)?.data, vec![2.0, 3.0]);
         ctx.no_grad(|| {
             let predicted = x.matmul(w.tensor())?;
-            assert!(!predicted.requires_grad());
+            assert!(!predicted.requires_grad()?);
             assert_eq!(predicted.tensor().item()?, 23.0);
             Ok(())
         })?;
@@ -90,6 +90,18 @@ mod tests {
         drop(other);
         assert!(matches!(y.numel(), Err(crate::MlError::ContextError(ContextError::Dropped))));
         assert!(matches!(y.square(), Err(crate::MlError::ContextError(ContextError::Dropped))));
+        Ok(())
+    }
+
+    #[test]
+    fn backward_preserves_gradients_of_an_independent_graph() -> MlResult<()> {
+        let ctx = ExecutionContext::new();
+        let left = ctx.parameter(vec![2.0], &[])?;
+        let right = ctx.parameter(vec![3.0], &[])?;
+        left.square()?.backward()?;
+        right.square()?.backward()?;
+        assert_eq!(left.grad()?.ok_or(ContextError::Dropped)?.data, vec![4.0]);
+        assert_eq!(right.grad()?.ok_or(ContextError::Dropped)?.data, vec![6.0]);
         Ok(())
     }
 }

@@ -64,6 +64,9 @@ impl<'a> ContextAutoregressiveDataLoader<'a> {
 
     pub fn batch_size(mut self, batch_size: usize) -> MlResult<Self> {
         if batch_size == 0 { return Err(DataError::InvalidBatchSize.into()); }
+        if self.drop_last && self.dataset.len() < batch_size {
+            return Err(DataError::NoBatches.into());
+        }
         self.batch_size = batch_size;
         Ok(self)
     }
@@ -104,6 +107,23 @@ impl<'a> ContextAutoregressiveDataLoader<'a> {
             sequences: self.context.input(data, &shape)?,
             samples: selected.len(),
         }))
+    }
+}
+
+impl BatchLoader for ContextAutoregressiveDataLoader<'_> {
+    type Batch = ContextAutoregressiveBatch;
+
+    fn begin_epoch(&mut self, _epoch: usize, runtime: &TrainingRuntime) -> MlResult<()> {
+        ContextAutoregressiveDataLoader::begin_epoch(self, runtime);
+        Ok(())
+    }
+
+    fn next_batch(&mut self) -> MlResult<Option<Self::Batch>> {
+        ContextAutoregressiveDataLoader::next_batch(self)
+    }
+
+    fn batch_count(&self) -> Option<usize> {
+        Some(ContextAutoregressiveDataLoader::batch_count(self))
     }
 }
 
@@ -252,7 +272,7 @@ impl ContextAutoregressiveTrainer {
                 paradigm: "autoregressive",
                 epoch: epoch_index + 1,
                 total_epochs: schedule.epochs,
-                total_batches: Some(loader.batch_count()),
+                total_batches: Some(ContextAutoregressiveDataLoader::batch_count(loader)),
             };
             self.core.notify_epoch_start(&epoch);
             let outcome = match self.run_loader_epoch(model, optimizer, loader, &epoch) {
@@ -299,7 +319,10 @@ impl ContextAutoregressiveTrainer {
         let mut weighted_loss = 0.0;
         let mut tokens = 0usize;
         let mut diagnostics = ContextEpochDiagnostics::default();
-        for (batch_index, sequence) in dataset.sequences.iter().enumerate() {
+        let mut order = (0..dataset.len()).collect::<Vec<_>>();
+        self.core.runtime.shuffle(&mut order);
+        for (batch_index, sample_index) in order.into_iter().enumerate() {
+            let sequence = dataset.sequences[sample_index];
             let batch = BatchStartContext {
                 paradigm: "autoregressive",
                 epoch: epoch.epoch,
@@ -365,6 +388,8 @@ impl ContextAutoregressiveTrainer {
         sequence: &ContextVariable,
         batch_context: &BatchStartContext,
     ) -> MlResult<AutoregressiveBatchOutcome> {
+        validate_training_parameters(&self.context, model, optimizer)?;
+        let scope = self.context.begin_training_scope()?;
         let result = (|| {
             let track_timing = self.core.config.metrics.fw_bw_timing;
             let forward_started = track_timing.then(Instant::now);
@@ -421,10 +446,7 @@ impl ContextAutoregressiveTrainer {
             }
             optimizer.step()?;
             optimizer.zero_grad()?;
-            self.core.notify_batch_end(&BatchEndContext {
-                batch: batch_context.clone(),
-                loss: value,
-            });
+
             Ok(AutoregressiveBatchOutcome {
                 batch: ContextBatchOutcome {
                     loss: value, forward, backward, grad_norm, update_ratio,
@@ -432,12 +454,9 @@ impl ContextAutoregressiveTrainer {
                 tokens,
             })
         })();
-        let cleanup = self.context.clear_graph();
-        match (result, cleanup) {
-            (Ok(outcome), Ok(())) => Ok(outcome),
-            (Err(error), _) => Err(error),
-            (Ok(_), Err(error)) => Err(error),
-        }
+        let outcome = scope.finish(result)?;
+        self.core.notify_batch_end(&BatchEndContext { batch: batch_context.clone(), loss: outcome.batch.loss });
+        Ok(outcome)
     }
 
     fn validate<M: ContextTrainableModel + ?Sized>(
@@ -452,6 +471,11 @@ impl ContextAutoregressiveTrainer {
             || model.parameters().iter().any(|parameter| parameter.context_id() != self.context.id())
         {
             return Err(ContextError::Mismatch.into());
+        }
+        if dataset.pad_token_id.is_some() {
+            return Err(MlError::StringError(
+                "pad_token_id is not supported by the P1 autoregressive trainer".into(),
+            ));
         }
         Ok(())
     }
@@ -494,7 +518,7 @@ mod tests {
         }
     }
 
-    struct NoOpOptimizer { context_id: ContextId }
+    struct NoOpOptimizer { context_id: ContextId, parameters: Vec<ContextParameter> }
 
     impl ContextOptimizer for NoOpOptimizer {
         fn register(&mut self, _parameter: &ContextParameter) -> MlResult<()> { Ok(()) }
@@ -502,7 +526,8 @@ mod tests {
         fn zero_grad(&self) -> MlResult<()> { Ok(()) }
         fn lr(&self) -> f32 { 0.1 }
         fn set_lr(&mut self, _learning_rate: f32) -> MlResult<()> { Ok(()) }
-        fn registered_param_count(&self) -> usize { 0 }
+        fn registered_param_count(&self) -> usize { self.parameters.len() }
+        fn registered_parameters(&self) -> Vec<&ContextParameter> { self.parameters.iter().collect() }
         fn context_id(&self) -> ContextId { self.context_id }
     }
 
@@ -539,7 +564,7 @@ mod tests {
         ];
         let refs: Vec<_> = sequences.iter().collect();
         let dataset = ContextAutoregressiveDataset::new(&context, &refs)?;
-        let mut optimizer = NoOpOptimizer { context_id: context.id() };
+        let mut optimizer = NoOpOptimizer { parameters: model.parameters().into_iter().cloned().collect(), context_id: context.id() };
         let result = ContextAutoregressiveTrainer::silent(&context)
             .with_perplexity()
             .fit(&mut model, &mut optimizer, &dataset, EpochSchedule::new(1)?)?;
@@ -590,7 +615,7 @@ mod tests {
             &context,
             ContextAutoregressiveDataset::new(&context, &refs)?,
         )?.batch_size(2)?.shuffle(false);
-        let mut optimizer = NoOpOptimizer { context_id: context.id() };
+        let mut optimizer = NoOpOptimizer { parameters: model.parameters().into_iter().cloned().collect(), context_id: context.id() };
         let result = ContextAutoregressiveTrainer::silent(&context).fit_loader(
             &mut model,
             &mut optimizer,

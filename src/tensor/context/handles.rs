@@ -74,8 +74,13 @@ impl ContextVariable {
     pub fn tensor(&self) -> &ContextTensor {
         &self.tensor
     }
-    pub fn requires_grad(&self) -> bool {
-        self.requires_grad
+    pub fn requires_grad(&self) -> MlResult<bool> {
+        let runtime = self.tensor.runtime()?;
+        let state = runtime.state.try_borrow().map_err(|_| ContextError::BorrowConflict)?;
+        if !state.tensors.contains_key(&self.tensor.node_id()) {
+            return Err(ContextError::UnknownTensor(self.tensor.node_id()).into());
+        }
+        Ok(state.tracked.contains(&self.tensor.node_id()))
     }
     pub fn detach(&self) -> MlResult<Self> {
         let runtime = self.tensor.runtime()?;
@@ -98,7 +103,6 @@ impl ContextVariable {
         };
         Ok(Self {
             tensor: ctx.insert_buffer(buffer)?,
-            requires_grad: false,
         })
     }
 

@@ -27,7 +27,7 @@ use crate::{ContextError, ContextId, ContextTensor, ContextVariable, ExecutionCo
 use std::time::{Duration, Instant};
 
 use super::{
-    BatchContext, BatchEndContext, BatchStartContext, DataError, EpochContext, EpochSchedule,
+    BatchContext, BatchEndContext, BatchLoader, BatchStartContext, DataError, EpochContext, EpochSchedule,
     MetricHook, StopReason, TrainEndContext, Trainer, TrainerCore, TrainingObserver,
     TrainingRuntime, TrainResult, TrainStartContext,
 };
@@ -35,6 +35,32 @@ use super::{
 pub trait ContextTrainableModel {
     fn context_id(&self) -> ContextId;
     fn parameters(&self) -> Vec<&ContextParameter>;
+}
+
+fn validate_training_parameters(
+    context: &ExecutionContext,
+    model: &impl ContextTrainableModel,
+    optimizer: &dyn ContextOptimizer,
+) -> MlResult<()> {
+    use std::collections::HashSet;
+    if model.context_id() != context.id() || optimizer.context_id() != context.id() {
+        return Err(ContextError::Mismatch.into());
+    }
+    let model_parameters = model.parameters();
+    let registered = optimizer.registered_parameters();
+    for parameter in model_parameters.iter().chain(registered.iter()) {
+        if parameter.context_id() != context.id() { return Err(ContextError::Mismatch.into()); }
+        parameter.tensor().numel()?;
+    }
+    let expected = model_parameters.iter().map(|p| p.node_id()).collect::<HashSet<_>>();
+    let actual = registered.iter().map(|p| p.node_id()).collect::<HashSet<_>>();
+    if expected != actual {
+        return Err(crate::optimizer::OptimError::ParameterSetMismatch {
+            missing: expected.difference(&actual).copied().collect(),
+            extra: actual.difference(&expected).copied().collect(),
+        }.into());
+    }
+    Ok(())
 }
 
 pub trait ContextSupervisedModel: ContextTrainableModel {
@@ -103,6 +129,9 @@ impl<'a> ContextSupervisedDataLoader<'a> {
 
     pub fn batch_size(mut self, batch_size: usize) -> MlResult<Self> {
         if batch_size == 0 { return Err(DataError::InvalidBatchSize.into()); }
+        if self.drop_last && self.dataset.len() < batch_size {
+            return Err(DataError::NoBatches.into());
+        }
         self.batch_size = batch_size;
         Ok(self)
     }
@@ -144,6 +173,23 @@ impl<'a> ContextSupervisedDataLoader<'a> {
             targets: self.context.tensor(target_data, &target_shape)?,
             samples: selected.len(),
         }))
+    }
+}
+
+impl BatchLoader for ContextSupervisedDataLoader<'_> {
+    type Batch = ContextSupervisedBatch;
+
+    fn begin_epoch(&mut self, _epoch: usize, runtime: &TrainingRuntime) -> MlResult<()> {
+        ContextSupervisedDataLoader::begin_epoch(self, runtime);
+        Ok(())
+    }
+
+    fn next_batch(&mut self) -> MlResult<Option<Self::Batch>> {
+        ContextSupervisedDataLoader::next_batch(self)
+    }
+
+    fn batch_count(&self) -> Option<usize> {
+        Some(ContextSupervisedDataLoader::batch_count(self))
     }
 }
 
@@ -238,6 +284,42 @@ impl ContextEpochDiagnostics {
 struct ContextEpochOutcome {
     avg_loss: f32,
     metrics: super::MetricValues,
+}
+
+fn run_context_epoch<B>(
+    core: &TrainerCore,
+    epoch: &EpochContext,
+    mut next_batch: impl FnMut() -> MlResult<Option<B>>,
+    mut run_batch: impl FnMut(B, &BatchStartContext) -> MlResult<(ContextBatchOutcome, usize)>,
+) -> MlResult<ContextEpochOutcome> {
+    for hook in core.hooks.borrow_mut().iter_mut() { hook.reset()?; }
+    let started = Instant::now();
+    let mut weighted_loss = 0.0;
+    let mut total_weight = 0usize;
+    let mut diagnostics = ContextEpochDiagnostics::default();
+    let mut batch_index = 0usize;
+    while let Some(batch) = next_batch()? {
+        let batch_context = BatchStartContext {
+            paradigm: epoch.paradigm,
+            epoch: epoch.epoch,
+            batch: batch_index + 1,
+            total_epochs: epoch.total_epochs,
+            total_batches: epoch.total_batches,
+            episode: None,
+        };
+        let (outcome, weight) = run_batch(batch, &batch_context)?;
+        let weight = weight.max(1);
+        weighted_loss += outcome.loss * weight as f32;
+        total_weight += weight;
+        diagnostics.record(&outcome);
+        batch_index += 1;
+    }
+    if batch_index == 0 { return Err(DataError::NoBatches.into()); }
+    let avg_loss = weighted_loss / total_weight as f32;
+    Ok(ContextEpochOutcome {
+        avg_loss,
+        metrics: diagnostics.finish(avg_loss, started.elapsed(), &core.hooks),
+    })
 }
 
 fn context_grad_norm(parameters: &[&ContextParameter]) -> MlResult<f32> {
@@ -362,31 +444,25 @@ impl ContextSupervisedTrainer {
         total_epochs: usize,
     ) -> MlResult<ContextEpochOutcome> {
         self.validate(model, optimizer, dataset)?;
-        self.reset_hooks()?;
-        let started = Instant::now();
-        let mut total_loss = 0.0;
-        let mut total_weight = 0usize;
-        let mut diagnostics = ContextEpochDiagnostics::default();
-        for (batch_index, (&input, &target)) in dataset.inputs.iter().zip(dataset.targets).enumerate() {
-            let batch_context = BatchStartContext {
-                paradigm: "supervised",
-                epoch,
-                batch: batch_index + 1,
-                total_epochs,
-                total_batches: Some(dataset.len()),
-                episode: None,
-            };
-            let outcome = self.run_batch(model, optimizer, input, target, &batch_context)?;
-            let weight = target.shape()?.first().copied().unwrap_or(1).max(1);
-            total_loss += outcome.loss * weight as f32;
-            total_weight += weight;
-            diagnostics.record(&outcome);
-        }
-        let avg_loss = total_loss / total_weight as f32;
-        Ok(ContextEpochOutcome {
-            avg_loss,
-            metrics: diagnostics.finish(avg_loss, started.elapsed(), &self.core.hooks),
-        })
+        let mut order = (0..dataset.len()).collect::<Vec<_>>();
+        self.core.runtime.shuffle(&mut order);
+        let mut cursor = 0usize;
+        let epoch_context = EpochContext {
+            paradigm: "supervised", epoch, total_epochs, total_batches: Some(dataset.len()),
+        };
+        run_context_epoch(
+            &self.core,
+            &epoch_context,
+            || {
+                let Some(&sample_index) = order.get(cursor) else { return Ok(None); };
+                cursor += 1;
+                Ok(Some((dataset.inputs[sample_index], dataset.targets[sample_index])))
+            },
+            |(input, target), batch| {
+                let outcome = self.run_batch(model, optimizer, input, target, batch)?;
+                Ok((outcome, target.shape()?.first().copied().unwrap_or(1)))
+            },
+        )
     }
 
     pub fn train_loader_epoch<M: ContextSupervisedModel>(
@@ -409,41 +485,25 @@ impl ContextSupervisedTrainer {
     ) -> MlResult<ContextEpochOutcome> {
         self.validate(model, optimizer, &loader.dataset)?;
         const EPOCH_MIX: u64 = 0x9E37_79B9_7F4A_7C15;
-        self.reset_hooks()?;
-        let started = Instant::now();
         self.core.runtime.reseed(self.core.config.seed ^ (epoch_index as u64).wrapping_mul(EPOCH_MIX));
         loader.begin_epoch(&self.core.runtime);
-        let mut weighted_loss = 0.0;
-        let mut samples = 0usize;
-        let mut batch_index = 0usize;
-        let mut diagnostics = ContextEpochDiagnostics::default();
-        while let Some(batch) = loader.next_batch()? {
-            let batch_context = BatchStartContext {
-                paradigm: "supervised",
-                epoch: epoch_index + 1,
-                batch: batch_index + 1,
-                total_epochs,
-                total_batches: Some(loader.batch_count()),
-                episode: None,
-            };
-            let outcome = self.run_batch(
-                model,
-                optimizer,
-                &batch.inputs,
-                &batch.targets,
-                &batch_context,
-            )?;
-            weighted_loss += outcome.loss * batch.samples as f32;
-            samples += batch.samples;
-            diagnostics.record(&outcome);
-            batch_index += 1;
-        }
-        if samples == 0 { return Err(DataError::NoBatches.into()); }
-        let avg_loss = weighted_loss / samples as f32;
-        Ok(ContextEpochOutcome {
-            avg_loss,
-            metrics: diagnostics.finish(avg_loss, started.elapsed(), &self.core.hooks),
-        })
+        let epoch_context = EpochContext {
+            paradigm: "supervised",
+            epoch: epoch_index + 1,
+            total_epochs,
+            total_batches: Some(ContextSupervisedDataLoader::batch_count(loader)),
+        };
+        run_context_epoch(
+            &self.core,
+            &epoch_context,
+            || loader.next_batch(),
+            |batch, context| {
+                let outcome = self.run_batch(
+                    model, optimizer, &batch.inputs, &batch.targets, context,
+                )?;
+                Ok((outcome, batch.samples))
+            },
+        )
     }
 
     fn run_batch<M: ContextSupervisedModel>(
@@ -454,12 +514,16 @@ impl ContextSupervisedTrainer {
         target: &ContextTensor,
         batch_context: &BatchStartContext,
     ) -> MlResult<ContextBatchOutcome> {
+        validate_training_parameters(&self.context, model, optimizer)?;
+        let scope = self.context.begin_training_scope()?;
         let batch: MlResult<ContextBatchOutcome> = (|| {
             let track_timing = self.core.config.metrics.fw_bw_timing;
             let forward_started = track_timing.then(Instant::now);
             let (prediction, loss) = model.forward_loss(input, target)?;
             let forward = forward_started.map(|started| started.elapsed());
-            if loss.tensor().context_id() != self.context.id() { return Err(ContextError::Mismatch.into()); }
+            if loss.tensor().context_id() != self.context.id()
+                || prediction.tensor().context_id() != self.context.id()
+            { return Err(ContextError::Mismatch.into()); }
             let value = loss.tensor().item()?;
             if !value.is_finite() { return Err(MlError::StringError("non-finite context loss".into())); }
             let backward_started = track_timing.then(Instant::now);
@@ -502,18 +566,12 @@ impl ContextSupervisedTrainer {
             }
             optimizer.step()?;
             optimizer.zero_grad()?;
-            self.core.notify_batch_end(&BatchEndContext {
-                batch: batch_context.clone(),
-                loss: value,
-            });
+
             Ok(ContextBatchOutcome { loss: value, forward, backward, grad_norm, update_ratio })
         })();
-        let cleanup = self.context.clear_graph();
-        match (batch, cleanup) {
-            (Ok(outcome), Ok(())) => Ok(outcome),
-            (Err(error), _) => Err(error),
-            (Ok(_), Err(error)) => Err(error),
-        }
+        let outcome = scope.finish(batch)?;
+        self.core.notify_batch_end(&BatchEndContext { batch: batch_context.clone(), loss: outcome.loss });
+        Ok(outcome)
     }
 
     fn reset_hooks(&self) -> MlResult<()> {
@@ -593,7 +651,7 @@ impl ContextSupervisedTrainer {
         for epoch in 0..schedule.epochs {
             let epoch_context = EpochContext {
                 paradigm: "supervised", epoch: epoch + 1, total_epochs: schedule.epochs,
-                total_batches: Some(loader.batch_count()),
+                total_batches: Some(ContextSupervisedDataLoader::batch_count(loader)),
             };
             self.core.notify_epoch_start(&epoch_context);
             let outcome = match self.train_loader_epoch_inner(
@@ -713,6 +771,28 @@ mod tests {
             ContextSupervisedTrainer::new(&context).train_epoch(&mut model, &mut optimizer, &dataset),
             Err(MlError::ContextError(ContextError::Mismatch))
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn trainer_rejects_missing_and_extra_registered_parameters() -> MlResult<()> {
+        let context = ExecutionContext::new();
+        let mut model = regression_model(&context)?;
+        let input = context.input(vec![1.0], &[1, 1])?;
+        let target = context.tensor(vec![1.0], &[1, 1])?;
+        let inputs = [&input];
+        let targets = [&target];
+        let dataset = ContextSupervisedDataset::new(&context, &inputs, &targets)?;
+        let trainer = ContextSupervisedTrainer::silent(&context);
+        let mut optimizer = ContextSGD::new(&context, 0.1)?;
+        assert!(matches!(trainer.train_epoch(&mut model, &mut optimizer, &dataset),
+            Err(MlError::OptimError(crate::optimizer::OptimError::ParameterSetMismatch { .. }))));
+        optimizer.register_all(&model.parameters())?;
+        let extra = ContextParameter::new(context.parameter(vec![0.0], &[])?);
+        optimizer.register(&extra)?;
+        assert!(matches!(trainer.train_epoch(&mut model, &mut optimizer, &dataset),
+            Err(MlError::OptimError(crate::optimizer::OptimError::ParameterSetMismatch { .. }))));
+        assert_eq!(context.graph_stats()?.graph_nodes, 0);
         Ok(())
     }
 
@@ -892,6 +972,7 @@ mod tests {
     }
 
     struct NoOpOptimizer {
+        parameters: Vec<ContextParameter>,
         context_id: ContextId,
         learning_rate: f32,
     }
@@ -905,7 +986,8 @@ mod tests {
             self.learning_rate = learning_rate;
             Ok(())
         }
-        fn registered_param_count(&self) -> usize { 0 }
+        fn registered_param_count(&self) -> usize { self.parameters.len() }
+        fn registered_parameters(&self) -> Vec<&ContextParameter> { self.parameters.iter().collect() }
         fn context_id(&self) -> ContextId { self.context_id }
     }
 
@@ -924,7 +1006,7 @@ mod tests {
         let input_refs: Vec<_> = inputs.iter().collect();
         let target_refs: Vec<_> = targets.iter().collect();
         let dataset = ContextSupervisedDataset::new(&context, &input_refs, &target_refs)?;
-        let mut optimizer = NoOpOptimizer { context_id: context.id(), learning_rate: 0.1 };
+        let mut optimizer = NoOpOptimizer { parameters: model.parameters().into_iter().cloned().collect(), context_id: context.id(), learning_rate: 0.1 };
 
         let loss = ContextSupervisedTrainer::silent(&context)
             .train_epoch(&mut model, &mut optimizer, &dataset)?;

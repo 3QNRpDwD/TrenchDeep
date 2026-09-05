@@ -34,11 +34,11 @@ impl ContextPiClassifier {
 
     fn noisy(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
         let shape = input.tensor().shape()?;
-        let noise = (0..input.tensor().to_vec()?.len())
+        let noise = (0..input.tensor().numel()?)
             .map(|_| (rand::random::<f32>() - 0.5) * 2.0 * self.noise_scale)
             .collect();
         let noise = self.context.input(noise, &shape)?;
-        self.context.add_variable(input, &noise)
+        input.add(noise.tensor())
     }
 
     pub fn predict(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
@@ -60,23 +60,19 @@ impl ContextSemiSupervisedModel for ContextPiClassifier {
         lambda: f32,
     ) -> MlResult<(ContextVariable, ContextVariable)> {
         let labeled_logits = self.linear.apply(labeled_input)?;
-        let supervised = self.context.softmax_cross_entropy_variable(
-            &labeled_logits,
-            labeled_target,
-            Reduction::Mean,
-        )?;
+        let supervised = labeled_logits.softmax_cross_entropy(labeled_target, Reduction::Mean)?;
 
         let first = self.linear.apply(&self.noisy(unlabeled_input)?)?;
         let second = self.linear.apply(&self.noisy(unlabeled_input)?)?;
-        let difference = self.context.sub_variable(&first, &second)?;
-        let squared = self.context.square_variable(&difference)?;
-        let sum = self.context.sum_variable(&squared)?;
-        let count = squared.tensor().to_vec()?.len();
+        let difference = first.sub(second.tensor())?;
+        let squared = difference.square()?;
+        let sum = squared.sum()?;
+        let count = squared.tensor().numel()?;
         let mean_scale = self.context.input(vec![1.0 / count as f32], &[])?;
-        let consistency = self.context.mul_variable(&sum, &mean_scale)?;
+        let consistency = sum.mul(mean_scale.tensor())?;
         let lambda = self.context.input(vec![lambda], &[])?;
-        let weighted = self.context.mul_variable(&consistency, &lambda)?;
-        let total = self.context.add_variable(&supervised, &weighted)?;
+        let weighted = consistency.mul(lambda.tensor())?;
+        let total = supervised.add(weighted.tensor())?;
         Ok((labeled_logits, total))
     }
 }

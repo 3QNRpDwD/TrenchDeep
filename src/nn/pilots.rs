@@ -48,7 +48,7 @@ impl ContextTrainableModel for ContextLinearRegression {
 impl ContextSupervisedModel for ContextLinearRegression {
     fn forward_loss(&mut self, input: &ContextVariable, target: &ContextTensor) -> MlResult<(ContextVariable, ContextVariable)> {
         let prediction = self.layer.apply(input)?;
-        let loss = self.context.mse_loss_variable(&prediction, target, Reduction::Mean)?;
+        let loss = prediction.mse_loss(target, Reduction::Mean)?;
         Ok((prediction, loss))
     }
 }
@@ -98,7 +98,7 @@ impl ContextTrainableModel for ContextMlp {
 impl ContextSupervisedModel for ContextMlp {
     fn forward_loss(&mut self, input: &ContextVariable, target: &ContextTensor) -> MlResult<(ContextVariable, ContextVariable)> {
         let logits = self.network.apply(input)?;
-        let loss = self.context.softmax_cross_entropy_variable(&logits, target, Reduction::Mean)?;
+        let loss = logits.softmax_cross_entropy(target, Reduction::Mean)?;
         Ok((logits, loss))
     }
 }

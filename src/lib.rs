@@ -8,6 +8,7 @@ pub use loss::Reduction;
 #[cfg(feature = "enableVisualization")]
 pub mod visualization;
 pub use tensor::{
+    CustomOp, OpOutput,
     BackwardOp, BackwardOptions, ContextId, ContextTensor, ContextVariable, ExecutionContext,
     GraphStats, MaxResult, RequiresGrad, TensorView, TopKResult,
 };
@@ -64,6 +65,8 @@ pub enum ContextError {
     UnknownTensor(crate::tensor::NodeId),
     #[error("The execution context is already borrowed")]
     BorrowConflict,
+    #[error("A training scope cannot start while another scope or graph is active")]
+    ActiveGraphConflict,
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -89,6 +92,8 @@ pub enum AutogradError {
 
 #[derive(Error, Debug)]
 pub enum MlError {
+    #[error("{primary}; cleanup also failed: {cleanup}")]
+    CleanupError { primary: Box<MlError>, cleanup: Box<MlError> },
     #[error(transparent)]
     TensorError(#[from] TensorError),
     #[error(transparent)]

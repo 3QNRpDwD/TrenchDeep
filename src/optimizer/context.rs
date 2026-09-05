@@ -17,6 +17,7 @@ pub trait ContextOptimizer {
     fn lr(&self) -> f32;
     fn set_lr(&mut self, learning_rate: f32) -> MlResult<()>;
     fn registered_param_count(&self) -> usize;
+    fn registered_parameters(&self) -> Vec<&ContextParameter>;
     fn context_id(&self) -> ContextId;
 }
 
@@ -186,6 +187,9 @@ macro_rules! context_optimizer {
                 Ok(())
             }
             fn registered_param_count(&self) -> usize { self.0.parameters.len() }
+            fn registered_parameters(&self) -> Vec<&ContextParameter> {
+                self.0.parameters.iter().map(|entry| &entry.parameter).collect()
+            }
             fn context_id(&self) -> ContextId { self.0.context.id() }
         }
     };

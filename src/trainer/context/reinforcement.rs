@@ -192,6 +192,8 @@ impl ContextRLTrainer {
         max_steps: usize,
         episode_index: usize,
     ) -> MlResult<ContextEpisodeOutcome> {
+        validate_training_parameters(&self.context, model, optimizer)?;
+        let scope = self.context.begin_training_scope()?;
         let result = (|| {
             let mut observation = environment.reset()?;
             if observation.shape != environment.observation_shape() {
@@ -256,6 +258,9 @@ impl ContextRLTrainer {
 
             let loss = if let Some(loss) = accumulated {
                 let value = loss.tensor().item()?;
+                if !value.is_finite() {
+                    return Err(MlError::StringError("non-finite reinforcement loss".into()));
+                }
                 loss.backward()?;
                 let parameters = model.parameters();
                 if self.nan_check_interval != usize::MAX
@@ -275,12 +280,7 @@ impl ContextRLTrainer {
             };
             Ok(ContextEpisodeOutcome { loss, episode_return, steps })
         })();
-        let cleanup = self.context.clear_graph();
-        match (result, cleanup) {
-            (Ok(outcome), Ok(())) => Ok(outcome),
-            (Err(error), _) => Err(error),
-            (Ok(_), Err(error)) => Err(error),
-        }
+        scope.finish(result)
     }
 
     fn validate<M: ContextTrainableModel + ?Sized>(
