@@ -1,5 +1,15 @@
 //! Small explicit-context models used as P1 migration and E2E benchmark pilots.
 
+mod autoregressive;
+mod diffusion;
+mod reinforcement;
+mod semi_supervised;
+
+pub use autoregressive::ContextBigramLm;
+pub use diffusion::ContextDiffusionPilot;
+pub use reinforcement::{ContextLinearPolicy, ContextTwoArmedBandit};
+pub use semi_supervised::ContextPiClassifier;
+
 use crate::loss::Reduction;
 use crate::trainer::{ContextSupervisedModel, ContextTrainableModel};
 use crate::{ContextId, ContextTensor, ContextVariable, ExecutionContext, MlResult};
