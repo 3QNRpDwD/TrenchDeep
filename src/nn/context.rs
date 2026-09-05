@@ -5,8 +5,36 @@ use super::checkpoint::{find_param, validate_shape};
 use super::{LayerState, ModelState, ParamState};
 
 pub trait ContextLayer: std::fmt::Debug {
-    fn apply(&self, input: &ContextVariable) -> MlResult<ContextVariable>;
-    fn predict(&self, input: &ContextTensor) -> MlResult<ContextTensor>;
+    fn forward(&self, input: &ContextVariable) -> MlResult<ContextVariable>;
+    /// Compatibility entry point during the public API migration.
+    fn apply(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.validate_input(input.tensor())?;
+        self.forward(input)
+    }
+
+    fn predict(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
+        self.validate_input(input)?;
+        input.execution_context()?.no_grad(|| {
+            let variable = input.as_variable()?;
+            let output = self.forward(&variable)?;
+            self.validate_input(output.tensor())?;
+            Ok(output.tensor().clone())
+        })
+    }
+
+    fn validate_input(&self, input: &ContextTensor) -> MlResult<()> {
+        if input.context_id() != self.context_id() {
+            return Err(crate::ContextError::Mismatch.into());
+        }
+        input.numel()?;
+        for parameter in self.parameters() {
+            if parameter.context_id() != self.context_id() {
+                return Err(crate::ContextError::Mismatch.into());
+            }
+            parameter.tensor().numel()?;
+        }
+        Ok(())
+    }
     fn parameters(&self) -> Vec<&ContextParameter>;
     fn context_id(&self) -> ContextId;
     fn label(&self) -> &str;
@@ -151,19 +179,13 @@ impl ContextLinear {
 }
 
 impl ContextLayer for ContextLinear {
-    fn apply(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
-        let projected = self
-            .context
-            .matmul_variable(input, self.weight.variable())?;
-        self.context.add_variable(&projected, self.bias.variable())
+    fn forward(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.validate_input(input.tensor())?;
+        let projected = input.matmul(self.weight.tensor())?;
+        projected.add(self.bias.tensor())
     }
 
-    fn predict(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
-        self.context.no_grad(|| {
-            let projected = self.context.matmul(input, self.weight.tensor())?;
-            self.context.add(&projected, self.bias.tensor())
-        })
-    }
+
 
     fn parameters(&self) -> Vec<&ContextParameter> {
         vec![&self.weight, &self.bias]
@@ -247,16 +269,13 @@ impl ContextConv2D {
 }
 
 impl ContextLayer for ContextConv2D {
-    fn apply(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
-        self.context.conv2d_variable(
-            input, self.weight.variable(), self.bias.variable(), self.stride, self.padding,
+    fn forward(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.validate_input(input.tensor())?;
+        input.conv2d(
+            self.weight.tensor(), self.bias.tensor(), self.stride, self.padding,
         )
     }
-    fn predict(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
-        self.context.no_grad(|| self.context.conv2d(
-            input, self.weight.tensor(), self.bias.tensor(), self.stride, self.padding,
-        ))
-    }
+
     fn parameters(&self) -> Vec<&ContextParameter> { vec![&self.weight, &self.bias] }
     fn context_id(&self) -> ContextId { self.context.id() }
     fn label(&self) -> &str { &self.label }
@@ -320,16 +339,13 @@ impl ContextGroupNorm {
 }
 
 impl ContextLayer for ContextGroupNorm {
-    fn apply(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
-        self.context.group_norm_variable(
-            input, self.gamma.variable(), self.beta.variable(), self.groups, self.epsilon,
+    fn forward(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.validate_input(input.tensor())?;
+        input.group_norm(
+            self.gamma.tensor(), self.beta.tensor(), self.groups, self.epsilon,
         )
     }
-    fn predict(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
-        self.context.no_grad(|| self.context.group_norm(
-            input, self.gamma.tensor(), self.beta.tensor(), self.groups, self.epsilon,
-        ))
-    }
+
     fn parameters(&self) -> Vec<&ContextParameter> { vec![&self.gamma, &self.beta] }
     fn context_id(&self) -> ContextId { self.context.id() }
     fn label(&self) -> &str { &self.label }
@@ -373,18 +389,14 @@ impl ContextPooling {
 }
 
 impl ContextLayer for ContextPooling {
-    fn apply(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+    fn forward(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.validate_input(input.tensor())?;
         match self.mode {
-            ContextPoolingMode::Max => self.context.max_pool2d_variable(input, self.kernel, self.stride),
-            ContextPoolingMode::Average => self.context.avg_pool2d_variable(input, self.kernel, self.stride),
+            ContextPoolingMode::Max => input.max_pool2d(self.kernel, self.stride),
+            ContextPoolingMode::Average => input.avg_pool2d(self.kernel, self.stride),
         }
     }
-    fn predict(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
-        self.context.no_grad(|| match self.mode {
-            ContextPoolingMode::Max => self.context.max_pool2d(input, self.kernel, self.stride),
-            ContextPoolingMode::Average => self.context.avg_pool2d(input, self.kernel, self.stride),
-        })
-    }
+
     fn parameters(&self) -> Vec<&ContextParameter> { Vec::new() }
     fn context_id(&self) -> ContextId { self.context.id() }
     fn label(&self) -> &str { &self.label }
@@ -425,12 +437,11 @@ impl ContextUpsample2D {
 }
 
 impl ContextLayer for ContextUpsample2D {
-    fn apply(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
-        self.context.nearest_upsample2d_variable(input, self.scale)
+    fn forward(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.validate_input(input.tensor())?;
+        input.nearest_upsample2d(self.scale)
     }
-    fn predict(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
-        self.context.no_grad(|| self.context.nearest_upsample2d(input, self.scale))
-    }
+
     fn parameters(&self) -> Vec<&ContextParameter> { Vec::new() }
     fn context_id(&self) -> ContextId { self.context.id() }
     fn label(&self) -> &str { &self.label }
@@ -499,14 +510,12 @@ impl ContextReshape {
 }
 
 impl ContextLayer for ContextReshape {
-    fn apply(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+    fn forward(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.validate_input(input.tensor())?;
         let shape = self.resolve_shape(&input.tensor().shape()?)?;
-        self.context.reshape_variable(input, &shape)
+        input.reshape(&shape)
     }
-    fn predict(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
-        let shape = self.resolve_shape(&input.shape()?)?;
-        self.context.no_grad(|| self.context.reshape(input, &shape))
-    }
+
     fn parameters(&self) -> Vec<&ContextParameter> { Vec::new() }
     fn context_id(&self) -> ContextId { self.context.id() }
     fn label(&self) -> &str { &self.label }
@@ -532,32 +541,22 @@ impl ContextActivation {
     pub fn new(context: &ExecutionContext, kind: ContextActivationKind, label: impl Into<String>) -> Self {
         Self { context: context.clone(), label: label.into(), kind }
     }
-    fn apply_tensor(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
-        match self.kind {
-            ContextActivationKind::Identity => Ok(input.clone()),
-            ContextActivationKind::ReLU => self.context.relu(input),
-            ContextActivationKind::Sigmoid => self.context.sigmoid(input),
-            ContextActivationKind::Tanh => self.context.tanh(input),
-            ContextActivationKind::SiLU => self.context.silu(input),
-            ContextActivationKind::Softmax { axis } => self.context.softmax(input, axis),
-        }
-    }
+
 }
 
 impl ContextLayer for ContextActivation {
-    fn apply(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+    fn forward(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.validate_input(input.tensor())?;
         match self.kind {
             ContextActivationKind::Identity => Ok(input.clone()),
-            ContextActivationKind::ReLU => self.context.relu_variable(input),
-            ContextActivationKind::Sigmoid => self.context.sigmoid_variable(input),
-            ContextActivationKind::Tanh => self.context.tanh_variable(input),
-            ContextActivationKind::SiLU => self.context.silu_variable(input),
-            ContextActivationKind::Softmax { axis } => self.context.softmax_variable(input, axis),
+            ContextActivationKind::ReLU => input.relu(),
+            ContextActivationKind::Sigmoid => input.sigmoid(),
+            ContextActivationKind::Tanh => input.tanh(),
+            ContextActivationKind::SiLU => input.silu(),
+            ContextActivationKind::Softmax { axis } => input.softmax(axis),
         }
     }
-    fn predict(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
-        self.context.no_grad(|| self.apply_tensor(input))
-    }
+
     fn parameters(&self) -> Vec<&ContextParameter> { Vec::new() }
     fn context_id(&self) -> ContextId { self.context.id() }
     fn label(&self) -> &str { &self.label }
@@ -613,20 +612,14 @@ impl ContextSequential {
 }
 
 impl ContextLayer for ContextSequential {
-    fn apply(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+    fn forward(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+        self.validate_input(input.tensor())?;
         if input.tensor().context_id() != self.context.id() { return Err(crate::ContextError::Mismatch.into()); }
         let mut current = input.clone();
         for layer in &self.layers { current = layer.apply(&current)?; }
         Ok(current)
     }
-    fn predict(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
-        if input.context_id() != self.context.id() { return Err(crate::ContextError::Mismatch.into()); }
-        self.context.no_grad(|| {
-            let mut current = input.clone();
-            for layer in &self.layers { current = layer.predict(&current)?; }
-            Ok(current)
-        })
-    }
+
     fn parameters(&self) -> Vec<&ContextParameter> {
         self.layers.iter().flat_map(|layer| layer.parameters()).collect()
     }

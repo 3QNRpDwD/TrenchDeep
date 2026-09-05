@@ -122,7 +122,7 @@ impl<'a> ContextSemiSupervisedDataLoader<'a> {
     }
 
     fn next_batch(&mut self) -> MlResult<Option<ContextSemiSupervisedBatch>> {
-        if self.cursor >= self.batch_count() { return Ok(None); }
+        if self.cursor >= ContextSemiSupervisedDataLoader::batch_count(self) { return Ok(None); }
         let labeled = context_batch_indices(
             &self.labeled_indices, self.labeled_batch_size, self.cursor, self.drop_last,
         );
@@ -147,6 +147,23 @@ impl<'a> ContextSemiSupervisedDataLoader<'a> {
             labeled_targets: self.context.tensor(target_data, &target_shape)?,
             unlabeled_inputs: self.context.input(unlabeled_data, &unlabeled_shape)?,
         }))
+    }
+}
+
+impl BatchLoader for ContextSemiSupervisedDataLoader<'_> {
+    type Batch = ContextSemiSupervisedBatch;
+
+    fn begin_epoch(&mut self, _epoch: usize, runtime: &TrainingRuntime) -> MlResult<()> {
+        ContextSemiSupervisedDataLoader::begin_epoch(self, runtime);
+        Ok(())
+    }
+
+    fn next_batch(&mut self) -> MlResult<Option<Self::Batch>> {
+        ContextSemiSupervisedDataLoader::next_batch(self)
+    }
+
+    fn batch_count(&self) -> Option<usize> {
+        Some(ContextSemiSupervisedDataLoader::batch_count(self))
     }
 }
 
@@ -309,7 +326,7 @@ impl ContextSemiSupervisedTrainer {
                 paradigm: "semi_supervised",
                 epoch: epoch_index + 1,
                 total_epochs: schedule.epochs,
-                total_batches: Some(loader.batch_count()),
+                total_batches: Some(ContextSemiSupervisedDataLoader::batch_count(loader)),
             };
             self.core.notify_epoch_start(&epoch);
             let outcome = match self.run_loader_epoch(model, optimizer, loader, &epoch) {
@@ -357,9 +374,13 @@ impl ContextSemiSupervisedTrainer {
         let mut samples = 0usize;
         let mut diagnostics = ContextEpochDiagnostics::default();
         let lambda = self.ramp.value(epoch.epoch - 1);
+        let mut labeled_order = (0..dataset.labeled_inputs.len()).collect::<Vec<_>>();
+        let mut unlabeled_order = (0..dataset.unlabeled_inputs.len()).collect::<Vec<_>>();
+        self.core.runtime.shuffle(&mut labeled_order);
+        self.core.runtime.shuffle(&mut unlabeled_order);
         for batch_index in 0..dataset.len() {
-            let labeled_index = batch_index % dataset.labeled_inputs.len();
-            let unlabeled_index = batch_index % dataset.unlabeled_inputs.len();
+            let labeled_index = labeled_order[batch_index % labeled_order.len()];
+            let unlabeled_index = unlabeled_order[batch_index % unlabeled_order.len()];
             let batch = BatchStartContext {
                 paradigm: "semi_supervised",
                 epoch: epoch.epoch,
@@ -445,6 +466,8 @@ impl ContextSemiSupervisedTrainer {
         lambda: f32,
         batch_context: &BatchStartContext,
     ) -> MlResult<SemiSupervisedBatchOutcome> {
+        validate_training_parameters(&self.context, model, optimizer)?;
+        let scope = self.context.begin_training_scope()?;
         let result = (|| {
             let track_timing = self.core.config.metrics.fw_bw_timing;
             let forward_started = track_timing.then(Instant::now);
@@ -505,10 +528,7 @@ impl ContextSemiSupervisedTrainer {
             }
             optimizer.step()?;
             optimizer.zero_grad()?;
-            self.core.notify_batch_end(&BatchEndContext {
-                batch: batch_context.clone(),
-                loss: value,
-            });
+
             Ok(SemiSupervisedBatchOutcome {
                 batch: ContextBatchOutcome {
                     loss: value, forward, backward, grad_norm, update_ratio,
@@ -516,12 +536,9 @@ impl ContextSemiSupervisedTrainer {
                 samples,
             })
         })();
-        let cleanup = self.context.clear_graph();
-        match (result, cleanup) {
-            (Ok(outcome), Ok(())) => Ok(outcome),
-            (Err(error), _) => Err(error),
-            (Ok(_), Err(error)) => Err(error),
-        }
+        let outcome = scope.finish(result)?;
+        self.core.notify_batch_end(&BatchEndContext { batch: batch_context.clone(), loss: outcome.batch.loss });
+        Ok(outcome)
     }
 
     fn validate<M: ContextTrainableModel + ?Sized>(
@@ -588,14 +605,15 @@ mod tests {
         }
     }
 
-    struct NoOpOptimizer { context_id: ContextId }
+    struct NoOpOptimizer { context_id: ContextId, parameters: Vec<ContextParameter> }
     impl ContextOptimizer for NoOpOptimizer {
         fn register(&mut self, _parameter: &ContextParameter) -> MlResult<()> { Ok(()) }
         fn step(&mut self) -> MlResult<()> { Ok(()) }
         fn zero_grad(&self) -> MlResult<()> { Ok(()) }
         fn lr(&self) -> f32 { 0.1 }
         fn set_lr(&mut self, _learning_rate: f32) -> MlResult<()> { Ok(()) }
-        fn registered_param_count(&self) -> usize { 0 }
+        fn registered_param_count(&self) -> usize { self.parameters.len() }
+        fn registered_parameters(&self) -> Vec<&ContextParameter> { self.parameters.iter().collect() }
         fn context_id(&self) -> ContextId { self.context_id }
     }
 
@@ -641,7 +659,7 @@ mod tests {
         let dataset = ContextSemiSupervisedDataset::new(
             &context, &labeled_refs, &target_refs, &unlabeled_refs,
         )?;
-        let mut optimizer = NoOpOptimizer { context_id: context.id() };
+        let mut optimizer = NoOpOptimizer { parameters: model.parameters().into_iter().cloned().collect(), context_id: context.id() };
         let result = ContextSemiSupervisedTrainer::silent(&context)
             .with_ramp(ConsistencyRamp::Constant(0.5))
             .fit(&mut model, &mut optimizer, &dataset, EpochSchedule::new(1)?)?;

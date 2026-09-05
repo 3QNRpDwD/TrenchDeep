@@ -84,7 +84,7 @@
         let ctx = ExecutionContext::new();
         let x = ctx.parameter(vec![2.0], &[])?;
         let y = ctx.no_grad(|| ctx.mul_variable(&x, &x))?;
-        assert!(!y.requires_grad());
+        assert!(!y.requires_grad()?);
         assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
         Ok(())
     }
@@ -524,7 +524,7 @@
         let detached = connected.detach()?;
         assert_eq!(detached.tensor().context_id(), x.tensor().context_id());
         assert_ne!(detached.tensor().node_id(), connected.tensor().node_id());
-        assert!(!detached.requires_grad());
+        assert!(!detached.requires_grad()?);
         assert_eq!(detached.tensor().item()?, 9.0);
         assert_eq!(ctx.graph_stats()?.graph_nodes, 1);
         Ok(())

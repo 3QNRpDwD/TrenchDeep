@@ -23,6 +23,7 @@ impl ExecutionContext {
                     no_grad_depth: 0,
                 }),
                 gc_pending: Cell::new(false),
+                training_active: Cell::new(false),
             }),
             _not_sync: Rc::new(Cell::new(())),
         }
@@ -72,7 +73,6 @@ impl ExecutionContext {
         }
         Ok(ContextVariable {
             tensor,
-            requires_grad: requires_grad == RequiresGrad::Yes,
         })
     }
 
@@ -875,7 +875,6 @@ impl ExecutionContext {
     ) -> MlResult<ContextVariable> {
         let tensor = self.add(lhs.tensor(), rhs.tensor())?;
         Ok(ContextVariable {
-            requires_grad: self.is_tracked(&tensor)?,
             tensor,
         })
     }
@@ -887,14 +886,13 @@ impl ExecutionContext {
     ) -> MlResult<ContextVariable> {
         let tensor = self.mul(lhs.tensor(), rhs.tensor())?;
         Ok(ContextVariable {
-            requires_grad: self.is_tracked(&tensor)?,
             tensor,
         })
     }
 
     pub(super) fn variable_from(&self, tensor: ContextTensor) -> MlResult<ContextVariable> {
+        self.validate(&tensor)?;
         Ok(ContextVariable {
-            requires_grad: self.is_tracked(&tensor)?,
             tensor,
         })
     }
@@ -1283,7 +1281,7 @@ impl ExecutionContext {
 
     pub fn backward(&self, output: &ContextVariable, options: BackwardOptions<'_>) -> MlResult<()> {
         self.validate(output.tensor())?;
-        if !output.requires_grad {
+        if !self.is_tracked(output.tensor())? {
             return Err(AutogradError::NodeNotFound(output.tensor.node_id()).into());
         }
         let output_value = output.tensor.snapshot()?;
@@ -1313,9 +1311,6 @@ impl ExecutionContext {
         if state.consumed.contains(&output.tensor.node_id()) {
             return Err(AutogradError::GraphAlreadyFreed(output.tensor.node_id()).into());
         }
-        state.gradients.clear();
-        state.gradients.insert(output.tensor.node_id(), seed);
-
         let mut reachable = Vec::new();
         let mut seen = HashSet::new();
         fn visit(
@@ -1335,6 +1330,9 @@ impl ExecutionContext {
             }
         }
         visit(output.tensor.node_id(), &state, &mut seen, &mut reachable);
+
+        state.gradients.retain(|id, _| !seen.contains(id));
+        state.gradients.insert(output.tensor.node_id(), seed);
 
         for id in reachable.into_iter().rev() {
             let node = state

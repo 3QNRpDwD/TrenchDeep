@@ -32,30 +32,41 @@ impl ContextTensor {
         Ok(self.snapshot()?.data)
     }
     pub fn shape(&self) -> MlResult<Vec<usize>> {
-        Ok(self.snapshot()?.shape)
+        self.with_view(|view| view.shape.to_vec())
+    }
+
+    /// Inspect borrowed data without copying the tensor buffer.
+    pub fn with_view<R>(&self, f: impl FnOnce(TensorView<'_>) -> R) -> MlResult<R> {
+        context_for(self)?.with_tensor(self, f)
+    }
+
+    pub fn numel(&self) -> MlResult<usize> {
+        self.with_view(|view| view.data.len())
     }
 
     pub fn item(&self) -> MlResult<f32> {
-        let value = self.snapshot()?;
+        self.with_view(|value| {
         if value.data.len() != 1 {
-            return Err(TensorError::NotScalar { shape: value.shape }.into());
+            return Err(TensorError::NotScalar { shape: value.shape.to_vec() }.into());
         }
         Ok(value.data[0])
+        })?
     }
 
     pub fn get(&self, indices: &[usize]) -> MlResult<Option<f32>> {
-        let value = self.snapshot()?;
+        self.with_view(|value| {
         if indices.len() != value.shape.len() {
             return Ok(None);
         }
         let mut flat = 0usize;
-        for (index, dim) in indices.iter().zip(&value.shape) {
+        for (index, dim) in indices.iter().zip(value.shape) {
             if index >= dim {
                 return Ok(None);
             }
             flat = flat * dim + index;
         }
         Ok(value.data.get(flat).copied())
+        })?
     }
 }
 
@@ -63,8 +74,13 @@ impl ContextVariable {
     pub fn tensor(&self) -> &ContextTensor {
         &self.tensor
     }
-    pub fn requires_grad(&self) -> bool {
-        self.requires_grad
+    pub fn requires_grad(&self) -> MlResult<bool> {
+        let runtime = self.tensor.runtime()?;
+        let state = runtime.state.try_borrow().map_err(|_| ContextError::BorrowConflict)?;
+        if !state.tensors.contains_key(&self.tensor.node_id()) {
+            return Err(ContextError::UnknownTensor(self.tensor.node_id()).into());
+        }
+        Ok(state.tracked.contains(&self.tensor.node_id()))
     }
     pub fn detach(&self) -> MlResult<Self> {
         let runtime = self.tensor.runtime()?;
@@ -87,7 +103,6 @@ impl ContextVariable {
         };
         Ok(Self {
             tensor: ctx.insert_buffer(buffer)?,
-            requires_grad: false,
         })
     }
 

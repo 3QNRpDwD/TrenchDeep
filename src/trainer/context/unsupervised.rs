@@ -56,6 +56,9 @@ impl<'a> ContextUnsupervisedDataLoader<'a> {
 
     pub fn batch_size(mut self, batch_size: usize) -> MlResult<Self> {
         if batch_size == 0 { return Err(DataError::InvalidBatchSize.into()); }
+        if self.drop_last && self.dataset.len() < batch_size {
+            return Err(DataError::NoBatches.into());
+        }
         self.batch_size = batch_size;
         Ok(self)
     }
@@ -95,6 +98,23 @@ impl<'a> ContextUnsupervisedDataLoader<'a> {
         Ok(Some(ContextUnsupervisedBatch {
             samples: self.context.input(data, &shape)?,
         }))
+    }
+}
+
+impl BatchLoader for ContextUnsupervisedDataLoader<'_> {
+    type Batch = ContextUnsupervisedBatch;
+
+    fn begin_epoch(&mut self, _epoch: usize, runtime: &TrainingRuntime) -> MlResult<()> {
+        ContextUnsupervisedDataLoader::begin_epoch(self, runtime);
+        Ok(())
+    }
+
+    fn next_batch(&mut self) -> MlResult<Option<Self::Batch>> {
+        ContextUnsupervisedDataLoader::next_batch(self)
+    }
+
+    fn batch_count(&self) -> Option<usize> {
+        Some(ContextUnsupervisedDataLoader::batch_count(self))
     }
 }
 
@@ -240,7 +260,7 @@ impl ContextUnsupervisedTrainer {
                 paradigm: "unsupervised",
                 epoch: epoch_index + 1,
                 total_epochs: schedule.epochs,
-                total_batches: Some(loader.batch_count()),
+                total_batches: Some(ContextUnsupervisedDataLoader::batch_count(loader)),
             };
             self.core.notify_epoch_start(&epoch);
             let outcome = match self.run_loader_epoch(model, optimizer, loader, &epoch) {
@@ -287,7 +307,10 @@ impl ContextUnsupervisedTrainer {
         let mut weighted_loss = 0.0;
         let mut samples = 0usize;
         let mut diagnostics = ContextEpochDiagnostics::default();
-        for (batch_index, sample) in dataset.samples.iter().enumerate() {
+        let mut order = (0..dataset.len()).collect::<Vec<_>>();
+        self.core.runtime.shuffle(&mut order);
+        for (batch_index, sample_index) in order.into_iter().enumerate() {
+            let sample = dataset.samples[sample_index];
             let batch = BatchStartContext {
                 paradigm: "unsupervised",
                 epoch: epoch.epoch,
@@ -353,6 +376,8 @@ impl ContextUnsupervisedTrainer {
         sample: &ContextVariable,
         batch_context: &BatchStartContext,
     ) -> MlResult<UnsupervisedBatchOutcome> {
+        validate_training_parameters(&self.context, model, optimizer)?;
+        let scope = self.context.begin_training_scope()?;
         let result = (|| {
             let track_timing = self.core.config.metrics.fw_bw_timing;
             let forward_started = track_timing.then(Instant::now);
@@ -407,10 +432,7 @@ impl ContextUnsupervisedTrainer {
             }
             optimizer.step()?;
             optimizer.zero_grad()?;
-            self.core.notify_batch_end(&BatchEndContext {
-                batch: batch_context.clone(),
-                loss: value,
-            });
+
             Ok(UnsupervisedBatchOutcome {
                 batch: ContextBatchOutcome {
                     loss: value, forward, backward, grad_norm, update_ratio,
@@ -418,12 +440,9 @@ impl ContextUnsupervisedTrainer {
                 samples,
             })
         })();
-        let cleanup = self.context.clear_graph();
-        match (result, cleanup) {
-            (Ok(outcome), Ok(())) => Ok(outcome),
-            (Err(error), _) => Err(error),
-            (Ok(_), Err(error)) => Err(error),
-        }
+        let outcome = scope.finish(result)?;
+        self.core.notify_batch_end(&BatchEndContext { batch: batch_context.clone(), loss: outcome.batch.loss });
+        Ok(outcome)
     }
 
     fn validate<M: ContextTrainableModel + ?Sized>(
@@ -479,7 +498,7 @@ mod tests {
         }
     }
 
-    struct NoOpOptimizer { context_id: ContextId }
+    struct NoOpOptimizer { context_id: ContextId, parameters: Vec<ContextParameter> }
 
     impl ContextOptimizer for NoOpOptimizer {
         fn register(&mut self, _parameter: &ContextParameter) -> MlResult<()> { Ok(()) }
@@ -487,7 +506,8 @@ mod tests {
         fn zero_grad(&self) -> MlResult<()> { Ok(()) }
         fn lr(&self) -> f32 { 0.1 }
         fn set_lr(&mut self, _learning_rate: f32) -> MlResult<()> { Ok(()) }
-        fn registered_param_count(&self) -> usize { 0 }
+        fn registered_param_count(&self) -> usize { self.parameters.len() }
+        fn registered_parameters(&self) -> Vec<&ContextParameter> { self.parameters.iter().collect() }
         fn context_id(&self) -> ContextId { self.context_id }
     }
 
@@ -524,7 +544,7 @@ mod tests {
         ];
         let refs: Vec<_> = samples.iter().collect();
         let dataset = ContextUnsupervisedDataset::new(&context, &refs)?;
-        let mut optimizer = NoOpOptimizer { context_id: context.id() };
+        let mut optimizer = NoOpOptimizer { parameters: model.parameters().into_iter().cloned().collect(), context_id: context.id() };
         let result = ContextUnsupervisedTrainer::silent(&context)
             .fit(&mut model, &mut optimizer, &dataset, EpochSchedule::new(1)?)?;
         assert_eq!(result.final_loss, 3.25);
@@ -573,7 +593,7 @@ mod tests {
             &context,
             ContextUnsupervisedDataset::new(&context, &refs)?,
         )?.batch_size(2)?.shuffle(false);
-        let mut optimizer = NoOpOptimizer { context_id: context.id() };
+        let mut optimizer = NoOpOptimizer { parameters: model.parameters().into_iter().cloned().collect(), context_id: context.id() };
         let result = ContextUnsupervisedTrainer::silent(&context).fit_loader(
             &mut model,
             &mut optimizer,

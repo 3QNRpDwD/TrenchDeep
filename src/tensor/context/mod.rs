@@ -70,6 +70,7 @@ struct TensorStorageEntry {
 struct ContextRuntime {
     state: RefCell<ContextState>,
     gc_pending: Cell<bool>,
+    training_active: Cell<bool>,
 }
 
 impl TensorStorageEntry {
@@ -208,7 +209,6 @@ pub struct ContextTensor(Rc<ContextTensorHandle>);
 #[derive(Debug, Clone)]
 pub struct ContextVariable {
     tensor: ContextTensor,
-    requires_grad: bool,
 }
 
 impl ContextState {
@@ -756,6 +756,10 @@ mod kernels;
 use kernels::*;
 
 mod handles;
+mod receiver;
+mod custom;
+mod training;
+pub use custom::{CustomOp, OpOutput};
 
 mod functional;
 use functional::*;

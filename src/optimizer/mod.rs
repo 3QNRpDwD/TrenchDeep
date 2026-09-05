@@ -50,6 +50,8 @@ pub enum OptimError {
     InvalidHyperparameter { name: &'static str, reason: String },
     #[error("parameter {0:?} is already registered")]
     DuplicateParameter(NodeId),
+    #[error("optimizer parameters do not match the model: missing {missing:?}, extra {extra:?}")]
+    ParameterSetMismatch { missing: Vec<NodeId>, extra: Vec<NodeId> },
 }
 
 /// 모든 옵티마이저가 구현해야 하는 공통 인터페이스.

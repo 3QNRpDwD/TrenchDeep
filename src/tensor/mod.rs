@@ -14,6 +14,7 @@ pub mod display;
 pub mod graph;
 pub mod operators;
 pub use context::{
+    CustomOp, OpOutput,
     BackwardOp, BackwardOptions, ContextId, ContextTensor, ContextVariable, ExecutionContext,
     GraphStats, MaxResult, RequiresGrad, TensorView, TopKResult,
 };

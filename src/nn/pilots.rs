@@ -1,5 +1,15 @@
 //! Small explicit-context models used as P1 migration and E2E benchmark pilots.
 
+mod autoregressive;
+mod diffusion;
+mod reinforcement;
+mod semi_supervised;
+
+pub use autoregressive::ContextBigramLm;
+pub use diffusion::ContextDiffusionPilot;
+pub use reinforcement::{ContextLinearPolicy, ContextTwoArmedBandit};
+pub use semi_supervised::ContextPiClassifier;
+
 use crate::loss::Reduction;
 use crate::trainer::{ContextSupervisedModel, ContextTrainableModel};
 use crate::{ContextId, ContextTensor, ContextVariable, ExecutionContext, MlResult};
@@ -38,7 +48,7 @@ impl ContextTrainableModel for ContextLinearRegression {
 impl ContextSupervisedModel for ContextLinearRegression {
     fn forward_loss(&mut self, input: &ContextVariable, target: &ContextTensor) -> MlResult<(ContextVariable, ContextVariable)> {
         let prediction = self.layer.apply(input)?;
-        let loss = self.context.mse_loss_variable(&prediction, target, Reduction::Mean)?;
+        let loss = prediction.mse_loss(target, Reduction::Mean)?;
         Ok((prediction, loss))
     }
 }
@@ -88,7 +98,7 @@ impl ContextTrainableModel for ContextMlp {
 impl ContextSupervisedModel for ContextMlp {
     fn forward_loss(&mut self, input: &ContextVariable, target: &ContextTensor) -> MlResult<(ContextVariable, ContextVariable)> {
         let logits = self.network.apply(input)?;
-        let loss = self.context.softmax_cross_entropy_variable(&logits, target, Reduction::Mean)?;
+        let loss = logits.softmax_cross_entropy(target, Reduction::Mean)?;
         Ok((logits, loss))
     }
 }

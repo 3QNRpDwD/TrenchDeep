@@ -80,7 +80,10 @@ pub use context::{
     ContextLinear, ContextParameter, ContextPooling, ContextPoolingMode, ContextReshape,
     ContextSequential, ContextUpsample2D,
 };
-pub use pilots::{ContextLinearRegression, ContextMlp};
+pub use pilots::{
+    ContextBigramLm, ContextDiffusionPilot, ContextLinearPolicy, ContextLinearRegression,
+    ContextMlp, ContextPiClassifier, ContextTwoArmedBandit,
+};
 
 use crate::{
     register_operator,
