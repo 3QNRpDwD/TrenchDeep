@@ -7,19 +7,19 @@
 use std::f32::consts::TAU;
 
 use crate::loss::Reduction;
-use crate::nn::{ContextConv2D, ContextLayer, ContextParameter};
-use crate::trainer::{ContextTrainableModel, ContextUnsupervisedModel};
-use crate::{ContextId, ContextTensor, ContextVariable, ExecutionContext, MlResult, TensorError};
+use crate::nn::{Conv2D, Layer, Parameter};
+use crate::trainer::{TrainableModel, UnsupervisedModel};
+use crate::{ContextId, Tensor, Variable, ExecutionContext, MlResult, TensorError};
 
 #[derive(Debug)]
-pub struct ContextDiffusionPilot {
+pub struct DiffusionPilot {
     context: ExecutionContext,
-    denoiser: ContextConv2D,
+    denoiser: Conv2D,
     alpha_bars: Vec<f32>,
     channels: usize,
 }
 
-impl ContextDiffusionPilot {
+impl DiffusionPilot {
     pub fn new(
         context: &ExecutionContext,
         channels: usize,
@@ -53,7 +53,7 @@ impl ContextDiffusionPilot {
             .collect();
         Ok(Self {
             context: context.clone(),
-            denoiser: ContextConv2D::new(
+            denoiser: Conv2D::new(
                 context,
                 channels,
                 channels,
@@ -67,7 +67,7 @@ impl ContextDiffusionPilot {
         })
     }
 
-    pub fn predict_noise(&self, noisy: &ContextTensor) -> MlResult<ContextTensor> {
+    pub fn predict_noise(&self, noisy: &Tensor) -> MlResult<Tensor> {
         self.denoiser.predict(noisy)
     }
 
@@ -84,7 +84,7 @@ impl ContextDiffusionPilot {
         values
     }
 
-    fn validate_image(&self, image: &ContextVariable) -> MlResult<Vec<usize>> {
+    fn validate_image(&self, image: &Variable) -> MlResult<Vec<usize>> {
         let shape = image.tensor().shape()?;
         if shape.len() != 4 || shape[1] != self.channels {
             return Err(TensorError::InvalidOperation {
@@ -96,16 +96,16 @@ impl ContextDiffusionPilot {
     }
 }
 
-impl ContextTrainableModel for ContextDiffusionPilot {
+impl TrainableModel for DiffusionPilot {
     fn context_id(&self) -> ContextId { self.context.id() }
-    fn parameters(&self) -> Vec<&ContextParameter> { self.denoiser.parameters() }
+    fn parameters(&self) -> Vec<&Parameter> { self.denoiser.parameters() }
 }
 
-impl ContextUnsupervisedModel for ContextDiffusionPilot {
+impl UnsupervisedModel for DiffusionPilot {
     fn forward_loss(
         &mut self,
-        image: &ContextVariable,
-    ) -> MlResult<(ContextVariable, ContextVariable)> {
+        image: &Variable,
+    ) -> MlResult<(Variable, Variable)> {
         let shape = self.validate_image(image)?;
         let count = image.tensor().to_vec()?.len();
         let timestep = rand::random::<u64>() as usize % self.alpha_bars.len();
@@ -129,22 +129,22 @@ impl ContextUnsupervisedModel for ContextDiffusionPilot {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::optimizer::{ContextAdam, ContextOptimizer};
-    use crate::trainer::{ContextUnsupervisedDataset, ContextUnsupervisedTrainer, EpochSchedule};
+    use crate::optimizer::{Adam, Optimizer};
+    use crate::trainer::{UnsupervisedDataset, UnsupervisedTrainer, EpochSchedule};
 
     #[test]
     fn diffusion_pilot_trains_end_to_end() -> MlResult<()> {
         let context = ExecutionContext::new();
-        let mut model = ContextDiffusionPilot::new(&context, 1, 8, 1e-4, 0.02)?;
+        let mut model = DiffusionPilot::new(&context, 1, 8, 1e-4, 0.02)?;
         let images = [
             context.input(vec![0.25; 16], &[1, 1, 4, 4])?,
             context.input(vec![0.75; 16], &[1, 1, 4, 4])?,
         ];
         let refs = images.iter().collect::<Vec<_>>();
-        let dataset = ContextUnsupervisedDataset::new(&context, &refs)?;
-        let mut optimizer = ContextAdam::new(&context, 0.01, 0.9, 0.999, 1e-8)?;
+        let dataset = UnsupervisedDataset::new(&context, &refs)?;
+        let mut optimizer = Adam::new(&context, 0.01, 0.9, 0.999, 1e-8)?;
         optimizer.register_all(&model.parameters())?;
-        let result = ContextUnsupervisedTrainer::silent(&context).fit(
+        let result = UnsupervisedTrainer::silent(&context).fit(
             &mut model,
             &mut optimizer,
             &dataset,

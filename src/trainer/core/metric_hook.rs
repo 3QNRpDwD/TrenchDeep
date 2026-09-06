@@ -31,9 +31,9 @@ pub struct BatchContext<'a> {
     /// 현재 에폭 내의 0-indexed 배치 번호.
     pub batch_idx: usize,
     /// 모델 순방향 출력 텐서. 스텝이 노출하지 않으면 `None`.
-    pub pred:      Option<&'a dyn TensorBase>,
+    pub pred:      Option<&'a TensorBuffer>,
     /// 정답 텐서. 비지도/자기회귀처럼 명시적 타깃이 없으면 `None`.
-    pub target:    Option<&'a dyn TensorBase>,
+    pub target:    Option<&'a TensorBuffer>,
     /// 이번 배치의 스칼라 손실값 (`StepOutput::loss`).
     pub loss:      f32,
     /// 이 배치에서 유효한 타깃 토큰 수. 자기회귀(AR) 외에는 일반적으로 `None`.

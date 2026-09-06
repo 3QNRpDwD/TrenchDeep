@@ -1,7 +1,5 @@
 use crate::backend::DeviceType;
-use crate::tensor::operators::Function;
-use crate::tensor::operators::Matmul;
-use crate::tensor::{Tensor, TensorBase};
+use super::CpuCompute;
 
 #[derive(Debug)]
 pub struct CpuCore;
@@ -16,19 +14,13 @@ impl CpuCore {
     }
 
     pub fn calc_device_flops(&self) -> f64 {
-        let matmul = Matmul::new().unwrap();
-        // Create two large tensors for benchmarking
         let size = 1024;
-        let elements = size * size;
-
-        let a = Tensor::from_vec(vec![1.0; elements], &[size, size].to_vec()).unwrap();
-        let b = Tensor::from_vec(vec![2.0; elements], &[size, size].to_vec()).unwrap();
-
-        // Measure matrix multiplication time (more compute intensive than addition)
+        let a = vec![1.0; size*size];
+        let b = vec![2.0; size*size];
+        let compute = CpuCompute::new();
         let start = std::time::Instant::now();
-        let _c = matmul.forward(&[&a, &b]).unwrap();
+        std::hint::black_box(compute.matmul(&a,&b,size,size,size));
         let duration = start.elapsed();
-
         // Calculate FLOPS:
         // For matrix multiplication of (n x n) matrices:
         // Each element requires n multiplications and n-1 additions

@@ -1,18 +1,18 @@
 //! Explicit-context Pi-model style semi-supervised pilot.
 
 use crate::loss::Reduction;
-use crate::nn::{ContextLayer, ContextLinear, ContextParameter};
-use crate::trainer::{ContextSemiSupervisedModel, ContextTrainableModel};
-use crate::{ContextId, ContextTensor, ContextVariable, ExecutionContext, MlResult};
+use crate::nn::{Layer, Linear, Parameter};
+use crate::trainer::{SemiSupervisedModel, TrainableModel};
+use crate::{ContextId, Tensor, Variable, ExecutionContext, MlResult};
 
 #[derive(Debug)]
-pub struct ContextPiClassifier {
+pub struct PiClassifier {
     context: ExecutionContext,
-    linear: ContextLinear,
+    linear: Linear,
     noise_scale: f32,
 }
 
-impl ContextPiClassifier {
+impl PiClassifier {
     pub fn new(
         context: &ExecutionContext,
         inputs: usize,
@@ -27,12 +27,12 @@ impl ContextPiClassifier {
         }
         Ok(Self {
             context: context.clone(),
-            linear: ContextLinear::new(context, inputs, outputs, "pi_linear")?,
+            linear: Linear::new(context, inputs, outputs, "pi_linear")?,
             noise_scale,
         })
     }
 
-    fn noisy(&self, input: &ContextVariable) -> MlResult<ContextVariable> {
+    fn noisy(&self, input: &Variable) -> MlResult<Variable> {
         let shape = input.tensor().shape()?;
         let noise = (0..input.tensor().numel()?)
             .map(|_| (rand::random::<f32>() - 0.5) * 2.0 * self.noise_scale)
@@ -41,24 +41,24 @@ impl ContextPiClassifier {
         input.add(noise.tensor())
     }
 
-    pub fn predict(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
+    pub fn predict(&self, input: &Tensor) -> MlResult<Tensor> {
         self.linear.predict(input)
     }
 }
 
-impl ContextTrainableModel for ContextPiClassifier {
+impl TrainableModel for PiClassifier {
     fn context_id(&self) -> ContextId { self.context.id() }
-    fn parameters(&self) -> Vec<&ContextParameter> { self.linear.parameters() }
+    fn parameters(&self) -> Vec<&Parameter> { self.linear.parameters() }
 }
 
-impl ContextSemiSupervisedModel for ContextPiClassifier {
+impl SemiSupervisedModel for PiClassifier {
     fn forward_loss(
         &mut self,
-        labeled_input: &ContextVariable,
-        labeled_target: &ContextTensor,
-        unlabeled_input: &ContextVariable,
+        labeled_input: &Variable,
+        labeled_target: &Tensor,
+        unlabeled_input: &Variable,
         lambda: f32,
-    ) -> MlResult<(ContextVariable, ContextVariable)> {
+    ) -> MlResult<(Variable, Variable)> {
         let labeled_logits = self.linear.apply(labeled_input)?;
         let supervised = labeled_logits.softmax_cross_entropy(labeled_target, Reduction::Mean)?;
 
@@ -80,15 +80,15 @@ impl ContextSemiSupervisedModel for ContextPiClassifier {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::optimizer::{ContextAdam, ContextOptimizer};
+    use crate::optimizer::{Adam, Optimizer};
     use crate::trainer::{
-        ConsistencyRamp, ContextSemiSupervisedDataset, ContextSemiSupervisedTrainer, EpochSchedule,
+        ConsistencyRamp, SemiSupervisedDataset, SemiSupervisedTrainer, EpochSchedule,
     };
 
     #[test]
     fn pi_model_pilot_trains_end_to_end() -> MlResult<()> {
         let context = ExecutionContext::new();
-        let mut model = ContextPiClassifier::new(&context, 2, 2, 0.1)?;
+        let mut model = PiClassifier::new(&context, 2, 2, 0.1)?;
         let labeled = [
             context.input(vec![1.0, 1.0], &[1, 2])?,
             context.input(vec![-1.0, -1.0], &[1, 2])?,
@@ -104,12 +104,12 @@ mod tests {
         let labeled_refs = labeled.iter().collect::<Vec<_>>();
         let target_refs = targets.iter().collect::<Vec<_>>();
         let unlabeled_refs = unlabeled.iter().collect::<Vec<_>>();
-        let dataset = ContextSemiSupervisedDataset::new(
+        let dataset = SemiSupervisedDataset::new(
             &context, &labeled_refs, &target_refs, &unlabeled_refs,
         )?;
-        let mut optimizer = ContextAdam::new(&context, 0.02, 0.9, 0.999, 1e-8)?;
+        let mut optimizer = Adam::new(&context, 0.02, 0.9, 0.999, 1e-8)?;
         optimizer.register_all(&model.parameters())?;
-        let result = ContextSemiSupervisedTrainer::silent(&context)
+        let result = SemiSupervisedTrainer::silent(&context)
             .with_ramp(ConsistencyRamp::Sigmoid { max_weight: 1.0, ramp_epochs: 2 })
             .fit(
                 &mut model,

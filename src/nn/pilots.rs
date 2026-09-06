@@ -5,48 +5,48 @@ mod diffusion;
 mod reinforcement;
 mod semi_supervised;
 
-pub use autoregressive::ContextBigramLm;
-pub use diffusion::ContextDiffusionPilot;
-pub use reinforcement::{ContextLinearPolicy, ContextTwoArmedBandit};
-pub use semi_supervised::ContextPiClassifier;
+pub use autoregressive::BigramLm;
+pub use diffusion::DiffusionPilot;
+pub use reinforcement::{LinearPolicy, TwoArmedBandit};
+pub use semi_supervised::PiClassifier;
 
 use crate::loss::Reduction;
-use crate::trainer::{ContextSupervisedModel, ContextTrainableModel};
-use crate::{ContextId, ContextTensor, ContextVariable, ExecutionContext, MlResult};
+use crate::trainer::{SupervisedModel, TrainableModel};
+use crate::{ContextId, Tensor, Variable, ExecutionContext, MlResult};
 
 use super::{
-    ContextActivation, ContextActivationKind, ContextLayer, ContextLinear, ContextParameter,
-    ContextSequential,
+    Activation, ActivationKind, Layer, Linear, Parameter,
+    Sequential,
 };
 
 #[derive(Debug)]
-pub struct ContextLinearRegression {
+pub struct LinearRegression {
     context: ExecutionContext,
-    layer: ContextLinear,
+    layer: Linear,
 }
 
-impl ContextLinearRegression {
+impl LinearRegression {
     pub fn new(context: &ExecutionContext, inputs: usize, outputs: usize) -> MlResult<Self> {
         Ok(Self {
             context: context.clone(),
-            layer: ContextLinear::new(context, inputs, outputs, "linear")?,
+            layer: Linear::new(context, inputs, outputs, "linear")?,
         })
     }
 
-    pub fn predict(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
+    pub fn predict(&self, input: &Tensor) -> MlResult<Tensor> {
         self.layer.predict(input)
     }
 
-    pub fn layer(&self) -> &ContextLinear { &self.layer }
+    pub fn layer(&self) -> &Linear { &self.layer }
 }
 
-impl ContextTrainableModel for ContextLinearRegression {
+impl TrainableModel for LinearRegression {
     fn context_id(&self) -> ContextId { self.context.id() }
-    fn parameters(&self) -> Vec<&ContextParameter> { self.layer.parameters() }
+    fn parameters(&self) -> Vec<&Parameter> { self.layer.parameters() }
 }
 
-impl ContextSupervisedModel for ContextLinearRegression {
-    fn forward_loss(&mut self, input: &ContextVariable, target: &ContextTensor) -> MlResult<(ContextVariable, ContextVariable)> {
+impl SupervisedModel for LinearRegression {
+    fn forward_loss(&mut self, input: &Variable, target: &Tensor) -> MlResult<(Variable, Variable)> {
         let prediction = self.layer.apply(input)?;
         let loss = prediction.mse_loss(target, Reduction::Mean)?;
         Ok((prediction, loss))
@@ -54,49 +54,49 @@ impl ContextSupervisedModel for ContextLinearRegression {
 }
 
 #[derive(Debug)]
-pub struct ContextMlp {
+pub struct Mlp {
     context: ExecutionContext,
-    network: ContextSequential,
+    network: Sequential,
 }
 
-impl ContextMlp {
+impl Mlp {
     pub fn new(
         context: &ExecutionContext,
         inputs: usize,
         hidden: usize,
         outputs: usize,
     ) -> MlResult<Self> {
-        let mut network = ContextSequential::new(context, "MLP");
-        network.push(Box::new(ContextLinear::new(context, inputs, hidden, "linear1")?))?;
-        network.push(Box::new(ContextActivation::new(
-            context, ContextActivationKind::Sigmoid, "hidden_act",
+        let mut network = Sequential::new(context, "MLP");
+        network.push(Box::new(Linear::new(context, inputs, hidden, "linear1")?))?;
+        network.push(Box::new(Activation::new(
+            context, ActivationKind::Sigmoid, "hidden_act",
         )))?;
-        network.push(Box::new(ContextLinear::new(context, hidden, outputs, "linear2")?))?;
+        network.push(Box::new(Linear::new(context, hidden, outputs, "linear2")?))?;
         Ok(Self { context: context.clone(), network })
     }
 
-    pub fn logits(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
+    pub fn logits(&self, input: &Tensor) -> MlResult<Tensor> {
         self.network.predict(input)
     }
 
-    pub fn predict(&self, input: &ContextTensor) -> MlResult<ContextTensor> {
+    pub fn predict(&self, input: &Tensor) -> MlResult<Tensor> {
         self.context.no_grad(|| {
             let logits = self.network.predict(input)?;
             self.context.softmax(&logits, logits.shape()?.len().saturating_sub(1))
         })
     }
 
-    pub fn network(&self) -> &ContextSequential { &self.network }
-    pub fn network_mut(&mut self) -> &mut ContextSequential { &mut self.network }
+    pub fn network(&self) -> &Sequential { &self.network }
+    pub fn network_mut(&mut self) -> &mut Sequential { &mut self.network }
 }
 
-impl ContextTrainableModel for ContextMlp {
+impl TrainableModel for Mlp {
     fn context_id(&self) -> ContextId { self.context.id() }
-    fn parameters(&self) -> Vec<&ContextParameter> { self.network.parameters() }
+    fn parameters(&self) -> Vec<&Parameter> { self.network.parameters() }
 }
 
-impl ContextSupervisedModel for ContextMlp {
-    fn forward_loss(&mut self, input: &ContextVariable, target: &ContextTensor) -> MlResult<(ContextVariable, ContextVariable)> {
+impl SupervisedModel for Mlp {
+    fn forward_loss(&mut self, input: &Variable, target: &Tensor) -> MlResult<(Variable, Variable)> {
         let logits = self.network.apply(input)?;
         let loss = logits.softmax_cross_entropy(target, Reduction::Mean)?;
         Ok((logits, loss))
@@ -106,13 +106,13 @@ impl ContextSupervisedModel for ContextMlp {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::optimizer::{ContextAdam, ContextOptimizer};
-    use crate::trainer::{ContextSupervisedDataset, ContextSupervisedTrainer, EpochSchedule};
+    use crate::optimizer::{Adam, Optimizer};
+    use crate::trainer::{SupervisedDataset, SupervisedTrainer, EpochSchedule};
 
     #[test]
     fn mlp_pilot_trains_end_to_end_and_predicts_probabilities() -> MlResult<()> {
         let context = ExecutionContext::new();
-        let mut model = ContextMlp::new(&context, 2, 4, 2)?;
+        let mut model = Mlp::new(&context, 2, 4, 2)?;
         let inputs = [
             context.input(vec![0.0, 0.0], &[1, 2])?,
             context.input(vec![1.0, 1.0], &[1, 2])?,
@@ -123,11 +123,11 @@ mod tests {
         ];
         let input_refs: Vec<_> = inputs.iter().collect();
         let target_refs: Vec<_> = targets.iter().collect();
-        let dataset = ContextSupervisedDataset::new(&context, &input_refs, &target_refs)?;
-        let mut optimizer = ContextAdam::new(&context, 0.05, 0.9, 0.999, 1e-8)?;
+        let dataset = SupervisedDataset::new(&context, &input_refs, &target_refs)?;
+        let mut optimizer = Adam::new(&context, 0.05, 0.9, 0.999, 1e-8)?;
         optimizer.register_all(&model.parameters())?;
 
-        let result = ContextSupervisedTrainer::new(&context).fit(
+        let result = SupervisedTrainer::new(&context).fit(
             &mut model, &mut optimizer, &dataset, EpochSchedule::new(20)?,
         )?;
         assert!(result.final_loss.is_finite());

@@ -1,0 +1,530 @@
+use super::*;
+
+
+impl Function for Matmul {
+    fn new() -> MlResult<GlobalFunction> {
+        register_operator!(Matmul)
+    }
+    /// Performs matrix multiplication on two tensors
+    ///
+    /// # Arguments
+    /// * `other` - The tensor to multiply the current tensor by
+    ///
+    /// # Returns
+    /// A new tensor with the result of the matrix multiplication
+    // Handle new_empty tensors
+    fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
+        if targets[0].data().is_empty() || targets[1].data().is_empty() {
+            return Err(MlError::TensorError(TensorError::EmptyTensor));
+        }
+        let target_0 = targets[0];
+        let target_0_shape = target_0.shape();
+        let target_0_data = target_0.data();
+        let target_1 = targets[1];
+        let target_1_shape = target_1.shape();
+        let target_1_data = target_1.data();
+
+        let a = target_0_shape.len();
+        let b = target_1_shape.len();
+
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Matmul::forward] {} @ {}  (case {}D×{}D)",
+            crate::tensor::operators::debug::summary("lhs", target_0),
+            crate::tensor::operators::debug::summary("rhs", target_1),
+            a, b
+        );
+
+        let buffer = match (a, b) {
+            // Case 1: 1D * 1D (dot product)
+            (1, 1) => {
+                match target_0.chk_shape(target_1) {
+                    Err(e) => return Err(e),
+                    _ => GlobalTensor::from_vec(vec![target_0_data.iter().zip(target_1_data.iter()).map(|(&a, &b)| a * b).sum::<f32>()], &[])?
+                }
+            }
+
+            // Case 2: 2D * 1D or 1D * 2D
+            (2, 1) => {
+                if target_0_shape[1] != target_1_shape[0] {
+                    return Err(MlError::TensorError(
+                        TensorError::MatrixMultiplicationError {
+                            left_shape: target_0_shape.to_vec(),
+                            right_shape: target_1_shape.to_vec(),
+                        },
+                    ));
+                }
+                let m = target_0_shape[0];
+                let k = target_0_shape[1];
+                let mut data = vec![0.0; m];
+
+                for i in 0..m {
+                    let mut sum = 0.0;
+                    for j in 0..k {
+                        sum += target_0_data[i * k + j] * target_1_data[j];
+                    }
+                    data[i] = sum;
+                }
+                GlobalTensor::from_vec(data, &[m].to_vec())?
+            }
+
+            (1, 2) => {
+                if target_0_shape[0] != target_1_shape[0] {
+                    return Err(MlError::TensorError(
+                        TensorError::MatrixMultiplicationError {
+                            left_shape: target_0_shape.to_vec(),
+                            right_shape: target_1_shape.to_vec(),
+                        },
+                    ));
+                }
+                let k = target_0_shape[0];
+                let n = target_1_shape[1];
+                let mut data = vec![0.0; n];
+
+                for j in 0..n {
+                    let mut sum = 0.0;
+                    for i in 0..k {
+                        sum += target_0_data[i] * target_1_data[i * n + j];
+                    }
+                    data[j] = sum;
+                }
+                GlobalTensor::from_vec(data, &[n].to_vec())?
+            }
+
+            // Case 3: Higher dimensional tensor multiplication
+            (a, b) => {
+                // Get batch dimensions
+                let batch_size = if a > 2 {
+                    target_0_shape[..a - 2].iter().product()
+                } else {
+                    1
+                };
+                let m = target_0_shape[a - 2];
+                let k = target_0_shape[a - 1];
+                let n = target_1_shape[b - 1];
+
+                if k != target_1_shape[b - 2] {
+                    return Err(MlError::TensorError(
+                        TensorError::MatrixMultiplicationError {
+                            left_shape: target_0_shape.to_vec(),
+                            right_shape: target_1_shape.to_vec(),
+                        },
+                    ));
+                }
+
+                // Handle broadcasting for batch dimensions
+                let other_batch_size = if b > 2 {
+                    target_1_shape[..b - 2].iter().product()
+                } else {
+                    1
+                };
+
+                let output_batch_size = if batch_size == 1 {
+                    other_batch_size
+                } else if other_batch_size == 1 {
+                    batch_size
+                } else if batch_size == other_batch_size {
+                    batch_size
+                } else {
+                    return Err(MlError::TensorError(
+                        TensorError::MatrixMultiplicationError {
+                            left_shape: target_0_shape.to_vec(),
+                            right_shape: target_1_shape.to_vec()
+                        },
+                    ));
+                };
+
+                let mut data = vec![0.0; output_batch_size * m * n];
+
+                for batch in 0..output_batch_size {
+                    let batch1 = if batch_size == 1 { 0 } else { batch };
+                    let batch2 = if other_batch_size == 1 { 0 } else { batch };
+
+                    let start1 = batch1 * m * k;
+                    let start2 = batch2 * k * n;
+                    let result_start = batch * m * n;
+
+                    for i in 0..m {
+                        for j in 0..n {
+                            let mut sum = 0.0;
+                            for l in 0..k {
+                                sum +=
+                                    target_0_data[start1 + i * k + l] * target_1_data[start2 + l * n + j];
+                            }
+                            data[result_start + i * n + j] = sum;
+                        }
+                    }
+                }
+
+                // Construct output shape
+                let mut shape = Vec::new();
+                if a > 2 || b > 2 {
+                    if batch_size > 1 {
+                        shape.extend_from_slice(&target_0_shape[..a - 2]);
+                    } else {
+                        shape.extend_from_slice(&target_1_shape[..b - 2]);
+                    }
+                }
+                shape.push(m);
+                shape.push(n);
+                GlobalTensor::from_vec(data, &shape)?
+            }
+        };
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Matmul::forward] → {}",
+            crate::tensor::operators::debug::summary_raw("out", &buffer.data, &buffer.shape)
+        );
+
+        Ok(vec![buffer])
+    }
+
+    #[cfg(feature = "enableBackward")]
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+        let target_0 = targets[0];
+        let target_1 = targets[1];
+        let target_0_shape = target_0.shape();
+        let target_1_shape = target_1.shape();
+        let grad_data = grad.data();
+
+        let a = target_0_shape.len();
+        let b = target_1_shape.len();
+
+        #[cfg(feature = "debugging")]
+        tracing::debug!(
+            "[Matmul::backward] lhs_shape={:?} rhs_shape={:?}  {}  (case {}D×{}D)",
+            target_0_shape, target_1_shape,
+            crate::tensor::operators::debug::summary("grad_in", grad),
+            a, b
+        );
+
+        let (grad_0, grad_1) = match (a, b) {
+            // Case 1: 1D * 1D (dot product)
+            // C = sum(A * B), so dA = B * dC, dB = A * dC
+            (1, 1) => {
+                let grad_scalar = grad_data[0];
+                let grad_0_data: Vec<f32> = target_1.data().iter().map(|&x| x * grad_scalar).collect();
+                let grad_1_data: Vec<f32> = target_0.data().iter().map(|&x| x * grad_scalar).collect();
+
+                (
+                    GlobalTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    GlobalTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                )
+            }
+
+            // Case 2: 2D * 1D
+            // C[i] = sum_j(A[i,j] * B[j])
+            // dA[i,j] = B[j] * dC[i], dB[j] = sum_i(A[i,j] * dC[i])
+            (2, 1) => {
+                let m = target_0_shape[0];
+                let k = target_0_shape[1];
+
+                // Gradient for target_0 (2D matrix)
+                let mut grad_0_data = vec![0.0; m * k];
+                for i in 0..m {
+                    for j in 0..k {
+                        grad_0_data[i * k + j] = target_1.data()[j] * grad_data[i];
+                    }
+                }
+
+                // Gradient for target_1 (1D vector)
+                let mut grad_1_data = vec![0.0; k];
+                for j in 0..k {
+                    let mut sum = 0.0;
+                    for i in 0..m {
+                        sum += target_0.data()[i * k + j] * grad_data[i];
+                    }
+                    grad_1_data[j] = sum;
+                }
+
+                (
+                    GlobalTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    GlobalTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                )
+            }
+
+            // Case 3: 1D * 2D
+            // C[j] = sum_i(A[i] * B[i,j])
+            // dA[i] = sum_j(B[i,j] * dC[j]), dB[i,j] = A[i] * dC[j]
+            (1, 2) => {
+                let k = target_0_shape[0];
+                let n = target_1_shape[1];
+
+                // Gradient for target_0 (1D vector)
+                let mut grad_0_data = vec![0.0; k];
+                for i in 0..k {
+                    let mut sum = 0.0;
+                    for j in 0..n {
+                        sum += target_1.data()[i * n + j] * grad_data[j];
+                    }
+                    grad_0_data[i] = sum;
+                }
+
+                // Gradient for target_1 (2D matrix)
+                let mut grad_1_data = vec![0.0; k * n];
+                for i in 0..k {
+                    for j in 0..n {
+                        grad_1_data[i * n + j] = target_0.data()[i] * grad_data[j];
+                    }
+                }
+
+                (
+                    GlobalTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    GlobalTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                )
+            }
+
+            // Case 4: Higher dimensional tensor multiplication
+            // For batched matrix multiplication: C[b,i,j] = sum_k(A[b,i,k] * B[b,k,j])
+            // dA[b,i,k] = sum_j(B[b,k,j] * dC[b,i,j])
+            // dB[b,k,j] = sum_i(A[b,i,k] * dC[b,i,j])
+            (a, b) => {
+                let batch_size = if a > 2 {
+                    target_0_shape[..a - 2].iter().product()
+                } else {
+                    1
+                };
+                let other_batch_size = if b > 2 {
+                    target_1_shape[..b - 2].iter().product()
+                } else {
+                    1
+                };
+
+                let output_batch_size = if batch_size == 1 {
+                    other_batch_size
+                } else if other_batch_size == 1 {
+                    batch_size
+                } else {
+                    batch_size
+                };
+
+                let m = target_0_shape[a - 2];
+                let k = target_0_shape[a - 1];
+                let n = target_1_shape[b - 1];
+
+                // Initialize gradients
+                let mut grad_0_data = vec![0.0; batch_size * m * k];
+                let mut grad_1_data = vec![0.0; other_batch_size * k * n];
+
+                for batch in 0..output_batch_size {
+                    let batch1 = if batch_size == 1 { 0 } else { batch };
+                    let batch2 = if other_batch_size == 1 { 0 } else { batch };
+
+                    let start1 = batch1 * m * k;
+                    let start2 = batch2 * k * n;
+                    let grad_start = batch * m * n;
+
+                    // Compute gradient for target_0: dA[b,i,k] = sum_j(B[b,k,j] * dC[b,i,j])
+                    for i in 0..m {
+                        for k_idx in 0..k {
+                            let mut sum = 0.0;
+                            for j in 0..n {
+                                sum += target_1.data()[start2 + k_idx * n + j] * grad_data[grad_start + i * n + j];
+                            }
+                            grad_0_data[start1 + i * k + k_idx] += sum;
+                        }
+                    }
+
+                    // Compute gradient for target_1: dB[b,k,j] = sum_i(A[b,i,k] * dC[b,i,j])
+                    for k_idx in 0..k {
+                        for j in 0..n {
+                            let mut sum = 0.0;
+                            for i in 0..m {
+                                sum += target_0.data()[start1 + i * k + k_idx] * grad_data[grad_start + i * n + j];
+                            }
+                            grad_1_data[start2 + k_idx * n + j] += sum;
+                        }
+                    }
+                }
+
+                (
+                    GlobalTensor::from_vec(grad_0_data, &target_0_shape.to_vec())?,
+                    GlobalTensor::from_vec(grad_1_data, &target_1_shape.to_vec())?
+                )
+            }
+        };
+
+        #[cfg(feature = "debugging")]
+        {
+            crate::tensor::operators::debug::stats_raw("  └─ grad_lhs", &grad_0.data, &grad_0.shape);
+            crate::tensor::operators::debug::stats_raw("  └─ grad_rhs", &grad_1.data, &grad_1.shape);
+        }
+
+        Ok(vec![grad_0, grad_1])
+    }
+
+    fn backend(&self) -> &Arc<dyn Backend> { &self.backend }
+
+    fn node_id(&self) -> &NodeId { &self.node_id }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::tensor::operators::{Function, Matmul};
+    use crate::tensor::{Tensor, TensorBase};
+    use crate::{tensor_ops, MlResult};
+
+    #[test]
+    fn test_matmul_2d_2d() -> MlResult<()> {
+        // Case 1: 2D * 2D Matrix Multiplication
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?;
+        let b = Tensor::from_vec(vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0], &[3, 2])?;
+        let c = tensor_ops!(a, Matmul, b);
+
+
+        assert_eq!(c.shape(), &[2, 2]);
+        assert_eq!(c.data(), &[58.0, 64.0, 139.0, 154.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_matmul_1d_2d() -> MlResult<()> {
+        // Case 2: 1D * 2D (Vector-Matrix Multiplication)
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0], &[3])?;
+        let b = Tensor::from_vec(vec![4.0, 5.0, 6.0, 7.0, 8.0, 9.0], &[3, 2])?;
+        let c = tensor_ops!(a, Matmul, b);
+
+        assert_eq!(c.shape(), &[2]);
+        assert_eq!(c.data(), &[40.0, 46.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_matmul_2d_1d() -> MlResult<()> {
+        // Case 3: 2D * 1D (Matrix-Vector Multiplication)
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3])?;
+        let b = Tensor::from_vec(vec![7.0, 8.0, 9.0], &[3])?;
+        let c = tensor_ops!(a, Matmul, b);
+
+        assert_eq!(c.shape(), &[2]);
+        assert_eq!(c.data(), &[50.0, 122.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_matmul_3d_3d() -> MlResult<()> {
+        // Case 4: 3D * 3D (Batch Matrix Multiplication)
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &[2, 2, 2])?;
+        let b = Tensor::from_vec(vec![9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0], &[2, 2, 2])?;
+        let c = tensor_ops!(a, Matmul, b);
+
+        assert_eq!(c.shape(), &[2, 2, 2]);
+        assert_eq!(
+            c.data(),
+            &[31.0, 34.0, 71.0, 78.0, 155.0, 166.0, 211.0, 226.0]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_matmul_invalid_shapes() -> MlResult<()> {
+        // Test incompatible shapes
+        let matmul = Matmul::new()?;
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0], &[3])?;
+        let b = Tensor::from_vec(vec![4.0, 5.0], &[2])?;
+
+        // This should return an error since the shapes are incompatible
+        assert!(matmul.forward(&[&a, &b]).is_err());
+
+        // Test incompatible batch dimensions
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], &[2, 2])?;
+        let b = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[3, 2])?;
+
+        // This should return an error since the batch dimensions don't match
+        assert!(matmul.forward(&[&a, &b]).is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_matmul_1x1() -> MlResult<()> {
+        // Case 5: 1x1 Matrix Multiplication
+        let a = Tensor::from_vec(vec![2.0], &[1, 1])?;
+        let b = Tensor::from_vec(vec![3.0], &[1, 1])?;
+        let c = tensor_ops!(a, Matmul, b);
+
+        assert_eq!(c.shape(), &[1, 1]);
+        assert_eq!(c.data(), &[6.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_matmul_1d_1d() -> MlResult<()> {
+        // Case 6: 1D * 1D (Dot Product)
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0], &[3])?;
+        let b = Tensor::from_vec(vec![4.0, 5.0, 6.0], &[3])?;
+        let c = tensor_ops!(a, Matmul, b);
+
+        assert_eq!(c.shape(), &[] as &[usize]); // scalar output
+        assert_eq!(c.data(), &[32.0]); // 1*4 + 2*5 + 3*6 = 32
+        Ok(())
+    }
+
+    #[test]
+    fn test_matmul_3d_2d_broadcasting() -> MlResult<()> {
+        // Case 7: 3D * 2D Broadcasting
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &[2, 2, 2])?;
+        let b = Tensor::from_vec(vec![9.0, 10.0, 11.0, 12.0], &[2, 2])?;
+        let c = tensor_ops!(a, Matmul, b);
+
+        assert_eq!(c.shape(), &[2, 2, 2]);
+        assert_eq!(
+            c.data(),
+            &[31.0, 34.0, 71.0, 78.0, 111.0, 122.0, 151.0, 166.0]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_matmul_4d_4d() -> MlResult<()> {
+        // Case 8: 4D * 4D Batch Matrix Multiplication
+        let a = Tensor::from_vec(
+            vec![1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0,],
+            &[2, 2, 2, 2]
+        )?;
+        let b = Tensor::from_vec(
+            vec![5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0,],
+            &[2, 2, 2, 2]
+        )?;
+        let c = tensor_ops!(a, Matmul, b);
+
+        assert_eq!(c.shape(), &[2, 2, 2, 2]);
+        let expected = vec![
+            19.0, 22.0, 43.0, 50.0, 19.0, 22.0, 43.0, 50.0, 19.0, 22.0, 43.0, 50.0, 19.0, 22.0,
+            43.0, 50.0,
+        ];
+        assert_eq!(c.data(), &expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_matmul_empty() -> MlResult<()> {
+        let matmul = Matmul::new()?;
+        // Case 9: Empty Matrix Multiplication
+        let a = Tensor::from_vec(vec![], &[0, 2])?;
+        let b = Tensor::from_vec(vec![], &[2, 0])?;
+
+        // This should return an error for new_empty tensors
+        assert!(matmul.forward(&[&a, &b]).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_matmul_broadcast_batch_dims() -> MlResult<()> {
+        // Case 10: Broadcasting with Different Batch Dimensions
+        let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], &[1, 2, 2])?;
+        let b = Tensor::from_vec(
+            vec![5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0],
+            &[3, 1, 2, 2]
+        )?;
+        let c = tensor_ops!(a, Matmul, b);
+
+        assert_eq!(c.shape(), &[3, 1, 2, 2]);
+        let expected = vec![
+            19.0, 22.0, 43.0, 50.0, 19.0, 22.0, 43.0, 50.0, 19.0, 22.0, 43.0, 50.0,
+        ];
+        assert_eq!(c.data(), &expected);
+        Ok(())
+    }
+}

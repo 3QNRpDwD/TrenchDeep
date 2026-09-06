@@ -10,11 +10,16 @@ use crate::MlResult;
 mod compute;
 mod core;
 mod parallel;
+pub(crate) mod operations;
 
 #[derive(Debug)]
 pub struct CpuBackend {
     core: CpuCore,
     compute: CpuCompute,
+}
+
+impl Default for CpuBackend {
+    fn default() -> Self { Self { core: CpuCore::new(), compute: CpuCompute::new() } }
 }
 
 impl Device for CpuBackend {
@@ -112,7 +117,7 @@ impl Backend for CpuBackend {
     }
 
     fn execute_compute(&self, _dimensions: [u32; 3]) -> MlResult<()> {
-        todo!()
+        Err(crate::MlError::UnsupportedCapability { module: "cpu", capability: "compute dispatch", operation: "execute_compute" })
     }
 }
 

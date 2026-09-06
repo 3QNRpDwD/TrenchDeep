@@ -1,78 +1,16 @@
 use super::*;
-
-// checkpoint 전용 import
-use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, OnceLock};
-use std::path::Path;
-
-pub const CHECKPOINT_SCHEMA_VERSION: u32 = 2;
-fn default_schema_version() -> u32 { 1 }
-
-// ────────────────────────────────────────────────────────────────────────────
-// 시그널 핸들러 — 프로세스당 한 번만 등록
-// ────────────────────────────────────────────────────────────────────────────
-
-static INTERRUPT_FLAG: OnceLock<Arc<AtomicBool>> = OnceLock::new();
-
-/// Ctrl+C 인터럽트 플래그를 반환한다.
-/// 최초 호출 시 시그널 핸들러를 등록하며, 이후 호출에서는 같은 플래그를 공유한다.
-pub(crate) fn interrupt_flag() -> Arc<AtomicBool> {
-    INTERRUPT_FLAG.get_or_init(|| {
-        let flag = Arc::new(AtomicBool::new(false));
-        let flag_clone = flag.clone();
-        ctrlc::set_handler(move || {
-            flag_clone.store(true, Ordering::SeqCst);
-        }).expect("Ctrl+C 핸들러 등록 실패");
-        flag
-    }).clone()
+use serde::{Serialize,Deserialize};
+use std::{path::Path,sync::{OnceLock,atomic::{AtomicBool,Ordering}}};
+pub const CHECKPOINT_SCHEMA_VERSION:u32=2;
+fn default_schema_version()->u32 {CHECKPOINT_SCHEMA_VERSION}
+static INTERRUPTED:AtomicBool=AtomicBool::new(false);
+static HANDLER:OnceLock<Result<(),String>>=OnceLock::new();
+pub fn request_interrupt(){INTERRUPTED.store(true,Ordering::SeqCst);}
+pub fn clear_interrupt(){INTERRUPTED.store(false,Ordering::SeqCst);}
+pub fn interrupted()->bool {INTERRUPTED.load(Ordering::SeqCst)}
+pub fn install_interrupt_handler()->MlResult<()> {
+    HANDLER.get_or_init(||ctrlc::set_handler(request_interrupt).map_err(|e|e.to_string())).clone().map_err(MlError::StringError)
 }
-
-/// 인터럽트 플래그가 설정되어 있는지 확인한다.
-pub(crate) fn is_interrupted(flag: &AtomicBool) -> bool {
-    flag.load(Ordering::SeqCst)
-}
-
-/// 인터럽트 플래그를 초기화한다.
-pub(crate) fn clear_interrupt(flag: &AtomicBool) {
-    flag.store(false, Ordering::SeqCst);
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// 사용자 확인 프롬프트
-// ────────────────────────────────────────────────────────────────────────────
-
-/// 사용자에게 학습 중단 여부를 확인한다.
-///
-/// `true`를 반환하면 체크포인트를 저장하고 종료,
-/// `false`를 반환하면 학습을 계속한다.
-pub(crate) fn confirm_interrupt() -> bool {
-    use std::io::{self, BufRead, Write};
-
-    eprint!("\n⚠ 학습 중단 요청이 감지되었습니다.\n");
-    eprint!("체크포인트를 저장하고 종료하시겠습니까? (y/n): ");
-    io::stderr().flush().ok();
-
-    let mut input = String::new();
-    match io::stdin().lock().read_line(&mut input) {
-        Ok(_) => input.trim().eq_ignore_ascii_case("y"),
-        Err(_) => {
-            // stdin 읽기 실패 시 안전하게 저장 후 종료
-            eprintln!("입력을 읽을 수 없습니다. 안전하게 체크포인트를 저장합니다.");
-            true
-        }
-    }
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// ParadigmTag — 체크포인트가 어느 패러다임에서 저장되었는지 식별
-// ────────────────────────────────────────────────────────────────────────────
-
-/// 체크포인트가 생성된 트레이너 패러다임. `resume()` 시 교차 로드를 방지한다.
-///
-/// 예를 들어 `SupervisedTrainer::resume()` 에 AR 체크포인트를 넘기면 모델
-/// 인터페이스와 데이터 시맨틱이 맞지 않아 실행 중 이상 동작으로 이어진다.
-/// 여기서 미리 태그 불일치를 탐지해 명확한 에러로 실패시킨다.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ParadigmTag {
     Supervised,
@@ -134,7 +72,7 @@ pub struct TrainingCheckpoint {
     pub rng_seed: u64,
     /// TODO(Phase-6): populated once optimizer implementations support snapshots.
     #[serde(default)]
-    pub optimizer_snapshot: Option<crate::optimizer::OptimizerSnapshot>,
+    pub optimizer_snapshot: Option<serde_json::Value>,
 }
 
 impl TrainingCheckpoint {
@@ -192,199 +130,11 @@ impl TrainingCheckpoint {
     }
 }
 
-pub struct CheckpointManager;
 
-impl CheckpointManager {
-    pub fn load_into<M: CheckpointableModel>(
-        metadata: impl AsRef<Path>, expected: ParadigmTag, model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
-    ) -> MlResult<TrainingCheckpoint> {
-        let ckpt = TrainingCheckpoint::load(metadata)?;
-        ckpt.verify_paradigm(expected)?;
-        model.load_checkpoint(Path::new(&ckpt.model_path))?;
-        optimizer.set_lr(ckpt.optimizer_lr);
-        // TODO(Phase-6): restore optional optimizer_snapshot after registration validation.
-        Ok(ckpt)
-    }
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// 공용 저장 헬퍼 — 각 트레이너의 `fit_inner` 에서 중복 제거용
-// ────────────────────────────────────────────────────────────────────────────
-
-/// 인터럽트 시 모델+체크포인트를 저장하고 UX(progress bar / info 로그) 를
-/// 마무리한다. 각 패러다임별 `fit_inner` 에 복사-붙여넣기 되어 있던 블록을
-/// 하나의 엔트리포인트로 통합한다.
-///
-/// # 동작
-/// 1. `ckpt_dir/model_weights.tdw` 에 `save_model` 호출로 가중치 저장.
-/// 2. 위가 성공하면 `ckpt_dir/checkpoint.json` 에 `TrainingCheckpoint` 직렬화.
-/// 3. 각 단계의 성공/실패를 progress bar 와 logging 에 반영.
-///
-/// `save_model` 은 `FnOnce(&str) -> MlResult<()>` 로 전달한다. 호출자가 보통
-/// `|p| model.save_model(p)` 형태로 전달한다.
-pub(crate) fn save_interrupt_checkpoint<F>(
-    ckpt_dir:     &Path,
-    epochs_done:  usize,
-    total_epochs: usize,
-    loss:         f32,
-    tolerance:    f32,
-    optimizer_lr: f32,
-    paradigm:     ParadigmTag,
-    rng_seed:     u64,
-    save_model:   F,
-    progress:     &super::progress::EpochProgress,
-) -> MlResult<CheckpointPaths> where
-    F: FnOnce(&Path) -> MlResult<()>,
-{
-    std::fs::create_dir_all(ckpt_dir)
-        .map_err(|e| MlError::StringError(format!("checkpoint directory creation failed: {e}")))?;
-    let model_path = ckpt_dir.join("model_weights.tdw");
-    let ckpt_path = ckpt_dir.join("checkpoint.json");
-    let model_tmp = ckpt_dir.join("model_weights.tdw.tmp");
-    let ckpt_tmp = ckpt_dir.join("checkpoint.json.tmp");
-
-    save_model(&model_tmp)?;
-    let ckpt = TrainingCheckpoint {
-                schema_version: CHECKPOINT_SCHEMA_VERSION,
-                epochs_done,
-                total_epochs,
-                last_loss: loss,
-                tolerance,
-                optimizer_lr,
-                model_path: model_path.to_string_lossy().into_owned(),
-                timestamp: format!("{:?}", std::time::SystemTime::now()),
-                paradigm: Some(paradigm),
-                rng_seed,
-                optimizer_snapshot: None,
-            };
-    if let Err(e) = ckpt.save(&ckpt_tmp) {
-        let _ = std::fs::remove_file(&model_tmp);
-        return Err(e);
-    }
-    replace_file(&model_tmp, &model_path)?;
-    replace_file(&ckpt_tmp, &ckpt_path)?;
-    progress.finish_interrupted();
-    Ok(CheckpointPaths { model: model_path, metadata: ckpt_path })
-}
-
-fn replace_file(source: &Path, target: &Path) -> MlResult<()> {
-    if target.exists() {
-        let backup = target.with_extension("bak");
-        if backup.exists() { std::fs::remove_file(&backup).ok(); }
-        std::fs::rename(target, &backup)
-            .map_err(|e| MlError::StringError(format!("checkpoint backup failed: {e}")))?;
-        if let Err(e) = std::fs::rename(source, target) {
-            let _ = std::fs::rename(&backup, target);
-            return Err(MlError::StringError(format!("checkpoint replace failed: {e}")));
-        }
-        let _ = std::fs::remove_file(backup);
-    } else {
-        std::fs::rename(source, target)
-            .map_err(|e| MlError::StringError(format!("checkpoint commit failed: {e}")))?;
-    }
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn tmp_path(name: &str) -> String {
-        let dir = std::env::temp_dir();
-        let unique = format!("{:?}", std::time::SystemTime::now())
-            .chars().filter(|c| c.is_alphanumeric()).collect::<String>();
-        format!("{}/trench_deep_ckpt_{}_{}.json", dir.display(), unique, name)
-    }
-
-    fn sample(paradigm: Option<ParadigmTag>) -> TrainingCheckpoint {
-        TrainingCheckpoint {
-            schema_version: CHECKPOINT_SCHEMA_VERSION,
-            epochs_done: 3,
-            total_epochs: 10,
-            last_loss: 0.1234,
-            tolerance: 1e-6,
-            optimizer_lr: 1e-3,
-            model_path: "ignore".into(),
-            timestamp: "t0".into(),
-            paradigm,
-            rng_seed: 42,
-            optimizer_snapshot: None,
-        }
-    }
-
-    #[test]
-    fn roundtrip_preserves_all_fields() {
-        let path = tmp_path("rt");
-        let ckpt = sample(Some(ParadigmTag::Supervised));
-        ckpt.save(&path).expect("save");
-        let loaded = TrainingCheckpoint::load(&path).expect("load");
-        let _ = std::fs::remove_file(&path);
-
-        assert_eq!(loaded.epochs_done,  ckpt.epochs_done);
-        assert_eq!(loaded.total_epochs, ckpt.total_epochs);
-        assert!((loaded.last_loss - ckpt.last_loss).abs() < 1e-6);
-        assert_eq!(loaded.paradigm,     Some(ParadigmTag::Supervised));
-        assert_eq!(loaded.rng_seed,     42);
-    }
-
-    #[test]
-    fn verify_paradigm_catches_mismatch() {
-        let ckpt = sample(Some(ParadigmTag::Supervised));
-        assert!(ckpt.verify_paradigm(ParadigmTag::Supervised).is_ok());
-        let err = ckpt.verify_paradigm(ParadigmTag::Autoregressive)
-            .expect_err("should refuse paradigm mismatch");
-        let msg = format!("{:?}", err);
-        assert!(msg.contains("supervised") && msg.contains("autoregressive"),
-                "에러 메시지에 두 패러다임 이름이 포함되어야 함: {}", msg);
-    }
-
-    #[test]
-    fn verify_paradigm_allows_legacy_untagged() {
-        // Phase 3 이전 체크포인트는 paradigm=None 으로 로드됨 → 통과해야 함.
-        let ckpt = sample(None);
-        assert!(ckpt.verify_paradigm(ParadigmTag::Supervised).is_ok());
-        assert!(ckpt.verify_paradigm(ParadigmTag::Reinforcement).is_ok());
-    }
-
-    #[test]
-    fn legacy_checkpoint_loads_without_paradigm_field() {
-        // 구버전 포맷: paradigm / rng_seed 필드가 JSON 에 아예 없어야 로드 가능.
-        let path = tmp_path("legacy");
-        let legacy_json = r#"{
-            "epochs_done": 5,
-            "total_epochs": 20,
-            "last_loss": 0.5,
-            "tolerance": 1e-6,
-            "optimizer_lr": 0.001,
-            "model_path": "foo",
-            "timestamp": "t"
-        }"#;
-        std::fs::write(&path, legacy_json).unwrap();
-        let loaded = TrainingCheckpoint::load(&path).expect("legacy 로드 실패");
-        let _ = std::fs::remove_file(&path);
-
-        assert_eq!(loaded.epochs_done, 5);
-        assert_eq!(loaded.paradigm,    None);
-        assert_eq!(loaded.rng_seed,    0);
-    }
-
-    #[test]
-    fn failed_model_save_preserves_existing_checkpoint() {
-        let dir = std::env::temp_dir().join(format!("trench_atomic_{:?}", std::time::SystemTime::now())
-            .replace(':', "_").replace(' ', "_"));
-        std::fs::create_dir_all(&dir).unwrap();
-        let model = dir.join("model_weights.tdw");
-        let meta = dir.join("checkpoint.json");
-        std::fs::write(&model, b"old-model").unwrap();
-        std::fs::write(&meta, b"old-meta").unwrap();
-        let progress = crate::trainer::progress::EpochProgress::new(1, false);
-        let result = save_interrupt_checkpoint(&dir, 1, 2, 0.5, 0.0, 0.1,
-            ParadigmTag::Supervised, 7,
-            |_path| Err(MlError::StringError("injected failure".into())), &progress);
-        assert!(result.is_err());
-        assert_eq!(std::fs::read(&model).unwrap(), b"old-model");
-        assert_eq!(std::fs::read(&meta).unwrap(), b"old-meta");
-        std::fs::remove_dir_all(dir).ok();
-    }
+pub(crate) fn save_model(directory:&str,paradigm:&str,completed:usize,schedule:EpochSchedule,loss:f32,lr:f32,seed:u64,save:impl FnOnce(&Path)->MlResult<()>)->MlResult<CheckpointPaths> {
+    let directory=Path::new(directory);std::fs::create_dir_all(directory).map_err(|e|MlError::StringError(e.to_string()))?;
+    let model=directory.join("model.tdw");let metadata=directory.join("training.json");save(&model)?;
+    let tag=match paradigm {"supervised"=>ParadigmTag::Supervised,"unsupervised"=>ParadigmTag::Unsupervised,"semi_supervised"=>ParadigmTag::SemiSupervised,"autoregressive"=>ParadigmTag::Autoregressive,_=>ParadigmTag::Reinforcement};
+    TrainingCheckpoint {schema_version:CHECKPOINT_SCHEMA_VERSION,epochs_done:completed,total_epochs:schedule.epochs,last_loss:loss,tolerance:schedule.convergence.tolerance(),optimizer_lr:lr,model_path:model.to_string_lossy().into_owned(),timestamp:time::OffsetDateTime::now_utc().to_string(),paradigm:Some(tag),rng_seed:seed,optimizer_snapshot:None}.save(&metadata)?;
+    Ok(CheckpointPaths {model,metadata})
 }

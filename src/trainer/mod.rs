@@ -1,131 +1,26 @@
-//! 학습 루프 인프라. 패러다임별로 모델 트레잇과 트레이너가 분리되어 있다.
-//!
-//! | 패러다임   | 모델 트레잇              | 트레이너                  | 손실 시그니처            |
-//! |-----------|-------------------------|--------------------------|-------------------------|
-//! | 지도학습   | [`SupervisedModel`]     | [`SupervisedTrainer`]    | `forward_loss(x, t)`    |
-//! | 비지도학습 | [`UnsupervisedModel`]   | [`UnsupervisedTrainer`]  | `forward_loss(x)`       |
-//! | 반지도학습 | [`SemiSupervisedModel`] | [`SemiSupervisedTrainer`]| `forward_loss(x_l, t_l, x_u, λ)` |
-//! | 강화학습   | [`RLModel`] + [`Environment`] | [`RLTrainer`]      | REINFORCE 내부 구성     |
-//! | 자기회귀   | [`AutoregressiveModel`] | [`AutoregressiveTrainer`]| `forward_loss(x) → (y, loss, n_tokens)` |
-//!
-//! 공통 인프라:
-//! - [`TrainerCore`] — 로그 설정, 메트릭 훅, 체크포인트 인터럽트.
-//! - [`TrainResult`] — 모든 트레이너의 공통 반환 타입.
-//! - [`Convergence`] — 연속 두 에폭의 손실 변화 기준 조기 종료.
-//! - [`MetricHook`]  — 배치마다 커스텀 메트릭을 주입하는 훅.
-//!
-//! `Trainer` 는 공통 설정을 소유하는 단일 facade다. `supervised()` 등으로
-//! 정적 타입이 보존된 패러다임별 runner를 선택한다.
-//!
-//! `debugging` feature를 활성화하면 모델 파라미터 구조와 에폭/배치 실행
-//! 컨텍스트가 기존 연산별 forward/backward trace에 자동으로 추가된다.
-//! 동적 progress bar는 상세 trace와 터미널 행이 충돌하지 않도록 비활성화된다.
-
-pub mod core;
+//! One training service shared by every paradigm.
+use crate::{ExecutionContext,MlResult,MlError,Variable,Tensor,Parameter,TensorBuffer,ContextId,ContextError};
 pub mod api;
-pub mod context;
-pub mod checkpoint;
-pub mod supervised;
-pub mod unsupervised;
-pub mod semi_supervised;
-pub mod reinforcement;
-pub mod autoregressive;
+pub mod core;
 pub mod data;
+pub mod checkpoint;
 pub(crate) mod progress;
-
-pub use core::{
-    TrainerCore, LogConfig, TrainerConfig, TrainingRuntime, Metrics, TrainerBuilder,
-    MetricHook, BatchContext, Convergence,
-    grad_norm, weight_norm, update_ratio, has_invalid_grad,
-    argmax, ClassificationAccuracy, Perplexity,
-    EpochStep, StepOutput, StepDiagnostics, BatchObservations, EpochOutcome,
-    TrainingObserver, BatchStartContext, BatchEndContext, EpochContext, TrainStartContext,
-    TrainEndContext,
-};
-#[cfg(feature = "enableVisualization")]
-pub use core::{CaptureSelector, GraphVisualizationObserver, GraphVisualizationObserverBuilder};
-pub use api::{TrainableModel, CheckpointableModel, StopReason, StepUnit, MetricValues,
-    CheckpointPaths, TrainResult, EpochSchedule, EpisodeSchedule, SupervisedDataset,
-    UnsupervisedDataset, SemiSupervisedDataset, AutoregressiveDataset};
-pub use api::{SupervisedOptions, SemiSupervisedOptions, AutoregressiveOptions, ReinforcementOptions};
-pub use context::{
-    ContextAutoregressiveBatch, ContextAutoregressiveDataLoader, ContextAutoregressiveDataset,
-    ContextAutoregressiveModel, ContextAutoregressiveTrainer,
-    ContextSupervisedBatch, ContextSupervisedDataLoader, ContextSupervisedDataset,
-    ContextSupervisedModel, ContextSupervisedTrainer, ContextTrainableModel,
-    ContextSemiSupervisedBatch, ContextSemiSupervisedDataLoader,
-    ContextSemiSupervisedDataset, ContextSemiSupervisedModel, ContextSemiSupervisedTrainer,
-    ContextEnvironment, ContextRLModel, ContextRLTrainer, ContextStepResult,
-    ContextUnsupervisedBatch, ContextUnsupervisedDataLoader, ContextUnsupervisedDataset,
-    ContextUnsupervisedModel, ContextUnsupervisedTrainer,
-};
-pub use checkpoint::{TrainingCheckpoint, ParadigmTag, CheckpointManager, CHECKPOINT_SCHEMA_VERSION};
-pub use data::{
-    AutoregressiveBatch, AutoregressiveSample, AutoregressiveStackCollator, BatchLoader,
-    Collator, CsvRecord, CsvSource, DataError, DataLoader, DataLoaderBuilder, Dataset,
-    DatasetBuilder, InMemoryDataset, IntoBatchLoader, JsonLinesSource, JsonRecord, MemorySource,
-    RecordSource, SemiSupervisedBatch, SemiSupervisedDataLoader, Transform,
-    SemiSupervisedDataLoaderBuilder, SupervisedBatch, SupervisedSample, SupervisedStackCollator,
-    UnsupervisedBatch, UnsupervisedSample, UnsupervisedStackCollator,
-};
-
-// ── 지도학습 아키텍처 ──────────────────────────────────────────────────────
-#[cfg(feature = "enableBackward")]
-pub use supervised::SupervisedModel;
-pub use supervised::SupervisedTrainer;
-
-// ── 비지도학습 아키텍처 ────────────────────────────────────────────────────
-#[cfg(feature = "enableBackward")]
-pub use unsupervised::UnsupervisedModel;
-pub use unsupervised::UnsupervisedTrainer;
-
-// ── 반지도학습 아키텍처 ────────────────────────────────────────────────────
-#[cfg(feature = "enableBackward")]
-pub use semi_supervised::SemiSupervisedModel;
-pub use semi_supervised::{SemiSupervisedTrainer, ConsistencyRamp};
-
-// ── 강화학습 아키텍처 ──────────────────────────────────────────────────────
-#[cfg(feature = "enableBackward")]
-pub use reinforcement::RLModel;
-pub use reinforcement::{Environment, StepResult, RLTrainer};
-
-// ── 자기회귀 아키텍처 ──────────────────────────────────────────────────────
-#[cfg(feature = "enableBackward")]
-pub use autoregressive::AutoregressiveModel;
-pub use autoregressive::AutoregressiveTrainer;
-
-use progress::EpochProgress;
-
-// ── trainer 하위 모듈 공통 import ────────────────────────────────────────────
-pub(crate) use crate::{MlError, MlResult};
-pub(crate) use crate::nn::Parameter;
-pub(crate) use crate::tensor::TensorBase;
-// ────────────────────────────────────────────────────────────────────────────
-// Trainer — 범용 팩토리
-// ────────────────────────────────────────────────────────────────────────────
-
-/// 로그 설정과 훅 프리셋을 구성해 각 패러다임 트레이너로 변환하는 범용 팩토리.
-///
-/// 지도학습은 [`SupervisedTrainer`], 비지도학습은 [`UnsupervisedTrainer`] 등
-/// 전용 트레이너가 실제 `fit` 루프를 가진다. `Trainer` 는 `TrainerCore` 구성을
-/// 편리하게 생성하고 패러다임별 runner를 선택하는 출발점 역할을 한다.
-///
-/// # 프리셋 (권장 진입점)
-/// ```no_run
-/// use trench_deep::trainer::{SupervisedTrainer, Trainer};
-/// let t: SupervisedTrainer = Trainer::default().supervised();
-/// ```
-///
-/// # 커스텀 빌더
-/// ```no_run
-/// let trainer: trench_deep::trainer::SupervisedTrainer =
-///     trench_deep::trainer::Trainer::builder()
-///         .log_every_n_batches(50)
-///         .metrics(trench_deep::trainer::Metrics::none().grad_norm().accuracy())
-///         .show_progress(true)
-///         .build()
-///         .supervised();
-/// ```
+mod service;
+mod runners;
+mod reinforcement;
+pub use api::*;
+pub use core::*;
+pub use data::*;
+pub use runners::*;
+pub use reinforcement::*;
+pub trait TrainableModel {
+    fn context_id(&self)->ContextId;
+    fn parameters(&self)->Vec<&Parameter>;
+}
+pub trait SupervisedModel:TrainableModel {fn forward_loss(&mut self,input:&Variable,target:&Tensor)->MlResult<(Variable,Variable)>;}
+pub trait UnsupervisedModel:TrainableModel {fn forward_loss(&mut self,input:&Variable)->MlResult<(Variable,Variable)>;}
+pub trait SemiSupervisedModel:TrainableModel {fn forward_loss(&mut self,labeled_input:&Variable,labeled_target:&Tensor,unlabeled_input:&Variable,lambda:f32)->MlResult<(Variable,Variable)>;}
+pub trait AutoregressiveModel:TrainableModel {fn forward_loss(&mut self,input:&Variable)->MlResult<(Variable,Variable,usize)>;}
 pub struct Trainer {
     pub(crate) core: TrainerCore,
 }
@@ -196,50 +91,51 @@ impl Trainer {
             .build()
     }
 
-    pub fn supervised(self) -> SupervisedTrainer { self.into() }
-    pub fn unsupervised(self) -> UnsupervisedTrainer { self.into() }
-    pub fn semi_supervised(self) -> SemiSupervisedTrainer { self.into() }
-    pub fn autoregressive(self) -> AutoregressiveTrainer { self.into() }
-    pub fn reinforcement(self) -> RLTrainer { self.into() }
+    pub fn supervised(self, context: &ExecutionContext) -> SupervisedTrainer { SupervisedTrainer::from_trainer(context,self) }
+    pub fn unsupervised(self, context: &ExecutionContext) -> UnsupervisedTrainer { UnsupervisedTrainer::from_trainer(context,self) }
+    pub fn semi_supervised(self, context: &ExecutionContext) -> SemiSupervisedTrainer { SemiSupervisedTrainer::from_trainer(context,self) }
+    pub fn autoregressive(self, context: &ExecutionContext) -> AutoregressiveTrainer { AutoregressiveTrainer::from_trainer(context,self) }
+    pub fn reinforcement(self, context: &ExecutionContext) -> RLTrainer { RLTrainer::from_trainer(context,self) }
 }
 
-#[cfg(test)]
-mod preset_tests {
-    use super::*;
+#[derive(Debug, Clone, Copy)]
+pub enum ConsistencyRamp {
+    /// 고정 가중치. 전 에폭 동안 `w` 를 사용.
+    Constant(f32),
+    /// `0 → max_weight` 로 `ramp_epochs` 동안 시그모이드 램프업.
+    /// Pi-model 논문의 기본 스케줄.
+    Sigmoid { max_weight: f32, ramp_epochs: usize },
+}
 
-    #[test]
-    fn logging_presets_keep_metric_layers_separate() {
-        let silent = Trainer::silent().core;
-        assert!(!silent.config().show_progress);
-        assert_eq!(silent.config().batch_log_interval, usize::MAX);
-        assert_eq!(silent.config().epoch_log_interval, usize::MAX);
-        assert!(!silent.config().metrics.paradigm);
-
-        let minimal = Trainer::minimal().core;
-        assert!(minimal.config().show_progress);
-        assert_eq!(minimal.config().batch_log_interval, 1);
-        assert_eq!(minimal.config().batch_summary_interval, usize::MAX);
-        assert_eq!(minimal.config().epoch_log_interval, 10);
-        assert!(!minimal.config().metrics.paradigm);
-        assert!(!minimal.config().metrics.grad_norm);
-        assert!(!minimal.config().metrics.update_ratio);
-        assert!(!minimal.config().metrics.fw_bw_timing);
-
-        let default = Trainer::default().core;
-        assert!(default.config().metrics.paradigm);
-        assert!(!default.config().metrics.grad_norm);
-        assert!(!default.config().metrics.update_ratio);
-        assert!(!default.config().metrics.fw_bw_timing);
-        assert_eq!(default.config().batch_summary_interval, usize::MAX);
-        assert_eq!(default.config().epoch_log_interval, 10);
-
-        let verbose = Trainer::verbose().core;
-        assert!(verbose.config().metrics.paradigm);
-        assert!(verbose.config().metrics.grad_norm);
-        assert!(verbose.config().metrics.update_ratio);
-        assert!(verbose.config().metrics.accuracy);
-        assert!(verbose.config().metrics.fw_bw_timing);
-        assert_eq!(verbose.config().batch_summary_interval, 100);
-        assert_eq!(verbose.config().epoch_log_interval, 1);
+impl ConsistencyRamp {
+    /// 주어진 에폭에서의 가중치 계산.
+    pub fn value(&self, epoch: usize) -> f32 {
+        match *self {
+            ConsistencyRamp::Constant(w) => w,
+            ConsistencyRamp::Sigmoid {
+                max_weight,
+                ramp_epochs,
+            } => {
+                if ramp_epochs == 0 {
+                    return max_weight;
+                }
+                let e = epoch.min(ramp_epochs) as f32;
+                let r = ramp_epochs as f32;
+                // Pi-model 의 exp(-5·(1 - t)²) 스케줄
+                let phase = 1.0 - e / r;
+                max_weight * (-5.0 * phase * phase).exp()
+            }
+        }
     }
 }
+
+impl Default for ConsistencyRamp {
+    /// 기본 스케줄: 30 에폭 동안 0 → 1.0 으로 시그모이드 램프업.
+    fn default() -> Self {
+        ConsistencyRamp::Sigmoid {
+            max_weight: 1.0,
+            ramp_epochs: 30,
+        }
+    }
+}
+

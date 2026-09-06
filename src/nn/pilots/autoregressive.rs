@@ -1,18 +1,18 @@
 //! Explicit-context bigram language-model pilot.
 
 use crate::loss::Reduction;
-use crate::nn::ContextParameter;
-use crate::trainer::{ContextAutoregressiveModel, ContextTrainableModel};
-use crate::{ContextId, ContextVariable, ExecutionContext, MlError, MlResult};
+use crate::nn::Parameter;
+use crate::trainer::{AutoregressiveModel, TrainableModel};
+use crate::{ContextId, Variable, ExecutionContext, MlError, MlResult};
 
 #[derive(Debug)]
-pub struct ContextBigramLm {
+pub struct BigramLm {
     context: ExecutionContext,
-    weight: ContextParameter,
+    weight: Parameter,
     vocab: usize,
 }
 
-impl ContextBigramLm {
+impl BigramLm {
     pub fn new(context: &ExecutionContext, vocab: usize) -> MlResult<Self> {
         if vocab == 0 {
             return Err(MlError::StringError("vocabulary must not be empty".into()));
@@ -22,24 +22,24 @@ impl ContextBigramLm {
             .collect();
         Ok(Self {
             context: context.clone(),
-            weight: ContextParameter::new(context.parameter(values, &[vocab, vocab])?),
+            weight: context.parameter(values, &[vocab, vocab])?,
             vocab,
         })
     }
 
-    pub fn weight(&self) -> &ContextParameter { &self.weight }
+    pub fn weight(&self) -> &Parameter { &self.weight }
 }
 
-impl ContextTrainableModel for ContextBigramLm {
+impl TrainableModel for BigramLm {
     fn context_id(&self) -> ContextId { self.context.id() }
-    fn parameters(&self) -> Vec<&ContextParameter> { vec![&self.weight] }
+    fn parameters(&self) -> Vec<&Parameter> { vec![&self.weight] }
 }
 
-impl ContextAutoregressiveModel for ContextBigramLm {
+impl AutoregressiveModel for BigramLm {
     fn forward_loss(
         &mut self,
-        sequence: &ContextVariable,
-    ) -> MlResult<(ContextVariable, ContextVariable, usize)> {
+        sequence: &Variable,
+    ) -> MlResult<(Variable, Variable, usize)> {
         let shape = sequence.tensor().shape()?;
         let (batch, length) = match shape.as_slice() {
             [length, vocab] if *vocab == self.vocab => (1, *length),
@@ -81,13 +81,13 @@ impl ContextAutoregressiveModel for ContextBigramLm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::optimizer::{ContextAdam, ContextOptimizer};
+    use crate::optimizer::{Adam, Optimizer};
     use crate::trainer::{
-        ContextAutoregressiveDataLoader, ContextAutoregressiveDataset,
-        ContextAutoregressiveTrainer, EpochSchedule,
+        DataLoader, InMemoryDataset, AutoregressiveSample, AutoregressiveStackCollator, AutoregressiveDataset,
+        AutoregressiveTrainer, EpochSchedule,
     };
 
-    fn sequence(context: &ExecutionContext, tokens: &[usize], vocab: usize) -> MlResult<ContextVariable> {
+    fn sequence(context: &ExecutionContext, tokens: &[usize], vocab: usize) -> MlResult<Variable> {
         let mut data = vec![0.0; tokens.len() * vocab];
         for (row, token) in tokens.iter().copied().enumerate() {
             data[row * vocab + token] = 1.0;
@@ -98,16 +98,16 @@ mod tests {
     #[test]
     fn bigram_pilot_trains_end_to_end() -> MlResult<()> {
         let context = ExecutionContext::new();
-        let mut model = ContextBigramLm::new(&context, 4)?;
+        let mut model = BigramLm::new(&context, 4)?;
         let samples = [
             sequence(&context, &[0, 1, 2, 3, 0], 4)?,
             sequence(&context, &[1, 2, 3, 0, 1], 4)?,
         ];
         let refs = samples.iter().collect::<Vec<_>>();
-        let dataset = ContextAutoregressiveDataset::new(&context, &refs)?;
-        let mut optimizer = ContextAdam::new(&context, 0.05, 0.9, 0.999, 1e-8)?;
+        let dataset = AutoregressiveDataset::new(&context, &refs)?;
+        let mut optimizer = Adam::new(&context, 0.05, 0.9, 0.999, 1e-8)?;
         optimizer.register_all(&model.parameters())?;
-        let result = ContextAutoregressiveTrainer::silent(&context).fit(
+        let result = AutoregressiveTrainer::silent(&context).fit(
             &mut model,
             &mut optimizer,
             &dataset,
@@ -121,19 +121,20 @@ mod tests {
     #[test]
     fn bigram_pilot_accepts_stacked_loader_batches() -> MlResult<()> {
         let context = ExecutionContext::new();
-        let mut model = ContextBigramLm::new(&context, 4)?;
+        let mut model = BigramLm::new(&context, 4)?;
         let samples = [
             sequence(&context, &[0, 1, 2, 3, 0], 4)?,
             sequence(&context, &[1, 2, 3, 0, 1], 4)?,
         ];
         let refs = samples.iter().collect::<Vec<_>>();
-        let dataset = ContextAutoregressiveDataset::new(&context, &refs)?;
-        let mut loader = ContextAutoregressiveDataLoader::new(&context, dataset)?
-            .batch_size(2)?
-            .shuffle(false);
-        let mut optimizer = ContextAdam::new(&context, 0.02, 0.9, 0.999, 1e-8)?;
+        let dataset = AutoregressiveDataset::new(&context, &refs)?;
+        let mut loader = DataLoader::builder(InMemoryDataset::new(dataset.sequences.iter().map(|v|AutoregressiveSample::new(v.tensor().clone())).collect())?)
+            .collator(AutoregressiveStackCollator::new())
+            .batch_size(2)
+            .shuffle(false).build()?;
+        let mut optimizer = Adam::new(&context, 0.02, 0.9, 0.999, 1e-8)?;
         optimizer.register_all(&model.parameters())?;
-        let result = ContextAutoregressiveTrainer::silent(&context).fit_loader(
+        let result = AutoregressiveTrainer::silent(&context).fit_loader(
             &mut model,
             &mut optimizer,
             &mut loader,
@@ -147,13 +148,13 @@ mod tests {
     #[test]
     fn autoregressive_padding_is_rejected_until_it_has_loss_semantics() -> MlResult<()> {
         let context = ExecutionContext::new();
-        let mut model = ContextBigramLm::new(&context, 4)?;
+        let mut model = BigramLm::new(&context, 4)?;
         let sample = sequence(&context, &[0, 1, 2], 4)?;
         let refs = [&sample];
-        let dataset = ContextAutoregressiveDataset::new(&context, &refs)?.with_pad_token_id(0);
-        let mut optimizer = ContextAdam::new(&context, 0.02, 0.9, 0.999, 1e-8)?;
+        let dataset = AutoregressiveDataset::new(&context, &refs)?.with_pad_token_id(0);
+        let mut optimizer = Adam::new(&context, 0.02, 0.9, 0.999, 1e-8)?;
         optimizer.register_all(&model.parameters())?;
-        assert!(ContextAutoregressiveTrainer::silent(&context)
+        assert!(AutoregressiveTrainer::silent(&context)
             .fit(&mut model, &mut optimizer, &dataset, EpochSchedule::new(1)?)
             .is_err());
         Ok(())

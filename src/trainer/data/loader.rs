@@ -1,21 +1,14 @@
 use crate::trainer::TrainingRuntime;
 use crate::{
     MlError, MlResult,
-    nn::{Parameter, Variable},
-    tensor::{Tensor, TensorBase},
+    nn::Variable,
+    tensor::Tensor,
 };
 
 use super::DataError;
 
 fn classify_collate_error(error: MlError) -> MlError {
-    match error {
-        shape @ MlError::DataError(DataError::ShapeMismatch { .. }) => shape,
-        empty @ MlError::DataError(DataError::EmptyBatch) => empty,
-        other => DataError::Collate {
-            message: other.to_string(),
-        }
-        .into(),
-    }
+    error
 }
 
 pub trait Dataset {
@@ -278,23 +271,23 @@ impl AutoregressiveSample {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SupervisedBatch {
     pub inputs: Variable,
-    pub targets: Variable,
+    pub targets: Tensor,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UnsupervisedBatch {
     pub samples: Variable,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AutoregressiveBatch {
     pub sequences: Variable,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SemiSupervisedBatch {
     pub labeled_inputs: Variable,
-    pub labeled_targets: Variable,
+    pub labeled_targets: Tensor,
     pub unlabeled_inputs: Variable,
 }
 
@@ -302,23 +295,24 @@ fn stack_tensors(tensors: &[&Tensor]) -> MlResult<Tensor> {
     let Some(first) = tensors.first() else {
         return Err(DataError::EmptyBatch.into());
     };
-    let expected = first.shape().to_vec();
-    let mut data = Vec::with_capacity(tensors.len() * first.data().len());
+    let expected = first.shape()?;
+    let mut data = Vec::with_capacity(tensors.len() * first.numel()?);
     for (sample_index, tensor) in tensors.iter().enumerate() {
-        if tensor.shape() != expected {
+        first.execution_context()?.validate(tensor)?;
+        if tensor.shape()? != expected {
             return Err(DataError::ShapeMismatch {
                 sample_index,
                 expected: expected.clone(),
-                got: tensor.shape().to_vec(),
+                got: tensor.shape()?,
             }
             .into());
         }
-        data.extend_from_slice(tensor.data());
+        data.extend(tensor.to_vec()?);
     }
     let mut shape = Vec::with_capacity(expected.len() + 1);
     shape.push(tensors.len());
     shape.extend(expected);
-    Tensor::from_vec(data, &shape)
+    first.execution_context()?.tensor(data, &shape)
 }
 
 #[derive(Default)]
@@ -340,8 +334,8 @@ impl Collator<SupervisedSample> for SupervisedStackCollator {
             .map(|sample| &sample.target)
             .collect::<Vec<_>>();
         Ok(SupervisedBatch {
-            inputs: Variable::new(stack_tensors(&inputs)?),
-            targets: Variable::new(stack_tensors(&targets)?),
+            inputs: stack_tensors(&inputs)?.as_variable()?,
+            targets: stack_tensors(&targets)?,
         })
     }
 }
@@ -361,7 +355,7 @@ impl Collator<UnsupervisedSample> for UnsupervisedStackCollator {
             .map(|sample| &sample.input)
             .collect::<Vec<_>>();
         Ok(UnsupervisedBatch {
-            samples: Variable::new(stack_tensors(&tensors)?),
+            samples: stack_tensors(&tensors)?.as_variable()?,
         })
     }
 }
@@ -382,7 +376,7 @@ impl Collator<AutoregressiveSample> for AutoregressiveStackCollator {
             .map(|sample| &sample.sequence)
             .collect::<Vec<_>>();
         Ok(AutoregressiveBatch {
-            sequences: Variable::new(stack_tensors(&tensors)?),
+            sequences: stack_tensors(&tensors)?.as_variable()?,
         })
     }
 }

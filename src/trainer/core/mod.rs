@@ -13,18 +13,17 @@ pub mod config;
 pub mod metric_hook;
 pub mod metrics;
 pub mod convergence;
-pub mod epoch_loop;
+
 pub mod runtime;
 pub mod observer;
-mod debug_trace;
-#[cfg(feature = "enableVisualization")]
-mod graph_capture;
+
+
 
 use std::cell::RefCell;
 
 // 부모(`trainer`) 로부터 상속받는 공통 심볼.
 // 하위 모듈이 `use super::*;` 로 가져다 쓴다.
-pub(crate) use super::{MlError, MlResult, Parameter, TensorBase};
+pub(crate) use crate::{MlError,MlResult,Parameter,TensorBuffer};
 
 // 공용 API 재수출.
 pub use config::{LogConfig, TrainerConfig, Metrics, TrainerBuilder};
@@ -34,7 +33,7 @@ pub use metrics::{
     argmax, ClassificationAccuracy, Perplexity,
 };
 pub use convergence::Convergence;
-pub use epoch_loop::{EpochStep, StepOutput, StepDiagnostics, BatchObservations, EpochOutcome};
+
 pub use runtime::TrainingRuntime;
 pub use observer::{
     BatchEndContext, BatchStartContext, EpochContext, TrainEndContext, TrainStartContext,
