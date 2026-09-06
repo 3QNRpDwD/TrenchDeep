@@ -45,7 +45,6 @@ pub trait TrainingObserver {
     fn on_train_end(&mut self, _context: &TrainEndContext) {}
     fn on_train_error(&mut self, _message: &str) {}
 
-    #[cfg(feature = "enableVisualization")]
     fn capture_profile(
         &self,
         _context: &BatchStartContext,
@@ -53,11 +52,9 @@ pub trait TrainingObserver {
         None
     }
 
-    #[cfg(feature = "enableVisualization")]
     fn on_graph_snapshot(&mut self, _snapshot: crate::visualization::GraphSnapshot) {}
 }
 
-#[cfg(feature = "enableVisualization")]
 mod graph_observer {
     use super::*;
     use crate::visualization::{CaptureProfile, GraphSnapshot, SnapshotWriter, VisualizationError};
@@ -363,7 +360,6 @@ mod graph_observer {
     pub use GraphVisualizationObserverBuilder as PublicGraphVisualizationObserverBuilder;
 }
 
-#[cfg(feature = "enableVisualization")]
 pub use graph_observer::{
     PublicCaptureSelector as CaptureSelector,
     PublicGraphVisualizationObserver as GraphVisualizationObserver,

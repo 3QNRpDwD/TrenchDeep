@@ -4,7 +4,6 @@
 //! owns batching and epoch ordering. The small borrowed dataset wrappers in
 //! [`crate::trainer::api`] remain the pre-batched convenience path.
 
-
 mod loader;
 mod source;
 

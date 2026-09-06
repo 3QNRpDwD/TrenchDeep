@@ -13,13 +13,13 @@ use super::*;
 #[derive(Clone, Copy)]
 pub struct Metrics {
     /// 현재 패러다임의 대표 메트릭(accuracy, perplexity, return, lambda 등)
-    pub paradigm:     bool,
+    pub paradigm: bool,
     /// 전체 파라미터의 그래디언트 L2 노름
-    pub grad_norm:    bool,
+    pub grad_norm: bool,
     /// Update Ratio = ||lr·grad|| / ||W||  (학습률 스케일 진단용)
     pub update_ratio: bool,
     /// argmax 기반 분류 정확도
-    pub accuracy:     bool,
+    pub accuracy: bool,
     /// Forward / Backward 패스 소요 시간
     pub fw_bw_timing: bool,
 }
@@ -27,25 +27,67 @@ pub struct Metrics {
 impl Metrics {
     /// 모든 메트릭 비활성.
     pub const fn none() -> Self {
-        Self { paradigm: false, grad_norm: false, update_ratio: false, accuracy: false, fw_bw_timing: false }
+        Self {
+            paradigm: false,
+            grad_norm: false,
+            update_ratio: false,
+            accuracy: false,
+            fw_bw_timing: false,
+        }
     }
 
     /// 모든 메트릭 활성.
     pub const fn all() -> Self {
-        Self { paradigm: true, grad_norm: true, update_ratio: true, accuracy: true, fw_bw_timing: true }
+        Self {
+            paradigm: true,
+            grad_norm: true,
+            update_ratio: true,
+            accuracy: true,
+            fw_bw_timing: true,
+        }
     }
 
-    pub const fn paradigm(mut self)    -> Self { self.paradigm     = true; self }
-    pub const fn grad_norm(mut self)    -> Self { self.grad_norm    = true; self }
-    pub const fn update_ratio(mut self) -> Self { self.update_ratio = true; self }
-    pub const fn accuracy(mut self)     -> Self { self.accuracy     = true; self }
-    pub const fn fw_bw_timing(mut self) -> Self { self.fw_bw_timing = true; self }
+    pub const fn paradigm(mut self) -> Self {
+        self.paradigm = true;
+        self
+    }
+    pub const fn grad_norm(mut self) -> Self {
+        self.grad_norm = true;
+        self
+    }
+    pub const fn update_ratio(mut self) -> Self {
+        self.update_ratio = true;
+        self
+    }
+    pub const fn accuracy(mut self) -> Self {
+        self.accuracy = true;
+        self
+    }
+    pub const fn fw_bw_timing(mut self) -> Self {
+        self.fw_bw_timing = true;
+        self
+    }
 
-    pub const fn without_paradigm(mut self)     -> Self { self.paradigm     = false; self }
-    pub const fn without_grad_norm(mut self)    -> Self { self.grad_norm    = false; self }
-    pub const fn without_update_ratio(mut self) -> Self { self.update_ratio = false; self }
-    pub const fn without_accuracy(mut self)     -> Self { self.accuracy     = false; self }
-    pub const fn without_fw_bw_timing(mut self) -> Self { self.fw_bw_timing = false; self }
+    pub const fn without_paradigm(mut self) -> Self {
+        self.paradigm = false;
+        self
+    }
+    pub const fn without_grad_norm(mut self) -> Self {
+        self.grad_norm = false;
+        self
+    }
+    pub const fn without_update_ratio(mut self) -> Self {
+        self.update_ratio = false;
+        self
+    }
+    pub const fn without_accuracy(mut self) -> Self {
+        self.accuracy = false;
+        self
+    }
+    pub const fn without_fw_bw_timing(mut self) -> Self {
+        self.fw_bw_timing = false;
+        self
+    }
 }
 
 impl Default for Metrics {
@@ -114,10 +156,10 @@ pub struct TrainerBuilder {
     batch_summary_interval: usize,
     epoch_log_interval: usize,
     nan_check_interval: usize,
-    metrics:            Metrics,
-    show_progress:      bool,
-    checkpoint_dir:     Option<String>,
-    seed:               u64,
+    metrics: Metrics,
+    show_progress: bool,
+    checkpoint_dir: Option<String>,
+    seed: u64,
 }
 
 impl TrainerBuilder {
@@ -127,10 +169,10 @@ impl TrainerBuilder {
             batch_summary_interval: usize::MAX,
             epoch_log_interval: 1,
             nan_check_interval: 1,
-            metrics:            Metrics::default(),
-            show_progress:      true,
-            checkpoint_dir:     None,
-            seed:               0,
+            metrics: Metrics::default(),
+            show_progress: true,
+            checkpoint_dir: None,
+            seed: 0,
         }
     }
 
@@ -199,10 +241,15 @@ impl TrainerBuilder {
         self
     }
 
-    pub fn checkpoint(self, dir: &str) -> Self { self.checkpoint_dir(dir) }
+    pub fn checkpoint(self, dir: &str) -> Self {
+        self.checkpoint_dir(dir)
+    }
 
     /// Sets the deterministic training RNG seed.
-    pub fn seed(mut self, seed: u64) -> Self { self.seed = seed; self }
+    pub fn seed(mut self, seed: u64) -> Self {
+        self.seed = seed;
+        self
+    }
 
     /// 설정을 확정하고 `Trainer`를 생성.
     pub fn build(self) -> crate::trainer::Trainer {
@@ -211,15 +258,19 @@ impl TrainerBuilder {
             batch_summary_interval: self.batch_summary_interval,
             epoch_log_interval: self.epoch_log_interval,
             nan_check_interval: self.nan_check_interval,
-            metrics:            self.metrics,
-            show_progress:      self.show_progress,
-            checkpoint_dir:     self.checkpoint_dir,
-            seed:               self.seed,
+            metrics: self.metrics,
+            show_progress: self.show_progress,
+            checkpoint_dir: self.checkpoint_dir,
+            seed: self.seed,
         };
-        crate::trainer::Trainer { core: super::TrainerCore::new(config) }
+        crate::trainer::Trainer {
+            core: super::TrainerCore::new(config),
+        }
     }
 }
 
 impl Default for TrainerBuilder {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }

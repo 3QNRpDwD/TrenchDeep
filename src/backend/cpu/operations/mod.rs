@@ -1,9 +1,9 @@
 use crate::contracts::*;
-use crate::{AutogradError, TensorError, LossError, MlResult};
-mod kernels;
+use crate::{AutogradError, LossError, MlResult, TensorError};
 mod functional;
-pub(crate) use kernels::*;
+mod kernels;
 pub(crate) use functional::*;
+pub(crate) use kernels::*;
 #[derive(Debug, Clone)]
 enum BuiltinBackward {
     Add,
@@ -317,7 +317,9 @@ impl BackwardOp for ElementwiseBackward {
                 )?]
             }
             BuiltinBackward::Reshape => vec![TensorBuffer::from_vec(grad.data, &values[0].shape)?],
-            BuiltinBackward::Loss { .. } => return Err(AutogradError::BackwardNotSupported(self.name().into()).into()),
+            BuiltinBackward::Loss { .. } => {
+                return Err(AutogradError::BackwardNotSupported(self.name().into()).into());
+            }
             _ => return Err(AutogradError::BackwardNotSupported(self.name().into()).into()),
         };
         Ok(results.into_iter().map(Some).collect())
@@ -505,4 +507,3 @@ fn into_node_backward(backward: BuiltinBackward) -> Box<dyn BackwardOp> {
 }
 
 mod forward;
-

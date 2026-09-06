@@ -1,11 +1,9 @@
 //! Explicit-context two-armed-bandit and linear-policy pilot.
 
 use crate::nn::{Layer, Linear, Parameter};
-use crate::tensor::{TensorBuffer};
-use crate::trainer::{
-    Environment, RLModel, StepResult, TrainableModel,
-};
-use crate::{ContextId, Tensor, Variable, ExecutionContext, MlResult};
+use crate::tensor::TensorBuffer;
+use crate::trainer::{Environment, RLModel, StepResult, TrainableModel};
+use crate::{ContextId, ExecutionContext, MlResult, Tensor, Variable};
 
 pub struct TwoArmedBandit {
     pub mean_rewards: [f32; 2],
@@ -14,7 +12,10 @@ pub struct TwoArmedBandit {
 
 impl Default for TwoArmedBandit {
     fn default() -> Self {
-        Self { mean_rewards: [0.2, 0.8], noise_scale: 0.1 }
+        Self {
+            mean_rewards: [0.2, 0.8],
+            noise_scale: 0.1,
+        }
     }
 }
 
@@ -33,8 +34,12 @@ impl Environment for TwoArmedBandit {
         })
     }
 
-    fn num_actions(&self) -> usize { 2 }
-    fn observation_shape(&self) -> Vec<usize> { vec![1, 1] }
+    fn num_actions(&self) -> usize {
+        2
+    }
+    fn observation_shape(&self) -> Vec<usize> {
+        vec![1, 1]
+    }
 }
 
 #[derive(Debug)]
@@ -51,12 +56,18 @@ impl LinearPolicy {
         })
     }
 
-    pub fn linear(&self) -> &Linear { &self.linear }
+    pub fn linear(&self) -> &Linear {
+        &self.linear
+    }
 }
 
 impl TrainableModel for LinearPolicy {
-    fn context_id(&self) -> ContextId { self.context.id() }
-    fn parameters(&self) -> Vec<&Parameter> { self.linear.parameters() }
+    fn context_id(&self) -> ContextId {
+        self.context.id()
+    }
+    fn parameters(&self) -> Vec<&Parameter> {
+        self.linear.parameters()
+    }
 }
 
 impl RLModel for LinearPolicy {
@@ -74,7 +85,7 @@ impl RLModel for LinearPolicy {
 mod tests {
     use super::*;
     use crate::optimizer::{Adam, Optimizer};
-    use crate::trainer::{RLTrainer, EpisodeSchedule};
+    use crate::trainer::{EpisodeSchedule, RLTrainer};
 
     #[test]
     fn bandit_policy_pilot_trains_end_to_end() -> MlResult<()> {

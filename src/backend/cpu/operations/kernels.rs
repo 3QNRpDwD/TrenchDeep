@@ -175,7 +175,10 @@ pub(crate) fn group_norm_backward_data(
     ))
 }
 
-pub(crate) fn nearest_upsample2d_spec(input: &[usize], scale: (usize, usize)) -> MlResult<(usize, usize)> {
+pub(crate) fn nearest_upsample2d_spec(
+    input: &[usize],
+    scale: (usize, usize),
+) -> MlResult<(usize, usize)> {
     let output_height = input.get(2).and_then(|height| height.checked_mul(scale.0));
     let output_width = input.get(3).and_then(|width| width.checked_mul(scale.1));
     if input.len() != 4
@@ -720,7 +723,11 @@ pub(crate) fn broadcast_shape(lhs: &[usize], rhs: &[usize]) -> Option<Vec<usize>
     Some(output)
 }
 
-pub(crate) fn broadcast_offset(flat: usize, output_shape: &[usize], input_shape: &[usize]) -> usize {
+pub(crate) fn broadcast_offset(
+    flat: usize,
+    output_shape: &[usize],
+    input_shape: &[usize],
+) -> usize {
     let rank_delta = output_shape.len() - input_shape.len();
     let mut remainder = flat;
     let mut coordinates = vec![0; output_shape.len()];
@@ -799,4 +806,3 @@ pub(crate) fn tensor_zip(
         &lhs.shape,
     )
 }
-

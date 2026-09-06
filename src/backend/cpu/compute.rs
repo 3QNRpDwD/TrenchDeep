@@ -1,4 +1,5 @@
 use super::parallel::ParallelExecutor;
+use crate::{MlResult, TensorError};
 
 const PARALLEL_THRESHOLD: usize = 1024;
 
@@ -23,8 +24,8 @@ impl CpuCompute {
     }
 
     // Optimized binary operations using chunks
-    pub fn add(&self, a: &[f32], b: &[f32]) -> Vec<f32> {
-        if let Some(len) = self.check_dimensions(a, b) {
+    pub fn add(&self, a: &[f32], b: &[f32]) -> MlResult<Vec<f32>> {
+        Ok(if let Some(len) = self.check_dimensions(a, b) {
             if len < PARALLEL_THRESHOLD {
                 // Use existing sequential implementation for small arrays
                 let mut result = Vec::with_capacity(len);
@@ -37,15 +38,19 @@ impl CpuCompute {
                 self.parallel
                     .execute_binary(a, b, PARALLEL_THRESHOLD, |x, y| {
                         x.iter().zip(y.iter()).map(|(a, b)| a + b).collect()
-                    })
+                    })?
             }
         } else {
-            Vec::new()
-        }
+            return Err(TensorError::InvalidOperation {
+                op: "cpu_binary",
+                reason: "length mismatch".into(),
+            }
+            .into());
+        })
     }
 
-    pub fn multiply(&self, a: &[f32], b: &[f32]) -> Vec<f32> {
-        if let Some(len) = self.check_dimensions(a, b) {
+    pub fn multiply(&self, a: &[f32], b: &[f32]) -> MlResult<Vec<f32>> {
+        Ok(if let Some(len) = self.check_dimensions(a, b) {
             if len < PARALLEL_THRESHOLD {
                 // Use existing sequential implementation
                 let mut result = Vec::with_capacity(len);
@@ -76,11 +81,15 @@ impl CpuCompute {
                 self.parallel
                     .execute_binary(a, b, PARALLEL_THRESHOLD, |x, y| {
                         x.iter().zip(y.iter()).map(|(a, b)| a * b).collect()
-                    })
+                    })?
             }
         } else {
-            Vec::new()
-        }
+            return Err(TensorError::InvalidOperation {
+                op: "cpu_binary",
+                reason: "length mismatch".into(),
+            }
+            .into());
+        })
     }
 
     // Optimized matrix multiplication with cache-friendly access
@@ -123,13 +132,13 @@ impl CpuCompute {
         if let Some(len) = self.check_dimensions(a, b) {
             let mut result = Vec::with_capacity(len);
             for (x, y) in a.chunks(4).zip(b.chunks(4)) {
-                result.extend(x.iter().zip(y.iter()).map(|(a, b)| {
-                    if *b == 0.0 {
-                        f32::INFINITY
-                    } else {
-                        a / b
-                    }
-                }));
+                result.extend(
+                    x.iter().zip(y.iter()).map(
+                        |(a, b)| {
+                            if *b == 0.0 { f32::INFINITY } else { a / b }
+                        },
+                    ),
+                );
             }
             result
         } else {
@@ -237,10 +246,10 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0];
         let b = vec![4.0, 5.0, 6.0];
 
-        let sum = compute.add(&a, &b);
+        let sum = compute.add(&a, &b).expect("add");
         assert_eq!(sum, vec![5.0, 7.0, 9.0]);
 
-        let product = compute.multiply(&a, &b);
+        let product = compute.multiply(&a, &b).expect("multiply");
         assert_eq!(product, vec![4.0, 10.0, 18.0]);
 
         let diff = compute.sub(&a, &b);

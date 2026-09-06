@@ -1,5 +1,5 @@
-use thiserror::Error;
 use std::path::PathBuf;
+use thiserror::Error;
 #[derive(Error, Debug, Clone)]
 pub enum TensorError {
     #[error("Invalid shape: expected {:?}, got {:?}", expected, got)]
@@ -72,12 +72,27 @@ pub enum AutogradError {
 
 #[derive(Error, Debug)]
 pub enum MlError {
-    #[error("required module '{module}' is unavailable: capability '{capability}' requested by '{operation}'")]
-    DependencyUnavailable { module: &'static str, capability: &'static str, operation: &'static str },
-    #[error("module '{module}' does not support capability '{capability}' requested by '{operation}'")]
-    UnsupportedCapability { module: &'static str, capability: &'static str, operation: &'static str },
+    #[error(
+        "required module '{module}' is unavailable: capability '{capability}' requested by '{operation}'"
+    )]
+    DependencyUnavailable {
+        module: &'static str,
+        capability: &'static str,
+        operation: &'static str,
+    },
+    #[error(
+        "module '{module}' does not support capability '{capability}' requested by '{operation}'"
+    )]
+    UnsupportedCapability {
+        module: &'static str,
+        capability: &'static str,
+        operation: &'static str,
+    },
     #[error("{primary}; cleanup also failed: {cleanup}")]
-    CleanupError { primary: Box<MlError>, cleanup: Box<MlError> },
+    CleanupError {
+        primary: Box<MlError>,
+        cleanup: Box<MlError>,
+    },
     #[error(transparent)]
     TensorError(#[from] TensorError),
     #[error(transparent)]
@@ -117,11 +132,16 @@ pub enum OptimError {
     #[error("parameter {0:?} is already registered")]
     DuplicateParameter(super::ParameterId),
     #[error("optimizer parameters do not match the model: missing {missing:?}, extra {extra:?}")]
-    ParameterSetMismatch { missing: Vec<super::ParameterId>, extra: Vec<super::ParameterId> },
+    ParameterSetMismatch {
+        missing: Vec<super::ParameterId>,
+        extra: Vec<super::ParameterId>,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum DataError {
+    #[error("dataset did not provide sample {index}")]
+    MissingSample { index: usize },
     #[error("data I/O failed for {path}: {message}")]
     Io { path: PathBuf, message: String },
     #[error("data decode failed for {path} at line/row {line}: {message}")]
@@ -153,7 +173,10 @@ pub enum DataError {
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum LossError {
     #[error("invalid loss shape: expected {expected:?}, got {got:?}")]
-    InvalidShape { expected: Vec<usize>, got: Vec<usize> },
+    InvalidShape {
+        expected: Vec<usize>,
+        got: Vec<usize>,
+    },
     #[error("invalid loss '{op}': {reason}")]
     InvalidOperation { op: &'static str, reason: String },
 }

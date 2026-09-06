@@ -10,14 +10,16 @@ pub(crate) fn topk_forward_data(
         return Err(TensorError::InvalidOperation {
             op: "topk",
             reason: "input must have at least one dimension".into(),
-        }.into());
+        }
+        .into());
     }
     let width = input.shape[rank - 1];
     if k == 0 || k > width {
         return Err(TensorError::InvalidOperation {
             op: "topk",
             reason: format!("k must be in 1..={width}, got {k}"),
-        }.into());
+        }
+        .into());
     }
     let compare = |(left_index, left): &(usize, f32), (right_index, right): &(usize, f32)| {
         right.total_cmp(left).then(left_index.cmp(right_index))
@@ -52,7 +54,11 @@ pub(crate) fn matmax_forward_data(
         return Err(TensorError::EmptyTensor.into());
     }
     let Some(requested_axis) = axis else {
-        let (index, maximum) = input.data.iter().copied().enumerate()
+        let (index, maximum) = input
+            .data
+            .iter()
+            .copied()
+            .enumerate()
             .max_by(|(left_index, left), (right_index, right)| {
                 left.total_cmp(right).then(right_index.cmp(left_index))
             })
@@ -69,7 +75,10 @@ pub(crate) fn matmax_forward_data(
         .filter(|axis| *axis >= 0 && (*axis as usize) < rank)
         .ok_or_else(|| TensorError::InvalidOperation {
             op: "matmax",
-            reason: format!("axis {requested_axis} is invalid for shape {:?}", input.shape),
+            reason: format!(
+                "axis {requested_axis} is invalid for shape {:?}",
+                input.shape
+            ),
         })? as usize;
     let width = input.shape[axis];
     if width == 0 {
@@ -95,7 +104,11 @@ pub(crate) fn matmax_forward_data(
         }
     }
     let mut shape = input.shape.to_vec();
-    if keepdim { shape[axis] = 1; } else { shape.remove(axis); }
+    if keepdim {
+        shape[axis] = 1;
+    } else {
+        shape.remove(axis);
+    }
     Ok((values, indices, shape))
 }
 
@@ -168,8 +181,13 @@ pub(crate) fn validate_loss_pair(
                 .into());
             }
             for row in target.data.chunks_exact(classes) {
-                let ones = row.iter().filter(|value| (**value - 1.0).abs() <= 1e-6).count();
-                let binary = row.iter().all(|value| value.abs() <= 1e-6 || (*value - 1.0).abs() <= 1e-6);
+                let ones = row
+                    .iter()
+                    .filter(|value| (**value - 1.0).abs() <= 1e-6)
+                    .count();
+                let binary = row
+                    .iter()
+                    .all(|value| value.abs() <= 1e-6 || (*value - 1.0).abs() <= 1e-6);
                 if !binary || ones != 1 {
                     return Err(LossError::InvalidOperation {
                         op: kind.name(),
@@ -281,8 +299,7 @@ pub(crate) fn loss_forward(
         LossKind::CrossEntropy | LossKind::SoftmaxCrossEntropy => {
             let classes = prediction.shape[prediction.shape.len() - 1];
             let mut losses = Vec::with_capacity(prediction.data.len() / classes);
-            let mut probabilities = (save_softmax
-                && matches!(kind, LossKind::SoftmaxCrossEntropy))
+            let mut probabilities = (save_softmax && matches!(kind, LossKind::SoftmaxCrossEntropy))
                 .then(|| Vec::with_capacity(prediction.data.len()));
             for (prediction_row, target_row) in prediction
                 .data
@@ -341,10 +358,7 @@ pub(crate) fn loss_backward(
     saved: Option<TensorView<'_>>,
 ) -> MlResult<TensorBuffer> {
     validate_loss_pair(*kind, prediction, target)?;
-    let categorical = matches!(
-        kind,
-        LossKind::CrossEntropy | LossKind::SoftmaxCrossEntropy
-    );
+    let categorical = matches!(kind, LossKind::CrossEntropy | LossKind::SoftmaxCrossEntropy);
     let classes = if categorical {
         prediction.shape[prediction.shape.len() - 1]
     } else {
@@ -406,8 +420,8 @@ pub(crate) fn loss_backward(
             for row in 0..loss_count {
                 let start = row * classes;
                 for class in 0..classes {
-                    gradient[start + class] =
-                        scale_for(start + class) * (probabilities.data[start + class] - target.data[start + class]);
+                    gradient[start + class] = scale_for(start + class)
+                        * (probabilities.data[start + class] - target.data[start + class]);
                 }
             }
         }
@@ -470,4 +484,3 @@ pub(crate) fn approx_cos_derivative(x: f32) -> f32 {
     }
     result
 }
-

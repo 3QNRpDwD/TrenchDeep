@@ -1,5 +1,3 @@
-use super::{VisualizationError, recording::SessionState, statistics::tensor_statistics};
-use crate::tensor::{COMPUTATION_GRAPH, TensorBase};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -102,68 +100,4 @@ pub struct GraphSnapshot {
     pub nodes: Vec<GraphNodeSnapshot>,
     pub edges: Vec<GraphEdgeSnapshot>,
     pub attributes: BTreeMap<String, GraphAttributeValue>,
-}
-
-pub(crate) fn build_snapshot(session: &SessionState) -> Result<GraphSnapshot, VisualizationError> {
-    let graph = COMPUTATION_GRAPH.with(|graph| {
-        let graph = graph
-            .lock()
-            .map_err(|_| VisualizationError::GraphLockPoisoned)?;
-        let mut nodes = Vec::new();
-        let mut edges = Vec::new();
-        graph.visit_nodes(|node| {
-            let metadata = session.metadata.get(&node.id);
-            let role = metadata
-                .map(|metadata| metadata.role.clone())
-                .unwrap_or_else(|| {
-                    if node.is_leaf {
-                        NodeRole::Input
-                    } else {
-                        NodeRole::Variable
-                    }
-                });
-            let data = node.tensor.data();
-            let gradient = node.grad.data();
-            nodes.push(GraphNodeSnapshot {
-                id: node.id.as_raw(),
-                label: metadata
-                    .map(|metadata| metadata.label.clone())
-                    .unwrap_or_else(|| format!("node_{}", node.id.as_raw())),
-                is_parameter: matches!(role, NodeRole::Weight | NodeRole::Bias),
-                role,
-                operation: node.operation.map(str::to_owned),
-                shape: node.tensor.shape().to_vec(),
-                dtype: "f32",
-                elements: data.len(),
-                estimated_bytes: data.len() * std::mem::size_of::<f32>(),
-                is_leaf: node.is_leaf,
-                requires_grad: node.requires_grad,
-                retain_grad: node.requires_grad,
-                value_stats: (session.profile == CaptureProfile::Analysis)
-                    .then(|| tensor_statistics(data))
-                    .flatten(),
-                gradient_stats: (session.profile == CaptureProfile::Analysis)
-                    .then(|| tensor_statistics(gradient))
-                    .flatten(),
-                attributes: BTreeMap::new(),
-            });
-            edges.extend(node.inputs.iter().map(|input| GraphEdgeSnapshot {
-                from: input.as_raw(),
-                to: node.id.as_raw(),
-                kind: GraphEdgeKind::Data,
-            }));
-        });
-        Ok::<_, VisualizationError>((nodes, edges))
-    })?;
-    let (mut nodes, mut edges) = graph;
-    nodes.sort_by_key(|node| node.id);
-    edges.sort_by_key(|edge| (edge.from, edge.to));
-    Ok(GraphSnapshot {
-        schema_version: GRAPH_SNAPSHOT_SCHEMA_VERSION,
-        profile: session.profile,
-        context: session.context.clone(),
-        nodes,
-        edges,
-        attributes: BTreeMap::new(),
-    })
 }

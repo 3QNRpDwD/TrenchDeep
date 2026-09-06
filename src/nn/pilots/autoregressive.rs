@@ -3,7 +3,7 @@
 use crate::loss::Reduction;
 use crate::nn::Parameter;
 use crate::trainer::{AutoregressiveModel, TrainableModel};
-use crate::{ContextId, Variable, ExecutionContext, MlError, MlResult};
+use crate::{ContextId, ExecutionContext, MlError, MlResult, Variable};
 
 #[derive(Debug)]
 pub struct BigramLm {
@@ -17,9 +17,12 @@ impl BigramLm {
         if vocab == 0 {
             return Err(MlError::StringError("vocabulary must not be empty".into()));
         }
-        let values = (0..vocab * vocab)
-            .map(|_| (rand::random::<f32>() - 0.5) * 0.2)
-            .collect();
+        let values = context.initialization_uniform(
+            vocab
+                .checked_mul(vocab)
+                .ok_or_else(|| MlError::StringError("vocabulary dimension overflow".into()))?,
+            0.1,
+        )?;
         Ok(Self {
             context: context.clone(),
             weight: context.parameter(values, &[vocab, vocab])?,
@@ -27,19 +30,22 @@ impl BigramLm {
         })
     }
 
-    pub fn weight(&self) -> &Parameter { &self.weight }
+    pub fn weight(&self) -> &Parameter {
+        &self.weight
+    }
 }
 
 impl TrainableModel for BigramLm {
-    fn context_id(&self) -> ContextId { self.context.id() }
-    fn parameters(&self) -> Vec<&Parameter> { vec![&self.weight] }
+    fn context_id(&self) -> ContextId {
+        self.context.id()
+    }
+    fn parameters(&self) -> Vec<&Parameter> {
+        vec![&self.weight]
+    }
 }
 
 impl AutoregressiveModel for BigramLm {
-    fn forward_loss(
-        &mut self,
-        sequence: &Variable,
-    ) -> MlResult<(Variable, Variable, usize)> {
+    fn forward_loss(&mut self, sequence: &Variable) -> MlResult<(Variable, Variable, usize)> {
         let shape = sequence.tensor().shape()?;
         let (batch, length) = match shape.as_slice() {
             [length, vocab] if *vocab == self.vocab => (1, *length),
@@ -83,8 +89,8 @@ mod tests {
     use super::*;
     use crate::optimizer::{Adam, Optimizer};
     use crate::trainer::{
-        DataLoader, InMemoryDataset, AutoregressiveSample, AutoregressiveStackCollator, AutoregressiveDataset,
-        AutoregressiveTrainer, EpochSchedule,
+        AutoregressiveDataset, AutoregressiveSample, AutoregressiveStackCollator,
+        AutoregressiveTrainer, DataLoader, EpochSchedule, InMemoryDataset,
     };
 
     fn sequence(context: &ExecutionContext, tokens: &[usize], vocab: usize) -> MlResult<Variable> {
@@ -128,10 +134,17 @@ mod tests {
         ];
         let refs = samples.iter().collect::<Vec<_>>();
         let dataset = AutoregressiveDataset::new(&context, &refs)?;
-        let mut loader = DataLoader::builder(InMemoryDataset::new(dataset.sequences.iter().map(|v|AutoregressiveSample::new(v.tensor().clone())).collect())?)
-            .collator(AutoregressiveStackCollator::new())
-            .batch_size(2)
-            .shuffle(false).build()?;
+        let mut loader = DataLoader::builder(InMemoryDataset::new(
+            dataset
+                .sequences
+                .iter()
+                .map(|v| AutoregressiveSample::new(v.tensor().clone()))
+                .collect(),
+        )?)
+        .collator(AutoregressiveStackCollator::new())
+        .batch_size(2)
+        .shuffle(false)
+        .build()?;
         let mut optimizer = Adam::new(&context, 0.02, 0.9, 0.999, 1e-8)?;
         optimizer.register_all(&model.parameters())?;
         let result = AutoregressiveTrainer::silent(&context).fit_loader(
@@ -154,9 +167,11 @@ mod tests {
         let dataset = AutoregressiveDataset::new(&context, &refs)?.with_pad_token_id(0);
         let mut optimizer = Adam::new(&context, 0.02, 0.9, 0.999, 1e-8)?;
         optimizer.register_all(&model.parameters())?;
-        assert!(AutoregressiveTrainer::silent(&context)
-            .fit(&mut model, &mut optimizer, &dataset, EpochSchedule::new(1)?)
-            .is_err());
+        assert!(
+            AutoregressiveTrainer::silent(&context)
+                .fit(&mut model, &mut optimizer, &dataset, EpochSchedule::new(1)?)
+                .is_err()
+        );
         Ok(())
     }
 }

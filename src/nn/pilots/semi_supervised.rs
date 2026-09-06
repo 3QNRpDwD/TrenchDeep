@@ -3,7 +3,7 @@
 use crate::loss::Reduction;
 use crate::nn::{Layer, Linear, Parameter};
 use crate::trainer::{SemiSupervisedModel, TrainableModel};
-use crate::{ContextId, Tensor, Variable, ExecutionContext, MlResult};
+use crate::{ContextId, ExecutionContext, MlResult, Tensor, Variable};
 
 #[derive(Debug)]
 pub struct PiClassifier {
@@ -23,7 +23,8 @@ impl PiClassifier {
             return Err(crate::TensorError::InvalidOperation {
                 op: "pi_model",
                 reason: "noise_scale must be finite and non-negative".into(),
-            }.into());
+            }
+            .into());
         }
         Ok(Self {
             context: context.clone(),
@@ -34,9 +35,9 @@ impl PiClassifier {
 
     fn noisy(&self, input: &Variable) -> MlResult<Variable> {
         let shape = input.tensor().shape()?;
-        let noise = (0..input.tensor().numel()?)
-            .map(|_| (rand::random::<f32>() - 0.5) * 2.0 * self.noise_scale)
-            .collect();
+        let noise = self
+            .context
+            .model_uniform(input.tensor().numel()?, self.noise_scale)?;
         let noise = self.context.input(noise, &shape)?;
         input.add(noise.tensor())
     }
@@ -47,8 +48,12 @@ impl PiClassifier {
 }
 
 impl TrainableModel for PiClassifier {
-    fn context_id(&self) -> ContextId { self.context.id() }
-    fn parameters(&self) -> Vec<&Parameter> { self.linear.parameters() }
+    fn context_id(&self) -> ContextId {
+        self.context.id()
+    }
+    fn parameters(&self) -> Vec<&Parameter> {
+        self.linear.parameters()
+    }
 }
 
 impl SemiSupervisedModel for PiClassifier {
@@ -82,7 +87,7 @@ mod tests {
     use super::*;
     use crate::optimizer::{Adam, Optimizer};
     use crate::trainer::{
-        ConsistencyRamp, SemiSupervisedDataset, SemiSupervisedTrainer, EpochSchedule,
+        ConsistencyRamp, EpochSchedule, SemiSupervisedDataset, SemiSupervisedTrainer,
     };
 
     #[test]
@@ -104,13 +109,15 @@ mod tests {
         let labeled_refs = labeled.iter().collect::<Vec<_>>();
         let target_refs = targets.iter().collect::<Vec<_>>();
         let unlabeled_refs = unlabeled.iter().collect::<Vec<_>>();
-        let dataset = SemiSupervisedDataset::new(
-            &context, &labeled_refs, &target_refs, &unlabeled_refs,
-        )?;
+        let dataset =
+            SemiSupervisedDataset::new(&context, &labeled_refs, &target_refs, &unlabeled_refs)?;
         let mut optimizer = Adam::new(&context, 0.02, 0.9, 0.999, 1e-8)?;
         optimizer.register_all(&model.parameters())?;
         let result = SemiSupervisedTrainer::silent(&context)
-            .with_ramp(ConsistencyRamp::Sigmoid { max_weight: 1.0, ramp_epochs: 2 })
+            .with_ramp(ConsistencyRamp::Sigmoid {
+                max_weight: 1.0,
+                ramp_epochs: 2,
+            })
             .fit(
                 &mut model,
                 &mut optimizer,

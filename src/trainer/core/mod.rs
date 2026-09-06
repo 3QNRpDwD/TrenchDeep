@@ -10,37 +10,37 @@
 //! - `grad_norm`, `weight_norm`, `update_ratio`, `ClassificationAccuracy` 등 내장 메트릭.
 
 pub mod config;
+pub mod convergence;
 pub mod metric_hook;
 pub mod metrics;
-pub mod convergence;
 
-pub mod runtime;
 pub mod observer;
-
-
+pub mod runtime;
 
 use std::cell::RefCell;
 
 // 부모(`trainer`) 로부터 상속받는 공통 심볼.
 // 하위 모듈이 `use super::*;` 로 가져다 쓴다.
-pub(crate) use crate::{MlError,MlResult,Parameter,TensorBuffer};
+pub(crate) use crate::{MlError, MlResult, Parameter, TensorBuffer};
 
 // 공용 API 재수출.
-pub use config::{LogConfig, TrainerConfig, Metrics, TrainerBuilder};
-pub use metric_hook::{MetricHook, BatchContext};
-pub use metrics::{
-    grad_norm, weight_norm, update_ratio, has_invalid_grad,
-    argmax, ClassificationAccuracy, Perplexity,
-};
+pub use config::{LogConfig, Metrics, TrainerBuilder, TrainerConfig};
 pub use convergence::Convergence;
+pub use metric_hook::{BatchContext, MetricHook};
+pub use metrics::{
+    ClassificationAccuracy, Perplexity, argmax, grad_norm, has_invalid_grad, update_ratio,
+    weight_norm,
+};
 
-pub use runtime::TrainingRuntime;
 pub use observer::{
     BatchEndContext, BatchStartContext, EpochContext, TrainEndContext, TrainStartContext,
     TrainingObserver,
 };
-#[cfg(feature = "enableVisualization")]
-pub use observer::{CaptureSelector, GraphVisualizationObserver, GraphVisualizationObserverBuilder};
+pub use runtime::TrainingRuntime;
+
+pub use observer::{
+    CaptureSelector, GraphVisualizationObserver, GraphVisualizationObserverBuilder,
+};
 
 /// 아키텍처-불문 공용 상태.
 ///
@@ -50,7 +50,7 @@ pub use observer::{CaptureSelector, GraphVisualizationObserver, GraphVisualizati
 ///              (Phase 3 에서 `run_epoch(&self, ...)` 가 훅을 돌리기 위함).
 pub struct TrainerCore {
     pub(crate) config: LogConfig,
-    pub(crate) hooks:  RefCell<Vec<Box<dyn MetricHook>>>,
+    pub(crate) hooks: RefCell<Vec<Box<dyn MetricHook>>>,
     pub(crate) runtime: TrainingRuntime,
     pub(crate) observers: RefCell<Vec<Box<dyn TrainingObserver>>>,
 }
@@ -59,7 +59,12 @@ impl TrainerCore {
     /// 빈 훅 목록과 함께 `LogConfig` 로부터 새 `TrainerCore` 를 생성함.
     pub fn new(config: LogConfig) -> Self {
         let runtime = TrainingRuntime::new(config.seed);
-        Self { config, hooks: RefCell::new(Vec::new()), runtime, observers: RefCell::new(Vec::new()) }
+        Self {
+            config,
+            hooks: RefCell::new(Vec::new()),
+            runtime,
+            observers: RefCell::new(Vec::new()),
+        }
     }
 
     /// 훅을 하나 추가함. 에폭당 순서대로 `update` → `format` 이 호출된다.
@@ -84,39 +89,62 @@ impl TrainerCore {
         self.observers.borrow_mut().push(observer);
     }
 
-    pub fn observer_count(&self) -> usize { self.observers.borrow().len() }
+    pub fn observer_count(&self) -> usize {
+        self.observers.borrow().len()
+    }
 
     pub(crate) fn notify_train_start(&self, context: &TrainStartContext) {
-        for observer in self.observers.borrow_mut().iter_mut() { observer.on_train_start(context); }
+        for observer in self.observers.borrow_mut().iter_mut() {
+            observer.on_train_start(context);
+        }
     }
 
     pub(crate) fn notify_epoch_start(&self, context: &EpochContext) {
-        for observer in self.observers.borrow_mut().iter_mut() { observer.on_epoch_start(context); }
+        for observer in self.observers.borrow_mut().iter_mut() {
+            observer.on_epoch_start(context);
+        }
     }
 
     pub(crate) fn notify_epoch_end(&self, context: &EpochContext) {
-        for observer in self.observers.borrow_mut().iter_mut() { observer.on_epoch_end(context); }
+        for observer in self.observers.borrow_mut().iter_mut() {
+            observer.on_epoch_end(context);
+        }
     }
 
     pub(crate) fn notify_batch_end(&self, context: &BatchEndContext) {
-        for observer in self.observers.borrow_mut().iter_mut() { observer.on_batch_end(context); }
+        for observer in self.observers.borrow_mut().iter_mut() {
+            observer.on_batch_end(context);
+        }
     }
 
     pub(crate) fn notify_train_end(&self, context: &TrainEndContext) {
-        for observer in self.observers.borrow_mut().iter_mut() { observer.on_train_end(context); }
+        for observer in self.observers.borrow_mut().iter_mut() {
+            observer.on_train_end(context);
+        }
     }
 
     pub(crate) fn notify_train_error(&self, message: &str) {
-        for observer in self.observers.borrow_mut().iter_mut() { observer.on_train_error(message); }
+        for observer in self.observers.borrow_mut().iter_mut() {
+            observer.on_train_error(message);
+        }
     }
 
-    #[cfg(feature = "enableVisualization")]
-    pub(crate) fn requested_capture_profile(&self, context: &BatchStartContext) -> Option<crate::visualization::CaptureProfile> {
-        self.observers.borrow().iter().filter_map(|observer| observer.capture_profile(context)).max()
+    pub(crate) fn requested_capture_profile(
+        &self,
+        context: &BatchStartContext,
+    ) -> Option<crate::visualization::CaptureProfile> {
+        self.observers
+            .borrow()
+            .iter()
+            .filter_map(|observer| observer.capture_profile(context))
+            .max()
     }
 
-    #[cfg(feature = "enableVisualization")]
-    pub(crate) fn deliver_graph_snapshot(&self, context: &BatchStartContext, snapshot: crate::visualization::GraphSnapshot) {
+    pub(crate) fn deliver_graph_snapshot(
+        &self,
+        context: &BatchStartContext,
+        snapshot: crate::visualization::GraphSnapshot,
+    ) {
         for observer in self.observers.borrow_mut().iter_mut() {
             if observer.capture_profile(context).is_some() {
                 observer.on_graph_snapshot(snapshot.clone());
@@ -132,7 +160,8 @@ impl TrainerCore {
     /// Epoch-derived streams make uninterrupted and resumed epoch ordering identical.
     pub(crate) fn begin_epoch(&self, epoch: usize) {
         const EPOCH_MIX: u64 = 0x9E37_79B9_7F4A_7C15;
-        self.runtime.reseed(self.config.seed ^ (epoch as u64).wrapping_mul(EPOCH_MIX));
+        self.runtime
+            .reseed(self.config.seed ^ (epoch as u64).wrapping_mul(EPOCH_MIX));
     }
 
     pub(crate) fn random_f32(&self) -> f32 {

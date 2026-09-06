@@ -9,7 +9,7 @@ use std::f32::consts::TAU;
 use crate::loss::Reduction;
 use crate::nn::{Conv2D, Layer, Parameter};
 use crate::trainer::{TrainableModel, UnsupervisedModel};
-use crate::{ContextId, Tensor, Variable, ExecutionContext, MlResult, TensorError};
+use crate::{ContextId, ExecutionContext, MlResult, Tensor, TensorError, Variable};
 
 #[derive(Debug)]
 pub struct DiffusionPilot {
@@ -39,7 +39,8 @@ impl DiffusionPilot {
                 op: "diffusion_pilot",
                 reason: "channels/timesteps must be non-zero and 0 < beta_start <= beta_end < 1"
                     .into(),
-            }.into());
+            }
+            .into());
         }
         let mut cumulative = 1.0;
         let denominator = timesteps.saturating_sub(1).max(1) as f32;
@@ -90,22 +91,24 @@ impl DiffusionPilot {
             return Err(TensorError::InvalidOperation {
                 op: "diffusion_pilot",
                 reason: "input must have shape [batch, channels, height, width]".into(),
-            }.into());
+            }
+            .into());
         }
         Ok(shape)
     }
 }
 
 impl TrainableModel for DiffusionPilot {
-    fn context_id(&self) -> ContextId { self.context.id() }
-    fn parameters(&self) -> Vec<&Parameter> { self.denoiser.parameters() }
+    fn context_id(&self) -> ContextId {
+        self.context.id()
+    }
+    fn parameters(&self) -> Vec<&Parameter> {
+        self.denoiser.parameters()
+    }
 }
 
 impl UnsupervisedModel for DiffusionPilot {
-    fn forward_loss(
-        &mut self,
-        image: &Variable,
-    ) -> MlResult<(Variable, Variable)> {
+    fn forward_loss(&mut self, image: &Variable) -> MlResult<(Variable, Variable)> {
         let shape = self.validate_image(image)?;
         let count = image.tensor().to_vec()?.len();
         let timestep = rand::random::<u64>() as usize % self.alpha_bars.len();
@@ -115,13 +118,13 @@ impl UnsupervisedModel for DiffusionPilot {
         let noise_scale = self.context.input(vec![(1.0 - alpha_bar).sqrt()], &[])?;
         let clean_component = self.context.mul_variable(image, &image_scale)?;
         let noise_component = self.context.mul_variable(&noise, &noise_scale)?;
-        let noisy = self.context.add_variable(&clean_component, &noise_component)?;
+        let noisy = self
+            .context
+            .add_variable(&clean_component, &noise_component)?;
         let prediction = self.denoiser.apply(&noisy)?;
-        let loss = self.context.mse_loss_variable(
-            &prediction,
-            noise.tensor(),
-            Reduction::Mean,
-        )?;
+        let loss = self
+            .context
+            .mse_loss_variable(&prediction, noise.tensor(), Reduction::Mean)?;
         Ok((prediction, loss))
     }
 }
@@ -130,7 +133,7 @@ impl UnsupervisedModel for DiffusionPilot {
 mod tests {
     use super::*;
     use crate::optimizer::{Adam, Optimizer};
-    use crate::trainer::{UnsupervisedDataset, UnsupervisedTrainer, EpochSchedule};
+    use crate::trainer::{EpochSchedule, UnsupervisedDataset, UnsupervisedTrainer};
 
     #[test]
     fn diffusion_pilot_trains_end_to_end() -> MlResult<()> {

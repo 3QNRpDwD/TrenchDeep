@@ -1,9 +1,5 @@
 use crate::trainer::TrainingRuntime;
-use crate::{
-    MlError, MlResult,
-    nn::Variable,
-    tensor::Tensor,
-};
+use crate::{MlError, MlResult, nn::Variable, tensor::Tensor};
 
 use super::DataError;
 
@@ -226,8 +222,12 @@ where
         }
         let samples = self.indices[self.cursor..end]
             .iter()
-            .map(|&index| self.dataset.get(index).expect("loader index must be valid"))
-            .collect::<Vec<_>>();
+            .map(|&index| {
+                self.dataset
+                    .get(index)
+                    .ok_or(DataError::MissingSample { index })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         self.cursor = end;
         self.collator
             .collate(&samples)
@@ -567,12 +567,20 @@ where
         );
         let labeled_samples = labeled_indices
             .iter()
-            .map(|&i| self.labeled.get(i).unwrap())
-            .collect::<Vec<_>>();
+            .map(|&index| {
+                self.labeled
+                    .get(index)
+                    .ok_or(DataError::MissingSample { index })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         let unlabeled_samples = unlabeled_indices
             .iter()
-            .map(|&i| self.unlabeled.get(i).unwrap())
-            .collect::<Vec<_>>();
+            .map(|&index| {
+                self.unlabeled
+                    .get(index)
+                    .ok_or(DataError::MissingSample { index })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         self.cursor += 1;
         let labeled = self
             .labeled_collator

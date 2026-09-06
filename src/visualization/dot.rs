@@ -31,7 +31,7 @@ impl DotEncoder {
                     matches!(
                         node.role,
                         NodeRole::Saved | NodeRole::Weight | NodeRole::Bias
-                    ) || (node.role == NodeRole::Input && node.elements <= 1)
+                    )
                 })
                 .map(|node| node.id)
                 .collect()
@@ -83,7 +83,7 @@ impl DotEncoder {
         }
         if overview && !hidden.is_empty() {
             dot.push_str(&format!(
-                "  graph [label=\"Overview: {} auxiliary nodes hidden (parameters, scalar constants, saved tensors); full data in JSON\", labelloc=b, labeljust=l, fontname=\"Segoe UI\", fontsize=9, fontcolor=\"#64748B\"];\n",
+                "  graph [label=\"Overview: {} auxiliary nodes hidden (parameters, saved tensors); full data in JSON\", labelloc=b, labeljust=l, fontname=\"Segoe UI\", fontsize=9, fontcolor=\"#64748B\"];\n",
                 hidden.len(),
             ));
         }

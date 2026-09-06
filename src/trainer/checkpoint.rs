@@ -1,15 +1,32 @@
 use super::*;
-use serde::{Serialize,Deserialize};
-use std::{path::Path,sync::{OnceLock,atomic::{AtomicBool,Ordering}}};
-pub const CHECKPOINT_SCHEMA_VERSION:u32=2;
-fn default_schema_version()->u32 {CHECKPOINT_SCHEMA_VERSION}
-static INTERRUPTED:AtomicBool=AtomicBool::new(false);
-static HANDLER:OnceLock<Result<(),String>>=OnceLock::new();
-pub fn request_interrupt(){INTERRUPTED.store(true,Ordering::SeqCst);}
-pub fn clear_interrupt(){INTERRUPTED.store(false,Ordering::SeqCst);}
-pub fn interrupted()->bool {INTERRUPTED.load(Ordering::SeqCst)}
-pub fn install_interrupt_handler()->MlResult<()> {
-    HANDLER.get_or_init(||ctrlc::set_handler(request_interrupt).map_err(|e|e.to_string())).clone().map_err(MlError::StringError)
+use serde::{Deserialize, Serialize};
+use std::{
+    path::Path,
+    sync::{
+        OnceLock,
+        atomic::{AtomicBool, Ordering},
+    },
+};
+pub const CHECKPOINT_SCHEMA_VERSION: u32 = 2;
+fn default_schema_version() -> u32 {
+    CHECKPOINT_SCHEMA_VERSION
+}
+static INTERRUPTED: AtomicBool = AtomicBool::new(false);
+static HANDLER: OnceLock<Result<(), String>> = OnceLock::new();
+pub fn request_interrupt() {
+    INTERRUPTED.store(true, Ordering::SeqCst);
+}
+pub fn clear_interrupt() {
+    INTERRUPTED.store(false, Ordering::SeqCst);
+}
+pub fn interrupted() -> bool {
+    INTERRUPTED.load(Ordering::SeqCst)
+}
+pub fn install_interrupt_handler() -> MlResult<()> {
+    HANDLER
+        .get_or_init(|| ctrlc::set_handler(request_interrupt).map_err(|e| e.to_string()))
+        .clone()
+        .map_err(MlError::StringError)
 }
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ParadigmTag {
@@ -23,11 +40,11 @@ pub enum ParadigmTag {
 impl ParadigmTag {
     pub fn as_str(self) -> &'static str {
         match self {
-            ParadigmTag::Supervised      => "supervised",
-            ParadigmTag::Unsupervised    => "unsupervised",
-            ParadigmTag::SemiSupervised  => "semi-supervised",
-            ParadigmTag::Autoregressive  => "autoregressive",
-            ParadigmTag::Reinforcement   => "reinforcement",
+            ParadigmTag::Supervised => "supervised",
+            ParadigmTag::Unsupervised => "unsupervised",
+            ParadigmTag::SemiSupervised => "semi-supervised",
+            ParadigmTag::Autoregressive => "autoregressive",
+            ParadigmTag::Reinforcement => "reinforcement",
         }
     }
 }
@@ -81,31 +98,31 @@ impl TrainingCheckpoint {
         let path = path.as_ref();
         if let Some(parent) = path.parent() {
             if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|e| MlError::StringError(
-                        format!("디렉토리 생성 실패 '{}': {}", parent.display(), e)
-                    ))?;
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    MlError::StringError(format!(
+                        "디렉토리 생성 실패 '{}': {}",
+                        parent.display(),
+                        e
+                    ))
+                })?;
             }
         }
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| MlError::StringError(e.to_string()))?;
-        std::fs::write(path, json)
-            .map_err(|e| MlError::StringError(
-                format!("체크포인트 저장 실패 '{}': {}", path.display(), e)
-            ))
+        let json =
+            serde_json::to_string_pretty(self).map_err(|e| MlError::StringError(e.to_string()))?;
+        std::fs::write(path, json).map_err(|e| {
+            MlError::StringError(format!("체크포인트 저장 실패 '{}': {}", path.display(), e))
+        })
     }
 
     /// JSON 파일에서 체크포인트를 로드.
     pub fn load(path: impl AsRef<Path>) -> MlResult<Self> {
         let path = path.as_ref();
-        let json = std::fs::read_to_string(path)
-            .map_err(|e| MlError::StringError(
-                format!("체크포인트 로드 실패 '{}': {}", path.display(), e)
-            ))?;
-        serde_json::from_str(&json)
-            .map_err(|e| MlError::StringError(
-                format!("체크포인트 파싱 실패 '{}': {}", path.display(), e)
-            ))
+        let json = std::fs::read_to_string(path).map_err(|e| {
+            MlError::StringError(format!("체크포인트 로드 실패 '{}': {}", path.display(), e))
+        })?;
+        serde_json::from_str(&json).map_err(|e| {
+            MlError::StringError(format!("체크포인트 파싱 실패 '{}': {}", path.display(), e))
+        })
     }
 
     /// 체크포인트 파일이 존재하는지 확인.
@@ -122,7 +139,8 @@ impl TrainingCheckpoint {
                     "체크포인트 패러다임 불일치: 저장된 태그는 `{}`, \
                      현재 트레이너는 `{}`. 올바른 트레이너로 resume 하거나 \
                      저장 시 사용한 트레이너를 확인하세요.",
-                    tag.as_str(), expected.as_str()
+                    tag.as_str(),
+                    expected.as_str()
                 )));
             }
         }
@@ -130,11 +148,41 @@ impl TrainingCheckpoint {
     }
 }
 
-
-pub(crate) fn save_model(directory:&str,paradigm:&str,completed:usize,schedule:EpochSchedule,loss:f32,lr:f32,seed:u64,save:impl FnOnce(&Path)->MlResult<()>)->MlResult<CheckpointPaths> {
-    let directory=Path::new(directory);std::fs::create_dir_all(directory).map_err(|e|MlError::StringError(e.to_string()))?;
-    let model=directory.join("model.tdw");let metadata=directory.join("training.json");save(&model)?;
-    let tag=match paradigm {"supervised"=>ParadigmTag::Supervised,"unsupervised"=>ParadigmTag::Unsupervised,"semi_supervised"=>ParadigmTag::SemiSupervised,"autoregressive"=>ParadigmTag::Autoregressive,_=>ParadigmTag::Reinforcement};
-    TrainingCheckpoint {schema_version:CHECKPOINT_SCHEMA_VERSION,epochs_done:completed,total_epochs:schedule.epochs,last_loss:loss,tolerance:schedule.convergence.tolerance(),optimizer_lr:lr,model_path:model.to_string_lossy().into_owned(),timestamp:time::OffsetDateTime::now_utc().to_string(),paradigm:Some(tag),rng_seed:seed,optimizer_snapshot:None}.save(&metadata)?;
-    Ok(CheckpointPaths {model,metadata})
+pub(crate) fn save_model(
+    directory: &str,
+    paradigm: &str,
+    completed: usize,
+    schedule: EpochSchedule,
+    loss: f32,
+    lr: f32,
+    seed: u64,
+    save: impl FnOnce(&Path) -> MlResult<()>,
+) -> MlResult<CheckpointPaths> {
+    let directory = Path::new(directory);
+    std::fs::create_dir_all(directory).map_err(|e| MlError::StringError(e.to_string()))?;
+    let model = directory.join("model.tdw");
+    let metadata = directory.join("training.json");
+    save(&model)?;
+    let tag = match paradigm {
+        "supervised" => ParadigmTag::Supervised,
+        "unsupervised" => ParadigmTag::Unsupervised,
+        "semi_supervised" => ParadigmTag::SemiSupervised,
+        "autoregressive" => ParadigmTag::Autoregressive,
+        _ => ParadigmTag::Reinforcement,
+    };
+    TrainingCheckpoint {
+        schema_version: CHECKPOINT_SCHEMA_VERSION,
+        epochs_done: completed,
+        total_epochs: schedule.epochs,
+        last_loss: loss,
+        tolerance: schedule.convergence.tolerance(),
+        optimizer_lr: lr,
+        model_path: model.to_string_lossy().into_owned(),
+        timestamp: time::OffsetDateTime::now_utc().to_string(),
+        paradigm: Some(tag),
+        rng_seed: seed,
+        optimizer_snapshot: None,
+    }
+    .save(&metadata)?;
+    Ok(CheckpointPaths { model, metadata })
 }

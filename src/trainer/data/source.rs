@@ -300,13 +300,13 @@ where
                 Some(path) => format!(" at {}:{}", path.display(), located.line),
                 None => format!(" at record {}", located.line),
             };
-            let sample = self
-                .transform
-                .transform(located.record)
-                .map_err(|error| DataError::Transform {
-                    location,
-                    message: error.to_string(),
-                })?;
+            let sample =
+                self.transform
+                    .transform(located.record)
+                    .map_err(|error| DataError::Transform {
+                        location,
+                        message: error.to_string(),
+                    })?;
             samples.push(sample);
         }
         InMemoryDataset::new(samples).map_err(MlError::from)

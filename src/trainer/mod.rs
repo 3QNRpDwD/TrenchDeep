@@ -1,26 +1,44 @@
 //! One training service shared by every paradigm.
-use crate::{ExecutionContext,MlResult,MlError,Variable,Tensor,Parameter,TensorBuffer,ContextId,ContextError};
+use crate::{
+    ContextError, ContextId, ExecutionContext, MlError, MlResult, Parameter, Tensor, TensorBuffer,
+    Variable,
+};
 pub mod api;
+pub mod checkpoint;
 pub mod core;
 pub mod data;
-pub mod checkpoint;
 pub(crate) mod progress;
-mod service;
-mod runners;
 mod reinforcement;
+mod runners;
+mod service;
 pub use api::*;
 pub use core::*;
 pub use data::*;
-pub use runners::*;
 pub use reinforcement::*;
+pub use runners::*;
 pub trait TrainableModel {
-    fn context_id(&self)->ContextId;
-    fn parameters(&self)->Vec<&Parameter>;
+    fn context_id(&self) -> ContextId;
+    fn parameters(&self) -> Vec<&Parameter>;
 }
-pub trait SupervisedModel:TrainableModel {fn forward_loss(&mut self,input:&Variable,target:&Tensor)->MlResult<(Variable,Variable)>;}
-pub trait UnsupervisedModel:TrainableModel {fn forward_loss(&mut self,input:&Variable)->MlResult<(Variable,Variable)>;}
-pub trait SemiSupervisedModel:TrainableModel {fn forward_loss(&mut self,labeled_input:&Variable,labeled_target:&Tensor,unlabeled_input:&Variable,lambda:f32)->MlResult<(Variable,Variable)>;}
-pub trait AutoregressiveModel:TrainableModel {fn forward_loss(&mut self,input:&Variable)->MlResult<(Variable,Variable,usize)>;}
+pub trait SupervisedModel: TrainableModel {
+    fn forward_loss(&mut self, input: &Variable, target: &Tensor)
+    -> MlResult<(Variable, Variable)>;
+}
+pub trait UnsupervisedModel: TrainableModel {
+    fn forward_loss(&mut self, input: &Variable) -> MlResult<(Variable, Variable)>;
+}
+pub trait SemiSupervisedModel: TrainableModel {
+    fn forward_loss(
+        &mut self,
+        labeled_input: &Variable,
+        labeled_target: &Tensor,
+        unlabeled_input: &Variable,
+        lambda: f32,
+    ) -> MlResult<(Variable, Variable)>;
+}
+pub trait AutoregressiveModel: TrainableModel {
+    fn forward_loss(&mut self, input: &Variable) -> MlResult<(Variable, Variable, usize)>;
+}
 pub struct Trainer {
     pub(crate) core: TrainerCore,
 }
@@ -91,11 +109,21 @@ impl Trainer {
             .build()
     }
 
-    pub fn supervised(self, context: &ExecutionContext) -> SupervisedTrainer { SupervisedTrainer::from_trainer(context,self) }
-    pub fn unsupervised(self, context: &ExecutionContext) -> UnsupervisedTrainer { UnsupervisedTrainer::from_trainer(context,self) }
-    pub fn semi_supervised(self, context: &ExecutionContext) -> SemiSupervisedTrainer { SemiSupervisedTrainer::from_trainer(context,self) }
-    pub fn autoregressive(self, context: &ExecutionContext) -> AutoregressiveTrainer { AutoregressiveTrainer::from_trainer(context,self) }
-    pub fn reinforcement(self, context: &ExecutionContext) -> RLTrainer { RLTrainer::from_trainer(context,self) }
+    pub fn supervised(self, context: &ExecutionContext) -> SupervisedTrainer {
+        SupervisedTrainer::from_trainer(context, self)
+    }
+    pub fn unsupervised(self, context: &ExecutionContext) -> UnsupervisedTrainer {
+        UnsupervisedTrainer::from_trainer(context, self)
+    }
+    pub fn semi_supervised(self, context: &ExecutionContext) -> SemiSupervisedTrainer {
+        SemiSupervisedTrainer::from_trainer(context, self)
+    }
+    pub fn autoregressive(self, context: &ExecutionContext) -> AutoregressiveTrainer {
+        AutoregressiveTrainer::from_trainer(context, self)
+    }
+    pub fn reinforcement(self, context: &ExecutionContext) -> RLTrainer {
+        RLTrainer::from_trainer(context, self)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -138,4 +166,3 @@ impl Default for ConsistencyRamp {
         }
     }
 }
-

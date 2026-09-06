@@ -2,17 +2,36 @@ use super::*;
 #[derive(Default)]
 pub struct ClassificationAccuracy {
     correct: usize,
-    total:   usize,
+    total: usize,
 }
 
 impl ClassificationAccuracy {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     /// 예측 텐서와 정답 텐서를 받아 내부 상태를 갱신.
     pub fn update(&mut self, pred: &TensorBuffer, target: &TensorBuffer) {
-        if let (Some(p), Some(t)) = (argmax(pred.data()), argmax(target.data())) {
-            if p == t { self.correct += 1; }
-            self.total += 1;
+        if pred.shape() != target.shape() {
+            return;
+        }
+        let Some(&classes) = pred.shape().last() else {
+            return;
+        };
+        if classes == 0 {
+            return;
+        }
+        for (prediction, target) in pred
+            .data()
+            .chunks_exact(classes)
+            .zip(target.data().chunks_exact(classes))
+        {
+            if let (Some(p), Some(t)) = (argmax(prediction), argmax(target)) {
+                if p == t {
+                    self.correct += 1;
+                }
+                self.total += 1;
+            }
         }
     }
 
@@ -28,7 +47,7 @@ impl ClassificationAccuracy {
     /// 에폭 시작 시 상태를 초기화.
     pub fn reset(&mut self) {
         self.correct = 0;
-        self.total   = 0;
+        self.total = 0;
     }
 }
 
@@ -87,23 +106,31 @@ pub struct Perplexity {
 }
 
 impl Perplexity {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     /// 배치의 평균 NLL 과 해당 배치의 유효 토큰 수를 받아 누적한다.
     pub fn update_loss(&mut self, mean_nll: f32, token_count: usize) {
-        if token_count == 0 || !mean_nll.is_finite() { return; }
-        self.nll_sum   += mean_nll as f64 * token_count as f64;
+        if token_count == 0 || !mean_nll.is_finite() {
+            return;
+        }
+        self.nll_sum += mean_nll as f64 * token_count as f64;
         self.token_sum += token_count;
     }
 
     /// 현재까지 누적된 평균 NLL.
     pub fn mean_nll(&self) -> f32 {
-        if self.token_sum == 0 { 0.0 } else { (self.nll_sum / self.token_sum as f64) as f32 }
+        if self.token_sum == 0 {
+            0.0
+        } else {
+            (self.nll_sum / self.token_sum as f64) as f32
+        }
     }
 
     /// 에폭 경계에서 상태를 초기화.
     pub fn reset(&mut self) {
-        self.nll_sum   = 0.0;
+        self.nll_sum = 0.0;
         self.token_sum = 0;
     }
 }
@@ -144,19 +171,53 @@ impl MetricHook for Perplexity {
 /// 동률 시 첫 번째 최대값의 인덱스를 반환.
 /// 슬라이스가 비어 있으면 `None`을 반환.
 pub fn argmax(data: &[f32]) -> Option<usize> {
-    data.iter()
-        .enumerate()
-        .max_by(|(_, a), (_, b)| a.total_cmp(b))
-        .map(|(i, _)| i)
+    let mut best = None;
+    for (index, value) in data.iter().enumerate() {
+        if best.is_none_or(|previous| value.total_cmp(&data[previous]).is_gt()) {
+            best = Some(index);
+        }
+    }
+    best
 }
 
 // ────────────────────────────────────────────────────────────────────────────
 // Tests — 훅 경로가 직접 호출 경로와 동일 결과를 내는지 확인.
 // ────────────────────────────────────────────────────────────────────────────
 
-
-pub fn grad_norm(parameters:&[&Parameter])->MlResult<f32> {let mut n=0.0;for p in parameters {if let Some(g)=p.grad()? {n+=g.data().iter().map(|x|x*x).sum::<f32>();}}Ok(n.sqrt())}
-pub fn weight_norm(parameters:&[&Parameter])->MlResult<f32> {let mut n=0.0;for p in parameters {n+=p.tensor().with_view(|v|v.data().iter().map(|x|x*x).sum::<f32>())?;}Ok(n.sqrt())}
+pub fn grad_norm(parameters: &[&Parameter]) -> MlResult<f32> {
+    let mut n = 0.0;
+    for p in parameters {
+        if let Some(g) = p.grad()? {
+            n += g.data().iter().map(|x| x * x).sum::<f32>();
+        }
+    }
+    Ok(n.sqrt())
+}
+pub fn weight_norm(parameters: &[&Parameter]) -> MlResult<f32> {
+    let mut n = 0.0;
+    for p in parameters {
+        n += p
+            .tensor()
+            .with_view(|v| v.data().iter().map(|x| x * x).sum::<f32>())?;
+    }
+    Ok(n.sqrt())
+}
 /// Estimate based on the unclipped lr * gradient, not the optimizer's actual update.
-pub fn update_ratio(parameters:&[&Parameter],lr:f32)->MlResult<f32> {let w=weight_norm(parameters)?;Ok(if w>1e-12 {lr*grad_norm(parameters)?/w}else{0.0})}
-pub fn has_invalid_grad(parameters:&[&Parameter])->MlResult<bool> {for p in parameters {if let Some(g)=p.grad()? {if g.data().iter().any(|x|!x.is_finite()){return Ok(true);}}}Ok(false)}
+pub fn update_ratio(parameters: &[&Parameter], lr: f32) -> MlResult<f32> {
+    let w = weight_norm(parameters)?;
+    Ok(if w > 1e-12 {
+        lr * grad_norm(parameters)? / w
+    } else {
+        0.0
+    })
+}
+pub fn has_invalid_grad(parameters: &[&Parameter]) -> MlResult<bool> {
+    for p in parameters {
+        if let Some(g) = p.grad()? {
+            if g.data().iter().any(|x| !x.is_finite()) {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}

@@ -1,3 +1,4 @@
+use crate::{MlResult, TensorError};
 use std::sync::Arc;
 use std::thread;
 
@@ -15,13 +16,13 @@ impl ParallelExecutor {
         ParallelExecutor { thread_count }
     }
 
-    pub fn execute<T, F>(&self, data: &[T], chunk_size: usize, f: F) -> Vec<T>
+    pub fn execute<T, F>(&self, data: &[T], chunk_size: usize, f: F) -> MlResult<Vec<T>>
     where
         T: Send + Sync + Copy + 'static,
         F: Fn(&[T]) -> Vec<T> + Send + Sync + Clone + 'static,
     {
         if data.len() <= chunk_size {
-            return f(data);
+            return Ok(f(data));
         }
 
         let data = Arc::new(data.to_vec());
@@ -42,19 +43,39 @@ impl ParallelExecutor {
             handles.push(thread::spawn(move || thread_f(&thread_data[start..end])));
         }
 
-        handles
+        let chunks = handles
             .into_iter()
-            .flat_map(|h| h.join().unwrap())
-            .collect()
+            .map(|h| {
+                h.join().map_err(|_| {
+                    TensorError::InvalidOperation {
+                        op: "cpu_parallel",
+                        reason: "worker thread failed".into(),
+                    }
+                    .into()
+                })
+            })
+            .collect::<Vec<MlResult<Vec<T>>>>();
+        Ok(chunks
+            .into_iter()
+            .collect::<MlResult<Vec<_>>>()?
+            .into_iter()
+            .flatten()
+            .collect())
     }
 
-    pub fn execute_binary<T, F>(&self, a: &[T], b: &[T], chunk_size: usize, f: F) -> Vec<T>
+    pub fn execute_binary<T, F>(
+        &self,
+        a: &[T],
+        b: &[T],
+        chunk_size: usize,
+        f: F,
+    ) -> MlResult<Vec<T>>
     where
         T: Send + Sync + Copy + 'static,
         F: Fn(&[T], &[T]) -> Vec<T> + Send + Sync + Clone + 'static,
     {
         if a.len() <= chunk_size {
-            return f(a, b);
+            return Ok(f(a, b));
         }
 
         let a = Arc::new(a.to_vec());
@@ -79,10 +100,24 @@ impl ParallelExecutor {
             }));
         }
 
-        handles
+        let chunks = handles
             .into_iter()
-            .flat_map(|h| h.join().unwrap())
-            .collect()
+            .map(|h| {
+                h.join().map_err(|_| {
+                    TensorError::InvalidOperation {
+                        op: "cpu_parallel",
+                        reason: "worker thread failed".into(),
+                    }
+                    .into()
+                })
+            })
+            .collect::<Vec<MlResult<Vec<T>>>>();
+        Ok(chunks
+            .into_iter()
+            .collect::<MlResult<Vec<_>>>()?
+            .into_iter()
+            .flatten()
+            .collect())
     }
 }
 
@@ -97,7 +132,10 @@ mod tests {
 
         let result = executor.execute(&data, 2, |chunk| chunk.iter().map(|&x| x * 2.0).collect());
 
-        assert_eq!(result, vec![2.0, 4.0, 6.0, 8.0, 10.0]);
+        assert_eq!(
+            result.expect("parallel result"),
+            vec![2.0, 4.0, 6.0, 8.0, 10.0]
+        );
     }
 
     #[test]
@@ -114,6 +152,9 @@ mod tests {
                 .collect()
         });
 
-        assert_eq!(result, vec![3.0, 5.0, 7.0, 9.0, 11.0]);
+        assert_eq!(
+            result.expect("parallel result"),
+            vec![3.0, 5.0, 7.0, 9.0, 11.0]
+        );
     }
 }

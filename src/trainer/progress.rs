@@ -14,9 +14,9 @@ use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 ///
 /// `show = false`일 때 hidden ProgressBar를 반환하므로 호출부에 분기 없음.
 pub(crate) struct EpochProgress {
-    multi:     MultiProgress,
+    multi: MultiProgress,
     epoch_bar: ProgressBar,
-    show:      bool,
+    show: bool,
 }
 
 impl EpochProgress {
@@ -32,27 +32,34 @@ impl EpochProgress {
                 ProgressStyle::default_bar()
                     .template(
                         "{spinner:.green} [{elapsed_precise}] \
-                         [ {wide_bar:.cyan/blue} ] {percent:>3}% Epochs ({eta}) | {msg}"
+                         [ {wide_bar:.cyan/blue} ] {percent:>3}% Epochs ({eta}) | {msg}",
                     )
-                    .unwrap()
+                    .unwrap_or_else(|_| ProgressStyle::default_bar())
                     .progress_chars("▉ "),
             );
             pb
         } else {
             ProgressBar::hidden()
         };
-        Self { multi, epoch_bar, show }
+        Self {
+            multi,
+            epoch_bar,
+            show,
+        }
     }
 
     /// 배치 레벨 progress bar 를 에폭 바 아래에 추가하여 반환.
     pub fn start_batch_bar(
         &self,
-        epoch:     usize,
-        epochs:    usize,
+        epoch: usize,
+        epochs: usize,
         n_batches: Option<usize>,
     ) -> BatchProgress {
         if !self.show {
-            return BatchProgress { bar: ProgressBar::hidden(), active: false };
+            return BatchProgress {
+                bar: ProgressBar::hidden(),
+                active: false,
+            };
         }
         // MultiProgress는 각 bar가 한 번 draw되어야 해당 행을 합성한다.
         // 첫 에폭부터 에폭/배치 두 행이 함께 보이도록 에폭 상태를 먼저 등록한다.
@@ -65,7 +72,12 @@ impl EpochProgress {
         );
         let bar = if let Some(n_batches) = n_batches {
             let bar = self.multi.add(ProgressBar::new(n_batches as u64));
-            bar.set_style(ProgressStyle::default_bar().template(&template).unwrap().progress_chars("█ "));
+            bar.set_style(
+                ProgressStyle::default_bar()
+                    .template(&template)
+                    .unwrap_or_else(|_| ProgressStyle::default_bar())
+                    .progress_chars("█ "),
+            );
             bar
         } else {
             let bar = self.multi.add(ProgressBar::new_spinner());
@@ -73,7 +85,11 @@ impl EpochProgress {
                 "  > Epoch {:>3}% [ {{spinner:.green}} ] {{pos}} Batches ({{elapsed_precise}}) | {{msg}}",
                 epoch_percent,
             );
-            bar.set_style(ProgressStyle::default_spinner().template(&spinner_template).unwrap());
+            bar.set_style(
+                ProgressStyle::default_spinner()
+                    .template(&spinner_template)
+                    .unwrap_or_else(|_| ProgressStyle::default_bar()),
+            );
             bar
         };
         // 배치 연산 중에는 상태 변경이 없으므로 ticker가 없으면 짧은 배치 바가
@@ -114,7 +130,8 @@ impl EpochProgress {
     }
 
     pub fn finish_interrupted(&self) {
-        self.epoch_bar.finish_with_message("Interrupted — checkpoint saved");
+        self.epoch_bar
+            .finish_with_message("Interrupted — checkpoint saved");
     }
 }
 
@@ -127,7 +144,7 @@ impl EpochProgress {
 /// `active = false`(hidden bar)이면 모든 메서드가 no-op 이므로
 /// 호출부에 `if show_progress` 분기가 필요 없음.
 pub(crate) struct BatchProgress {
-    bar:    ProgressBar,
+    bar: ProgressBar,
     active: bool,
 }
 

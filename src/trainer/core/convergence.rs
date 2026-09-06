@@ -44,7 +44,7 @@ impl Convergence {
     /// `Off` 는 `0.0` 으로 반환함 (기존 스키마와의 왕복 호환).
     pub fn tolerance(&self) -> f32 {
         match self {
-            Convergence::Off           => 0.0,
+            Convergence::Off => 0.0,
             Convergence::AbsDelta(tol) => *tol,
         }
     }
@@ -75,14 +75,17 @@ mod tests {
 
     #[test]
     fn from_tolerance_maps_zero_and_negative_to_off() {
-        assert_eq!(Convergence::from_tolerance(0.0),    Convergence::Off);
-        assert_eq!(Convergence::from_tolerance(-1e-6),  Convergence::Off);
+        assert_eq!(Convergence::from_tolerance(0.0), Convergence::Off);
+        assert_eq!(Convergence::from_tolerance(-1e-6), Convergence::Off);
         assert_eq!(Convergence::from_tolerance(f32::NAN), Convergence::Off);
     }
 
     #[test]
     fn from_tolerance_maps_positive_to_absdelta() {
-        assert_eq!(Convergence::from_tolerance(1e-6), Convergence::AbsDelta(1e-6));
+        assert_eq!(
+            Convergence::from_tolerance(1e-6),
+            Convergence::AbsDelta(1e-6)
+        );
     }
 
     #[test]

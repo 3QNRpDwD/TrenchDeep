@@ -1,5 +1,5 @@
 use crate::nn::Parameter;
-use crate::tensor::{TensorBuffer};
+use crate::tensor::TensorBuffer;
 use crate::{ContextError, ContextId, ExecutionContext, MlResult};
 
 use super::OptimError;
@@ -7,8 +7,11 @@ use super::OptimError;
 pub trait Optimizer {
     fn register(&mut self, parameter: &Parameter) -> MlResult<()>;
     fn register_all(&mut self, parameters: &[&Parameter]) -> MlResult<()> {
+        let mut seen = std::collections::HashSet::new();
         for parameter in parameters {
-            self.register(parameter)?;
+            if seen.insert(parameter.id()) {
+                self.register(parameter)?;
+            }
         }
         Ok(())
     }
@@ -24,10 +27,22 @@ pub trait Optimizer {
 #[derive(Clone, Copy, Debug)]
 enum Algorithm {
     Sgd,
-    Momentum { momentum: f32 },
-    AdaGrad { epsilon: f32 },
-    RmsProp { rho: f32, epsilon: f32 },
-    Adam { beta1: f32, beta2: f32, epsilon: f32, weight_decay: f32 },
+    Momentum {
+        momentum: f32,
+    },
+    AdaGrad {
+        epsilon: f32,
+    },
+    RmsProp {
+        rho: f32,
+        epsilon: f32,
+    },
+    Adam {
+        beta1: f32,
+        beta2: f32,
+        epsilon: f32,
+        weight_decay: f32,
+    },
 }
 
 #[derive(Debug)]
@@ -50,7 +65,11 @@ fn positive(name: &'static str, value: f32) -> MlResult<f32> {
     if value.is_finite() && value > 0.0 {
         Ok(value)
     } else {
-        Err(OptimError::InvalidHyperparameter { name, reason: "must be finite and greater than zero".into() }.into())
+        Err(OptimError::InvalidHyperparameter {
+            name,
+            reason: "must be finite and greater than zero".into(),
+        }
+        .into())
     }
 }
 
@@ -58,7 +77,11 @@ fn unit_interval(name: &'static str, value: f32) -> MlResult<f32> {
     if value.is_finite() && (0.0..1.0).contains(&value) {
         Ok(value)
     } else {
-        Err(OptimError::InvalidHyperparameter { name, reason: "must be finite and in [0, 1)".into() }.into())
+        Err(OptimError::InvalidHyperparameter {
+            name,
+            reason: "must be finite and in [0, 1)".into(),
+        }
+        .into())
     }
 }
 
@@ -77,7 +100,11 @@ impl OptimizerCore {
         if parameter.context_id() != self.context.id() {
             return Err(ContextError::Mismatch.into());
         }
-        if self.parameters.iter().any(|entry| entry.parameter.id() == parameter.id()) {
+        if self
+            .parameters
+            .iter()
+            .any(|entry| entry.parameter.id() == parameter.id())
+        {
             return Err(OptimError::DuplicateParameter(parameter.id()).into());
         }
         let size = parameter.tensor().to_vec()?.len();
@@ -90,22 +117,28 @@ impl OptimizerCore {
     }
 
     fn gradients(&self) -> MlResult<Vec<Option<TensorBuffer>>> {
-        self.parameters.iter().map(|entry| {
-            if entry.parameter.context_id() != self.context.id() {
-                return Err(ContextError::Mismatch.into());
-            }
-            let shape = entry.parameter.tensor().shape()?;
-            let gradient = self.context.grad(entry.parameter.variable())?;
-            if let Some(ref gradient) = gradient {
-                if gradient.shape != shape {
-                    return Err(OptimError::GradientError(format!(
-                        "parameter {:?} expected gradient shape {:?}, got {:?}",
-                        entry.parameter.id(), shape, gradient.shape
-                    )).into());
+        self.parameters
+            .iter()
+            .map(|entry| {
+                if entry.parameter.context_id() != self.context.id() {
+                    return Err(ContextError::Mismatch.into());
                 }
-            }
-            Ok(gradient)
-        }).collect()
+                let shape = entry.parameter.tensor().shape()?;
+                let gradient = self.context.grad(entry.parameter.variable())?;
+                if let Some(ref gradient) = gradient {
+                    if gradient.shape != shape {
+                        return Err(OptimError::GradientError(format!(
+                            "parameter {:?} expected gradient shape {:?}, got {:?}",
+                            entry.parameter.id(),
+                            shape,
+                            gradient.shape
+                        ))
+                        .into());
+                    }
+                }
+                Ok(gradient)
+            })
+            .collect()
     }
 
     fn step(&mut self) -> MlResult<()> {
@@ -125,35 +158,53 @@ impl OptimizerCore {
                     }
                 }
                 Algorithm::Momentum { momentum } => {
-                    for ((velocity, output), &g) in entry.first.iter_mut().zip(&mut delta).zip(&gradient.data) {
+                    for ((velocity, output), &g) in
+                        entry.first.iter_mut().zip(&mut delta).zip(&gradient.data)
+                    {
                         *velocity = momentum * *velocity + g;
                         *output = self.learning_rate * *velocity;
                     }
                 }
                 Algorithm::AdaGrad { epsilon } => {
-                    for ((accumulator, output), &g) in entry.first.iter_mut().zip(&mut delta).zip(&gradient.data) {
+                    for ((accumulator, output), &g) in
+                        entry.first.iter_mut().zip(&mut delta).zip(&gradient.data)
+                    {
                         *accumulator += g * g;
                         *output = self.learning_rate * g / (*accumulator + epsilon).sqrt();
                     }
                 }
                 Algorithm::RmsProp { rho, epsilon } => {
-                    for ((average, output), &g) in entry.first.iter_mut().zip(&mut delta).zip(&gradient.data) {
+                    for ((average, output), &g) in
+                        entry.first.iter_mut().zip(&mut delta).zip(&gradient.data)
+                    {
                         *average = rho * *average + (1.0 - rho) * g * g;
                         *output = self.learning_rate * g / (*average + epsilon).sqrt();
                     }
                 }
-                Algorithm::Adam { beta1, beta2, epsilon, weight_decay } => {
+                Algorithm::Adam {
+                    beta1,
+                    beta2,
+                    epsilon,
+                    weight_decay,
+                } => {
                     let correction1 = 1.0 - beta1.powi(self.step as i32);
                     let correction2 = 1.0 - beta2.powi(self.step as i32);
-                    let weights = if weight_decay == 0.0 { None } else { Some(entry.parameter.tensor().to_vec()?) };
+                    let weights = if weight_decay == 0.0 {
+                        None
+                    } else {
+                        Some(entry.parameter.tensor().to_vec()?)
+                    };
                     for index in 0..gradient.data.len() {
                         let g = gradient.data[index];
                         entry.first[index] = beta1 * entry.first[index] + (1.0 - beta1) * g;
                         entry.second[index] = beta2 * entry.second[index] + (1.0 - beta2) * g * g;
                         let adaptive = (entry.first[index] / correction1)
                             / ((entry.second[index] / correction2).sqrt() + epsilon);
-                        delta[index] = self.learning_rate * (adaptive
-                            + weights.as_ref().map_or(0.0, |values| weight_decay * values[index]));
+                        delta[index] = self.learning_rate
+                            * (adaptive
+                                + weights
+                                    .as_ref()
+                                    .map_or(0.0, |values| weight_decay * values[index]));
                     }
                 }
             }
@@ -178,19 +229,35 @@ macro_rules! context_optimizer {
         #[derive(Debug)]
         pub struct $name(OptimizerCore);
         impl Optimizer for $name {
-            fn register(&mut self, parameter: &Parameter) -> MlResult<()> { self.0.register(parameter) }
-            fn step(&mut self) -> MlResult<()> { self.0.step() }
-            fn zero_grad(&self) -> MlResult<()> { self.0.zero_grad() }
-            fn lr(&self) -> f32 { self.0.learning_rate }
+            fn register(&mut self, parameter: &Parameter) -> MlResult<()> {
+                self.0.register(parameter)
+            }
+            fn step(&mut self) -> MlResult<()> {
+                self.0.step()
+            }
+            fn zero_grad(&self) -> MlResult<()> {
+                self.0.zero_grad()
+            }
+            fn lr(&self) -> f32 {
+                self.0.learning_rate
+            }
             fn set_lr(&mut self, learning_rate: f32) -> MlResult<()> {
                 self.0.learning_rate = positive("learning_rate", learning_rate)?;
                 Ok(())
             }
-            fn registered_param_count(&self) -> usize { self.0.parameters.len() }
-            fn registered_parameters(&self) -> Vec<&Parameter> {
-                self.0.parameters.iter().map(|entry| &entry.parameter).collect()
+            fn registered_param_count(&self) -> usize {
+                self.0.parameters.len()
             }
-            fn context_id(&self) -> ContextId { self.0.context.id() }
+            fn registered_parameters(&self) -> Vec<&Parameter> {
+                self.0
+                    .parameters
+                    .iter()
+                    .map(|entry| &entry.parameter)
+                    .collect()
+            }
+            fn context_id(&self) -> ContextId {
+                self.0.context.id()
+            }
         }
     };
 }
@@ -204,43 +271,98 @@ context_optimizer!(AdamW);
 
 impl SGD {
     pub fn new(context: &ExecutionContext, learning_rate: f32) -> MlResult<Self> {
-        Ok(Self(OptimizerCore::new(context, learning_rate, Algorithm::Sgd)?))
+        Ok(Self(OptimizerCore::new(
+            context,
+            learning_rate,
+            Algorithm::Sgd,
+        )?))
     }
 }
 impl Momentum {
     pub fn new(context: &ExecutionContext, learning_rate: f32, momentum: f32) -> MlResult<Self> {
-        Ok(Self(OptimizerCore::new(context, learning_rate, Algorithm::Momentum { momentum: unit_interval("momentum", momentum)? })?))
+        Ok(Self(OptimizerCore::new(
+            context,
+            learning_rate,
+            Algorithm::Momentum {
+                momentum: unit_interval("momentum", momentum)?,
+            },
+        )?))
     }
 }
 impl AdaGrad {
     pub fn new(context: &ExecutionContext, learning_rate: f32, epsilon: f32) -> MlResult<Self> {
-        Ok(Self(OptimizerCore::new(context, learning_rate, Algorithm::AdaGrad { epsilon: positive("epsilon", epsilon)? })?))
+        Ok(Self(OptimizerCore::new(
+            context,
+            learning_rate,
+            Algorithm::AdaGrad {
+                epsilon: positive("epsilon", epsilon)?,
+            },
+        )?))
     }
 }
 impl RMSProp {
-    pub fn new(context: &ExecutionContext, learning_rate: f32, rho: f32, epsilon: f32) -> MlResult<Self> {
-        Ok(Self(OptimizerCore::new(context, learning_rate, Algorithm::RmsProp {
-            rho: unit_interval("rho", rho)?, epsilon: positive("epsilon", epsilon)?,
-        })?))
+    pub fn new(
+        context: &ExecutionContext,
+        learning_rate: f32,
+        rho: f32,
+        epsilon: f32,
+    ) -> MlResult<Self> {
+        Ok(Self(OptimizerCore::new(
+            context,
+            learning_rate,
+            Algorithm::RmsProp {
+                rho: unit_interval("rho", rho)?,
+                epsilon: positive("epsilon", epsilon)?,
+            },
+        )?))
     }
 }
 impl Adam {
-    pub fn new(context: &ExecutionContext, learning_rate: f32, beta1: f32, beta2: f32, epsilon: f32) -> MlResult<Self> {
-        Ok(Self(OptimizerCore::new(context, learning_rate, Algorithm::Adam {
-            beta1: unit_interval("beta1", beta1)?, beta2: unit_interval("beta2", beta2)?,
-            epsilon: positive("epsilon", epsilon)?, weight_decay: 0.0,
-        })?))
+    pub fn new(
+        context: &ExecutionContext,
+        learning_rate: f32,
+        beta1: f32,
+        beta2: f32,
+        epsilon: f32,
+    ) -> MlResult<Self> {
+        Ok(Self(OptimizerCore::new(
+            context,
+            learning_rate,
+            Algorithm::Adam {
+                beta1: unit_interval("beta1", beta1)?,
+                beta2: unit_interval("beta2", beta2)?,
+                epsilon: positive("epsilon", epsilon)?,
+                weight_decay: 0.0,
+            },
+        )?))
     }
 }
 impl AdamW {
-    pub fn new(context: &ExecutionContext, learning_rate: f32, beta1: f32, beta2: f32, epsilon: f32, weight_decay: f32) -> MlResult<Self> {
+    pub fn new(
+        context: &ExecutionContext,
+        learning_rate: f32,
+        beta1: f32,
+        beta2: f32,
+        epsilon: f32,
+        weight_decay: f32,
+    ) -> MlResult<Self> {
         if !weight_decay.is_finite() || weight_decay < 0.0 {
-            return Err(OptimError::InvalidHyperparameter { name: "weight_decay", reason: "must be finite and non-negative".into() }.into());
+            return Err(OptimError::InvalidHyperparameter {
+                name: "weight_decay",
+                reason: "must be finite and non-negative".into(),
+            }
+            .into());
         }
-        Ok(Self(OptimizerCore::new(context, learning_rate, Algorithm::Adam {
-            beta1: unit_interval("beta1", beta1)?, beta2: unit_interval("beta2", beta2)?,
-            epsilon: positive("epsilon", epsilon)?, weight_decay,
-        })?))
+        Ok(Self(OptimizerCore::new(
+            context,
+            learning_rate,
+            Algorithm::Adam {
+                beta1: unit_interval("beta1", beta1)?,
+                beta2: unit_interval("beta2", beta2)?,
+                epsilon: positive("epsilon", epsilon)?,
+                weight_decay,
+            },
+        )?))
     }
 }
 
@@ -252,7 +374,9 @@ pub fn clip_context_grad_norm(
     positive("max_norm", max_norm)?;
     let mut squared_norm = 0.0;
     for parameter in parameters {
-        if parameter.context_id() != context.id() { return Err(ContextError::Mismatch.into()); }
+        if parameter.context_id() != context.id() {
+            return Err(ContextError::Mismatch.into());
+        }
         if let Some(gradient) = context.grad(parameter.variable())? {
             squared_norm += gradient.data.iter().map(|value| value * value).sum::<f32>();
         }
@@ -338,7 +462,12 @@ mod tests {
         let norm = clip_context_grad_norm(&context, &[&parameter], 1.0)?;
         assert_close(&[norm], &[(20.0_f32).sqrt()]);
         let clipped = parameter.grad()?.expect("clipped gradient");
-        let clipped_norm = clipped.data.iter().map(|value| value * value).sum::<f32>().sqrt();
+        let clipped_norm = clipped
+            .data
+            .iter()
+            .map(|value| value * value)
+            .sum::<f32>()
+            .sqrt();
         assert!((clipped_norm - 1.0).abs() <= 1e-5);
 
         let mut optimizer = SGD::new(&context, 0.1)?;
@@ -356,8 +485,16 @@ mod tests {
         let foreign_parameter = foreign.parameter(vec![1.0], &[1])?;
         let mut optimizer = SGD::new(&context, 0.1)?;
         optimizer.register(&parameter)?;
-        assert!(matches!(optimizer.register(&parameter), Err(crate::MlError::OptimError(OptimError::DuplicateParameter(_)))));
-        assert!(matches!(optimizer.register(&foreign_parameter), Err(crate::MlError::ContextError(ContextError::Mismatch))));
+        assert!(matches!(
+            optimizer.register(&parameter),
+            Err(crate::MlError::OptimError(OptimError::DuplicateParameter(
+                _
+            )))
+        ));
+        assert!(matches!(
+            optimizer.register(&foreign_parameter),
+            Err(crate::MlError::ContextError(ContextError::Mismatch))
+        ));
         assert!(Adam::new(&context, -0.1, 0.9, 0.999, 1e-8).is_err());
         Ok(())
     }

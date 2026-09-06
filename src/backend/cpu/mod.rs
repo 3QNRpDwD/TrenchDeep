@@ -1,16 +1,16 @@
-pub use compute::CpuCompute;
-pub use core::CpuCore;
+use compute::CpuCompute;
+use core::CpuCore;
 
+use crate::MlResult;
 use crate::backend::feature::{
-    DeviceFeatures, CPU_FEATURE_AVX, CPU_FEATURE_AVX2, CPU_FEATURE_AVX512F,
+    CPU_FEATURE_AVX, CPU_FEATURE_AVX2, CPU_FEATURE_AVX512F, DeviceFeatures,
 };
 use crate::backend::{Backend, Device, DeviceType};
-use crate::MlResult;
 
 mod compute;
 mod core;
-mod parallel;
 pub(crate) mod operations;
+mod parallel;
 
 #[derive(Debug)]
 pub struct CpuBackend {
@@ -19,7 +19,12 @@ pub struct CpuBackend {
 }
 
 impl Default for CpuBackend {
-    fn default() -> Self { Self { core: CpuCore::new(), compute: CpuCompute::new() } }
+    fn default() -> Self {
+        Self {
+            core: CpuCore::new(),
+            compute: CpuCompute::new(),
+        }
+    }
 }
 
 impl Device for CpuBackend {
@@ -70,55 +75,6 @@ impl Backend for CpuBackend {
     fn calc_device_flops(&self) -> f64 {
         self.core.calc_device_flops()
     }
-
-    // Delegate all operations to compute module
-    fn add(&self, a: &[f32], b: &[f32]) -> Vec<f32> {
-        self.compute.add(a, b)
-    }
-
-    fn multiply(&self, a: &[f32], b: &[f32]) -> Vec<f32> {
-        self.compute.multiply(a, b)
-    }
-
-    fn matmul(&self, a: &[f32], b: &[f32], m: usize, n: usize, k: usize) -> Vec<f32> {
-        self.compute.matmul(a, b, m, n, k)
-    }
-
-    fn div(&self, a: &[f32], b: &[f32]) -> Vec<f32> {
-        self.compute.div(a, b)
-    }
-
-    fn sub(&self, a: &[f32], b: &[f32]) -> Vec<f32> {
-        self.compute.sub(a, b)
-    }
-
-    fn exp(&self, a: &[f32]) -> Vec<f32> {
-        self.compute.exp(a)
-    }
-
-    fn log(&self, a: &[f32]) -> Vec<f32> {
-        self.compute.log(a)
-    }
-
-    fn pow(&self, a: &[f32], power: f32) -> Vec<f32> {
-        self.compute.pow(a, power)
-    }
-
-    fn sqrt(&self, a: &[f32]) -> Vec<f32> {
-        self.compute.sqrt(a)
-    }
-
-    fn sum(&self, a: &[f32]) -> f32 {
-        self.compute.sum(a)
-    }
-
-    fn mean(&self, a: &[f32]) -> f32 {
-        self.compute.mean(a)
-    }
-
-    fn execute_compute(&self, _dimensions: [u32; 3]) -> MlResult<()> {
-        Err(crate::MlError::UnsupportedCapability { module: "cpu", capability: "compute dispatch", operation: "execute_compute" })
-    }
 }
 
 #[cfg(test)]
@@ -132,10 +88,10 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0];
         let b = vec![4.0, 5.0, 6.0];
 
-        let sum = backend.add(&a, &b);
+        let sum = backend.compute.add(&a, &b)?;
         assert_eq!(sum, vec![5.0, 7.0, 9.0]);
 
-        let product = backend.multiply(&a, &b);
+        let product = backend.compute.multiply(&a, &b)?;
         assert_eq!(product, vec![4.0, 10.0, 18.0]);
 
         Ok(())
@@ -149,7 +105,7 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0, 4.0];
         let b = vec![5.0, 6.0, 7.0, 8.0];
 
-        let result = backend.matmul(&a, &b, 2, 2, 2);
+        let result = backend.compute.matmul(&a, &b, 2, 2, 2);
         assert_eq!(result, vec![19.0, 22.0, 43.0, 50.0]);
 
         Ok(())
