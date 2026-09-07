@@ -42,6 +42,10 @@ name = "p1_compare"
 harness = false
 required-features = ["legacyBenchmark", "builtinStorage", "builtinKernels"]
 
+[[example]]
+name = "replay_reference_diffusion"
+required-features = ["builtinStorage", "builtinKernels", "enableBackward"]
+
 #This framework is a project that I am independently designing/developing to study about deep learning.
 #If you have any better ideas for the project, please contact us here at 2QRNpDwD@gmail.com or https://github.com/3QNRpDwD.
 

@@ -1,0 +1,11 @@
+{
+  "corrections": [
+    {
+      "original_sha256": "7742186902bff7da2e330611d41c2bfef42fcb186151571166446062d3461c62",
+      "corrected_sha256": "52154c0ca3c3b75c966013379e4ae521ca185a9a46f8cc0a199d56c4c2fb7d25",
+      "path": "tensor/operators/conv2d.rs",
+      "reason": "User-authorized correction: Conv2D input-gradient transpose indexing a[i*k+l] -> a[l*m+i]. Forward and weight/bias gradients unchanged."
+    }
+  ],
+  "baseline_commit": "65b4d40"
+}

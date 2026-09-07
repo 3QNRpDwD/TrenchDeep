@@ -4,6 +4,18 @@ pub(crate) struct TrainingScope {
     finished: bool,
 }
 impl ExecutionContext {
+    /// Execute one training unit with exclusive graph ownership.
+    ///
+    /// Rejects nested training and pre-existing graphs before invoking `operation`.
+    /// Graphs and gradients are cleaned on success and on returned errors. If both
+    /// the operation and cleanup fail, both causes are returned in `CleanupError`.
+    /// Parameter updates are not rolled back. Panic unwinding performs best-effort
+    /// cleanup through the private scope guard.
+    pub fn with_training_scope<T>(&self, operation: impl FnOnce() -> MlResult<T>) -> MlResult<T> {
+        let scope = self.begin_training_scope()?;
+        scope.finish(operation())
+    }
+
     pub(crate) fn begin_training_scope(&self) -> MlResult<TrainingScope> {
         self.collect()?;
         let mut state = self

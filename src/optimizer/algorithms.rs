@@ -126,12 +126,12 @@ impl OptimizerCore {
                 let shape = entry.parameter.tensor().shape()?;
                 let gradient = self.context.grad(entry.parameter.variable())?;
                 if let Some(ref gradient) = gradient {
-                    if gradient.shape != shape {
+                    if gradient.shape() != shape {
                         return Err(OptimError::GradientError(format!(
                             "parameter {:?} expected gradient shape {:?}, got {:?}",
                             entry.parameter.id(),
                             shape,
-                            gradient.shape
+                            gradient.shape()
                         ))
                         .into());
                     }
@@ -150,16 +150,16 @@ impl OptimizerCore {
         }
         for (entry, gradient) in self.parameters.iter_mut().zip(gradients) {
             let Some(gradient) = gradient else { continue };
-            let mut delta = vec![0.0; gradient.data.len()];
+            let mut delta = vec![0.0; gradient.data().len()];
             match self.algorithm {
                 Algorithm::Sgd => {
-                    for (output, &g) in delta.iter_mut().zip(&gradient.data) {
+                    for (output, &g) in delta.iter_mut().zip(gradient.data()) {
                         *output = self.learning_rate * g;
                     }
                 }
                 Algorithm::Momentum { momentum } => {
                     for ((velocity, output), &g) in
-                        entry.first.iter_mut().zip(&mut delta).zip(&gradient.data)
+                        entry.first.iter_mut().zip(&mut delta).zip(gradient.data())
                     {
                         *velocity = momentum * *velocity + g;
                         *output = self.learning_rate * *velocity;
@@ -167,7 +167,7 @@ impl OptimizerCore {
                 }
                 Algorithm::AdaGrad { epsilon } => {
                     for ((accumulator, output), &g) in
-                        entry.first.iter_mut().zip(&mut delta).zip(&gradient.data)
+                        entry.first.iter_mut().zip(&mut delta).zip(gradient.data())
                     {
                         *accumulator += g * g;
                         *output = self.learning_rate * g / (*accumulator + epsilon).sqrt();
@@ -175,7 +175,7 @@ impl OptimizerCore {
                 }
                 Algorithm::RmsProp { rho, epsilon } => {
                     for ((average, output), &g) in
-                        entry.first.iter_mut().zip(&mut delta).zip(&gradient.data)
+                        entry.first.iter_mut().zip(&mut delta).zip(gradient.data())
                     {
                         *average = rho * *average + (1.0 - rho) * g * g;
                         *output = self.learning_rate * g / (*average + epsilon).sqrt();
@@ -194,8 +194,8 @@ impl OptimizerCore {
                     } else {
                         Some(entry.parameter.tensor().to_vec()?)
                     };
-                    for index in 0..gradient.data.len() {
-                        let g = gradient.data[index];
+                    for index in 0..gradient.data().len() {
+                        let g = gradient.data()[index];
                         entry.first[index] = beta1 * entry.first[index] + (1.0 - beta1) * g;
                         entry.second[index] = beta2 * entry.second[index] + (1.0 - beta2) * g * g;
                         let adaptive = (entry.first[index] / correction1)
@@ -210,7 +210,7 @@ impl OptimizerCore {
             }
             self.context.sub_assign(
                 entry.parameter.variable(),
-                &TensorBuffer::from_vec(delta, &gradient.shape)?,
+                &TensorBuffer::from_vec(delta, gradient.shape())?,
             )?;
         }
         Ok(())
@@ -378,7 +378,11 @@ pub fn clip_context_grad_norm(
             return Err(ContextError::Mismatch.into());
         }
         if let Some(gradient) = context.grad(parameter.variable())? {
-            squared_norm += gradient.data.iter().map(|value| value * value).sum::<f32>();
+            squared_norm += gradient
+                .data()
+                .iter()
+                .map(|value| value * value)
+                .sum::<f32>();
         }
     }
     let norm = squared_norm.sqrt();

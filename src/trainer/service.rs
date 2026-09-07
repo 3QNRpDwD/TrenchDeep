@@ -257,7 +257,7 @@ impl TrainingService {
             });
         }
         // Reject pre-existing graphs before calling a loader or a model.
-        self.context.begin_training_scope()?.finish(Ok(()))?;
+        self.context.with_training_scope(|| Ok(()))?;
         let started = Instant::now();
         let mut loader = input.into_batch_loader();
         self.core.notify_train_start(&TrainStartContext {
@@ -274,8 +274,8 @@ impl TrainingService {
             let mut reason = StopReason::Completed;
             for epoch in 0..schedule.epochs {
                 self.core.begin_epoch(epoch);
-                let setup_scope = self.context.begin_training_scope()?;
-                setup_scope.finish(loader.begin_epoch(epoch, &self.core.runtime))?;
+                self.context
+                    .with_training_scope(|| loader.begin_epoch(epoch, &self.core.runtime))?;
                 for hook in self.core.hooks.borrow_mut().iter_mut() {
                     hook.reset()?;
                 }
@@ -295,7 +295,6 @@ impl TrainingService {
                 let mut summaries = Vec::new();
                 let mut metrics = MetricValues::new();
                 loop {
-                    let scope = self.context.begin_training_scope()?;
                     let batch_context = BatchStartContext {
                         paradigm,
                         epoch: epoch + 1,
@@ -304,7 +303,7 @@ impl TrainingService {
                         total_batches: loader.batch_count(),
                         episode: None,
                     };
-                    let batch = (|| {
+                    let batch = self.context.with_training_scope(|| {
                         let Some(batch) = loader.next_batch()? else {
                             return Ok(None);
                         };
@@ -315,8 +314,8 @@ impl TrainingService {
                         let data = forward(model, batch, epoch)?;
                         self.finish_step(model, optimizer, data, &batch_context, start.elapsed())
                             .map(Some)
-                    })();
-                    let Some(outcome) = scope.finish(batch)? else {
+                    });
+                    let Some(outcome) = batch? else {
                         break;
                     };
 

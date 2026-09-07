@@ -8,6 +8,62 @@ use trench_deep::optimizer::{Optimizer, SGD};
 use trench_deep::trainer::*;
 use trench_deep::*;
 
+/// The configuration and loader pipeline of the preserved
+/// diffusion_train_with_trainer, using the existing public P1 model unchanged.
+#[test]
+fn reference_diffusion_configuration_trains_with_adam_and_loader() -> MlResult<()> {
+    use trench_deep::optimizer::Adam;
+    let ctx = ExecutionContext::builder().initialization_seed(7).build();
+    let unet = Unet::new(&ctx, 1, 8, &[1, 2], 4, &[])?;
+    let mut model = Diffusion::new(&ctx, unet, DiffusionScheduler::linear(10, 1e-4, 0.02)?, 11)?;
+    let mut optimizer = Adam::new(&ctx, 1e-3, 0.9, 0.999, 1e-8)?;
+    optimizer.register_all(&model.parameters())?;
+    let dataset = DatasetBuilder::from_source(MemorySource::new(vec![
+        ctx.tensor(vec![0.5; 64], &[1, 8, 8])?,
+        ctx.tensor(vec![0.5; 64], &[1, 8, 8])?,
+    ]))
+    .map(|input| Ok(UnsupervisedSample::new(input)))
+    .build()?;
+    let mut loader = DataLoader::builder(dataset)
+        .collator(UnsupervisedStackCollator::new())
+        .batch_size(2)
+        .shuffle(false)
+        .build()?;
+    let result = Trainer::builder()
+        .metrics(Metrics::all())
+        .show_progress(false)
+        .build()
+        .unsupervised(&ctx)
+        .fit(
+            &mut model,
+            &mut optimizer,
+            &mut loader,
+            EpochSchedule::new(3)?.with_tolerance(1e-10),
+        )?;
+    assert_eq!(result.units_completed, 3);
+    assert!(result.final_loss.is_finite());
+    for key in [
+        "avg_loss",
+        "grad_norm",
+        "update_ratio",
+        "forward_secs",
+        "backward_secs",
+    ] {
+        assert!(
+            result
+                .metrics
+                .get(key)
+                .is_some_and(|value| value.is_finite()),
+            "missing or invalid metric: {key}"
+        );
+    }
+    assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+    for parameter in model.parameters() {
+        assert!(parameter.grad()?.is_none());
+    }
+    Ok(())
+}
+
 #[test]
 fn full_unet_trains_and_samples_through_public_api() -> MlResult<()> {
     let ctx = ExecutionContext::new();

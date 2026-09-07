@@ -139,10 +139,7 @@ impl RLTrainer {
         save: Option<fn(&M, &std::path::Path) -> MlResult<()>>,
     ) -> MlResult<TrainResult> {
         validate_parameters(&self.service.context, model, optimizer)?;
-        self.service
-            .context
-            .begin_training_scope()?
-            .finish(Ok(()))?;
+        self.service.context.with_training_scope(|| Ok(()))?;
         if self.service.core.config.checkpoint_dir.is_some() && save.is_none() {
             return Err(MlError::UnsupportedCapability {
                 module: "reinforcement",
@@ -185,12 +182,11 @@ impl RLTrainer {
                 total_batches: Some(1),
                 episode: Some(episode + 1),
             };
-            let scope = self.service.context.begin_training_scope()?;
             let start = Instant::now();
-            let result = (|| {
+            let result = self.service.context.with_training_scope(|| {
                 let max_steps = schedule.max_steps_per_episode;
                 let mut observation = environment.reset()?;
-                if observation.shape != environment.observation_shape() {
+                if observation.shape() != environment.observation_shape() {
                     return Err(MlError::StringError(
                         "environment reset observation shape mismatch".into(),
                     ));
@@ -200,22 +196,22 @@ impl RLTrainer {
                     let observation_tensor = self
                         .service
                         .context
-                        .tensor(observation.data.clone(), &observation.shape)?;
+                        .tensor(observation.data().to_vec(), observation.shape())?;
                     let logits = self
                         .service
                         .context
                         .no_grad(|| model.predict_policy_raw(&observation_tensor))?;
-                    if logits.shape.last().copied() != Some(action_count)
-                        || logits.data.len() != action_count
-                        || logits.data.iter().any(|value| !value.is_finite())
+                    if logits.shape().last().copied() != Some(action_count)
+                        || logits.data().len() != action_count
+                        || logits.data().iter().any(|value| !value.is_finite())
                     {
                         return Err(MlError::StringError(
                             "policy action dimension mismatch".into(),
                         ));
                     }
-                    let action = sample_categorical(&logits.data, self.service.core.random_f32());
+                    let action = sample_categorical(logits.data(), self.service.core.random_f32());
                     let step = environment.step(action)?;
-                    if step.next_observation.shape != environment.observation_shape() {
+                    if step.next_observation.shape() != environment.observation_shape() {
                         return Err(MlError::StringError(
                             "environment step observation shape mismatch".into(),
                         ));
@@ -237,7 +233,7 @@ impl RLTrainer {
                     let input = self
                         .service
                         .context
-                        .input(observation.data.clone(), &observation.shape)?;
+                        .input(observation.data().to_vec(), observation.shape())?;
                     let logits = model.policy_logits(&input)?;
                     let logits_shape = logits.tensor().shape()?;
                     let logits_len = logits.tensor().to_vec()?.len();
@@ -252,22 +248,15 @@ impl RLTrainer {
                     target[*action] = 1.0;
                     let target = self.service.context.tensor(target, &logits_shape)?;
                     let negative_log_probability =
-                        self.service.context.softmax_cross_entropy_variable(
-                            &logits,
-                            &target,
-                            crate::loss::Reduction::Mean,
-                        )?;
+                        logits.softmax_cross_entropy(&target, crate::loss::Reduction::Mean)?;
                     let advantage = self.service.context.variable(
                         vec![advantages[index]],
                         &[],
                         RequiresGrad::No,
                     )?;
-                    let weighted = self
-                        .service
-                        .context
-                        .mul_variable(&negative_log_probability, &advantage)?;
+                    let weighted = negative_log_probability.mul(advantage.tensor())?;
                     accumulated = Some(match accumulated {
-                        Some(current) => self.service.context.add_variable(&current, &weighted)?,
+                        Some(current) => current.add(weighted.tensor())?,
                         None => weighted,
                     });
                 }
@@ -288,8 +277,8 @@ impl RLTrainer {
                     start.elapsed(),
                 )?;
                 Ok((outcome, episode_return))
-            })();
-            let (outcome, episode_return) = match scope.finish(result) {
+            });
+            let (outcome, episode_return) = match result {
                 Ok(v) => v,
                 Err(e) => {
                     self.service.core.notify_train_error(&e.to_string());

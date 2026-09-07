@@ -140,7 +140,7 @@ fn matmul_at_b(a: &[f32], b: &[f32], m: usize, k: usize, n: usize) -> Vec<f32> {
     let mut c = vec![0.0f32; m * n];
     for l in 0..k {
         for i in 0..m {
-            let at_val = a[i * k + l]; // A^T[l, i] = A[i, l]
+            let at_val = a[l * m + i]; // W[l, i], with W stored as [k, m]
             for j in 0..n {
                 c[i * n + j] += at_val * b[l * n + j];
             }

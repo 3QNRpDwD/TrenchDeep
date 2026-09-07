@@ -16,3 +16,17 @@ Known discrepancy: baseline Sigmoid forward computes `1/(1+exp(x))`, whereas its
 backward uses a positive sigmoid derivative. MLP performance comparison is blocked;
 the baseline is preserved, and production retains the correct sigmoid definition.
 See `docs/P1_STATUS.md` for coverage and benchmark limits.
+# Reference DDPM bridge update
+
+The user subsequently authorized correcting the original Conv2D input-gradient
+index directly. `BASELINE.json` remains the historical snapshot manifest;
+`CORRECTIONS.json` records the corrected source hash and reason. The verification
+script checks both. Reference DDPM gradient/Adam parity now passes with that fix.
+Statements about byte-for-byte retention below apply except for this recorded fix.
+
+`reference_models.rs` makes the original common model modules available at their
+existing crate paths outside unit tests. No original source is edited.
+`comparison::diffusion_draw` reads the original DDPM noise and signal multiplier
+after forward, recovering its exact timestep without changing random generation.
+The new reference comparison uncovered a Conv2D input-gradient indexing discrepancy
+(see `docs/P1_STATUS.md` in the parent project). The original remains preserved.

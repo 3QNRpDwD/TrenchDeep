@@ -1,4 +1,5 @@
 //! Visibility bridge to unchanged baseline model implementations.
+pub use crate::tests::common::model::diffusion::Diffusion as ReferenceDiffusion;
 use crate::{MlResult,var_with_label};
 use crate::nn::{Layer,Linear,Model,Parameter,Sequential,Variable,Conv2D,GroupNorm,activation::{SiLU,SoftmaxOp}};
 use crate::tensor::{AutogradFunction,GlobalFunction,GlobalTensor,Tensor,TensorBase,operators::{Add,Function,Matmul,Concat,Cos,Mul,NearestUpsample2d,ReshapeOp,Sin,Transpose}};
@@ -26,6 +27,45 @@ pub mod semi_supervised;
 #[path="src/tests/common/model/reinforcement/mod.rs"]
 pub mod reinforcement;
 pub fn clear_graph() { crate::tensor::ComputationGraph::reset_graph(); }
+
+/// Read the original DDPM's random choices after its unmodified forward call.
+/// The source image identifies q_sample's signal multiplier; the loss identifies
+/// the target noise. This does not reseed or modify the original computation.
+pub fn diffusion_draw(
+    model: &ReferenceDiffusion,
+    image: &Variable,
+    loss: &Variable,
+) -> MlResult<(usize, GlobalTensor<f32>)> {
+    crate::tensor::COMPUTATION_GRAPH.with(|graph| {
+        let graph = graph.lock().map_err(|_| crate::MlError::StringError("legacy graph lock poisoned".into()))?;
+        let mut signal_ids = Vec::new();
+        let mut noise_id = None;
+        graph.visit_nodes(|node| {
+            if node.operation == Some("Mul") && node.inputs.first() == Some(&image.node_id()) && node.inputs.len() == 2 {
+                signal_ids.push(node.inputs[1]);
+            }
+            if node.id == loss.node_id() { noise_id = node.inputs.first().copied(); }
+        });
+        if signal_ids.len() != 1 {
+            return Err(crate::MlError::StringError("ambiguous DDPM signal multiplier".into()));
+        }
+        let mut timestep = None;
+        let mut noise = None;
+        graph.visit_nodes(|node| {
+            if node.id == signal_ids[0] && node.tensor.data().len() == 1 {
+                let value = node.tensor.data()[0];
+                timestep = model.scheduler.sqrt_alpha_bars.iter().position(|v| v.to_bits() == value.to_bits());
+            }
+            if Some(node.id) == noise_id {
+                noise = Some(GlobalTensor::from_vec(node.tensor.data().to_vec(), node.tensor.shape()));
+            }
+        });
+        Ok((
+            timestep.ok_or_else(|| crate::MlError::StringError("DDPM timestep not found".into()))?,
+            noise.ok_or_else(|| crate::MlError::StringError("DDPM noise not found".into()))??,
+        ))
+    })
+}
 /// Read-only counters; no baseline algorithm or lifetime policy is changed.
 pub fn statistics()->MlResult<(usize,usize)> {
     let tensors=crate::tensor::TENSOR_STORAGE.with(|storage|storage.try_borrow().map(|storage|storage.len()).map_err(|_|crate::MlError::StringError("legacy storage borrow conflict".into())))?;

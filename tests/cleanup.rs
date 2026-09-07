@@ -7,6 +7,41 @@ use trench_deep::{
     *,
 };
 
+#[test]
+fn public_training_scope_supports_external_training_without_builtin_implementations() -> MlResult<()>
+{
+    let ctx = ExecutionContextBuilder::empty()
+        .storage(SlotStore::default())
+        .autograd(Tape::default())
+        .operations(ReferenceOps)
+        .build();
+    let p = ctx.parameter(vec![2.0], &[])?;
+    let result = ctx.with_training_scope(|| {
+        assert!(matches!(
+            ctx.with_training_scope(|| Ok(())),
+            Err(MlError::ContextError(ContextError::ActiveGraphConflict))
+        ));
+        let loss = p.square()?;
+        loss.backward()?;
+        assert!(p.grad()?.is_some());
+        loss.tensor().item()
+    })?;
+    assert_eq!(result, 4.0);
+    assert!(p.grad()?.is_none());
+    assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+    let result: MlResult<()> = ctx.with_training_scope(|| {
+        let _loss = p.square()?;
+        Err(TensorError::InvalidOperation {
+            op: "external_trainer",
+            reason: "failure".into(),
+        }
+        .into())
+    });
+    assert!(result.is_err());
+    assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+    ctx.with_training_scope(|| Ok(()))
+}
+
 #[derive(Debug, Default)]
 struct FaultTape {
     inner: Tape,
