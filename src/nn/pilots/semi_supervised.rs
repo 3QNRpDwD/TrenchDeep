@@ -64,11 +64,43 @@ impl SemiSupervisedModel for PiClassifier {
         unlabeled_input: &Variable,
         lambda: f32,
     ) -> MlResult<(Variable, Variable)> {
+        let first = self.noisy(unlabeled_input)?;
+        let second = self.noisy(unlabeled_input)?;
+        self.forward_loss_with_augmentations(labeled_input, labeled_target, &first, &second, lambda)
+    }
+}
+
+impl PiClassifier {
+    /// Train on two explicitly supplied augmented views (for reproducible comparisons).
+    pub fn forward_loss_with_augmentations(
+        &self,
+        labeled_input: &Variable,
+        labeled_target: &Tensor,
+        first_augmentation: &Variable,
+        second_augmentation: &Variable,
+        lambda: f32,
+    ) -> MlResult<(Variable, Variable)> {
+        if !lambda.is_finite() || lambda < 0.0 {
+            return Err(crate::TensorError::InvalidOperation {
+                op: "pi_model",
+                reason: "lambda must be finite and nonnegative".into(),
+            }
+            .into());
+        }
+        if first_augmentation.tensor().shape()? != second_augmentation.tensor().shape()?
+            || first_augmentation.tensor().numel()? == 0
+        {
+            return Err(crate::TensorError::InvalidOperation {
+                op: "pi_model",
+                reason: "augmented views must have identical, nonempty shapes".into(),
+            }
+            .into());
+        }
         let labeled_logits = self.linear.apply(labeled_input)?;
         let supervised = labeled_logits.softmax_cross_entropy(labeled_target, Reduction::Mean)?;
 
-        let first = self.linear.apply(&self.noisy(unlabeled_input)?)?;
-        let second = self.linear.apply(&self.noisy(unlabeled_input)?)?;
+        let first = self.linear.apply(first_augmentation)?;
+        let second = self.linear.apply(second_augmentation)?;
         let difference = first.sub(second.tensor())?;
         let squared = difference.square()?;
         let sum = squared.sum()?;
@@ -89,6 +121,26 @@ mod tests {
     use crate::trainer::{
         ConsistencyRamp, EpochSchedule, SemiSupervisedDataset, SemiSupervisedTrainer,
     };
+
+    #[test]
+    fn supplied_views_reject_broadcasting_and_empty_batches_before_recording() -> MlResult<()> {
+        let context = ExecutionContext::new();
+        let model = PiClassifier::new(&context, 2, 2, 0.1)?;
+        let input = context.input(vec![1.0, 2.0], &[1, 2])?;
+        let target = context.tensor(vec![1.0, 0.0], &[1, 2])?;
+        let other = context.input(vec![1.0; 4], &[2, 2])?;
+        let empty = context.input(vec![], &[0, 2])?;
+        for (first, second) in [(&input, &other), (&empty, &empty)] {
+            assert!(matches!(
+                model.forward_loss_with_augmentations(&input, &target, first, second, 0.4),
+                Err(crate::MlError::TensorError(
+                    crate::TensorError::InvalidOperation { op: "pi_model", .. }
+                ))
+            ));
+            assert_eq!(context.graph_stats()?.graph_nodes, 0);
+        }
+        Ok(())
+    }
 
     #[test]
     fn pi_model_pilot_trains_end_to_end() -> MlResult<()> {

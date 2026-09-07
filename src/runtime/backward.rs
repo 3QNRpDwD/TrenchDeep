@@ -1,6 +1,10 @@
 use super::*;
 impl ExecutionContext {
     pub fn backward(&self, output: &Variable, options: BackwardOptions<'_>) -> MlResult<()> {
+        #[cfg(feature = "debugging")]
+        let _trace =
+            tracing::debug_span!("backward",context=?self.id(),output=?output.tensor().id())
+                .entered();
         self.backward_observed(output, options, |_| Ok(()))
     }
     pub(super) fn backward_observed(

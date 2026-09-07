@@ -1,74 +1,53 @@
-# Selective Training Graph Visualization
+# Explicit graph visualization
 
-The `enableVisualization` feature compiles visualization support, but it no longer records every
-operation automatically. Recording is enabled only for an explicit capture scope or for batches
-selected by `GraphVisualizationObserver`.
+Graph capture belongs to an `ExecutionContext`; no global capture session or global
+computation graph is used by production. Snapshot and request types are always
+available. Without `enableVisualization`, a capture request returns
+`DependencyUnavailable` and leaves the graph available for an ordinary backward.
 
-## Trainer capture
+```rust
+use trench_deep::{BackwardOptions, ExecutionContext};
+use trench_deep::visualization::*;
 
-```rust,ignore
-use trench_deep::{
-    trainer::{CaptureSelector, GraphVisualizationObserver, Trainer},
-    visualization::{CaptureProfile, FileSnapshotWriter},
-};
-
-let writer = FileSnapshotWriter::builder("graph")
-    .render_svg(true)
-    .build()?;
-
-let observer = GraphVisualizationObserver::builder()
-    .writer(Box::new(writer))
-    .selectors([
-        CaptureSelector::FirstBatch,
-        CaptureSelector::EpochBatch { epoch: 10, batch: 25 },
-    ])
-    .profile(CaptureProfile::Analysis)
-    .build()?;
-
-let trainer = Trainer::default()
-    .with_observer(Box::new(observer))
-    .unsupervised();
+fn capture() -> Result<(), Box<dyn std::error::Error>> {
+    let ctx = ExecutionContext::new();
+    let p = ctx.parameter(vec![2.0], &[])?;
+    let loss = p.square()?.square()?;
+    let snapshot = ctx.backward_snapshot(
+        &loss, BackwardOptions::default(), CaptureProfile::Analysis,
+        CaptureContext { paradigm: Some("example".into()), ..CaptureContext::default() },
+    )?;
+    let mut writer = FileSnapshotWriter::builder("captures").render_svg(false).build()?;
+    writer.write(&snapshot, "example")?;
+    Ok(())
+}
 ```
 
-Coordinates are one-based. With no selectors, the first successfully trained batch is selected.
-DOT and JSON files are always written after progress rendering has finished. SVG is optional and
-requires Graphviz. A requested point that is not reached produces a warning without failing the
-training result.
+`graph_snapshot` captures the current graph without running backward.
+`backward_snapshot` captures values and available gradients before normal graph and
+intermediate-gradient cleanup; it does not make gradients permanently retained.
+The returned snapshot owns all data and survives handle/context destruction.
+`Structure` omits statistics; `Analysis` includes value and gradient statistics.
 
-`CaptureProfile::Analysis` records shapes, roles, operation connectivity, tensor sizes, and summary
-statistics for values and retained gradients. Raw tensor values are never written.
+Training observers can request a `CaptureProfile` for a `BatchStartContext`.
+The common training service collects the requested snapshot during backward and
+delivers it only after scope cleanup succeeds, before the successful batch event.
+A failed step does not publish its pending success snapshot. RL uses episode
+coordinates and the same step capture boundary. Independent contexts can capture
+without contending for a global session.
 
-## Direct capture
+`GraphVisualizationObserver::builder()` accepts a `SnapshotWriter`, capture profile
+and selectors: `FirstBatch`, `EpochBatch { epoch, batch }`, or `Episode { episode }`.
+Coordinates are one-based; invalid selectors fail at construction. Matching
+snapshots are buffered and written by the observer after training. `FileSnapshotWriter`
+writes DOT and JSON and can optionally invoke Graphviz for SVG. Graphviz failure is
+reported while retaining the DOT/JSON artifacts. `DotEncoder` also works directly
+with an owned snapshot and supports Auto, Overview and Detailed profiles.
 
-Code that visualizes a graph without a trainer must now open an explicit scope:
+The snapshot schema and artifact encoders are retained. Overview can hide saved
+and parameter nodes, but keeps scalar input nodes. This is graph representation
+and collected tensor statistics, not an allocator peak-memory profiler.
 
-```rust,ignore
-use trench_deep::visualization::{
-    CaptureProfile, DotProfile, FileSnapshotWriter, SnapshotWriter, VisualizationCapture,
-};
-
-let capture = VisualizationCapture::builder(CaptureProfile::Analysis)
-    .context(Default::default())
-    .begin()?;
-// Build the forward graph and call backward while this scope is active.
-let snapshot = capture.finish()?;
-let mut writer = FileSnapshotWriter::builder("graph")
-    .render_svg(true)
-    .dot_profile(DotProfile::Auto)
-    .build()?;
-let report = writer.write(&snapshot, "manual-capture")?;
-```
-
-Dropping the scope without calling `finish` disables capture and discards its partial visualization
-state. A completed `GraphSnapshot` owns its data and remains valid after the computation graph is
-reset.
-
-## Large graph layout
-
-`FileSnapshotWriter` uses `DotProfile::Auto` by default. Graphs with at least 180 nodes are rendered
-as a compact top-to-bottom overview. Parameters, scalar constants, and backward-only saved tensors
-are omitted from DOT/SVG, leaving the model's operation path and tensor shapes visible. Labels use
-compact multiline formatting, while JSON still contains every captured node, edge, and statistic.
-
-Use `.dot_profile(DotProfile::Overview)` to force this layout for a small graph, or
-`.dot_profile(DotProfile::Detailed)` to render every node including saved tensors.
+Enable `debugging` and a `tracing` subscriber to observe tensor/custom operation
+and backward spans. Trainer batch summaries are emitted after progress cleanup;
+ordinary training without requested capture does not collect snapshot statistics.

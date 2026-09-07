@@ -30,8 +30,11 @@ pub fn run_case(repetitions: usize) -> Result<serde_json::Value, Box<dyn std::er
     let initialization = Instant::now();
     let ctx = ExecutionContext::new();
     let model = Unet::new(&ctx, 1, 2, &[1, 2], 1, &[0, 1])?;
+    let public_model_initialization_ms = initialization.elapsed().as_secs_f64() * 1000.0;
+    let legacy_initialization = Instant::now();
     let mut baseline =
         old::comparison::unet::Unet::new(2, None, None, &[1, 2], 1, 1, &[true, true])?;
+    let legacy_model_initialization_ms = legacy_initialization.elapsed().as_secs_f64() * 1000.0;
     let parameters = model.parameters();
     let legacy_parameters = baseline.params();
     assert_eq!(parameters.len(), legacy_parameters.len());
@@ -123,8 +126,9 @@ pub fn run_case(repetitions: usize) -> Result<serde_json::Value, Box<dyn std::er
         let p95 = values[((n as f64 * 0.95).ceil() as usize).saturating_sub(1)];
         serde_json::json!({"median_ms":median,"p95_ms":p95,"steps_per_second":1000.0/median,"samples_ms":values})
     };
+    let (legacy_storage_handles, legacy_graph_nodes) = old::comparison::statistics()?;
     Ok(
-        serde_json::json!({"case":"unet_forward_backward_sgd","initialization_ms":initialization_ms,"iterations":repetitions,
+        serde_json::json!({"legacy_storage_handles":legacy_storage_handles,"legacy_graph_nodes":legacy_graph_nodes,"case":"unet_forward_backward_sgd","initialization_ms":initialization_ms,"public_model_initialization_ms":public_model_initialization_ms,"legacy_model_initialization_ms":legacy_model_initialization_ms,"iterations":repetitions,
         "public":summary(public_times),"legacy":summary(legacy_times),"public_storage_handles":ctx.graph_stats()?.tensors,
         "public_graph_nodes":ctx.graph_stats()?.graph_nodes,"parity":"passed","tolerance":"atol=1e-3, rtol=1e-3"}),
     )

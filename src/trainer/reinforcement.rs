@@ -17,7 +17,17 @@ pub trait Environment {
 
 pub trait RLModel: TrainableModel {
     fn policy_logits(&mut self, observation: &Variable) -> MlResult<Variable>;
-    fn predict_policy_raw(&mut self, observation: &Tensor) -> MlResult<TensorBuffer>;
+    fn predict_policy_raw(&mut self, observation: &Tensor) -> MlResult<TensorBuffer> {
+        let context = observation.execution_context()?;
+        if self.context_id() != context.id() {
+            return Err(ContextError::Mismatch.into());
+        }
+        context.no_grad(|| {
+            let output = self.policy_logits(&observation.as_variable()?)?;
+            context.validate(output.tensor())?;
+            output.tensor().snapshot()
+        })
+    }
 }
 
 pub struct RLTrainer {
@@ -90,11 +100,53 @@ impl RLTrainer {
         optimizer: &mut dyn Optimizer,
         schedule: EpisodeSchedule,
     ) -> MlResult<TrainResult> {
+        self.fit_inner(model, environment, optimizer, schedule, None)
+    }
+    pub fn fit_checkpointed<M: RLModel + CheckpointableModel, E: Environment>(
+        &self,
+        model: &mut M,
+        environment: &mut E,
+        optimizer: &mut dyn Optimizer,
+        schedule: EpisodeSchedule,
+    ) -> MlResult<TrainResult> {
+        self.fit_inner(
+            model,
+            environment,
+            optimizer,
+            schedule,
+            Some(|model, path| model.save_checkpoint(path)),
+        )
+    }
+    pub fn resume<M: RLModel, E: Environment>(
+        &self,
+        _model: &mut M,
+        _environment: &mut E,
+        _optimizer: &mut dyn Optimizer,
+        _path: impl AsRef<std::path::Path>,
+    ) -> MlResult<TrainResult> {
+        Err(MlError::UnsupportedCapability {
+            module: "trainer",
+            capability: "optimizer snapshot and complete resume (P2)",
+            operation: "resume",
+        })
+    }
+    fn fit_inner<M: RLModel, E: Environment>(
+        &self,
+        model: &mut M,
+        environment: &mut E,
+        optimizer: &mut dyn Optimizer,
+        schedule: EpisodeSchedule,
+        save: Option<fn(&M, &std::path::Path) -> MlResult<()>>,
+    ) -> MlResult<TrainResult> {
         validate_parameters(&self.service.context, model, optimizer)?;
-        if self.service.core.config.checkpoint_dir.is_some() {
+        self.service
+            .context
+            .begin_training_scope()?
+            .finish(Ok(()))?;
+        if self.service.core.config.checkpoint_dir.is_some() && save.is_none() {
             return Err(MlError::UnsupportedCapability {
                 module: "reinforcement",
-                capability: "interrupt checkpoint",
+                capability: "checkpointing requires fit_checkpointed",
                 operation: "fit",
             });
         }
@@ -105,6 +157,10 @@ impl RLTrainer {
         let started = Instant::now();
         let mut final_loss = 0.0;
         let mut metrics = MetricValues::new();
+        let mut completed = 0;
+        let mut interrupted = false;
+        let progress =
+            progress::EpochProgress::new(schedule.episodes, self.service.core.config.show_progress);
         self.service.core.notify_train_start(&TrainStartContext {
             paradigm: "reinforcement",
             total_units: schedule.episodes,
@@ -151,6 +207,7 @@ impl RLTrainer {
                         .no_grad(|| model.predict_policy_raw(&observation_tensor))?;
                     if logits.shape.last().copied() != Some(action_count)
                         || logits.data.len() != action_count
+                        || logits.data.iter().any(|value| !value.is_finite())
                     {
                         return Err(MlError::StringError(
                             "policy action dimension mismatch".into(),
@@ -254,16 +311,40 @@ impl RLTrainer {
                 loss: final_loss,
             });
             self.service.core.notify_epoch_end(&epoch);
+            completed = episode + 1;
+            progress.inc();
+            if checkpoint::interrupted() {
+                interrupted = true;
+                break;
+            }
+        }
+        let mut result =
+            TrainResult::episodes(completed, final_loss, started.elapsed()).with_metrics(metrics);
+        if interrupted {
+            result.stop_reason = StopReason::Interrupted;
+            if let (Some(directory), Some(save)) = (&self.service.core.config.checkpoint_dir, save)
+            {
+                result.checkpoint = Some(checkpoint::save_model(
+                    directory,
+                    "reinforcement",
+                    completed,
+                    EpochSchedule::new(schedule.episodes)?,
+                    final_loss,
+                    optimizer.lr(),
+                    self.service.core.config.seed,
+                    |path| save(model, path),
+                )?);
+            }
+            progress.finish_interrupted();
+        } else {
+            progress.finish_completed();
         }
         self.service.core.notify_train_end(&TrainEndContext {
             paradigm: "reinforcement",
-            units_completed: schedule.episodes,
-            interrupted: false,
+            units_completed: completed,
+            interrupted,
         });
-        Ok(
-            TrainResult::episodes(schedule.episodes, final_loss, started.elapsed())
-                .with_metrics(metrics),
-        )
+        Ok(result)
     }
 }
 fn discounted_advantages(rewards: &[f32], gamma: f32, use_baseline: bool) -> Vec<f32> {

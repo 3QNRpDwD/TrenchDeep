@@ -151,7 +151,9 @@ impl TrainingService {
         let check = self.core.config.nan_check_interval != usize::MAX
             && (self.core.config.nan_check_interval == 0
                 || batch.batch % self.core.config.nan_check_interval == 0);
-        for p in &parameters {
+        for p in parameters.iter().filter(|_| {
+            check || self.core.config.metrics.grad_norm || self.core.config.metrics.update_ratio
+        }) {
             if let Some(g) = p.grad()? {
                 if check && g.data().iter().any(|x| !x.is_finite()) {
                     return Err(crate::TensorError::InvalidOperation {
@@ -187,6 +189,18 @@ impl TrainingService {
         }
         if let Some(max) = self.max_grad_norm {
             clip_context_grad_norm(&self.context, &parameters, max)?;
+        }
+        if self.core.config.metrics.accuracy {
+            if let (Some(prediction), Some(target)) = (&data.prediction, &data.target) {
+                let mut accuracy = ClassificationAccuracy::new();
+                accuracy.update(&prediction.tensor().snapshot()?, &target.snapshot()?);
+                metrics.insert("accuracy".into(), accuracy.compute());
+            }
+        }
+        if self.core.config.metrics.paradigm {
+            if let Some(lambda) = data.lambda {
+                metrics.insert("lambda".into(), lambda);
+            }
         }
         if self.core.hook_count() != 0 {
             let pred = data
@@ -278,6 +292,7 @@ impl TrainingService {
                 let mut sum = 0.0;
                 let mut weight = 0usize;
                 let mut batches = 0;
+                let mut summaries = Vec::new();
                 let mut metrics = MetricValues::new();
                 loop {
                     let scope = self.context.begin_training_scope()?;
@@ -316,7 +331,18 @@ impl TrainingService {
                     weight += outcome.weight;
                     batches += 1;
                     for (key, value) in outcome.metrics {
+                        let value = if key == "accuracy" {
+                            value * outcome.weight as f32
+                        } else {
+                            value
+                        };
                         *metrics.entry(key).or_insert(0.0) += value;
+                    }
+                    if self.core.config.batch_summary_interval != usize::MAX
+                        && self.core.config.batch_summary_interval > 0
+                        && batches % self.core.config.batch_summary_interval == 0
+                    {
+                        summaries.push((batches, outcome.loss));
                     }
                     batch_progress.inc();
                     if self.core.config.batch_log_interval != usize::MAX
@@ -330,14 +356,30 @@ impl TrainingService {
                     }
                 }
                 batch_progress.finish();
+                for (batch, loss) in summaries {
+                    tracing::info!(
+                        paradigm,
+                        epoch = epoch + 1,
+                        batch,
+                        loss,
+                        "training batch completed"
+                    );
+                }
                 if weight == 0 {
                     return Err(DataError::NoBatches.into());
                 }
                 final_loss = sum / weight as f32;
-                for value in metrics.values_mut() {
-                    *value /= batches as f32;
+                for (key, value) in metrics.iter_mut() {
+                    *value /= if key == "accuracy" {
+                        weight as f32
+                    } else {
+                        batches as f32
+                    };
                 }
                 metrics.insert("avg_loss".into(), final_loss);
+                if paradigm == "autoregressive" && self.core.config.metrics.paradigm {
+                    metrics.insert("perplexity".into(), final_loss.exp());
+                }
                 metrics.insert(
                     "epoch_duration_secs".into(),
                     epoch_start.elapsed().as_secs_f32(),

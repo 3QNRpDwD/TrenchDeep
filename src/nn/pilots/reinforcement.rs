@@ -4,10 +4,12 @@ use crate::nn::{Layer, Linear, Parameter};
 use crate::tensor::TensorBuffer;
 use crate::trainer::{Environment, RLModel, StepResult, TrainableModel};
 use crate::{ContextId, ExecutionContext, MlResult, Tensor, Variable};
+use rand::{Rng, SeedableRng, rngs::StdRng};
 
 pub struct TwoArmedBandit {
     pub mean_rewards: [f32; 2],
     pub noise_scale: f32,
+    rng: StdRng,
 }
 
 impl Default for TwoArmedBandit {
@@ -15,7 +17,14 @@ impl Default for TwoArmedBandit {
         Self {
             mean_rewards: [0.2, 0.8],
             noise_scale: 0.1,
+            rng: StdRng::seed_from_u64(0),
         }
+    }
+}
+impl TwoArmedBandit {
+    pub fn with_seed(mut self, seed: u64) -> Self {
+        self.rng = StdRng::seed_from_u64(seed);
+        self
     }
 }
 
@@ -25,8 +34,13 @@ impl Environment for TwoArmedBandit {
     }
 
     fn step(&mut self, action: usize) -> MlResult<StepResult> {
-        let reward = self.mean_rewards.get(action).copied().unwrap_or(0.0)
-            + (rand::random::<f32>() - 0.5) * 2.0 * self.noise_scale;
+        let mean = self.mean_rewards.get(action).copied().ok_or_else(|| {
+            crate::TensorError::InvalidOperation {
+                op: "bandit",
+                reason: "invalid action".into(),
+            }
+        })?;
+        let reward = mean + (self.rng.random::<f32>() - 0.5) * 2.0 * self.noise_scale;
         Ok(StepResult {
             next_observation: TensorBuffer::from_vec(vec![1.0], &[1, 1])?,
             reward,
@@ -74,10 +88,26 @@ impl RLModel for LinearPolicy {
     fn policy_logits(&mut self, observation: &Variable) -> MlResult<Variable> {
         self.linear.apply(observation)
     }
+}
 
-    fn predict_policy_raw(&mut self, observation: &Tensor) -> MlResult<TensorBuffer> {
-        let output = self.linear.predict(observation)?;
-        TensorBuffer::from_vec(output.to_vec()?, &output.shape()?)
+impl crate::trainer::CheckpointableModel for LinearPolicy {
+    fn save_checkpoint(&self, path: &std::path::Path) -> MlResult<()> {
+        let path = path
+            .to_str()
+            .ok_or_else(|| crate::MlError::StringError("invalid checkpoint path".into()))?;
+        crate::nn::ModelState::new(vec![self.linear.save_state()?]).save(path)
+    }
+    fn load_checkpoint(&mut self, path: &std::path::Path) -> MlResult<()> {
+        let path = path
+            .to_str()
+            .ok_or_else(|| crate::MlError::StringError("invalid checkpoint path".into()))?;
+        let state = crate::nn::ModelState::load(path)?;
+        if state.layers.len() != 1 {
+            return Err(crate::MlError::StringError(
+                "invalid policy checkpoint".into(),
+            ));
+        }
+        self.linear.load_state(&state.layers[0])
     }
 }
 
@@ -94,6 +124,7 @@ mod tests {
         let mut environment = TwoArmedBandit {
             mean_rewards: [-1.0, 1.0],
             noise_scale: 0.0,
+            ..TwoArmedBandit::default()
         };
         let mut optimizer = Adam::new(&context, 0.05, 0.9, 0.999, 1e-8)?;
         optimizer.register_all(&model.parameters())?;

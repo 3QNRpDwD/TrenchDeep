@@ -1,4 +1,3 @@
-
 use super::*;
 use crate::backend::{
     approx_cos_value, approx_sin_value, conv2d_forward_data, group_norm_forward_data,

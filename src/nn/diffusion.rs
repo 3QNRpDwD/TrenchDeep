@@ -182,6 +182,7 @@ impl Stage {
 #[derive(Debug)]
 pub struct Unet {
     config: serde_json::Value,
+    output_channels: usize,
     context: ExecutionContext,
     channels: usize,
     dim: usize,
@@ -205,7 +206,32 @@ impl Unet {
         groups: usize,
         attention_at: &[usize],
     ) -> MlResult<Self> {
+        Self::with_dimensions(
+            ctx,
+            channels,
+            dim,
+            None,
+            None,
+            multipliers,
+            groups,
+            attention_at,
+        )
+    }
+    pub fn with_dimensions(
+        ctx: &ExecutionContext,
+        channels: usize,
+        dim: usize,
+        initial_channels: Option<usize>,
+        output_channels: Option<usize>,
+        multipliers: &[usize],
+        groups: usize,
+        attention_at: &[usize],
+    ) -> MlResult<Self> {
+        let initial_channels = initial_channels.unwrap_or(dim);
+        let output_channels = output_channels.unwrap_or(channels);
         if channels == 0
+            || initial_channels == 0
+            || output_channels == 0
             || dim == 0
             || dim % 2 != 0
             || multipliers.is_empty()
@@ -218,7 +244,7 @@ impl Unet {
         let time = dim
             .checked_mul(4)
             .ok_or_else(|| invalid("dimension overflow"))?;
-        let mut dims = vec![dim];
+        let mut dims = vec![initial_channels];
         for &m in multipliers {
             dims.push(
                 dim.checked_mul(m)
@@ -259,11 +285,12 @@ impl Unet {
             });
         }
         Ok(Self {
-            config: serde_json::json!({"channels":channels,"dim":dim,"multipliers":multipliers,"groups":groups,"attention_at":attention_at}),
+            config: serde_json::json!({"channels":channels,"dim":dim,"initial_channels":initial_channels,"output_channels":output_channels,"multipliers":multipliers,"groups":groups,"attention_at":attention_at}),
+            output_channels,
             context: ctx.clone(),
             channels,
             dim,
-            initial: conv(ctx, channels, dim, 3, 1, "initial")?,
+            initial: conv(ctx, channels, initial_channels, 3, 1, "initial")?,
             time1: Linear::new(ctx, dim, time, "time1")?,
             time2: Linear::new(ctx, time, time, "time2")?,
             down,
@@ -271,8 +298,16 @@ impl Unet {
             middle_attention: Attention::new(ctx, mid, groups)?,
             middle2: Residual::new(ctx, mid, mid, groups, time)?,
             up,
-            final_residual: Residual::new(ctx, 2 * dim, dim, groups, time)?,
-            final_conv: conv(ctx, dim, channels, 1, 1, "final")?,
+            final_residual: Residual::new(
+                ctx,
+                initial_channels
+                    .checked_mul(2)
+                    .ok_or_else(|| invalid("dimension overflow"))?,
+                initial_channels,
+                groups,
+                time,
+            )?,
+            final_conv: conv(ctx, initial_channels, output_channels, 1, 1, "final")?,
         })
     }
     /// Timesteps are normalized to [0, 1] with shape [batch, 1].
@@ -493,6 +528,11 @@ impl Diffusion {
     ) -> MlResult<Self> {
         if unet.context_id() != ctx.id() {
             return Err(crate::ContextError::Mismatch.into());
+        }
+        if unet.output_channels != unet.channels {
+            return Err(invalid(
+                "DDPM denoiser output channels must match image channels",
+            ));
         }
         Ok(Self {
             context: ctx.clone(),

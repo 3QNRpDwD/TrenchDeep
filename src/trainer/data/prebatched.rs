@@ -11,8 +11,15 @@ pub struct Prebatched<B> {
 impl<B: Clone> BatchLoader for Prebatched<B> {
     type Batch = B;
     fn begin_epoch(&mut self, _epoch: usize, runtime: &TrainingRuntime) -> MlResult<()> {
-        if let Some(message)=self.invalid {return Err(DataError::Collate {message:message.into()}.into());}
-        if self.batches.is_empty() {return Err(DataError::EmptyDataset.into());}
+        if let Some(message) = self.invalid {
+            return Err(DataError::Collate {
+                message: message.into(),
+            }
+            .into());
+        }
+        if self.batches.is_empty() {
+            return Err(DataError::EmptyDataset.into());
+        }
         self.order = (0..self.batches.len()).collect();
         runtime.shuffle(&mut self.order);
         self.cursor = 0;
@@ -37,14 +44,18 @@ fn prebatched<B>(batches: Vec<B>) -> Prebatched<B> {
         cursor: 0,
     }
 }
-fn invalid_prebatched<B>(message:&'static str)->Prebatched<B> {
-    let mut loader=prebatched(Vec::new());loader.invalid=Some(message);loader
+fn invalid_prebatched<B>(message: &'static str) -> Prebatched<B> {
+    let mut loader = prebatched(Vec::new());
+    loader.invalid = Some(message);
+    loader
 }
 impl IntoBatchLoader for &SupervisedDataset<'_> {
     type Batch = SupervisedBatch;
     type Loader = Prebatched<Self::Batch>;
     fn into_batch_loader(self) -> Self::Loader {
-        if self.inputs.len()!=self.targets.len() {return invalid_prebatched("input/target length mismatch");}
+        if self.inputs.len() != self.targets.len() {
+            return invalid_prebatched("input/target length mismatch");
+        }
         prebatched(
             self.inputs
                 .iter()
@@ -115,8 +126,13 @@ impl IntoBatchLoader for &SemiSupervisedDataset<'_> {
     type Batch = SemiSupervisedBatch;
     type Loader = Prebatched<Self::Batch>;
     fn into_batch_loader(self) -> Self::Loader {
-        if self.labeled_inputs.is_empty() || self.unlabeled_inputs.is_empty() || self.labeled_inputs.len()!=self.labeled_targets.len() {
-            return invalid_prebatched("semi-supervised inputs must be nonempty with aligned labeled targets");
+        if self.labeled_inputs.is_empty()
+            || self.unlabeled_inputs.is_empty()
+            || self.labeled_inputs.len() != self.labeled_targets.len()
+        {
+            return invalid_prebatched(
+                "semi-supervised inputs must be nonempty with aligned labeled targets",
+            );
         }
         let count = self.labeled_inputs.len().max(self.unlabeled_inputs.len());
         prebatched(
@@ -150,8 +166,12 @@ impl<'a> SupervisedDataset<'a> {
         if inputs.len() != targets.len() {
             return Err(MlError::StringError("input/target length mismatch".into()));
         }
-        for input in inputs {context.validate(input.tensor())?;}
-        for target in targets {context.validate(target)?;}
+        for input in inputs {
+            context.validate(input.tensor())?;
+        }
+        for target in targets {
+            context.validate(target)?;
+        }
         Ok(Self { inputs, targets })
     }
 }
@@ -167,7 +187,9 @@ impl<'a> UnsupervisedDataset<'a> {
                 "unsupervised dataset must not be empty".into(),
             ));
         }
-        for sample in samples {context.validate(sample.tensor())?;}
+        for sample in samples {
+            context.validate(sample.tensor())?;
+        }
         Ok(Self { samples })
     }
 }
@@ -195,8 +217,12 @@ impl<'a> SemiSupervisedDataset<'a> {
                 "labeled input/target length mismatch".into(),
             ));
         }
-        for input in labeled_inputs.iter().chain(unlabeled_inputs) {context.validate(input.tensor())?;}
-        for target in labeled_targets {context.validate(target)?;}
+        for input in labeled_inputs.iter().chain(unlabeled_inputs) {
+            context.validate(input.tensor())?;
+        }
+        for target in labeled_targets {
+            context.validate(target)?;
+        }
         Ok(Self {
             labeled_inputs,
             labeled_targets,
@@ -211,16 +237,15 @@ pub struct AutoregressiveDataset<'a> {
     pub pad_token_id: Option<usize>,
 }
 impl<'a> AutoregressiveDataset<'a> {
-    pub fn new(
-        context: &crate::ExecutionContext,
-        sequences: &'a [&'a Variable],
-    ) -> MlResult<Self> {
+    pub fn new(context: &crate::ExecutionContext, sequences: &'a [&'a Variable]) -> MlResult<Self> {
         if sequences.is_empty() {
             return Err(MlError::StringError(
                 "autoregressive dataset must not be empty".into(),
             ));
         }
-        for sequence in sequences {context.validate(sequence.tensor())?;}
+        for sequence in sequences {
+            context.validate(sequence.tensor())?;
+        }
         Ok(Self {
             sequences,
             pad_token_id: None,

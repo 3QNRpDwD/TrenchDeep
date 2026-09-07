@@ -31,6 +31,8 @@ impl ExecutionContext {
         compute(&views)
     }
     pub fn execute(&self, operation: &Operation, inputs: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+        #[cfg(feature="debugging")]
+        let _trace=tracing::debug_span!("tensor_operation",context=?self.id(),operation=operation.name(),inputs=inputs.len()).entered();
         if inputs.is_empty() || operation.input_count().is_some_and(|n| n != inputs.len()) {
             return Err(TensorError::InvalidOperation {
                 op: operation.name(),
@@ -68,6 +70,8 @@ impl ExecutionContext {
         self.commit(operation.name(), inputs, result, tracked)
     }
     pub fn apply_custom(&self, op: &dyn CustomOp, inputs: &[&Tensor]) -> MlResult<Tensor> {
+        #[cfg(feature="debugging")]
+        let _trace=tracing::debug_span!("custom_operation",context=?self.id(),operation=op.name(),inputs=inputs.len()).entered();
         if inputs.len() != op.input_count() {
             return Err(TensorError::InvalidOperation {
                 op: op.name(),

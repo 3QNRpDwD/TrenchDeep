@@ -4,17 +4,19 @@ use crate::{MlError, MlResult};
 use std::{collections::BTreeMap, path::Path, time::Duration};
 
 pub trait CheckpointableModel {
-    fn save_checkpoint(&self, path: &Path) -> MlResult<()> {
-        Err(MlError::StringError(format!(
-            "checkpoint save is not implemented: {}",
-            path.display()
-        )))
+    fn save_checkpoint(&self, _path: &Path) -> MlResult<()> {
+        Err(MlError::UnsupportedCapability {
+            module: "model",
+            capability: "checkpoint save",
+            operation: "save_checkpoint",
+        })
     }
-    fn load_checkpoint(&mut self, path: &Path) -> MlResult<()> {
-        Err(MlError::StringError(format!(
-            "checkpoint load is not implemented: {}",
-            path.display()
-        )))
+    fn load_checkpoint(&mut self, _path: &Path) -> MlResult<()> {
+        Err(MlError::UnsupportedCapability {
+            module: "model",
+            capability: "checkpoint restore",
+            operation: "load_checkpoint",
+        })
     }
 }
 

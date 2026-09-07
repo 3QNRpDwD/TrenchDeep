@@ -3,8 +3,102 @@
     feature = "builtinStorage",
     feature = "builtinKernels"
 ))]
+use std::{cell::RefCell, rc::Rc};
 use trench_deep::visualization::*;
 use trench_deep::*;
+use trench_deep::{
+    nn::LinearRegression,
+    optimizer::{Optimizer, SGD},
+    trainer::*,
+};
+
+struct CaptureOrder {
+    ctx: ExecutionContext,
+    parameters: Vec<Parameter>,
+    events: Rc<RefCell<Vec<&'static str>>>,
+}
+impl CaptureOrder {
+    fn cleaned(&self) {
+        assert_eq!(self.ctx.graph_stats().unwrap().graph_nodes, 0);
+        assert!(self.parameters.iter().all(|p| p.grad().unwrap().is_none()));
+    }
+}
+impl TrainingObserver for CaptureOrder {
+    fn capture_profile(&self, _: &BatchStartContext) -> Option<CaptureProfile> {
+        Some(CaptureProfile::Analysis)
+    }
+    fn on_graph_snapshot(&mut self, snapshot: GraphSnapshot) {
+        self.cleaned();
+        assert!(snapshot.nodes.iter().any(|n| n.gradient_stats.is_some()));
+        self.events.borrow_mut().push("snapshot");
+    }
+    fn on_batch_end(&mut self, _: &BatchEndContext) {
+        self.cleaned();
+        self.events.borrow_mut().push("batch");
+    }
+}
+struct FailHook;
+impl MetricHook for FailHook {
+    fn update(&mut self, _: &BatchContext<'_>) -> MlResult<()> {
+        Err(TensorError::InvalidOperation {
+            op: "test_hook",
+            reason: "injected failure".into(),
+        }
+        .into())
+    }
+    fn compute(&self) -> f32 {
+        0.0
+    }
+    fn reset(&mut self) -> MlResult<()> {
+        Ok(())
+    }
+    fn name(&self) -> &str {
+        "failure"
+    }
+}
+
+#[test]
+fn capture_is_published_after_cleanup_and_suppressed_when_hook_fails() -> MlResult<()> {
+    for fail in [false, true] {
+        let ctx = ExecutionContext::new();
+        let mut model = LinearRegression::new(&ctx, 1, 1)?;
+        let mut optimizer = SGD::new(&ctx, 0.01)?;
+        optimizer.register_all(&model.parameters())?;
+        let input = ctx.input(vec![1.0], &[1, 1])?;
+        let target = ctx.tensor(vec![2.0], &[1, 1])?;
+        let inputs = [&input];
+        let targets = [&target];
+        let dataset = SupervisedDataset::new(&ctx, &inputs, &targets)?;
+        let events = Rc::new(RefCell::new(Vec::new()));
+        let mut trainer = SupervisedTrainer::silent(&ctx).with_observer(Box::new(CaptureOrder {
+            ctx: ctx.clone(),
+            parameters: model.parameters().into_iter().cloned().collect(),
+            events: events.clone(),
+        }));
+        if fail {
+            trainer = trainer.with_hook(Box::new(FailHook));
+        }
+        let result = trainer.fit(&mut model, &mut optimizer, &dataset, EpochSchedule::new(1)?);
+        if fail {
+            assert!(matches!(
+                result,
+                Err(MlError::TensorError(TensorError::InvalidOperation {
+                    op: "test_hook",
+                    ..
+                }))
+            ));
+            assert!(events.borrow().is_empty());
+        } else {
+            result?;
+            assert_eq!(*events.borrow(), vec!["snapshot", "batch"]);
+        }
+        assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+        for p in model.parameters() {
+            assert!(p.grad()?.is_none());
+        }
+    }
+    Ok(())
+}
 
 #[test]
 fn snapshot_owns_intermediate_gradients_after_graph_cleanup() -> MlResult<()> {
