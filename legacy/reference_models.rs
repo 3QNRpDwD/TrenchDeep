@@ -1,2 +1,1 @@
-#[path = "src/tests/common/mod.rs"]
-pub mod common;
+include!(concat!(env!("OUT_DIR"), "/reference_models.rs"));

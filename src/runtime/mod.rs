@@ -34,38 +34,84 @@ pub(crate) fn missing(
 
 #[derive(Debug, Default)]
 pub struct ExecutionContextBuilder {
+    providers_configured: bool,
     initialization_seed: Option<u64>,
     model_seed: Option<u64>,
     storage: Option<Box<dyn TensorStore>>,
     autograd: Option<Box<dyn AutogradEngine>>,
     operations: Option<Box<dyn OperationProvider>>,
 }
+/// Selects an execution implementation, independently of graph execution mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ExecutionRoute {
+    #[default]
+    P1,
+    Legacy,
+}
+
+/// Fallible route selection preserves the existing infallible default builder.
+#[derive(Debug)]
+pub struct RoutedContextBuilder {
+    builder: ExecutionContextBuilder,
+    route: ExecutionRoute,
+}
+impl RoutedContextBuilder {
+    pub fn build(self) -> MlResult<ExecutionContext> {
+        match self.route {
+            ExecutionRoute::P1 => Ok(self.builder.build()),
+            ExecutionRoute::Legacy => {
+                #[cfg(not(feature = "legacyBenchmark"))]
+                return Err(missing(
+                    "legacy execution",
+                    "native execution session",
+                    "build",
+                ));
+                #[cfg(feature = "legacyBenchmark")]
+                return legacy_session::build_context(self.builder);
+            }
+        }
+    }
+}
 impl ExecutionContextBuilder {
+    /// Choose the route after composing providers and seeds. Legacy never falls
+    /// back to P1. Unsupported Legacy operations return capability errors.
+    pub fn route(self, route: ExecutionRoute) -> RoutedContextBuilder {
+        RoutedContextBuilder {
+            builder: self,
+            route,
+        }
+    }
     /// An empty composition; nothing is silently substituted for missing providers.
     pub fn empty() -> Self {
         Self::default()
     }
     pub fn storage(mut self, provider: impl TensorStore + 'static) -> Self {
+        self.providers_configured = true;
         self.storage = Some(Box::new(provider));
         self
     }
     pub fn autograd(mut self, provider: impl AutogradEngine + 'static) -> Self {
+        self.providers_configured = true;
         self.autograd = Some(Box::new(provider));
         self
     }
     pub fn operations(mut self, provider: impl OperationProvider + 'static) -> Self {
+        self.providers_configured = true;
         self.operations = Some(Box::new(provider));
         self
     }
     pub fn without_storage(mut self) -> Self {
+        self.providers_configured = true;
         self.storage = None;
         self
     }
     pub fn without_autograd(mut self) -> Self {
+        self.providers_configured = true;
         self.autograd = None;
         self
     }
     pub fn without_operations(mut self) -> Self {
+        self.providers_configured = true;
         self.operations = None;
         self
     }
@@ -82,7 +128,10 @@ impl ExecutionContextBuilder {
         ExecutionContext {
             id: ContextId(CONTEXT_IDS.fetch_add(1, Ordering::Relaxed)),
             inner: Rc::new(Runtime {
+                route: Cell::new(ExecutionRoute::P1),
                 state: RefCell::new(State {
+                    #[cfg(feature = "legacyBenchmark")]
+                    legacy: None,
                     storage: self.storage,
                     autograd: self.autograd,
                     handles: HashMap::new(),
@@ -116,6 +165,7 @@ pub struct ExecutionContext {
 }
 #[derive(Debug)]
 struct Runtime {
+    route: Cell<ExecutionRoute>,
     initialization_rng: RefCell<rand::rngs::StdRng>,
     model_rng: RefCell<rand::rngs::StdRng>,
     state: RefCell<State>,
@@ -126,6 +176,8 @@ struct Runtime {
 }
 #[derive(Debug)]
 struct State {
+    #[cfg(feature = "legacyBenchmark")]
+    legacy: Option<Rc<RefCell<legacy_session::Bridge>>>,
     storage: Option<Box<dyn TensorStore>>,
     autograd: Option<Box<dyn AutogradEngine>>,
     handles: HashMap<TensorId, Entry>,
@@ -250,6 +302,11 @@ impl State {
         Ok(())
     }
     fn clear_graph(&mut self) -> MlResult<()> {
+        #[cfg(feature = "legacyBenchmark")]
+        if let Some(legacy) = &self.legacy {
+            legacy.borrow_mut().clear_graph();
+            return self.collect();
+        }
         let ids = self
             .autograd
             .as_ref()
@@ -280,6 +337,10 @@ impl Default for ExecutionContext {
     }
 }
 impl ExecutionContext {
+    /// The execution implementation selected at construction.
+    pub fn route(&self) -> ExecutionRoute {
+        self.inner.route.get()
+    }
     pub fn builder() -> ExecutionContextBuilder {
         let builder = ExecutionContextBuilder::empty();
         #[cfg(feature = "builtinStorage")]
@@ -288,6 +349,8 @@ impl ExecutionContext {
         let builder = builder.operations(CpuBackend::default());
         #[cfg(feature = "enableBackward")]
         let builder = builder.autograd(ReverseMode::default());
+        let mut builder = builder;
+        builder.providers_configured = false;
         builder
     }
     pub fn new() -> Self {
@@ -735,6 +798,8 @@ impl std::ops::Deref for Parameter {
 
 mod backward;
 mod dispatch;
+#[cfg(feature = "legacyBenchmark")]
+mod legacy_session;
 mod receiver;
 mod training;
 

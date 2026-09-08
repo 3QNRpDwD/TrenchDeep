@@ -5,6 +5,24 @@
       "corrected_sha256": "52154c0ca3c3b75c966013379e4ae521ca185a9a46f8cc0a199d56c4c2fb7d25",
       "path": "tensor/operators/conv2d.rs",
       "reason": "User-authorized correction: Conv2D input-gradient transpose indexing a[i*k+l] -> a[l*m+i]. Forward and weight/bias gradients unchanged."
+    },
+    {
+      "original_sha256": "dedfdcd6db4bc0b4d751dad9531452c7ff040178776658288da0c4ff86b90f1d",
+      "corrected_sha256": "aafd10937e6a51f286352c14edffecca4ef5d1d3ab1d7da20ee618b8843ff525",
+      "path": "nn/activation/sigmoid.rs",
+      "reason": "User-corrected sigmoid forward exponent sign; assistant supplied missing slice borrow without changing the formula."
+    },
+    {
+      "original_sha256": "f65d4f6d0d5dcd6fb40c41bf5cbc6403f2bc45136605b348a8b19bfd622bea3c",
+      "corrected_sha256": "12413261909fd682783c8c68aeff44eea709bfed700201ce74905fdbaf73d5d9",
+      "path": "nn/activation/tanh.rs",
+      "reason": "User-authorized backward recomputation of tanh from the original graph input."
+    },
+    {
+      "original_sha256": "1e219335befeb326b6a2ba144c153f7729e31bd93ba7d40bc0ddaca5d0f7d2dc",
+      "corrected_sha256": "54b3bb6e22fad9a3a1074fd0ccd1408332f222fe95f8ac105f013a3ee381dffb",
+      "path": "nn/activation/softmax.rs",
+      "reason": "User-authorized stable probability recomputation from logits, as in SoftmaxCrossEntropyLoss; preserve general softmax VJP and match axis gradient shape."
     }
   ],
   "baseline_commit": "65b4d40"

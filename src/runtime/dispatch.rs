@@ -49,6 +49,10 @@ impl ExecutionContext {
         } else {
             inputs
         })?;
+        #[cfg(feature = "legacyBenchmark")]
+        if self.route() == ExecutionRoute::Legacy {
+            return self.execute_legacy(operation, inputs, tracked);
+        }
         let provider = self
             .inner
             .operations
@@ -70,6 +74,14 @@ impl ExecutionContext {
         self.commit(operation.name(), inputs, result, tracked)
     }
     pub fn apply_custom(&self, op: &dyn CustomOp, inputs: &[&Tensor]) -> MlResult<Tensor> {
+        #[cfg(feature = "legacyBenchmark")]
+        if self.route() == ExecutionRoute::Legacy {
+            return Err(MlError::UnsupportedCapability {
+                module: "legacy execution",
+                capability: "custom operation",
+                operation: op.name(),
+            });
+        }
         #[cfg(feature="debugging")]
         let _trace=tracing::debug_span!("custom_operation",context=?self.id(),operation=op.name(),inputs=inputs.len()).entered();
         if inputs.len() != op.input_count() {

@@ -1,5 +1,20 @@
 # Revised P1: initial dependency audit
 
+Latest direction: current Context Diffusion is the shared model implementation;
+explicit ctx remains the public entry point, defaulting to P1. Legacy is opt-in
+at construction and forwards to original execution without changing its internal
+operation/backward flow. Handle/error/lifecycle adaptation remains necessary.
+Model-sharing selection is settled; the precise facade extension still needs the
+block experiment. Earlier undecided-sharing statements below are historical.
+
+2026-09-08 completion slice: DDPM comparison/replay now use structural names,
+shapes and canonical sharing groups. Context enumeration traverses model fields;
+legacy build-output accessors traverse original fields and Sequential children,
+using the original leaf macro's name/order contract only inside each leaf.
+The raw enumeration is validated before constructing name maps; identity-set
+coverage checks prevent omitted parameters. Numerical code and Trainer are unchanged.
+Earlier statements below about unfinished positional mapping are historical.
+
 Snapshot follow-up: [P1_SNAPSHOT_REFERENCE_AUDIT.md](P1_SNAPSHOT_REFERENCE_AUDIT.md)
 records ordinary runtime and CPU-provider copies, borrowed-view feasibility,
 alias/reentrancy constraints and a proposed guard boundary. This is inspection,

@@ -104,7 +104,7 @@ fn input(
     ))
 }
 #[test]
-fn legacy_sigmoid_discrepancy_blocks_mlp_performance_comparison() -> Result<()> {
+fn user_corrected_legacy_sigmoid_matches_p1() -> Result<()> {
     let ctx = ExecutionContext::new();
     let input = ctx.scalar(1.0)?;
     let actual = input.sigmoid()?.item()?;
@@ -112,11 +112,7 @@ fn legacy_sigmoid_discrepancy_blocks_mlp_performance_comparison() -> Result<()> 
     let old_output = old::nn::activation::SigmoidOp::new()?.forward(&[&old_input])?;
     let expected = old_output.first().ok_or("missing sigmoid output")?.data()[0];
     assert!((actual - 1.0 / (1.0 + (-1.0f32).exp())).abs() < 1e-6);
-    assert!((expected - 1.0 / (1.0 + 1.0f32.exp())).abs() < 1e-6);
-    assert!(
-        (actual - expected).abs() > 0.4,
-        "legacy mismatch must remain visible until the user changes the baseline"
-    );
+    assert!((actual - expected).abs() < 1e-6);
     Ok(())
 }
 #[test]

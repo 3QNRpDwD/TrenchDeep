@@ -10,6 +10,7 @@ pub use contracts::{
 pub use runtime::{
     BackwardOptions, ExecutionContext, ExecutionContextBuilder, GraphStats, MaxResult, Parameter,
     RequiresGrad, Tensor, TopKResult, Variable,
+    ExecutionRoute, RoutedContextBuilder,
 };
 pub mod tensor {
     pub use crate::{Tensor, TensorBuffer, TensorView};

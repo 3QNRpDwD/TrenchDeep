@@ -83,6 +83,14 @@ impl ExecutionContext {
         profile: CaptureProfile,
         context: CaptureContext,
     ) -> MlResult<GraphSnapshot> {
+        #[cfg(feature = "legacyBenchmark")]
+        if self.route() == ExecutionRoute::Legacy {
+            return Err(MlError::UnsupportedCapability {
+                module: "legacy execution",
+                capability: "graph capture",
+                operation: "capture",
+            });
+        }
         self.inner
             .state
             .try_borrow()
@@ -99,6 +107,14 @@ impl ExecutionContext {
         context: CaptureContext,
     ) -> MlResult<GraphSnapshot> {
         let mut snapshot = None;
+        #[cfg(feature = "legacyBenchmark")]
+        if self.route() == ExecutionRoute::Legacy {
+            return Err(MlError::UnsupportedCapability {
+                module: "legacy execution",
+                capability: "backward capture",
+                operation: "capture",
+            });
+        }
         self.backward_observed(output, options, |state| {
             snapshot = Some(state.graph_snapshot(profile, context)?);
             Ok(())

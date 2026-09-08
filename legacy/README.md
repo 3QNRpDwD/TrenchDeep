@@ -30,3 +30,17 @@ existing crate paths outside unit tests. No original source is edited.
 after forward, recovering its exact timestep without changing random generation.
 The new reference comparison uncovered a Conv2D input-gradient indexing discrepancy
 (see `docs/P1_STATUS.md` in the parent project). The original remains preserved.
+# Named reference parameter access
+
+The comparison build now uses `build.rs` to copy the preserved source tree into
+`OUT_DIR/reference_src` and append the read-only accessors in `named_parameters/`.
+No original function body is replaced. Standalone legacy unit tests still include
+`src/lib.rs` directly. The generated model keeps the original crate/module paths.
+Do not edit generated files; Cargo regenerates them when source/accessors change.
+
+U-Net paths are traversed through actual fields and Sequential child layers.
+Leaf parameter field names come from the original layer macro's `save_state`,
+paired with that same macro's `params` order. This local leaf contract remains;
+whole-model legacy/Context matching uses names, shapes and sharing identities,
+not vector positions. Leaf metadata currently uses owned checkpoint snapshots;
+enumeration is outside the numerical execution/benchmark region.

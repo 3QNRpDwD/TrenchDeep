@@ -14,6 +14,10 @@ impl ExecutionContext {
         observe: impl FnOnce(&State) -> MlResult<()>,
     ) -> MlResult<()> {
         self.validate(output.tensor())?;
+        #[cfg(feature = "legacyBenchmark")]
+        if self.route() == ExecutionRoute::Legacy {
+            return self.backward_legacy(output, options, observe);
+        }
         let mut state = self
             .inner
             .state

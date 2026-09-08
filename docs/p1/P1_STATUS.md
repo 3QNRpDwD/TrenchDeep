@@ -1,5 +1,130 @@
 # P1 implementation and comparison status
 
+Activation follow-up: user-authorized Tanh/Softmax backward recomputation is now
+connected for tracked Legacy execution. Softmax axis gradient shape is fixed.
+User's Sigmoid sign correction is preserved with a missing slice borrow repaired.
+Provenance is recorded in CORRECTIONS.json; earlier Softmax-blocked notes are historical.
+
+Latest bulk expansion (2026-09-08): see `P1_LEGACY_OPERATIONS.md` for the complete
+current support matrix, native numerical differences, and remaining blockers.
+Spatial/saved-tensor operations, Pow/approximation, Concat, restricted batched
+Matmul, six mean losses, and multi-output inference are connected. Earlier
+incremental support lists below are historical. Full Legacy Diffusion training
+is not complete: tracked Softmax and original contract mismatches remain.
+
+Shape/matrix route expansion: original ReshapeOp, Transpose and Matmul are now
+connected. Reshape preserves element count; Transpose supports identity or one
+axis swap for rank >= 2; Matmul supports nonempty rank-1/rank-2 inputs with matching
+inner dimensions. Batched matmul and permutations requiring multiple swaps fail
+before native execution. Attribute tensors are supplied using the original API:
+Reshape's target-shape tensor has a full-sized dummy buffer (not a zero-copy path),
+and Transpose receives two axis scalars. Original graph ownership retains these
+only as needed. No original forward/backward formula is changed.
+Tests compare output shapes/values and both input gradients through transpose →
+matmul → reshape → dot, covering all four 1D/2D rank combinations; invalid-shape
+and no-grad tests check native graph and tensor reclamation.
+Targeted route/operation regressions pass 10/10; Legacy-only route tests pass 4/4.
+Source hashes show no unexpected changes. Logs: `target/p1/shape-matrix*.log`.
+
+Small-operation route expansion: native Sub (equal shapes), Neg, Square, Exp,
+Sin, Cos, ReLU and SiLU now forward to their original operators with native
+backward. Abs, Log and Sqrt are enabled only when graph tracking is off; their
+original implementations lack backward, so tracked requests fail before graph
+creation. Existing Add/Mul support remains. Shape-changing, reduction, matrix and
+larger blocks are still pending. In particular Sum's scalar shape/gradient contract,
+Tanh's saved-output expectation and Div's nested operator-storage access require
+separate verification; no original formula is modified to force support.
+
+Validation: three category tests compare scalar forward/gradients across five
+input values, matrix-shaped no-grad outputs, subtraction derivatives and rejected
+unsupported requests. Route + category + reference-DDPM regressions pass 9/9;
+Legacy-only route tests pass 4/4. Original hash verification has no unexpected
+mismatches. Logs: `target/p1/small-operations*.log`. These fixtures do not establish
+all-shape or full-Diffusion route coverage.
+
+Public Legacy route connected for the initial Add/Mul capability slice. A native
+TensorStore bridge owns original variables; forward and backward invoke original
+operators/graph, not P1 VJPs. Existing public tensor reads, parameter replacement,
+gradient API and training scope are used without Trainer changes. The same external
+model and built-in UnsupervisedTrainer/SGD run three epochs on P1 and Legacy with
+identical final weights. Repeated public scopes preserve returned outputs until
+drop and clean graph/gradients on failures. This supersedes earlier route-unavailable
+notes below. Unsupported operations, custom ops, detach aliases, explicit backward
+seeds, capture and mixed custom-P1-provider/Legacy composition fail explicitly.
+The full Context Diffusion route is not yet supported. Raw legacy calls must not
+interleave with a session on its owning thread. No static graph work is included.
+
+Connection validation: full all-feature suite passed 133 tests before adding two
+additional route-boundary cases; final targeted route suite passed 5/5 and the
+Legacy-only/no-default-provider route suite 4/4. No-default cleanup/route/providers
+passed 15/15. Preserved-source verification has zero unexpected mismatches.
+Logs: `target/p1/connected-*.log`. No claim of full DDPM route parity is made.
+
+Native training prototype extended: parameter replacement validates shape before
+calling original Tensor::replace; nested no-grad calls original Function::forward
+without graph registration. RAII training_step clears native graph/gradients and
+scope-local handles on success, error and unwind. A 16-step scalar update test
+verifies values/gradients, no-grad preserves an existing training graph, rejected
+replacement preserves the parameter, and the same session is reusable after panic.
+All three native-session tests pass with all features (`native-training.log`).
+This internal scope returns owned buffers only; public scope handle lifetimes and
+route integration remain unfinished. No built-in Trainer routing claim is made.
+
+Native-session boundary experiment added under runtime/legacy_session.rs: native
+Variable storage, original Add/Mul forward and original graph backward execute
+without P1 VJP. The scalar fan-in case x*x+x produces value 6 and gradient 5 at
+x=2. Tests cover exclusive session admission, rejection of pre-existing raw legacy
+graphs without clearing them, stale-session handles, and graph/tensor reclamation
+on normal drop and panic unwinding. This remains an internal prototype; public
+Legacy route still fails explicitly. Raw legacy calls during an active session
+are unsupported, and no claim of intercepting those calls is made. Public handle/
+storage integration, no-grad, updates and broader operator support remain pending.
+
+Route construction boundary implemented: the existing default/infallible P1
+builder remains unchanged; explicit `.route(ExecutionRoute::P1).build()?` preserves
+provider composition. Explicit Legacy returns DependencyUnavailable when the legacy
+feature is absent and UnsupportedCapability while its native session adapter is
+not implemented. No silent fallback or legacy execution claim is made. Tests in
+`execution_route.rs` cover both feature configurations. Native forwarding remains
+the next implementation step; this does not complete selectable DDPM execution.
+
+Latest plan decision (2026-09-08): use the current Context Diffusion/U-Net as the
+shared implementation. Keep explicit ctx construction and passing ctx to models
+and Trainers. Default construction remains P1; only Legacy requires an explicit
+route selection. The Legacy adapter forwards requests to original operations,
+graph and backward without restructuring their internal computation; only handle,
+error and session-lifetime boundaries are adapted. The original DDPM remains the
+numerical reference. Route selection is planned, not implemented. This supersedes
+older undecided model-sharing statements. Static execution remains post-P1.
+
+2026-09-08: reference DDPM parameters now match by structural path, shape and
+canonical sharing group rather than whole-model vector order. U-Net exposes
+read-only `named_parameters`; the legacy comparison build appends read-only
+accessors to an OUT_DIR source copy (preserved source and standalone unit-test
+code remain unchanged). Leaf names use the original layer macro's paired
+save_state/params contract. Comparison and replay use name-keyed gradient/weight
+records. Fixture version 2 replaces version 1; regenerate old fixtures. References
+below to positional mapping/version 1 describe the preceding implementation.
+The existing checkpoint format is unchanged. Shared-Trainer routing remains open.
+
+Validation for named mapping: all-feature library/integration suite 127 passed;
+no-default cleanup/mapping/providers 15 passed; original standalone legacy 309
+passed with the same three ignores; backward-only and visualization-only checks
+passed. Standalone version-2 replay passed without legacy enabled. After the final
+duplicate-name/identity-coverage hardening, targeted DDPM/mapping tests passed 3/3.
+Legacy hash verification still reports only the authorized Conv2D correction and
+no unexpected mismatches. Logs: `target/p1/named-*.log`.
+
+Latest bounded verification: `tests/cleanup.rs` now runs 64 consecutive public
+training scopes with interleaved forward failures and successful backward passes.
+The same fan-out/fan-in fixture runs with built-in providers and independent
+SlotStore/Tape/ReferenceOps. Each scope clears gradients and graph state; an
+explicitly returned output stays live until dropped, after which all GraphStats
+fields return to the pre-loop baseline. Targeted cleanup suites pass 5/5 with
+all features and 4/4 with no defaults. Logs: `target/p1/batch-lifetime-*.log`.
+This verifies live runtime handles, not allocator capacity, RSS, DDPM-wide memory,
+or absence of snapshot copies. Production runtime/Trainer code is unchanged.
+
 Small follow-up fixes: replay validates every step's timestep, tensor lengths,
 parameter lengths and finite values before training, and rejects surplus CLI
 arguments. The reference integration test passes with malformed-final-step cases
@@ -190,8 +315,8 @@ overhead is not a required optimization target for this follow-up.
 
 - Validate a native legacy block adapter and decide model sharing scope before
   connecting selectable full execution paths beneath the same public Trainer API.
-- Replace positional mapping with names/shapes/shared-parameter correspondence;
-  complete common-Trainer reference DDPM E2E and identical-noise sampling parity.
+- Reuse the completed DDPM name/shape/sharing correspondence in the future route
+  adapter; complete common-Trainer reference DDPM E2E and identical-noise sampling parity.
 - Extend lifecycle, capture and independent-provider/feature-exclusion verification
   to both execution paths before publishing corrected-baseline benchmarks.
 

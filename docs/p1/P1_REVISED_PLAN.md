@@ -1,6 +1,7 @@
 # P1 수정 계획 — 기준 DDPM 모델의 실행 경로 전환
 
-작성일: 2026-09-07. 상태: 설계 논의용 계획. 모델 통합/분리 방식은 미확정이다.
+작성일: 2026-09-07. 갱신: 2026-09-08. 현재 Context Diffusion과 명시적 ctx 구조를
+공통 구현 기준으로 확정한다. 기본 경로는 P1이며 Legacy만 필요할 때 명시한다.
 후속 사용자 결정: Conv2D 입력 gradient 오류는 원본 레거시에서 직접 수정하고
 수정된 원본을 비교 기준으로 사용한다. 아래 원본 수식 불변 규칙의 명시적 예외이며,
 `legacy/CORRECTIONS.json`에 기존/수정 해시와 사유를 기록한다. 별도 보정 adapter는 만들지 않는다.
@@ -9,11 +10,23 @@
 
 ## 1. 목표와 이전 계획의 수정
 
-레거시 `diffusion_train_with_trainer`에서 사용하는 DDPM을 기준으로,
-동일한 모델 설정·입력·학습 조건을 유지하며 레거시와 ExecutionContext 연산 경로를
-하나의 실행 진입점에서 빠르게 선택할 수 있게 한다. 모델의 타입·호출 방식은
-계약에 맞게 조정할 수 있지만, 경로를 바꿀 때 사용자에게 모델 계산 로직이나
-Trainer를 다시 작성하도록 요구해서는 안 된다.
+후속 갱신: 사용자 승인으로 Tanh/Softmax 입력 재계산 역전파를 구현하고 tracked
+Legacy route를 연결했다. 아래 Softmax 해결 대기 조건은 해소됐으며, 다음 확인은
+공통 Context Diffusion의 Legacy 경로 E2E이다. Sigmoid 사용자 수정과 함께
+CORRECTIONS.json에 원본 보정 provenance를 기록했다.
+
+2026-09-08 연산 일괄 연결 이후 남은 작업과 원본 계약 제약은
+`P1_LEGACY_OPERATIONS.md`에 기록한다. 원본 호출이 가능한 공간 연산·저장 텐서·
+mean loss·다중 출력 연결은 구현했으며, 원본 수식/역전파 계약이 다른 항목을
+자동 보정하거나 P1으로 우회하지 않는다. tracked Softmax 해결 전에는 공통
+Context Diffusion의 Legacy 학습 경로를 완료로 판정하지 않는다.
+
+현재 `src/nn/diffusion.rs`의 Context 버전 Diffusion/U-Net을 구현 기준으로 삼는다.
+사용자가 ctx를 생성하고 같은 모델과 Trainer에 전달하는 구조를 유지한다.
+기존 `ExecutionContext::new()`는 P1 경로로 동작하며, Legacy가 필요할 때만
+ctx 생성 시 route를 명시한다. 모델·Trainer 내부에는 경로 분기를 넣지 않는다.
+레거시 원본 Diffusion은 수정된 Conv2D를 포함한 수치 비교 기준으로 보존하며,
+사용자용 모델 구현을 원본 레거시 구조로 되돌리거나 두 벌로 새로 작성하지 않는다.
 
 근거 문서는 `P1_STATUS.md`, 기존 첨부 계획 `message(6).txt`와 `message(7).txt`,
 대화에서 수립한 P1 구현 계획이다. 첨부 문서는 과거 설계 자료이며 현재 지시가 아니다.
@@ -22,7 +35,7 @@ Trainer를 다시 작성하도록 요구해서는 안 된다.
 - 실제 실행 엔진은 Context 하나뿐이라는 제한을 재검토한다.
 - 레거시를 비교 전용으로만 격리하는 것을 완료 목표로 삼지 않는다.
 - P1용 모델을 별도로 재작성하여 비교하는 것만으로 모델 호환성을 입증하지 않는다.
-- 모델 forward 단일 구현은 유력한 선택지이며, 아직 확정된 의무로 간주하지 않는다.
+- 현재 Context 모델의 계산 구조를 재사용하고 실행 경계 아래에서 route를 선택한다.
 
 유지하는 요구: 기존 backend CPU 재사용, 구현 독립 계약, 구조화된 오류,
 공통 학습 서비스, 명시적 context, 안정적인 parameter 식별, 수명·정리 보장,
@@ -31,7 +44,9 @@ optimizer snapshot과 완전 resume는 기존대로 P2다.
 
 ## 2. 정확한 기준 모델과 실행 조건
 
-원본: `legacy/src/tests/common/model/diffusion/mod.rs:650`
+구현 기준: `src/nn/diffusion.rs`의 `Diffusion`, `Unet`, `DiffusionScheduler`.
+기존 8×8·dim=8·Adam 3 epoch fixture는 연속적인 수치 검증을 위해 유지한다.
+비교 원본: `legacy/src/tests/common/model/diffusion/mod.rs:650`
 `diffusion_train_with_trainer`. 모델은 해당 파일의 `Diffusion`이며
 `unet.rs`, `embedding.rs`, `encoder.rs`, `scheduler.rs`에 연결된다.
 
@@ -90,7 +105,7 @@ sampling은 P1의 기존 범위로 유지하되, 별도의 동일-noise 역확�
 
 재사용: contracts, context 수명/graph cleanup, backend CPU, 공통 Trainer,
 loader, RNG 분리, capture, checkpoint 코드와 현재 DDPM 구현 및 비교 도구.
-현 DDPM은 폐기하지 않고 원본 모델과의 구조·수식 차이를 분석하는 대상으로 사용한다.
+현 Context DDPM을 공통 실행 모델로 재사용하고 원본과의 수치 비교를 유지한다.
 
 부족한 증거:
 
@@ -105,8 +120,8 @@ loader, RNG 분리, capture, checkpoint 코드와 현재 DDPM 구현 및 비교 
 아래 이름은 제안이며 공개 API 확정안이 아니다.
 
 ```text
+diffusion_train --fixture reference                 # 기본 P1
 diffusion_train --execution legacy --fixture reference
-diffusion_train --execution context --fixture reference
 diffusion_compare --fixture reference
 ```
 
@@ -124,36 +139,45 @@ optimizer state까지 유지하는 중간 학습 resume로 표현하지 않는�
 1. **연산 구현 교체:** Context의 저장소·autograd 아래 레거시 forward/VJP를 연결.
    연산 provider 교체 검증에는 유효하지만 원래 레거시 graph 경로 실행은 아니다.
 2. **실행 경로 교체:** 레거시 Variable/Function/graph/backward 경로와 Context 경로를
-   공통 모델/학습 경계 아래 각각 연결. 이번 목표의 기본 후보다.
+   현재 Context 모델/학습 경계 아래 각각 연결. 이번 전환 목표다.
 
 보고서에는 사용한 forward·backward·storage 구현을 명시한다. 레거시 이름으로
 P1 backward를 실행하는 혼합 경로를 원본 경로와 동등하게 취급하지 않는다.
 경로별 호출 계수/추적 테스트로 실제 선택을 검증한다.
 
-## 5. 모델 통합 여부 — 결정 전 비교할 선택지
+## 5. 확정한 모델 구조와 Legacy 전달 경계
 
-| 선택지 | 구조 | 이점 | 비용과 위험 |
-|---|---|---|---|
-| A. 모델 완전 분리 | LegacyDiffusion/ContextDiffusion + 공통 runner | 원본에 가까운 연결, 낮은 초기 변경량 | 구조·수식 중복, 이후 모델 변경 두 번, 교체 가능한 모델 계약의 증거가 약함 |
-| B. 모델 계산 구조 통합 | 하나의 DDPM/U-Net forward + 경로별 연산/parameter adapter | 구조 변경 한 번, 원래 교체 목표에 가장 직접적 | tensor·layer·autograd 의미 차이를 표현하는 계약 설계 필요, 과도한 범용 추상화 위험 |
-| C. 단계적 통합 | 공통 설정·fixture·runner부터 연결, 블록별로 공유 범위 확대 | 원본과 대조하며 위험을 줄임 | 임시 중복의 종료 기준이 없으면 A로 굳어질 수 있음 |
+현재 Context Diffusion/U-Net의 모델 계산 코드를 공통으로 사용한다. 기존 A/B/C
+통합·분리 선택 논의는 이 결정으로 대체한다. 명시적 ctx 생성과 모델·Trainer에
+ctx를 전달하는 사용법을 유지하며, 일반 사용자는 route를 지정할 필요가 없다.
 
-논의용 권고는 C로 경계를 검증한 뒤 B의 실현 가능성을 판단하는 것이다.
-이를 최종 통합 결정으로 간주하지 않는다. A를 최종 선택하더라도 사용자 코드에서
-동일한 진입점·설정·학습 계약을 유지하고, 중복되는 구조를 어떻게 동기화할지 정해야 한다.
+다음은 제안 API이며 아직 구현된 기능이 아니다. 정확한 타입·메서드 이름은 구현 시 정한다.
 
-결정용으로 TimeEmbedding + ResidualBlock 한 개의 연결 설계를 양쪽 경로에 대입한다.
-forward/backward, parameter 열거, no-grad, 오류 정리가 얼마나 자연스럽게 표현되는지
-비교한다. 구현 시 route 분기가 블록마다 퍼지는지, 변경 시 모델 재작성이 필요한지,
-추가 복사·dispatch 비용, 기존 공개 Tensor/Variable API 영향도 함께 기록한다.
+```rust
+let ctx = ExecutionContext::new(); // 기본 P1 경로, 현재 사용법 유지
+let ctx = ExecutionContext::builder()
+    .route(ExecutionRoute::Legacy) // 레거시가 필요할 때만 명시
+    .build()?;
+// 이후 같은 Context Diffusion과 Trainer에 &ctx를 전달한다.
+```
 
-논의에서 확정할 항목:
+Legacy adapter는 공개 요청을 원본 Variable/연산/graph/backward에 전달한다.
+레거시 내부 계산 순서·수식·역전파 알고리즘을 재구성하거나 Context VJP로 대체하지
+않는다. adapter는 handle 대응, 오류 변환, 세션 소유·cleanup 경계만 연결한다.
+현재 모델에서 나온 연산 요청을 전달하는 것이며, 레거시 Diffusion/Trainer 전체를
+대신 호출하여 모델 소스 공유가 된 것으로 처리하지 않는다. 승인된 Conv2D 보정은 유지한다.
 
-- 목표가 공통 사용자 진입점까지인지, DDPM/U-Net 계산 소스 공유까지인지.
-- 레거시 전체 graph/backward 경로 보존을 선택할지, kernel-only 교체도 별도로 제공할지.
-- 생성 시 경로 선택으로 충분한지, 가중치를 옮겨 새 세션을 시작하는 UX도 필요한지.
+한 실행의 handle은 선택한 route에 속하며 연산마다 두 경로 사이로 변환·복사하지
+않는다. 지원하지 않는 요청은 명시적 오류로 반환한다. Legacy 구현이 빌드에서
+제외됐으면 DependencyUnavailable을 반환하고 P1으로 조용히 대체하지 않는다.
+현재 facade의 직접 backward/cleanup 책임은 필요한 최소 실행 경계로 분리하되,
+상위 모델·Trainer에는 경로별 분기나 원본 내부 타입 접근을 추가하지 않는다.
 
-이 결정을 내리기 전 두 번째 범용 runtime 또는 전체 모델 재작성을 시작하지 않는다.
+다음 검증은 현재 Context TimeEmbedding + ResidualBlock의 연산 흐름을 양쪽
+route에서 실행하는 것이다. 출력·gradient·parameter 갱신·no-grad·오류 정리와
+실제 원본 호출 경로를 검증한 후 전체 Context Diffusion으로 확장한다.
+명명 parameter 매핑과 version-2 재생 fixture를 재사용한다. 정적 그래프 전환은
+기존 결정대로 P1 완료 후 별도 단계이며 이 route 선택 작업과 혼동하지 않는다.
 
 ## 6. 어떤 모델 배치에서도 지켜야 할 계약
 
@@ -258,11 +282,11 @@ warmup·반복 횟수·median·p95·throughput·양쪽 live storage/graph 수를
 
 1. **기준 고정:** 현재 테스트 재실행, 원본 hash 검증, 위 DDPM의 연산/parameter/학습
    의존 지도와 재생 fixture 작성. 종료: 원본 기준 실행과 결과를 재현할 수 있음.
-2. **설계 결정:** A/B/C와 경로 범위를 논의하고 한 블록의 adapter 경계로 타당성 검증.
+2. **실행 경계 검증:** 현재 Context 모델을 기준으로 한 블록의 Legacy 전달 adapter를 검증.
    Trainer 및 상위 계층의 직접 내부 의존을 감사하고, 공개 API로 옮길 책임을 식별한다.
    기존 계약을 그대로 사용하는 안과 기계적 API 치환안을 먼저 검증한다. 두 안으로
    충분한 부분은 재설계 대상에서 제외하고, 해결되지 않는 의미 차이만 adapter 설계에 반영한다.
-   종료: 공유할 모델 코드 범위·공개 API 영향·legacy graph 소유 규칙을 문서로 확정.
+   종료: 기존 Context 모델 호출을 유지하는 공개 API 영향·legacy graph 소유 규칙 확정.
 3. **경로 연결:** 공통 실행 진입점, 생성 옵션, parameter snapshot, 실제 경로 추적,
    미등록/feature 제외 오류를 구현. 종료: 옵션만 바꿔 같은 블록과 backward 실행.
    공개 학습 API 아래 두 adapter를 연결하고 동일 Trainer의 최소 학습 step도 검증한다.
@@ -290,7 +314,7 @@ all-features 빌드를 검증한다. legacy가 제외된 경우, Context 기본 
 - 모델·레이어·optimizer·loader·observer 등 상위 계층에도 내부 구현 의존이 없으며,
   외부 공개 API 테스트와 의존성 검증으로 이를 확인한다.
 - 실제 실행되는 storage/forward/backward 경로가 요청과 일치함을 검증한다.
-- 확정한 통합/분리 결정에 맞춰 모델 변경 책임과 중복 범위가 문서화되어 있다.
+- 현재 Context Diffusion을 공통 모델로 사용하고 기본 P1/명시적 Legacy 선택을 제공한다.
 - 원본과 adapter, adapter와 Context의 수치·Adam 3 epoch·sampling 비교가 통과한다.
 - 외부 모델 코드에서 kernel/graph/registry 접근 없이 사용하고, 하위 구현 교체·제거가
   동일 계약 내 정상 실행 또는 지정 오류로 귀결된다.

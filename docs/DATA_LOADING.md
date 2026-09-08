@@ -57,4 +57,4 @@ sizes. Training loss is weighted by samples, labeled samples, or target tokens a
 appropriate. Bigram accepts `[length, vocabulary]` and `[batch, length, vocabulary]`,
 shifts each sequence independently, and rejects requested padding explicitly.
 
-See [P1 API](P1_API.md) for providers and [P1 status](P1_STATUS.md) for verified cases.
+See [P1 API](p1/P1_API.md) for providers and [P1 status](p1/P1_STATUS.md) for verified cases.

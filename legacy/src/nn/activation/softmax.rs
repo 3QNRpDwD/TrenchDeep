@@ -115,11 +115,17 @@ impl Function for SoftmaxOp {
     /// Softmax backward.
     ///
     /// targets 구조는 forward와 동일:
-    /// - `targets = [softmax_output]`       → 전역 backward
-    /// - `targets = [softmax_output, axis]` → axis 기준 row-wise backward
+    /// - `targets = [input]`       → 전역 backward
+    /// - `targets = [input, axis]` → axis 기준 row-wise backward
     #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        let softmax_output = targets[0];
+        // Like SoftmaxCrossEntropyLoss, recover probabilities from logits using
+        // max-subtracted exp / sum(exp). Forward already implements this for
+        // global and arbitrary-axis rows, including non-contiguous axes.
+        // Only probability recomputation is shared: the general VJP below must
+        // remain s * (g - dot(s, g)), not the fused loss's (p - target).
+        let outputs = self.forward(targets)?;
+        let softmax_output = &outputs[0];
         let s = softmax_output.data();
         let g = grad.data();
         let shape = softmax_output.shape();
@@ -133,7 +139,7 @@ impl Function for SoftmaxOp {
             // axis 스칼라에 대한 gradient는 없음
             Ok(vec![
                 GlobalTensor::from_vec(dx, shape)?,
-                GlobalTensor::from_vec(vec![0.0], &[1, 1])?,
+                GlobalTensor::zeros(targets[1].shape()),
             ])
         } else {
             // 전역 backward (기존 동작)

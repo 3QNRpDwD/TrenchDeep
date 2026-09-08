@@ -55,9 +55,58 @@ fn original_reference_ddpm_draws_replay_through_context_and_adam()
     )?;
     let parameters = model.parameters();
     assert_eq!(parameters.len(), baseline.unet.params().len());
-    // Positional mapping is used only for this baseline diagnostic. Structural
-    // names/shared-parameter mapping remain a requirement for the route adapter.
-    for (index, (p, q)) in parameters.iter().zip(baseline.unet.params()).enumerate() {
+    let named_entries = model.unet.named_parameters();
+    let old_descriptors = replay::mapping::describe(
+        baseline
+            .unet
+            .comparison_named_parameters()
+            .into_iter()
+            .map(|(name, p)| (name, p.tensor().shape().to_vec(), p.node_id()))
+            .collect(),
+    )?;
+    let descriptors = replay::mapping::describe(
+        named_entries
+            .iter()
+            .map(|(name, p)| Ok((name.clone(), p.tensor().shape()?, p.id())))
+            .collect::<MlResult<Vec<_>>>()?,
+    )?;
+    let named: std::collections::BTreeMap<_, _> = named_entries.into_iter().collect();
+    assert_eq!(
+        named
+            .values()
+            .map(|p| p.id())
+            .collect::<std::collections::HashSet<_>>(),
+        parameters
+            .iter()
+            .map(|p| p.id())
+            .collect::<std::collections::HashSet<_>>()
+    );
+    replay::mapping::validate(&descriptors, &old_descriptors)?;
+    assert_eq!(
+        descriptors.len(),
+        parameters.len(),
+        "named enumeration must cover every parameter"
+    );
+    assert_eq!(old_descriptors.len(), baseline.unet.params().len());
+    let old_named: std::collections::BTreeMap<_, _> = baseline
+        .unet
+        .comparison_named_parameters()
+        .into_iter()
+        .collect();
+    assert_eq!(
+        old_named
+            .values()
+            .map(|p| p.node_id())
+            .collect::<std::collections::HashSet<_>>(),
+        baseline
+            .unet
+            .params()
+            .iter()
+            .map(|p| p.node_id())
+            .collect::<std::collections::HashSet<_>>()
+    );
+    for (index, (name, p)) in named.iter().enumerate() {
+        let q = old_named[name];
         let shape = p.tensor().shape()?;
         assert_eq!(shape, q.tensor().shape(), "parameter {index}");
         let values = (0..p.tensor().numel()?)
@@ -77,19 +126,18 @@ fn original_reference_ddpm_draws_replay_through_context_and_adam()
             .replace(old::tensor::GlobalTensor::from_vec(values, &shape)?);
     }
     let mut fixture = replay::Fixture {
-        version: 1,
+        version: 2,
         corrections: serde_json::from_str(include_str!("../legacy/CORRECTIONS.json"))?,
-        initial: baseline
-            .unet
-            .params()
-            .iter()
-            .map(|p| replay::Weight {
-                shape: p.tensor().shape().to_vec(),
-                values: p.tensor().data().to_vec(),
+        initial: old_descriptors
+            .into_iter()
+            .map(|descriptor| replay::Weight {
+                values: old_named[&descriptor.name].tensor().data().to_vec(),
+                descriptor,
             })
             .collect(),
         steps: Vec::new(),
     };
+    drop(old_named);
     let image = ctx.input(vec![0.5; 128], &[2, 1, 8, 8])?;
     let old_image = old::nn::Variable::new(old::tensor::Tensor::from_vec(
         vec![0.5; 128],
@@ -115,7 +163,7 @@ fn original_reference_ddpm_draws_replay_through_context_and_adam()
             serde_json::to_vec_pretty(&serde_json::json!({
                 "source":"unmodified ReferenceDiffusion::forward_loss_diffusion",
                 "shape":noise.shape(),"timestep":t,"noise":noise.data(),
-                "initialization":"parameter i,j: rank1 0.1+(j%3)*0.01; otherwise ((i*13+j*7)%19)*0.003-0.027",
+                "initialization":"parameter i in sorted structural-name order,j: rank1 0.1+(j%3)*0.01; otherwise ((i*13+j*7)%19)*0.003-0.027",
                 "step":step,"prior_steps_require_parity":true
             }))?,
         )?;
@@ -132,15 +180,16 @@ fn original_reference_ddpm_draws_replay_through_context_and_adam()
         old_loss.backward()?;
         let gradients = baseline
             .unet
-            .params()
-            .iter()
-            .map(|p| p.grad().data().to_vec())
+            .comparison_named_parameters()
+            .into_iter()
+            .map(|(name, p)| (name, p.grad().data().to_vec()))
             .collect();
-        for (index, (p, q)) in parameters.iter().zip(baseline.unet.params()).enumerate() {
+        for (name, q) in baseline.unet.comparison_named_parameters() {
+            let p = named[&name];
             close(
                 p.grad()?.ok_or("missing gradient")?.data(),
                 q.grad().data(),
-                &format!("step {step} gradient {index}"),
+                &format!("step {step} gradient {name}"),
             );
         }
         optimizer.step()?;
@@ -156,16 +205,17 @@ fn original_reference_ddpm_draws_replay_through_context_and_adam()
             gradients,
             updated: baseline
                 .unet
-                .params()
-                .iter()
-                .map(|p| p.tensor().data().to_vec())
+                .comparison_named_parameters()
+                .into_iter()
+                .map(|(name, p)| (name, p.tensor().data().to_vec()))
                 .collect(),
         });
-        for (index, (p, q)) in parameters.iter().zip(baseline.unet.params()).enumerate() {
+        for (name, q) in baseline.unet.comparison_named_parameters() {
+            let p = named[&name];
             close(
                 &p.tensor().to_vec()?,
                 q.tensor().data(),
-                &format!("step {step} updated {index}"),
+                &format!("step {step} updated {name}"),
             );
         }
     }
@@ -174,6 +224,7 @@ fn original_reference_ddpm_draws_replay_through_context_and_adam()
         .join("target/p1/reference-draws/fixture.json");
     std::fs::write(&path, serde_json::to_vec_pretty(&fixture)?)?;
     let mut loaded: replay::Fixture = serde_json::from_reader(std::fs::File::open(&path)?)?;
+    loaded.initial.reverse(); // File enumeration order must not affect correspondence.
     replay::replay(&loaded)?;
     loaded.steps[2].timestep = 10;
     assert!(
@@ -191,14 +242,22 @@ fn original_reference_ddpm_draws_replay_through_context_and_adam()
             .contains("step 2: nonfinite")
     );
     loaded.steps[2].noise[0] = fixture.steps[2].noise[0];
-    loaded.steps[2].gradients[0].pop();
+    let first_name = loaded.steps[2].gradients.keys().next().unwrap().clone();
+    loaded.steps[2]
+        .gradients
+        .get_mut(&first_name)
+        .unwrap()
+        .pop();
     assert!(
         replay::replay(&loaded)
             .unwrap_err()
             .to_string()
-            .contains("step 2: parameter 0 length")
+            .contains(&format!("step 2: parameter {first_name} length"))
     );
-    loaded.steps[2].gradients[0] = fixture.steps[2].gradients[0].clone();
+    loaded.steps[2].gradients.insert(
+        first_name.clone(),
+        fixture.steps[2].gradients[&first_name].clone(),
+    );
     loaded.steps[0].prediction[0] += 1.0;
     assert!(
         replay::replay(&loaded)

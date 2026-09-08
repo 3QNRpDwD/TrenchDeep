@@ -7,6 +7,79 @@ use trench_deep::{
     *,
 };
 
+fn repeated_batches_release_tensors(ctx: ExecutionContext) -> MlResult<()> {
+    let parameter = ctx.parameter(vec![2.0], &[])?;
+    let baseline = ctx.graph_stats()?;
+    for batch in 0..64 {
+        let fail = batch % 3 == 1;
+        let result = ctx.with_training_scope(|| {
+            let input = ctx.scalar(0.5)?;
+            // Fan-out/fan-in exercises multiple graph references to one value.
+            let branch = parameter.mul(&input)?;
+            let loss = branch.mul(branch.tensor())?;
+            assert!(ctx.graph_stats()?.tensors > baseline.tensors);
+            if fail {
+                return Err(MlError::UnsupportedCapability {
+                    module: "batch failure fixture",
+                    capability: "forward",
+                    operation: "batch",
+                });
+            }
+            loss.backward()?;
+            let gradient = parameter
+                .grad()?
+                .expect("successful backward must produce a gradient");
+            assert_eq!(gradient.data(), &[1.0]);
+            // A returned tensor must survive scope cleanup until its owner drops it.
+            Ok(loss)
+        });
+        if fail {
+            assert!(matches!(
+                result,
+                Err(MlError::UnsupportedCapability {
+                    module: "batch failure fixture",
+                    ..
+                })
+            ));
+        } else {
+            let loss = result?;
+            assert_eq!(loss.tensor().item()?, 1.0);
+            let held = ctx.graph_stats()?;
+            assert_eq!(held.graph_nodes, 0);
+            assert_eq!(held.tensors, baseline.tensors + 1);
+            drop(loss);
+        }
+        assert!(parameter.grad()?.is_none());
+        assert_eq!(
+            ctx.graph_stats()?,
+            baseline,
+            "batch {batch} leaked runtime state"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn repeated_batches_release_external_provider_tensors() -> MlResult<()> {
+    repeated_batches_release_tensors(
+        ExecutionContextBuilder::empty()
+            .storage(SlotStore::default())
+            .autograd(Tape::default())
+            .operations(ReferenceOps)
+            .build(),
+    )
+}
+
+#[test]
+#[cfg(all(
+    feature = "builtinStorage",
+    feature = "builtinKernels",
+    feature = "enableBackward"
+))]
+fn repeated_batches_release_builtin_provider_tensors() -> MlResult<()> {
+    repeated_batches_release_tensors(ExecutionContext::new())
+}
+
 #[test]
 fn public_training_scope_supports_external_training_without_builtin_implementations() -> MlResult<()>
 {

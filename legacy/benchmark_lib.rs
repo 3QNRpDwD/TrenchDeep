@@ -1,7 +1,11 @@
 #![allow(macro_expanded_macro_exports_accessed_by_absolute_paths)]
 // include! changes macro expansion provenance, not baseline implementation semantics.
-// Keep the baseline source byte-for-byte intact. Only additive benchmark access lives here.
+// Preserve source files; the non-test build appends read-only parameter accessors
+// to a build-output copy. Standalone baseline unit tests use the source directly.
+#[cfg(test)]
 include!("src/lib.rs");
+#[cfg(not(test))]
+include!(concat!(env!("OUT_DIR"), "/reference_src/lib.rs"));
 #[cfg(not(test))]
 pub mod comparison;
 // Original reference models retain their crate::tests::common paths.

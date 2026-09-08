@@ -1,5 +1,7 @@
 //! Replay a captured three-step baseline without linking or executing legacy code.
 use serde::{Deserialize, Serialize};
+#[path = "support/reference_parameters.rs"]
+pub mod mapping;
 use trench_deep::{
     nn::{Diffusion, DiffusionScheduler, Unet},
     optimizer::{Adam, Optimizer},
@@ -9,7 +11,8 @@ use trench_deep::{
 
 #[derive(Serialize, Deserialize)]
 pub struct Weight {
-    pub shape: Vec<usize>,
+    #[serde(flatten)]
+    pub descriptor: mapping::Descriptor,
     pub values: Vec<f32>,
 }
 #[derive(Serialize, Deserialize)]
@@ -18,8 +21,8 @@ pub struct Step {
     pub noise: Vec<f32>,
     pub prediction: Vec<f32>,
     pub loss: Vec<f32>,
-    pub gradients: Vec<Vec<f32>>,
-    pub updated: Vec<Vec<f32>>,
+    pub gradients: std::collections::BTreeMap<String, Vec<f32>>,
+    pub updated: std::collections::BTreeMap<String, Vec<f32>>,
 }
 #[derive(Serialize, Deserialize)]
 pub struct Fixture {
@@ -45,8 +48,8 @@ fn close(a: &[f32], b: &[f32], label: &str) -> Result<(), Box<dyn std::error::Er
 }
 
 pub fn replay(fixture: &Fixture) -> Result<(), Box<dyn std::error::Error>> {
-    if fixture.version != 1 || fixture.steps.len() != 3 {
-        return Err("expected version 1 reference DDPM fixture with exactly three steps".into());
+    if fixture.version != 2 || fixture.steps.len() != 3 {
+        return Err("expected version 2 named reference DDPM fixture with exactly three steps; regenerate older fixtures".into());
     }
     let expected: serde_json::Value =
         serde_json::from_str(include_str!("../legacy/CORRECTIONS.json"))?;
@@ -66,11 +69,18 @@ pub fn replay(fixture: &Fixture) -> Result<(), Box<dyn std::error::Error>> {
         {
             return Err(format!("step {i}: parameter count mismatch").into());
         }
-        for (j, weight) in fixture.initial.iter().enumerate() {
-            if step.gradients[j].len() != weight.values.len()
-                || step.updated[j].len() != weight.values.len()
+        for weight in &fixture.initial {
+            let name = &weight.descriptor.name;
+            if step
+                .gradients
+                .get(name)
+                .is_none_or(|v| v.len() != weight.values.len())
+                || step
+                    .updated
+                    .get(name)
+                    .is_none_or(|v| v.len() != weight.values.len())
             {
-                return Err(format!("step {i}: parameter {j} length mismatch").into());
+                return Err(format!("step {i}: parameter {name} length/name mismatch").into());
             }
         }
         if step
@@ -78,8 +88,8 @@ pub fn replay(fixture: &Fixture) -> Result<(), Box<dyn std::error::Error>> {
             .iter()
             .chain(&step.prediction)
             .chain(&step.loss)
-            .chain(step.gradients.iter().flatten())
-            .chain(step.updated.iter().flatten())
+            .chain(step.gradients.values().flatten())
+            .chain(step.updated.values().flatten())
             .any(|value| !value.is_finite())
         {
             return Err(format!("step {i}: nonfinite fixture value").into());
@@ -93,20 +103,38 @@ pub fn replay(fixture: &Fixture) -> Result<(), Box<dyn std::error::Error>> {
         0,
     )?;
     let parameters = model.parameters();
-    if parameters.len() != fixture.initial.len() {
-        return Err("initial parameter count mismatch".into());
-    }
-    // Version 1 deliberately retains the diagnostic's positional mapping.
-    for (p, weight) in parameters.iter().zip(&fixture.initial) {
-        if p.tensor().shape()? != weight.shape {
-            return Err("initial parameter shape mismatch".into());
+    let named_entries = model.unet.named_parameters();
+    let descriptors = mapping::describe(
+        named_entries
+            .iter()
+            .map(|(name, p)| Ok((name.clone(), p.tensor().shape()?, p.id())))
+            .collect::<MlResult<Vec<_>>>()?,
+    )?;
+    let named: std::collections::BTreeMap<_, _> = named_entries.into_iter().collect();
+    mapping::validate(
+        &descriptors,
+        &fixture
+            .initial
+            .iter()
+            .map(|w| w.descriptor.clone())
+            .collect::<Vec<_>>(),
+    )?;
+    for weight in &fixture.initial {
+        let p = named[&weight.descriptor.name];
+        let canonical = fixture
+            .initial
+            .iter()
+            .find(|w| w.descriptor.name == weight.descriptor.shared_with)
+            .ok_or("missing shared weight")?;
+        if weight.values != canonical.values {
+            return Err("shared initial values mismatch".into());
         }
         if weight.values.iter().any(|v| !v.is_finite()) {
             return Err("nonfinite initial parameter".into());
         }
         ctx.replace_parameter(
             p.variable(),
-            TensorBuffer::from_vec(weight.values.clone(), &weight.shape)?,
+            TensorBuffer::from_vec(weight.values.clone(), &weight.descriptor.shape)?,
         )?;
     }
     let image = ctx.input(vec![0.5; 128], &[2, 1, 8, 8])?;
@@ -126,20 +154,20 @@ pub fn replay(fixture: &Fixture) -> Result<(), Box<dyn std::error::Error>> {
             &format!("step {i} loss"),
         )?;
         loss.backward()?;
-        for (j, p) in parameters.iter().enumerate() {
+        for (name, p) in &named {
             close(
                 p.grad()?.ok_or("missing gradient")?.data(),
-                &step.gradients[j],
-                &format!("step {i} gradient {j}"),
+                &step.gradients[name],
+                &format!("step {i} gradient {name}"),
             )?;
         }
         optimizer.step()?;
         optimizer.zero_grad()?;
-        for (j, p) in parameters.iter().enumerate() {
+        for (name, p) in &named {
             close(
                 &p.tensor().to_vec()?,
-                &step.updated[j],
-                &format!("step {i} updated {j}"),
+                &step.updated[name],
+                &format!("step {i} updated {name}"),
             )?;
         }
     }

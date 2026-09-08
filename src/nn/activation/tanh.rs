@@ -23,7 +23,9 @@ impl Function for TanhOp {
 
     #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        let tanh_output = targets[0];
+        // The graph supplies the original input, so recompute y = tanh(x).
+        let outputs = self.forward(targets)?;
+        let tanh_output = &outputs[0];
         let ones = vec![1.0f32; tanh_output.data().len()];
 
         Ok(vec![

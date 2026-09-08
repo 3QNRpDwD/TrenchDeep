@@ -1,4 +1,6 @@
 //! Time-conditioned residual U-Net using only the public tensor API.
+#[path = "diffusion_parameters.rs"]
+mod named_parameters;
 use super::{Conv2D, GroupNorm, Layer, Linear};
 use crate::trainer::{TrainableModel, UnsupervisedModel};
 use crate::{ContextId, ExecutionContext, MlResult, Parameter, Tensor, TensorError, Variable};

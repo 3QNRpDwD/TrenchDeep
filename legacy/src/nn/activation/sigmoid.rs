@@ -10,7 +10,15 @@ impl Function for SigmoidOp {
         let ones = vec![1.0f32; x.data().len()];
         Ok(vec![
             GlobalTensor::from_vec(
-                self.backend.div(&ones, &self.backend.add(&ones, &self.backend.exp(x.data()))),
+                self.backend.div(
+                    &ones,
+                    &self.backend.add(
+                        &ones,
+                        &self.backend.exp(
+                            &x.data().iter().map(|&v| -v).collect::<Vec<f32>>()
+                        )
+                    )
+                ),
                 x.shape()
             )?]
         )
