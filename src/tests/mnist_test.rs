@@ -52,7 +52,7 @@ fn mlp_mnist_classification_integration_test() -> MlResult<()> {
 
     if accuracy > config.required_accuracy {
         info!("Target accuracy achieved! ({:.2}% > {:.2}%)", accuracy, config.required_accuracy);
-        crate::trainer::CheckpointableModel::save_checkpoint(&mlp, std::path::Path::new(&config.model_save_path))?;
+        # crate::trainer::CheckpointableModel::save_checkpoint(&mlp, std::path::Path::new(&config.model_save_path))?;
     } else {
         warn!("Target accuracy NOT met. (Actual: {:.2}%, Required: {:.2}%).", accuracy, config.required_accuracy);
     }
