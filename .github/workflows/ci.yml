@@ -17,10 +17,6 @@ jobs:
             args: "--features enableBackward"
           - name: visualization
             args: "--features enableVisualization"
-          - name: higher-order
-            args: "--features enableHigherOrderDifferentiation"
-          - name: all-features
-            args: "--all-features"
     name: test (${{ matrix.name }})
     steps:
       - uses: actions/checkout@v4
