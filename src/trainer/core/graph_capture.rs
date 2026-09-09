@@ -1,7 +1,7 @@
 //! Shared graph-capture lifecycle for every training paradigm.
 
 use super::{BatchStartContext, MlResult, TrainerCore};
-use crate::visualization::{CaptureContext, GraphSnapshot, VisualizationCapture};
+use crate::legacy::visualization::{CaptureContext, GraphSnapshot, VisualizationCapture};
 
 pub(crate) struct TrainingGraphCapture {
     context: BatchStartContext,

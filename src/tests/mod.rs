@@ -1,13 +1,17 @@
+#[path = "common/mod.rs"]
 pub mod common;
+#[path = "repro.rs"]
 mod repro;
 
 #[cfg(test)]
+#[path = "mnist_test.rs"]
 mod mnist_test;
 
 #[cfg(test)]
+#[path = "checkpoint_test.rs"]
 mod checkpoint_test;
 
-use crate::{
+use crate::legacy::{
     MlResult,
     nn::{
         GroupNorm,

@@ -30,8 +30,8 @@ impl Function for Matmul {
         #[cfg(feature = "debugging")]
         tracing::debug!(
             "[Matmul::forward] {} @ {}  (case {}D×{}D)",
-            crate::tensor::operators::debug::summary("lhs", target_0),
-            crate::tensor::operators::debug::summary("rhs", target_1),
+            crate::legacy::tensor::operators::debug::summary("lhs", target_0),
+            crate::legacy::tensor::operators::debug::summary("rhs", target_1),
             a, b
         );
 
@@ -173,7 +173,7 @@ impl Function for Matmul {
         #[cfg(feature = "debugging")]
         tracing::debug!(
             "[Matmul::forward] → {}",
-            crate::tensor::operators::debug::summary_raw("out", &buffer.data, &buffer.shape)
+            crate::legacy::tensor::operators::debug::summary_raw("out", &buffer.data, &buffer.shape)
         );
 
         Ok(vec![buffer])
@@ -194,7 +194,7 @@ impl Function for Matmul {
         tracing::debug!(
             "[Matmul::backward] lhs_shape={:?} rhs_shape={:?}  {}  (case {}D×{}D)",
             target_0_shape, target_1_shape,
-            crate::tensor::operators::debug::summary("grad_in", grad),
+            crate::legacy::tensor::operators::debug::summary("grad_in", grad),
             a, b
         );
 
@@ -346,8 +346,8 @@ impl Function for Matmul {
 
         #[cfg(feature = "debugging")]
         {
-            crate::tensor::operators::debug::stats_raw("  └─ grad_lhs", &grad_0.data, &grad_0.shape);
-            crate::tensor::operators::debug::stats_raw("  └─ grad_rhs", &grad_1.data, &grad_1.shape);
+            crate::legacy::tensor::operators::debug::stats_raw("  └─ grad_lhs", &grad_0.data, &grad_0.shape);
+            crate::legacy::tensor::operators::debug::stats_raw("  └─ grad_rhs", &grad_1.data, &grad_1.shape);
         }
 
         Ok(vec![grad_0, grad_1])
@@ -361,9 +361,9 @@ impl Function for Matmul {
 
 #[cfg(test)]
 mod tests {
-    use crate::tensor::operators::{Function, Matmul};
-    use crate::tensor::{Tensor, TensorBase};
-    use crate::{tensor_ops, MlResult};
+    use crate::legacy::tensor::operators::{Function, Matmul};
+    use crate::legacy::tensor::{Tensor, TensorBase};
+    use crate::legacy::{tensor_ops, MlResult};
 
     #[test]
     fn test_matmul_2d_2d() -> MlResult<()> {

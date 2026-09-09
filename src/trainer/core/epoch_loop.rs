@@ -14,9 +14,9 @@ use std::time::{Duration, Instant};
 
 use super::metric_hook::BatchContext;
 use super::*;
-use crate::trainer::checkpoint::{clear_interrupt, confirm_interrupt, is_interrupted};
-use crate::trainer::data::BatchLoader;
-use crate::trainer::progress::{BatchProgress, EpochProgress};
+use crate::legacy::trainer::checkpoint::{clear_interrupt, confirm_interrupt, is_interrupted};
+use crate::legacy::trainer::data::BatchLoader;
+use crate::legacy::trainer::progress::{BatchProgress, EpochProgress};
 
 // ────────────────────────────────────────────────────────────────────────────
 // StepOutput — 한 배치의 forward/backward 결과 요약
@@ -28,8 +28,8 @@ use crate::trainer::progress::{BatchProgress, EpochProgress};
 /// 갱신된 param/grad 는 다음 배치의 `StepOutput` 에 반영된다.
 #[derive(Default)]
 pub struct BatchObservations {
-    pub pred: Option<crate::nn::Variable>,
-    pub target: Option<crate::nn::Variable>,
+    pub pred: Option<crate::legacy::nn::Variable>,
+    pub target: Option<crate::legacy::nn::Variable>,
     pub n_tokens: Option<usize>,
     pub lambda: Option<f32>,
 }
@@ -137,7 +137,7 @@ pub struct EpochOutcome {
     /// Progress bar 종료 뒤 `tracing`으로 발행할 배치 요약.
     pub batch_summaries: Vec<String>,
     /// 마지막 에폭에서 계산된 수치 메트릭.
-    pub metrics: crate::trainer::MetricValues,
+    pub metrics: crate::legacy::trainer::MetricValues,
     /// 실제로 처리한 배치 수. 길이를 미리 알 수 없는 loader에서도 정확하다.
     pub processed_batches: usize,
 }
@@ -456,7 +456,7 @@ impl TrainerCore {
 
         summary_extras.push(format!("{:.2?}", epoch_dur));
 
-        let mut metrics = crate::trainer::MetricValues::new();
+        let mut metrics = crate::legacy::trainer::MetricValues::new();
         metrics.insert("avg_loss".into(), avg_loss);
         metrics.insert("epoch_duration_secs".into(), epoch_dur.as_secs_f32());
         if grad_norm_count > 0 {
@@ -572,7 +572,7 @@ mod tests {
     #[cfg(feature = "enableVisualization")]
     #[test]
     fn trainer_captures_only_the_requested_batch() -> MlResult<()> {
-        use crate::{
+        use crate::legacy::{
             nn::{Parameter, Variable},
             tensor::{AutogradFunction, Tensor, TensorBase, operators::{Add, Function}},
             visualization::{CaptureProfile, GraphSnapshot},
@@ -627,7 +627,7 @@ mod tests {
     #[cfg(feature = "enableVisualization")]
     #[test]
     fn optimizer_failure_discards_pending_snapshot_and_restores_capture() {
-        use crate::{
+        use crate::legacy::{
             nn::{Parameter, Variable},
             tensor::{AutogradFunction, Tensor, operators::{Add, Function}},
             visualization::{CaptureProfile, GraphSnapshot},
@@ -677,6 +677,6 @@ mod tests {
         );
         assert!(result.is_err());
         assert!(snapshots.borrow().is_empty());
-        assert!(!crate::visualization::recording::is_active());
+        assert!(!crate::legacy::visualization::recording::is_active());
     }
 }

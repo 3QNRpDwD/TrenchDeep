@@ -67,14 +67,14 @@ pub trait SemiSupervisedModel: TrainableModel {
     /// - `lambda`                 : 일관성 가중치. 트레이너가 에폭마다 결정.
     fn forward_loss(
         &mut self,
-        x_labeled: &crate::nn::Variable,
-        t_labeled: &crate::nn::Variable,
-        x_unlabeled: &crate::nn::Variable,
+        x_labeled: &crate::legacy::nn::Variable,
+        t_labeled: &crate::legacy::nn::Variable,
+        x_unlabeled: &crate::legacy::nn::Variable,
         lambda: f32,
-    ) -> MlResult<(crate::nn::Variable, crate::nn::Variable)>;
+    ) -> MlResult<(crate::legacy::nn::Variable, crate::legacy::nn::Variable)>;
 
     /// No-grad 순전파. 평가·추론용.
-    fn predict_raw(&mut self, x: &dyn TensorBase) -> MlResult<crate::tensor::GlobalTensor<f32>>;
+    fn predict_raw(&mut self, x: &dyn TensorBase) -> MlResult<crate::legacy::tensor::GlobalTensor<f32>>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -235,7 +235,7 @@ impl SemiSupervisedTrainer {
     pub fn fit<M, I>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         input: I,
         schedule: EpochSchedule,
     ) -> MlResult<TrainResult>
@@ -258,7 +258,7 @@ impl SemiSupervisedTrainer {
     pub fn fit_checkpointed<M, I>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         input: I,
         schedule: EpochSchedule,
     ) -> MlResult<TrainResult>
@@ -283,7 +283,7 @@ impl SemiSupervisedTrainer {
     pub fn resume<M, I>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         input: I,
         checkpoint_path: &str,
     ) -> MlResult<TrainResult>
@@ -321,7 +321,7 @@ impl SemiSupervisedTrainer {
     fn fit_inner<M, L>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         mut loader: L,
         epochs: usize,
         convergence: Convergence,
@@ -495,11 +495,11 @@ impl SemiSupervisedTrainer {
 #[cfg(feature = "enableBackward")]
 struct SemiSupervisedEpochStep<'a, M: SemiSupervisedModel> {
     model: &'a mut M,
-    optimizer: &'a mut dyn crate::optimizer::Optimizer,
+    optimizer: &'a mut dyn crate::legacy::optimizer::Optimizer,
     lambda: f32,
     show_paradigm: bool,
-    last_y: Option<crate::nn::Variable>,
-    last_t: Option<crate::nn::Variable>,
+    last_y: Option<crate::legacy::nn::Variable>,
+    last_t: Option<crate::legacy::nn::Variable>,
 }
 
 #[cfg(feature = "enableBackward")]
@@ -517,7 +517,7 @@ impl<'a, M: SemiSupervisedModel> EpochStep for SemiSupervisedEpochStep<'a, M> {
         batch: SemiSupervisedBatch,
         cfg: &LogConfig,
     ) -> MlResult<StepOutput> {
-        use crate::tensor::ComputationGraph;
+        use crate::legacy::tensor::ComputationGraph;
         use std::time::Instant;
 
         ComputationGraph::reset_graph();

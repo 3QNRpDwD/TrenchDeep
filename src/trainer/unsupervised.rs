@@ -56,11 +56,11 @@ pub trait UnsupervisedModel: TrainableModel {
     /// - 반환 `loss`: 스칼라 손실 Variable.
     fn forward_loss(
         &mut self,
-        x: &crate::nn::Variable,
-    ) -> MlResult<(crate::nn::Variable, crate::nn::Variable)>;
+        x: &crate::legacy::nn::Variable,
+    ) -> MlResult<(crate::legacy::nn::Variable, crate::legacy::nn::Variable)>;
 
     /// No-grad 순전파. 초기 손실 표시 및 평가에 사용한다.
-    fn predict_raw(&mut self, x: &dyn TensorBase) -> MlResult<crate::tensor::GlobalTensor<f32>>;
+    fn predict_raw(&mut self, x: &dyn TensorBase) -> MlResult<crate::legacy::tensor::GlobalTensor<f32>>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ impl UnsupervisedTrainer {
     pub fn fit<M, I>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         input: I,
         schedule: EpochSchedule,
     ) -> MlResult<TrainResult>
@@ -184,7 +184,7 @@ impl UnsupervisedTrainer {
     pub fn fit_checkpointed<M, I>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         input: I,
         schedule: EpochSchedule,
     ) -> MlResult<TrainResult>
@@ -209,7 +209,7 @@ impl UnsupervisedTrainer {
     pub fn resume<M, I>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         input: I,
         checkpoint_path: &str,
     ) -> MlResult<TrainResult>
@@ -247,7 +247,7 @@ impl UnsupervisedTrainer {
     fn fit_inner<M, L>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         mut loader: L,
         epochs: usize,
         convergence: Convergence,
@@ -418,8 +418,8 @@ impl UnsupervisedTrainer {
 #[cfg(feature = "enableBackward")]
 struct UnsupervisedEpochStep<'a, M: UnsupervisedModel> {
     model: &'a mut M,
-    optimizer: &'a mut dyn crate::optimizer::Optimizer,
-    last_y: Option<crate::nn::Variable>,
+    optimizer: &'a mut dyn crate::legacy::optimizer::Optimizer,
+    last_y: Option<crate::legacy::nn::Variable>,
 }
 
 #[cfg(feature = "enableBackward")]
@@ -436,7 +436,7 @@ impl<'a, M: UnsupervisedModel> EpochStep for UnsupervisedEpochStep<'a, M> {
         batch: UnsupervisedBatch,
         cfg: &LogConfig,
     ) -> MlResult<StepOutput> {
-        use crate::tensor::ComputationGraph;
+        use crate::legacy::tensor::ComputationGraph;
         use std::time::Instant;
 
         ComputationGraph::reset_graph();

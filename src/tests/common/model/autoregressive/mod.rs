@@ -18,7 +18,7 @@
 
 use super::*;
 
-use crate::{
+use crate::legacy::{
     MlResult,
     loss::SoftmaxCrossEntropyLoss,
     nn::Variable,
@@ -64,7 +64,7 @@ impl BigramLM {
 // ────────────────────────────────────────────────────────────────────────────
 
 #[cfg(feature = "enableBackward")]
-impl crate::trainer::AutoregressiveModel for BigramLM {
+impl crate::legacy::trainer::AutoregressiveModel for BigramLM {
     fn forward_loss(&mut self, x: &Variable) -> MlResult<(Variable, Variable, usize)> {
         // 입력은 `[L+1, V]` one-hot 시퀀스.
         // `SoftmaxCrossEntropyLoss::forward` 가 `[1, V]` 단일 행 입력에만
@@ -100,7 +100,7 @@ impl crate::trainer::AutoregressiveModel for BigramLM {
         // 평균 NLL 로 변환: total_loss / L
         let loss_sum = total_loss.expect("l>=1 이면 최소 하나의 loss 가 누적됨");
         let scale = Variable::new(Tensor::from_vec(vec![1.0 / l as f32], &[1, 1])?);
-        let mut mul = crate::tensor::operators::Mul::new()?;
+        let mut mul = crate::legacy::tensor::operators::Mul::new()?;
         let loss_mean = mul.apply(&[&loss_sum, &scale])?;
 
         Ok((last_logits.unwrap(), loss_mean, l))
@@ -113,12 +113,12 @@ impl crate::trainer::AutoregressiveModel for BigramLM {
     }
 }
 
-impl crate::trainer::TrainableModel for BigramLM {
+impl crate::legacy::trainer::TrainableModel for BigramLM {
     fn params(&self) -> Vec<&dyn Parameter> {
         vec![&self.w]
     }
 }
-impl crate::trainer::CheckpointableModel for BigramLM {}
+impl crate::legacy::trainer::CheckpointableModel for BigramLM {}
 
 // ────────────────────────────────────────────────────────────────────────────
 // 테스트
@@ -128,7 +128,7 @@ impl crate::trainer::CheckpointableModel for BigramLM {}
 #[cfg(feature = "enableBackward")]
 mod tests {
     use super::*;
-    use crate::{
+    use crate::legacy::{
         optimizer::{Adam, Optimizer},
         trainer::{AutoregressiveModel, TrainableModel, Trainer},
     };
@@ -174,23 +174,23 @@ mod tests {
             .iter()
             .map(|s| pack_sequence(s, vocab))
             .collect::<MlResult<Vec<_>>>()?;
-        let dataset = crate::trainer::DatasetBuilder::from_source(
-            crate::trainer::MemorySource::new(seq_vars),
+        let dataset = crate::legacy::trainer::DatasetBuilder::from_source(
+            crate::legacy::trainer::MemorySource::new(seq_vars),
         )
         .map(|sequence: Variable| {
-            Ok(crate::trainer::AutoregressiveSample::new(
+            Ok(crate::legacy::trainer::AutoregressiveSample::new(
                 sequence.tensor().clone(),
             ))
         })
         .build()?;
-        let mut loader = crate::trainer::DataLoader::builder(dataset)
-            .collator(|samples: &[&crate::trainer::AutoregressiveSample]| {
+        let mut loader = crate::legacy::trainer::DataLoader::builder(dataset)
+            .collator(|samples: &[&crate::legacy::trainer::AutoregressiveSample]| {
                 if samples.len() != 1 {
-                    return Err(crate::MlError::StringError(
+                    return Err(crate::legacy::MlError::StringError(
                         "single-sequence collator expects one sample".into(),
                     ));
                 }
-                Ok(crate::trainer::AutoregressiveBatch {
+                Ok(crate::legacy::trainer::AutoregressiveBatch {
                     sequences: Variable::new(samples[0].sequence.clone()),
                 })
             })
@@ -202,7 +202,7 @@ mod tests {
             &mut model,
             &mut opt,
             &mut loader,
-            crate::trainer::EpochSchedule::new(20)?.with_tolerance(1e-10),
+            crate::legacy::trainer::EpochSchedule::new(20)?.with_tolerance(1e-10),
         )?;
 
         assert!(result.units_completed > 0, "적어도 1 에폭은 학습되어야 함");
@@ -242,8 +242,8 @@ mod tests {
         let res_short = trainer.fit(
             &mut model,
             &mut opt,
-            crate::trainer::AutoregressiveDataset::new(&x_set)?,
-            crate::trainer::EpochSchedule::new(1)?.with_tolerance(1e-10),
+            crate::legacy::trainer::AutoregressiveDataset::new(&x_set)?,
+            crate::legacy::trainer::EpochSchedule::new(1)?.with_tolerance(1e-10),
         )?;
         let init_loss = res_short.final_loss;
 
@@ -251,8 +251,8 @@ mod tests {
         let res_long = trainer.fit(
             &mut model,
             &mut opt,
-            crate::trainer::AutoregressiveDataset::new(&x_set)?,
-            crate::trainer::EpochSchedule::new(40)?.with_tolerance(1e-10),
+            crate::legacy::trainer::AutoregressiveDataset::new(&x_set)?,
+            crate::legacy::trainer::EpochSchedule::new(40)?.with_tolerance(1e-10),
         )?;
         let final_loss = res_long.final_loss;
 
@@ -270,7 +270,7 @@ mod tests {
     // 에폭 경계에서 reset 이 호출되는지 확인.
     // ────────────────────────────────────────────────────────────────────────
 
-    use crate::trainer::{BatchContext, MetricHook};
+    use crate::legacy::trainer::{BatchContext, MetricHook};
     use std::cell::Cell;
 
     /// 배치 호출 횟수와 reset 횟수를 세는 스파이 훅.
@@ -330,8 +330,8 @@ mod tests {
         let _ = trainer.fit(
             &mut model,
             &mut opt,
-            crate::trainer::AutoregressiveDataset::new(&x_set)?,
-            crate::trainer::EpochSchedule::new(epochs)?.with_tolerance(1e-10),
+            crate::legacy::trainer::AutoregressiveDataset::new(&x_set)?,
+            crate::legacy::trainer::EpochSchedule::new(epochs)?.with_tolerance(1e-10),
         )?;
 
         // 훅 상태는 RefCell 안에 있으므로 borrow 로 접근.

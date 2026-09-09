@@ -1,19 +1,24 @@
-mod encoder;
+#[path = "encoder.rs"]
+pub mod encoder;
+#[path = "decoder.rs"]
 mod decoder;
-mod unet;
-mod scheduler;
-mod embedding;
+#[path = "unet.rs"]
+pub mod unet;
+#[path = "scheduler.rs"]
+pub mod scheduler;
+#[path = "embedding.rs"]
+pub mod embedding;
 
 use super::*; // info, MlResult, Layer, Linear, Sequential, ... (from model/mod.rs)
 
 // diffusion 하위 모듈 전용 import
 use std::fmt::Debug;
-use crate::{
+use crate::legacy::{
     nn::{Conv2D, GroupNorm, activation::{SiLU, SoftmaxOp}},
     tensor::operators::{Concat, Cos, Mul, NearestUpsample2d, ReshapeOp, Sin, Transpose},
 };
-use crate::loss::MeanSquaredError;
-use crate::tests::common::model::diffusion::unet::Unet;
+use crate::legacy::loss::MeanSquaredError;
+use crate::legacy::tests::common::model::diffusion::unet::Unet;
 use self::embedding::TimeEmbeddingMLP;
 use self::encoder::SinusoidalPE;
 use self::scheduler::DDPMScheduler;
@@ -286,7 +291,7 @@ impl Diffusion {
 /// | `predict_raw()`   | U-Net 추론 (dummy timestep)               |
 /// | `params()`        | U-Net 의 모든 학습 파라미터               |
 #[cfg(feature = "enableBackward")]
-impl crate::trainer::UnsupervisedModel for Diffusion {
+impl crate::legacy::trainer::UnsupervisedModel for Diffusion {
     fn forward_loss(
         &mut self,
         x: &Variable,
@@ -302,10 +307,10 @@ impl crate::trainer::UnsupervisedModel for Diffusion {
     }
 }
 
-impl crate::trainer::TrainableModel for Diffusion {
-    fn params(&self) -> Vec<&dyn crate::nn::Parameter> { self.unet.params() }
+impl crate::legacy::trainer::TrainableModel for Diffusion {
+    fn params(&self) -> Vec<&dyn crate::legacy::nn::Parameter> { self.unet.params() }
 }
-impl crate::trainer::CheckpointableModel for Diffusion {}
+impl crate::legacy::trainer::CheckpointableModel for Diffusion {}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  테스트
@@ -314,8 +319,8 @@ impl crate::trainer::CheckpointableModel for Diffusion {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tensor::operators::Function;
-    use crate::tests::common::logging::setup_logging;
+    use crate::legacy::tensor::operators::Function;
+    use crate::legacy::tests::common::logging::setup_logging;
 
     /// Diffusion 모델 생성 + loss 계산 end-to-end 테스트.
     #[test]
@@ -449,8 +454,8 @@ mod tests {
     #[test]
     fn diffusion_train_and_sample() -> MlResult<()> {
         setup_logging();
-        use crate::tensor::ComputationGraph;
-        use crate::optimizer::{Adam, Optimizer, clip_grad_norm};
+        use crate::legacy::tensor::ComputationGraph;
+        use crate::legacy::optimizer::{Adam, Optimizer, clip_grad_norm};
 
         info!("═══════════════════════════════════════════════════════════");
         info!("  DDPM Training + Sampling E2E Test");
@@ -567,7 +572,7 @@ mod tests {
             // 깊은 네트워크에서 gradient 가 폭발할 수 있으므로,
             // L2 norm 이 max_norm 을 초과하면 비례 축소.
             // PyTorch 의 torch.nn.utils.clip_grad_norm_ 과 동일.
-            let params: Vec<&dyn crate::nn::Parameter> = model.unet.params();
+            let params: Vec<&dyn crate::legacy::nn::Parameter> = model.unet.params();
             let grad_norm = clip_grad_norm(&params, 1.0);
 
             // ④ 파라미터 업데이트 — θ ← θ - lr · ∂L/∂θ
@@ -649,8 +654,8 @@ mod tests {
     #[test]
     fn diffusion_train_with_trainer() -> MlResult<()> {
         setup_logging();
-        use crate::optimizer::{Adam, Optimizer};
-        use crate::trainer::{
+        use crate::legacy::optimizer::{Adam, Optimizer};
+        use crate::legacy::trainer::{
             DataLoader, DatasetBuilder, EpochSchedule, MemorySource, UnsupervisedSample,
             UnsupervisedStackCollator,
         };
@@ -680,15 +685,15 @@ mod tests {
             .shuffle(false)
             .build()?;
         // UnsupervisedTrainer::silent() — 로그 없이 빠르게 실행
-        let trainer = crate::trainer::Trainer::verbose().unsupervised();
+        let trainer = crate::legacy::trainer::Trainer::verbose().unsupervised();
         #[cfg(feature = "enableVisualization")]
         let trainer = {
             let capture_dir = std::env::temp_dir().join("trench-deep-diffusion_capture");
-            let writer = crate::visualization::FileSnapshotWriter::builder(capture_dir)
+            let writer = crate::legacy::visualization::FileSnapshotWriter::builder(capture_dir)
                 .render_svg(true)
                 .build()?;
             trainer.with_observer(Box::new(
-                crate::trainer::GraphVisualizationObserver::builder()
+                crate::legacy::trainer::GraphVisualizationObserver::builder()
                     .writer(Box::new(writer))
                     .build()?
             ))

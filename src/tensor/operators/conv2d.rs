@@ -140,7 +140,7 @@ fn matmul_at_b(a: &[f32], b: &[f32], m: usize, k: usize, n: usize) -> Vec<f32> {
     let mut c = vec![0.0f32; m * n];
     for l in 0..k {
         for i in 0..m {
-            let at_val = a[i * k + l]; // A^T[l, i] = A[i, l]
+            let at_val = a[l * m + i]; // W[l, i], with W stored as [k, m]
             for j in 0..n {
                 c[i * n + j] += at_val * b[l * n + j];
             }
@@ -279,7 +279,7 @@ impl Function for Conv2dOp {
         tracing::debug!(
             "[Conv2dOp::backward] in={:?} w={:?} {}",
             in_shape, w_shape,
-            crate::tensor::operators::debug::summary("grad", grad)
+            crate::legacy::tensor::operators::debug::summary("grad", grad)
         );
 
         let (col, _n, h_out, w_out, col_rows) = im2col(
@@ -335,9 +335,9 @@ impl Function for Conv2dOp {
 
         #[cfg(feature = "debugging")]
         {
-            crate::tensor::operators::debug::stats_raw("  └─ dX",     &dx_data, in_shape);
-            crate::tensor::operators::debug::stats_raw("  └─ dW",     &dw_data, w_shape);
-            crate::tensor::operators::debug::stats_raw("  └─ db",     &db_data, &[c_out]);
+            crate::legacy::tensor::operators::debug::stats_raw("  └─ dX",     &dx_data, in_shape);
+            crate::legacy::tensor::operators::debug::stats_raw("  └─ dW",     &dw_data, w_shape);
+            crate::legacy::tensor::operators::debug::stats_raw("  └─ db",     &db_data, &[c_out]);
         }
 
         let zero_scalar = GlobalTensor::from_vec(vec![0.0], &[1, 1])?;

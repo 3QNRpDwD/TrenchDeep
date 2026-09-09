@@ -116,7 +116,7 @@ impl Function for GroupNormOp {
                 "[GroupNorm::forward] [{},{},{},{}] G={} cg={} m={} mean_preview={:?} var_preview={:?}",
                 n, c, h, w, g, cg, m, mean_preview, var_preview
             );
-            crate::tensor::operators::debug::stats_raw("  └─ y", &y_data, shape);
+            crate::legacy::tensor::operators::debug::stats_raw("  └─ y", &y_data, shape);
         }
 
         let out_shape = shape.to_vec();
@@ -157,7 +157,7 @@ impl Function for GroupNormOp {
         tracing::debug!(
             "[GroupNorm::backward] [{},{},{},{}] G={} cg={} {}",
             n, c, h, w, g, cg,
-            crate::tensor::operators::debug::summary("grad", grad)
+            crate::legacy::tensor::operators::debug::summary("grad", grad)
         );
 
         let dy        = grad.data();
@@ -227,9 +227,9 @@ impl Function for GroupNormOp {
 
         #[cfg(feature = "debugging")]
         {
-            crate::tensor::operators::debug::stats_raw("  └─ dX",     &dx,     shape);
-            crate::tensor::operators::debug::stats_raw("  └─ dgamma", &dgamma, &[c]);
-            crate::tensor::operators::debug::stats_raw("  └─ dbeta",  &dbeta,  &[c]);
+            crate::legacy::tensor::operators::debug::stats_raw("  └─ dX",     &dx,     shape);
+            crate::legacy::tensor::operators::debug::stats_raw("  └─ dgamma", &dgamma, &[c]);
+            crate::legacy::tensor::operators::debug::stats_raw("  └─ dbeta",  &dbeta,  &[c]);
         }
 
         let zero = GlobalTensor::from_vec(vec![0.0], &[1, 1])?;

@@ -1,5 +1,5 @@
 use super::{CaptureContext, CaptureProfile, NodeRole, capture};
-use crate::tensor::{NodeId, Tensor, TensorBase};
+use crate::legacy::tensor::{NodeId, Tensor, TensorBase};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]

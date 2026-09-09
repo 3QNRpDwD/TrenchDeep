@@ -20,7 +20,7 @@
 
 use super::*;
 
-use crate::{
+use crate::legacy::{
     nn::Variable,
     tensor::{
         operators::{Add, Function, Matmul},
@@ -99,7 +99,7 @@ impl LinearPolicy {
 }
 
 #[cfg(feature = "enableBackward")]
-impl crate::trainer::RLModel for LinearPolicy {
+impl crate::legacy::trainer::RLModel for LinearPolicy {
     fn policy_logits(&mut self, obs: &Variable) -> MlResult<Variable> {
         let mut matmul = Matmul::new()?;
         let pre = matmul.apply(&[obs, &self.w])?;
@@ -116,10 +116,10 @@ impl crate::trainer::RLModel for LinearPolicy {
 
 }
 
-impl crate::trainer::TrainableModel for LinearPolicy {
+impl crate::legacy::trainer::TrainableModel for LinearPolicy {
     fn params(&self) -> Vec<&dyn Parameter> { vec![&self.w, &self.b] }
 }
-impl crate::trainer::CheckpointableModel for LinearPolicy {}
+impl crate::legacy::trainer::CheckpointableModel for LinearPolicy {}
 
 // ────────────────────────────────────────────────────────────────────────────
 // 테스트
@@ -129,7 +129,7 @@ impl crate::trainer::CheckpointableModel for LinearPolicy {}
 #[cfg(feature = "enableBackward")]
 mod tests {
     use super::*;
-    use crate::{
+    use crate::legacy::{
         optimizer::{Adam, Optimizer},
         trainer::{RLModel, Trainer, TrainableModel},
     };
@@ -150,7 +150,7 @@ mod tests {
             .with_baseline(true);
 
         let result = trainer.fit(&mut policy, &mut env, &mut opt,
-            crate::trainer::EpisodeSchedule::new(100, 1)?)?;
+            crate::legacy::trainer::EpisodeSchedule::new(100, 1)?)?;
 
         assert_eq!(result.units_completed, 100);
         assert!(
@@ -186,7 +186,7 @@ mod tests {
             .with_baseline(false);
 
         let result = trainer.fit(&mut policy, &mut env, &mut opt,
-            crate::trainer::EpisodeSchedule::new(10, 1)?)?;
+            crate::legacy::trainer::EpisodeSchedule::new(10, 1)?)?;
 
         assert_eq!(result.units_completed, 10);
         assert!(result.final_loss.is_finite());

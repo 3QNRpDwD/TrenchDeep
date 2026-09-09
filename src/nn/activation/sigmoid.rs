@@ -14,7 +14,9 @@ impl Function for SigmoidOp {
                     &ones,
                     &self.backend.add(
                         &ones,
-                        &self.backend.exp(&x.data().iter().map(|&v| -v).collect::<Vec<f32>>())
+                        &self.backend.exp(
+                            &x.data().iter().map(|&v| -v).collect::<Vec<f32>>()
+                        )
                     )
                 ),
                 x.shape()

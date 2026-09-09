@@ -16,7 +16,7 @@ fn weights_of(net: &Sequential) -> Vec<Vec<f32>> {
 fn zero_all_weights(net: &mut Sequential) {
     for p in net.params() {
         let shape = p.tensor().shape().to_vec();
-        let zeros = crate::tensor::GlobalTensor::zeros(&shape);
+        let zeros = crate::legacy::tensor::GlobalTensor::zeros(&shape);
         p.tensor().replace(zeros);
     }
 }
@@ -114,7 +114,7 @@ fn test_load_missing_label_skips_gracefully() -> MlResult<()> {
 
     // fc2_weight를 0으로 초기화 후 복원 확인
     let fc2_weight = net2.params()[2].tensor();
-    fc2_weight.replace(crate::tensor::GlobalTensor::zeros(fc2_weight.shape()));
+    fc2_weight.replace(crate::legacy::tensor::GlobalTensor::zeros(fc2_weight.shape()));
 
     let result = net2.load(tmp); // 에러 없이 성공해야 함
     assert!(result.is_ok(), "레이블 불일치 시에도 에러 없이 진행해야 함");
@@ -137,8 +137,8 @@ fn test_group_norm_save_load() -> MlResult<()> {
 
     // gamma를 2.0, beta를 0.5로 설정
     let params = net.params();
-    let custom_gamma = crate::tensor::GlobalTensor::from_vec(vec![2.0f32; 8], &[8])?;
-    let custom_beta  = crate::tensor::GlobalTensor::from_vec(vec![0.5f32; 8], &[8])?;
+    let custom_gamma = crate::legacy::tensor::GlobalTensor::from_vec(vec![2.0f32; 8], &[8])?;
+    let custom_beta  = crate::legacy::tensor::GlobalTensor::from_vec(vec![0.5f32; 8], &[8])?;
     params[0].tensor().replace(custom_gamma);
     params[1].tensor().replace(custom_beta);
     drop(params);

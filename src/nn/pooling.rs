@@ -1,5 +1,5 @@
 use super::*;
-use crate::tensor::operators::{MaxPool2d, AvgPool2d};
+use crate::legacy::tensor::operators::{MaxPool2d, AvgPool2d};
 
 impl Pooling {
     /// MaxPool2d 레이어를 생성.

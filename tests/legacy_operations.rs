@@ -15,8 +15,7 @@ fn close(actual: &[f32], expected: &[f32]) {
     }
 }
 
-// A weighted dot product exercises every output gradient without depending on
-// the legacy Sum backward, which has a different scalar broadcast contract.
+// A weighted dot product exercises every output gradient independently of Sum.
 fn compare_operation(
     op: Operation,
     inputs: Vec<(Vec<f32>, Vec<usize>)>,
@@ -68,6 +67,48 @@ fn compare_operation(
         if let (Some(a), Some(b)) = (a, b) {
             assert_eq!(a.shape(), b.shape());
             close(a.data(), b.data());
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn division_and_sum_match_native_gradients() -> MlResult<()> {
+    for backward in [false, true] {
+        for shape in [vec![], vec![1], vec![2, 3], vec![1, 2, 3]] {
+            let n = shape.iter().product::<usize>();
+            let lhs = (0..n).map(|i| i as f32 - 2.0).collect::<Vec<_>>();
+            let rhs = (0..n).map(|i| if i % 2 == 0 { -0.5 } else { 2.0 }).collect::<Vec<_>>();
+            compare_operation(Operation::Div, vec![(lhs.clone(), shape.clone()), (rhs, shape.clone())], backward)?;
+            compare_operation(Operation::Sum, vec![(lhs, shape)], backward)?;
+        }
+    }
+    let ctx = ExecutionContext::builder().route(ExecutionRoute::Legacy).build()?;
+    let x = ctx.parameter(vec![2.0, -3.0], &[2])?;
+    let scalar = ctx.tensor(vec![2.0], &[])?;
+    let baseline = ctx.graph_stats()?;
+    for _ in 0..8 {
+        ctx.with_training_scope(|| {
+            // Shared numerator/denominator gradients must accumulate to zero.
+            x.div(x.tensor())?.sum()?.backward()?;
+            close(x.grad()?.unwrap().data(), &[0.0, 0.0]);
+            Ok(())
+        })?;
+        assert_eq!(ctx.graph_stats()?, baseline);
+    }
+    assert!(matches!(x.div(&scalar), Err(MlError::UnsupportedCapability { .. })));
+    assert_eq!(ctx.graph_stats()?, baseline);
+    Ok(())
+}
+
+#[test]
+fn sigmoid_matches_forward_backward_and_no_grad() -> MlResult<()> {
+    for backward in [false, true] {
+        for (data, shape) in [
+            (vec![-100.0, -20.0, -2.0, -0.5, 0.0, 0.5, 2.0, 20.0, 100.0], vec![3, 3]),
+            (vec![0.0], vec![]),
+        ] {
+            compare_operation(Operation::Sigmoid, vec![(data, shape)], backward)?;
         }
     }
     Ok(())
@@ -231,8 +272,6 @@ fn expanded_validation_rejects_before_recording_and_shared_loss_target_is_consta
         Operation::ApproxSin {
             threshold: f32::NAN,
         },
-        Operation::Sigmoid,
-        Operation::Sum,
         Operation::Matmax {
             axis: Some(1),
             keepdim: false,

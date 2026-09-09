@@ -21,7 +21,7 @@ pub struct AdamW {
     eps:          f32,
     weight_decay: f32,
     t:            u32,
-    params:       Vec<crate::optimizer::adam::AdamState>,
+    params:       Vec<crate::legacy::optimizer::adam::AdamState>,
 }
 
 impl AdamW {
@@ -40,7 +40,7 @@ impl Optimizer for AdamW {
         let size = TENSOR_STORAGE.with_borrow(|s| {
             s.get(&param.node_id()).map(|w| w.data.len()).unwrap_or(0)
         });
-        self.params.push(crate::optimizer::adam::AdamState::new(param.node_id(), param.grad().id(), size));
+        self.params.push(crate::legacy::optimizer::adam::AdamState::new(param.node_id(), param.grad().id(), size));
     }
 
     fn step(&mut self) -> MlResult<()> {

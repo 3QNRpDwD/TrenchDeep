@@ -52,7 +52,7 @@ pub fn replay(fixture: &Fixture) -> Result<(), Box<dyn std::error::Error>> {
         return Err("expected version 2 named reference DDPM fixture with exactly three steps; regenerate older fixtures".into());
     }
     let expected: serde_json::Value =
-        serde_json::from_str(include_str!("../legacy/CORRECTIONS.json"))?;
+        serde_json::from_str(include_str!("../src/native_provenance/CORRECTIONS.json"))?;
     if fixture.corrections != expected {
         return Err("baseline correction provenance mismatch".into());
     }

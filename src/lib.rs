@@ -19,7 +19,7 @@ pub mod loss {
     pub use crate::{LossError, Reduction};
 }
 #[cfg(feature = "legacyBenchmark")]
-pub use trench_deep_legacy as legacy;
+pub mod legacy;
 pub mod nn;
 pub mod optimizer;
 pub mod trainer;

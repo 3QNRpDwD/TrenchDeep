@@ -11,7 +11,7 @@ impl_function!(Exp,
         #[cfg(feature = "debugging")]
         tracing::debug!(
             "[Exp::forward] {}",
-            crate::tensor::operators::debug::summary("in", targets[0])
+            crate::legacy::tensor::operators::debug::summary("in", targets[0])
         );
 
         Ok(vec![GlobalTensor::from_vec(self.backend().exp(targets[0].data()), targets[0].shape())?])
@@ -23,7 +23,7 @@ impl_function!(Exp,
             .collect();
 
         #[cfg(feature = "debugging")]
-        crate::tensor::operators::debug::stats_raw("  └─ dExp", &gradient, targets[0].shape());
+        crate::legacy::tensor::operators::debug::stats_raw("  └─ dExp", &gradient, targets[0].shape());
 
         Ok(vec![GlobalTensor::from_vec(gradient, targets[0].shape())?])
     }

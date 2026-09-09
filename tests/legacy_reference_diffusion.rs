@@ -30,8 +30,7 @@ fn close(actual: &[f32], expected: &[f32], label: &str) {
     }
 }
 
-/// Direct, unmodified legacy DDPM forward followed by replay in the existing P1
-/// model. This is a numerical baseline, not the future unified Trainer adapter.
+/// Capture native DDPM draws and validate numerical replay; direct Trainer routes are tested separately.
 #[test]
 fn original_reference_ddpm_draws_replay_through_context_and_adam()
 -> Result<(), Box<dyn std::error::Error>> {
@@ -127,7 +126,7 @@ fn original_reference_ddpm_draws_replay_through_context_and_adam()
     }
     let mut fixture = replay::Fixture {
         version: 2,
-        corrections: serde_json::from_str(include_str!("../legacy/CORRECTIONS.json"))?,
+        corrections: serde_json::from_str(include_str!("../src/native_provenance/CORRECTIONS.json"))?,
         initial: old_descriptors
             .into_iter()
             .map(|descriptor| replay::Weight {
@@ -226,6 +225,12 @@ fn original_reference_ddpm_draws_replay_through_context_and_adam()
     let mut loaded: replay::Fixture = serde_json::from_reader(std::fs::File::open(&path)?)?;
     loaded.initial.reverse(); // File enumeration order must not affect correspondence.
     replay::replay(&loaded)?;
+    // NativeSession owns the thread's legacy storage exclusively. Release all
+    // raw baseline handles before starting the common model on the Legacy route.
+    drop(old_optimizer);
+    drop(old_image);
+    drop(baseline);
+    old::comparison::clear_graph();
     loaded.steps[2].timestep = 10;
     assert!(
         replay::replay(&loaded)

@@ -25,7 +25,7 @@ impl VisualizationCaptureBuilder {
     pub fn begin(self) -> Result<VisualizationCapture, VisualizationError> {
         begin_session(self.profile, self.context)?;
         let capture = VisualizationCapture { finished: false };
-        crate::tensor::ComputationGraph::reset_graph();
+        crate::legacy::tensor::ComputationGraph::reset_graph();
         Ok(capture)
     }
 }
@@ -45,7 +45,7 @@ impl VisualizationCapture {
     pub fn finish(mut self) -> Result<GraphSnapshot, VisualizationError> {
         let session = session()?;
         let snapshot = super::snapshot::build_snapshot(&session);
-        crate::tensor::ComputationGraph::reset_graph();
+        crate::legacy::tensor::ComputationGraph::reset_graph();
         disable();
         self.finished = true;
         snapshot
@@ -55,7 +55,7 @@ impl VisualizationCapture {
 impl Drop for VisualizationCapture {
     fn drop(&mut self) {
         if !self.finished {
-            crate::tensor::ComputationGraph::reset_graph();
+            crate::legacy::tensor::ComputationGraph::reset_graph();
             disable();
         }
     }

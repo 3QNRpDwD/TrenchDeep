@@ -1,5 +1,5 @@
 use super::*;
-use crate::trainer::TrainableModel;
+use crate::legacy::trainer::TrainableModel;
 
 impl TrainerCore {
     /// `debugging` feature 전용 모델 구조 요약.
@@ -43,7 +43,7 @@ impl TrainerCore {
                 retain_grad = param.is_retain_grad(),
                 "model parameter"
             );
-            crate::tensor::operators::debug::stats(
+            crate::legacy::tensor::operators::debug::stats(
                 &format!("model.param[{index}]/{label}"),
                 param.tensor(),
             );

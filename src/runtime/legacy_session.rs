@@ -583,12 +583,18 @@ impl NativeSession {
             Operation::MaxPool2d { .. } => MaxPool2d::new().map_err(translate)?,
             Operation::AvgPool2d { .. } => AvgPool2d::new().map_err(translate)?,
             Operation::NearestUpsample2d { .. } => NearestUpsample2d::new().map_err(translate)?,
-            // Preserve original formulas and graph registration. These originals
-            // cannot currently satisfy the public backward contract.
-            Operation::Div if self.no_grad => Div::new().map_err(translate)?,
-            Operation::Sum if self.no_grad => Sum::new().map_err(translate)?,
+            Operation::Div => {
+                if inputs[0].tensor().shape() != inputs[1].tensor().shape() {
+                    return Err(unsupported("broadcast division"));
+                }
+                Div::new().map_err(translate)?
+            }
+            Operation::Sum => Sum::new().map_err(translate)?,
             Operation::Tanh => {
                 old::nn::activation::TanhOp::new().map_err(translate)?
+            }
+            Operation::Sigmoid => {
+                old::nn::activation::SigmoidOp::new().map_err(translate)?
             }
             Operation::Softmax { .. } => {
                 old::nn::activation::SoftmaxOp::new().map_err(translate)?
@@ -787,7 +793,7 @@ mod tests {
     use super::*;
     use crate::contracts::Operation;
     #[test]
-    fn original_backward_contract_blockers_are_reproducible() -> MlResult<()> {
+    fn corrected_native_backward_contracts() -> MlResult<()> {
         let mut session = NativeSession::new()?;
         let x = Variable::new(old::tensor::Tensor::from_vec(vec![0.5], &[]).map_err(translate)?);
         x.retain_grad();
@@ -804,8 +810,9 @@ mod tests {
             .map_err(translate)?
             .apply(&[&x])
             .map_err(translate)?;
-        // Original Sum returns [1,1] and does not restore the input grad shape.
-        assert!(sum.backward().is_err());
+        sum.backward().map_err(translate)?;
+        assert_eq!(x.grad().shape(), &[] as &[usize]);
+        assert_eq!(x.grad().data(), &[1.0]);
         session.clear_graph();
         Ok(())
     }
@@ -850,7 +857,7 @@ mod tests {
         assert_eq!(session.snapshot(parameter)?, before);
         let failure = session.training_step(|session| {
             session.execute(&Operation::Mul, &[parameter, parameter])?;
-            session.execute(&Operation::Div, &[parameter, parameter])?;
+            session.execute(&Operation::Abs, &[parameter])?;
             unreachable!()
         });
         assert!(failure.is_err());
@@ -915,7 +922,7 @@ mod tests {
             session.backward(loss)?;
             assert_eq!(session.gradient(x)?.data(), &[5.0]);
             assert_eq!((session.forwards, session.backwards), (2, 1));
-            assert!(session.execute(&Operation::Div, &[x, x]).is_err());
+            assert!(session.execute(&Operation::Abs, &[x]).is_err());
             session.clear_graph();
             assert_eq!(old::comparison::statistics().map_err(translate)?.1, 0);
             assert_eq!(session.snapshot(x)?.data(), &[2.0]);

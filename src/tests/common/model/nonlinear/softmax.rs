@@ -61,7 +61,7 @@ impl Model for SoftmaxRegression {
 }
 
 #[cfg(feature = "enableBackward")]
-impl crate::trainer::SupervisedModel for SoftmaxRegression {
+impl crate::legacy::trainer::SupervisedModel for SoftmaxRegression {
     fn forward_loss(
         &mut self,
         x: &Variable,
@@ -80,7 +80,7 @@ impl crate::trainer::SupervisedModel for SoftmaxRegression {
     }
 }
 
-impl crate::trainer::TrainableModel for SoftmaxRegression {
-    fn params(&self) -> Vec<&dyn crate::nn::Parameter> { vec![&self.w1, &self.b1] }
+impl crate::legacy::trainer::TrainableModel for SoftmaxRegression {
+    fn params(&self) -> Vec<&dyn crate::legacy::nn::Parameter> { vec![&self.w1, &self.b1] }
 }
-impl crate::trainer::CheckpointableModel for SoftmaxRegression {}
+impl crate::legacy::trainer::CheckpointableModel for SoftmaxRegression {}

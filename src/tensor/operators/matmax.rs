@@ -129,9 +129,9 @@ impl Function for Matmax {
 
 #[cfg(test)]
 mod tests {
-    use crate::tensor::operators::{Function, Matmax};
-    use crate::tensor::{Tensor, TensorBase};
-    use crate::{tensor_ops, MlResult};
+    use crate::legacy::tensor::operators::{Function, Matmax};
+    use crate::legacy::tensor::{Tensor, TensorBase};
+    use crate::legacy::{tensor_ops, MlResult};
     
     #[test]
     fn test_max() -> MlResult<()> {

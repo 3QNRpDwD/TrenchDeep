@@ -13,3 +13,10 @@ The current public API uses an explicit `ExecutionContext`, `Tensor`, `Variable`
 and stable `Parameter`. See [the P1 public API](docs/p1/P1_API.md) and
 [implementation status and retained comparisons](docs/p1/P1_STATUS.md). These documents
 describe the current API alongside the data loading and visualization guides.
+
+Both execution routes now build from `src/` in this crate. The optional
+`legacyBenchmark` feature enables the native graph route through `src/legacy.rs`;
+there is no separate Legacy package or build-time source copy. Historical
+corrections and integration mappings are retained in `src/native_provenance/`.
+Benchmark cases live under `benches/support/`; `tests/diffusion_routes.rs` exercises
+the product Diffusion and common Trainer directly on both routes.

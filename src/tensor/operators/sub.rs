@@ -1,6 +1,6 @@
 use super::*;
-use crate::nn::Variable;
-use crate::tensor::AutogradFunction;
+use crate::legacy::nn::Variable;
+use crate::legacy::tensor::AutogradFunction;
 
 impl Function for Sub {
     fn new() -> MlResult<GlobalFunction> {
@@ -17,8 +17,8 @@ impl Function for Sub {
         #[cfg(feature = "debugging")]
         tracing::debug!(
             "[Sub::forward] {} - {}",
-            crate::tensor::operators::debug::summary("lhs", targets[0]),
-            crate::tensor::operators::debug::summary("rhs", targets[1])
+            crate::legacy::tensor::operators::debug::summary("lhs", targets[0]),
+            crate::legacy::tensor::operators::debug::summary("rhs", targets[1])
         );
 
         if targets[0].shape().len() == 2 && targets[1].shape().len() == 1 && targets[0].shape()[1] == targets[1].shape()[0] {
@@ -61,15 +61,15 @@ impl Function for Sub {
     #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         #[cfg(feature = "debugging")]
-        tracing::debug!("[Sub::backward] {}", crate::tensor::operators::debug::summary("grad", grad));
+        tracing::debug!("[Sub::backward] {}", crate::legacy::tensor::operators::debug::summary("grad", grad));
 
         let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec(), dirty: false };
         let neg = GlobalTensor::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?;
 
         #[cfg(feature = "debugging")]
         {
-            crate::tensor::operators::debug::stats_raw("  └─ dlhs", &gt.data, &gt.shape);
-            crate::tensor::operators::debug::stats_raw("  └─ drhs", &neg.data, &neg.shape);
+            crate::legacy::tensor::operators::debug::stats_raw("  └─ dlhs", &gt.data, &gt.shape);
+            crate::legacy::tensor::operators::debug::stats_raw("  └─ drhs", &neg.data, &neg.shape);
         }
 
         Ok(vec![gt, neg])

@@ -3,7 +3,7 @@ use super::*;
 impl LogisticRegression {
     pub fn build_model(n_input: usize, n_output: usize) -> MlResult<LogisticRegression> {
         let activation = SigmoidOp::new()?;
-        let loss_function = crate::loss::MeanSquaredError::new()?;
+        let loss_function = crate::legacy::loss::MeanSquaredError::new()?;
 
         info!("Network Structure: {}(Input) -> {}(Output)", n_input, n_output);
         info!("Activation Functions: {} (Output)", activation.name());
@@ -61,7 +61,7 @@ impl Model for LogisticRegression {
 }
 
 #[cfg(feature = "enableBackward")]
-impl crate::trainer::SupervisedModel for LogisticRegression {
+impl crate::legacy::trainer::SupervisedModel for LogisticRegression {
     fn forward_loss(
         &mut self,
         x: &Variable,
@@ -80,7 +80,7 @@ impl crate::trainer::SupervisedModel for LogisticRegression {
     }
 }
 
-impl crate::trainer::TrainableModel for LogisticRegression {
-    fn params(&self) -> Vec<&dyn crate::nn::Parameter> { vec![&self.w1, &self.b1] }
+impl crate::legacy::trainer::TrainableModel for LogisticRegression {
+    fn params(&self) -> Vec<&dyn crate::legacy::nn::Parameter> { vec![&self.w1, &self.b1] }
 }
-impl crate::trainer::CheckpointableModel for LogisticRegression {}
+impl crate::legacy::trainer::CheckpointableModel for LogisticRegression {}

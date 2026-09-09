@@ -1,4 +1,4 @@
-use crate::tensor::operators::ReshapeOp;
+use crate::legacy::tensor::operators::ReshapeOp;
 use super::*;
 
 impl Reshape {

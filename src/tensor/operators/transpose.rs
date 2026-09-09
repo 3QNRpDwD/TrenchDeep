@@ -151,9 +151,9 @@ impl_function!(Transpose,
 
 #[cfg(test)]
 mod tests {
-    use crate::tensor::operators::{Function, Transpose};
-    use crate::tensor::{Tensor, TensorBase};
-    use crate::MlResult;
+    use crate::legacy::tensor::operators::{Function, Transpose};
+    use crate::legacy::tensor::{Tensor, TensorBase};
+    use crate::legacy::MlResult;
 
     #[test]
     fn test_transpose() -> MlResult<()> {

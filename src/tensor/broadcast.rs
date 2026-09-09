@@ -3,7 +3,7 @@
 //! 모든 공개 함수는 **flat offset** 기반으로 동작합니다.
 //! 텐서 데이터는 row-major (C-order) 로 저장된다고 가정합니다.
 
-use crate::{MlError, MlResult, TensorError};
+use crate::legacy::{MlError, MlResult, TensorError};
 
 /// 두 shape 를 NumPy 규약으로 브로드캐스트한 결과 shape 를 반환합니다.
 ///

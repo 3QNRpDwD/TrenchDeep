@@ -1,78 +1,26 @@
-# Revised P1: initial dependency audit
+# P1 실행 경계 감사 요약
 
-Latest direction: current Context Diffusion is the shared model implementation;
-explicit ctx remains the public entry point, defaulting to P1. Legacy is opt-in
-at construction and forwards to original execution without changing its internal
-operation/backward flow. Handle/error/lifecycle adaptation remains necessary.
-Model-sharing selection is settled; the precise facade extension still needs the
-block experiment. Earlier undecided-sharing statements below are historical.
+정리일: 2026-09-09. 초기 감사의 미완료 표현을 현재 구현 사실로 통합했다.
 
-2026-09-08 completion slice: DDPM comparison/replay now use structural names,
-shapes and canonical sharing groups. Context enumeration traverses model fields;
-legacy build-output accessors traverse original fields and Sequential children,
-using the original leaf macro's name/order contract only inside each leaf.
-The raw enumeration is validated before constructing name maps; identity-set
-coverage checks prevent omitted parameters. Numerical code and Trainer are unchanged.
-Earlier statements below about unfinished positional mapping are historical.
+| 대상 | 확인된 경계와 반영 내용 |
+|---|---|
+| Trainer | 공개 with_training_scope로 기존 guard/cleanup 재사용; 별도 Legacy Trainer 없음 |
+| RL·optimizer | receiver 연산·buffer accessor 사용; 기존 알고리즘 유지 |
+| 모델·레이어 | Context Diffusion/U-Net과 공개 parameter 계약 재사용 |
+| Parameter 매핑 | 이름·shape·공유 그룹 검증; 원본 접근자를 root src에 직접 포함, build.rs/OUT_DIR 사본 제거 |
+| AutogradEngine | graph record/get/remove/nodes/order 계약; 이것만 교체해도 native backward가 실행되는 것은 아님 |
+| Legacy 실행 | runtime/legacy_session.rs가 native storage/forward/backward/gradient/replace와 scope 정리에 연결 |
+| DDPM 재현 | 실제 원본 timestep/noise 및 version-2 fixture 재생; 공통 Trainer의 Legacy DDPM E2E는 남음 |
 
-Snapshot follow-up: [P1_SNAPSHOT_REFERENCE_AUDIT.md](P1_SNAPSHOT_REFERENCE_AUDIT.md)
-records ordinary runtime and CPU-provider copies, borrowed-view feasibility,
-alias/reentrancy constraints and a proposed guard boundary. This is inspection,
-not a completed zero-copy implementation or benchmark.
+공개 scope는 기존 graph·중첩 학습을 거부하고 성공/오류 후 graph·gradient를 정리한다.
+주 오류와 cleanup 오류를 함께 보존하며 parameter rollback은 보장하지 않는다.
+공개 반환 handle 수명과 내부 실험용 owned-buffer training_step 계약을 구분한다.
 
-This records the first implementation slice of P1_REVISED_PLAN.md, not completion
-of selectable execution paths. No model unification/separation decision is made here.
+Legacy 세션은 thread당 하나다. 같은 thread의 raw legacy API 혼용은 지원하지 않는다.
+상위 계층은 native graph/registry나 구체 handle을 다루지 않는다.
+원본 forward/VJP를 P1 provider로 연결하는 것과 원본 graph/backward 실행을 구분한다.
 
-| Component | Existing boundary | Gap found | Minimal change |
-|---|---|---|---|
-| Epoch training service | Public Tensor/Variable, optimizer, model and loader contracts | Private training scope calls | Public `with_training_scope` closure API; preserve existing guard and cleanup semantics |
-| RL Trainer | Shared `finish_step`, existing rollout | Private operation helpers and direct TensorBuffer fields | Receiver operations and public buffer accessors; same rollout algorithm |
-| Optimizer | Stable public Parameter IDs and context update API | Direct gradient buffer fields | Public data/shape accessors; same update formulas and state |
-| NN layers | Public Layer forward/predict and parameter contracts | No new abstraction needed for this slice | Reuse unchanged |
-| DDPM | Existing public Diffusion/Unet | Previously tested different small fixture | Add original 8×8, dim=8, groups=4, batch=2, Adam, 3 epoch loader test |
-| Runtime providers | Injectable storage, graph records/order and forward/VJP providers | AutogradEngine delegates graph representation, while backward execution remains in Context | Requires a separate full legacy execution adapter design; do not equate a legacy VJP provider with legacy graph execution |
-
-`with_training_scope` exposes execution semantics, not graph storage or a mutable
-guard. It rejects an existing graph/nested training before running the callback,
-cleans graph and gradients after success/error, and combines cleanup failures with
-the original error. It does not promise parameter rollback. The built-in Trainers
-now use the same method that external code can call. An external test exercises it
-with independent SlotStore/Tape/ReferenceOps and no default implementations.
-
-The DDPM reference test preserves architecture, Adam settings, input records,
-collator, batch size, shuffle setting, epoch count/tolerance and metric assertions.
-It uses fixed P1 initialization/model seeds and disables progress rendering for
-automated tests. It is NOT a claim of identical legacy random draws or numerical
-parity. Original baseline source and existing small comparisons remain unchanged.
-
-Next: capture/replay the original reference timestep/noise and establish named
-parameter correspondence, then validate a block-level full execution adapter.
-Do not replace Trainer/model classes merely because their current public handles
-are implemented by Context. Extend the existing facade only at the proven gap.
-
-## Follow-up boundary inspection (2026-09-07)
-
-`contracts::AutogradEngine` accepts `GradientRecord` and exposes record/get/remove/
-nodes/order. It has no execution or gradient-publication method. In
-`runtime/backward.rs`, Context seeds its own gradient map, walks engine records,
-snapshots inputs/saved tensors and calls each `BackwardOp`, then accumulates VJPs.
-Consequently, replacing `AutogradEngine` alone cannot invoke original legacy
-Variable backward with its native graph/storage semantics.
-
-`runtime/training.rs` also owns graph-conflict checks, gradient clearing and graph
-cleanup. A future full execution adapter must participate in these same lifecycle
-operations, as well as forward, native-handle ownership, parameter replacement,
-gradient retrieval and capture. Adding only a backward callback would leave native
-graphs outside scope cleanup. Keep the existing Trainer and optimizer algorithms;
-do not branch there or pass native legacy handles to them.
-
-This is a code audit, not a completed block-adapter experiment. The next bounded
-experiment remains TimeEmbedding + one ResidualBlock with native graph backward,
-followed by success/error cleanup and nested-session rejection. Model sharing and
-the actual facade extension are still undecided; no second runtime was introduced.
-
-The direct-DDPM diagnostic now writes a versioned, self-contained fixture with
-initial tensors, original noise/timesteps, expected predictions/losses/gradients,
-Adam weights and correction provenance. `replay_reference_diffusion` consumes it
-without legacy execution. This advances baseline reproducibility only; positional
-parameter mapping and shared-Trainer route switching remain incomplete.
+[Snapshot 감사](P1_SNAPSHOT_REFERENCE_AUDIT.md)는 복사·참조 가능성의 분석이며
+무복사 구현이나 비용 측정 완료를 뜻하지 않는다.
+현재 제한은 [연산 지원표](P1_LEGACY_OPERATIONS.md),
+후속 순서는 [계획](P1_REVISED_PLAN.md)에 유지한다.

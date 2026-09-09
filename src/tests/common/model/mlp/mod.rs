@@ -1,5 +1,6 @@
 use super::*;
 
+#[path = "mlp.rs"]
 pub mod mlp;
 
 pub struct MLP {

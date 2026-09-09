@@ -1,4 +1,14 @@
-# Legacy route operation forwarding — 2026-09-08
+# Legacy route operation forwarding
+
+Source integration update: native operations now compile from root src through
+src/legacy.rs in the same crate. The separate package and legacy/ directory are
+removed. Provenance lives in src/native_provenance/. This table describes route
+capabilities; historical build/test log counts below predate source integration.
+
+Consolidated 2026-09-09. Remaining-work order and acceptance criteria:
+[P1_REVISED_PLAN.md](P1_REVISED_PLAN.md). Sigmoid route wiring is complete.
+Div/Sum backward fixes and shared Context Diffusion/Trainer training E2E are complete.
+Next: per-step and final sampling comparison with identical noise.
 
 Current adapter: `src/runtime/legacy_session.rs`. Default route remains P1.
 This table supersedes earlier incremental support lists in the handoff/status.
@@ -23,9 +33,11 @@ execution, not universal numerical equivalence with P1.
 | AvgPool2d, NearestUpsample2d | Native forward/backward; validated spatial attributes |
 | MSE, MAE, Huber, BCE, CE, SoftmaxCE | Native mean reduction; Huber delta=1; categorical losses rank 1/2; equal nonempty prediction/target shapes |
 | Tanh, Softmax | Native forward/backward; backward recomputes outputs from inputs |
-| Abs, Log, Sqrt, Div, Sum | Inference only; tracked use rejected before graph recording |
+| Abs, Log, Sqrt | Inference only; tracked use rejected before graph recording |
+| Div | Native forward/backward for equal shapes; broadcasting rejected |
+| Sum | Native forward/backward; scalar gradient expanded to input shape |
 | TopK, axis Matmax | Two native inference outputs; tracked use rejected |
-| Sigmoid | Original forward corrected by user; adapter support remains to be enabled |
+| Sigmoid | Native forward/backward; output/gradient/no-grad parity tested for scalar and negative/zero/positive/saturated inputs |
 | Global Matmax | Rejected: original returns a zero tensor in place of a scalar argmax index |
 
 Loss targets are copied to separate native leaves so their gradients never flow
@@ -37,12 +49,8 @@ TopK/axis Matmax preserve both values and indices through the public handle map.
 ## Remaining work and original constraints
 
 - Abs/Log/Sqrt have no original backward implementation.
-- Div backward re-enters the mutably borrowed operator registry through Neg.
-  A direct native diagnostic reproduced BorrowError and subsequent cleanup abort
-  (`target/p1/legacy-blockers.log`). The adapter rejects tracked Div; the aborting
-  diagnostic is not included in the normal in-process regression suite.
-- Sum backward returns its incoming scalar shape without expanding it to the
-  input shape; this mismatch has native regression coverage.
+- Div backward uses backend kernels without re-entering the operator registry.
+- Sum backward expands the scalar upstream gradient to the original input shape.
 - Tanh/Softmax input/output contract mismatch is resolved: backward calls the
   concrete operator's forward directly, without re-entering the global registry.
   Softmax uses max-subtracted exp normalization as in SoftmaxCrossEntropyLoss,
@@ -61,18 +69,26 @@ negative degree-15 ApproxSin, while P1 differentiates the degree-14 polynomial;
 MAE's derivative at equality and BCE/CE clipping also differ. Representative
 parity tests do not establish equality at these boundaries or for all inputs.
 
-Full Context Diffusion training on Legacy still requires an end-to-end check;
-the tracked attention Softmax blocker has been resolved.
+Common Context Diffusion/DataLoader/Trainer/Adam training passes three epochs on
+Legacy and P1 against native reference draws, predictions, losses, all gradients
+and updated weights. Native graph execution and per-epoch cleanup are checked.
+Sampling comparison remains pending.
 P1 completion still precedes static-graph lifetime/reference/buffer planning.
 
 ## Validation
+
+Follow-up Sigmoid validation: legacy_operations 10 passed, execution_route 5
+passed; Legacy-only execution_route 4 passed. All 142 source hashes and correction
+provenance checked with PowerShell; no mismatches. Original sources unchanged.
 
 `tests/legacy_operations.rs` compares output shapes/values and input gradients
 using a weighted dot product. It covers spatial saved tensors, multi-output
 inference, batched Matmul, losses with tracked targets, and scope reclamation.
 Invalid attributes and unsupported backward paths must leave graph stats intact.
-Native unit tests verify corrected Tanh and reproduce the remaining Sum mismatch.
-Full results: `target/p1/expanded-all.log`; Legacy-only route configuration:
-`target/p1/expanded-legacy-only.log`.
-Final checks: all-features lib/integration tests 144 passed; Legacy-only route
-tests 4 passed; 142 original source hashes have no unexpected mismatches.
+Native unit tests verify corrected Tanh and scalar Sum gradients.
+Latest recorded results: all-features lib/integration 145 passed in
+`target/p1/activation-all.log`; operation comparisons 9 passed in
+`target/p1/activation-fix.log`. Legacy-only route tests passed 4 before the
+activation corrections (`target/p1/expanded-legacy-only.log`). Source hash
+verification covered 142 files with four authorized corrections and no unexpected
+mismatches. These are previous code-session results, not reruns during doc cleanup.

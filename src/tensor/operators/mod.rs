@@ -54,25 +54,44 @@ macro_rules! impl_function {
 }
 
 #[cfg(feature = "debugging")]
+#[path = "debug.rs"]
 pub(crate) mod debug;
 
+#[path = "add.rs"]
 pub mod add;
+#[path = "sub.rs"]
 pub mod sub;
+#[path = "mul.rs"]
 pub mod mul;
+#[path = "div.rs"]
 pub mod div;
+#[path = "neg.rs"]
 pub mod neg;
+#[path = "unary.rs"]
 pub mod unary;
+#[path = "matmul.rs"]
 pub mod matmul;
+#[path = "topk.rs"]
 pub mod topk;
+#[path = "matmax.rs"]
 pub mod matmax;
+#[path = "sum.rs"]
 pub mod sum;
+#[path = "trigonometric.rs"]
 pub mod trigonometric;
+#[path = "reshape.rs"]
 pub mod reshape;
+#[path = "transpose.rs"]
 pub mod transpose;
+#[path = "concat.rs"]
 pub mod concat;
+#[path = "conv2d.rs"]
 pub mod conv2d;
+#[path = "pool2d.rs"]
 pub mod pool2d;
+#[path = "upsample.rs"]
 pub mod upsample;
+#[path = "group_norm.rs"]
 pub mod group_norm;
 
 macro_rules! define_op {
@@ -100,10 +119,10 @@ macro_rules! define_op {
 macro_rules! register_operator {
     ($name:ident) => {
         {
-        use crate::tensor::NODE_ID_GEN;
-        use crate::tensor::OPERATOR_STORAGE;
-        use crate::backend::CpuBackend;
-        use crate::backend::Device;
+        use crate::legacy::tensor::NODE_ID_GEN;
+        use crate::legacy::tensor::OPERATOR_STORAGE;
+        use crate::legacy::backend::CpuBackend;
+        use crate::legacy::backend::Device;
             {
                 OPERATOR_STORAGE.with(|ops| {
                     let my = stringify!($name);
@@ -229,7 +248,7 @@ impl ApproxCos {
 
 #[cfg(test)]
 mod tests {
-    use crate::{scalar, variable};
+    use crate::legacy::{scalar, variable};
     use super::*;
 
     pub fn assert_tensor_eq(tensor: &dyn TensorBase, expected_tensor: &dyn TensorBase) -> MlResult<()> {
@@ -392,7 +411,7 @@ mod tests {
         let b = exp   .apply(&[&a])?;
         let y = square.apply(&[&b])?;
 
-        crate::tensor::tests::assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
+        crate::legacy::tensor::tests::assert_tensor_eq(y.tensor(), &Tensor::new(vec![vec![1.6487213]]))?;
         print_forward(x.tensor(), a.tensor(), b.tensor(), y.tensor());
 
 

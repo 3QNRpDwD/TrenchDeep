@@ -1,4 +1,6 @@
+#[path = "display.rs"]
 mod display;
+#[path = "function.rs"]
 mod function;
 
 /// Loss aggregation contract. Detailed high-rank and masking semantics are
@@ -17,7 +19,7 @@ use std::{
     fmt::{Debug, Display, Formatter},
     sync::Arc
 };
-use crate::{
+use crate::legacy::{
     tensor::{
         operators::{Function, Matmax, Sub},
         AutogradFunction,

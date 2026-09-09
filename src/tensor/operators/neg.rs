@@ -1,6 +1,6 @@
 use super::*;
-use crate::nn::Variable;
-use crate::tensor::AutogradFunction;
+use crate::legacy::nn::Variable;
+use crate::legacy::tensor::AutogradFunction;
 
 impl_function!(Neg,
     forward(self, targets) {

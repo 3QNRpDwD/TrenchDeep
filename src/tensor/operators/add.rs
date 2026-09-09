@@ -1,7 +1,7 @@
 use super::*;
-use crate::nn::Variable;
-use crate::tensor::AutogradFunction;
-use crate::tensor::broadcast::{broadcast_offsets, broadcast_shape, reduce_to_shape};
+use crate::legacy::nn::Variable;
+use crate::legacy::tensor::AutogradFunction;
+use crate::legacy::tensor::broadcast::{broadcast_offsets, broadcast_shape, reduce_to_shape};
 
 impl Function for Add {
     fn new() -> MlResult<GlobalFunction> {
@@ -24,8 +24,8 @@ impl Function for Add {
         #[cfg(feature = "debugging")]
         tracing::debug!(
             "[Add::forward] {} + {}",
-            crate::tensor::operators::debug::summary("lhs", first_target),
-            crate::tensor::operators::debug::summary("rhs", second_target)
+            crate::legacy::tensor::operators::debug::summary("lhs", first_target),
+            crate::legacy::tensor::operators::debug::summary("rhs", second_target)
         );
 
         let result = if first_shape.len() == 2 && second_shape.len() == 1 && first_shape[1] == second_shape[0] {
@@ -60,7 +60,7 @@ impl Function for Add {
 
         #[cfg(feature = "debugging")]
         if let Ok(ref r) = result {
-            tracing::debug!("[Add::forward] → {}", crate::tensor::operators::debug::summary_raw("out", &r[0].data, &r[0].shape));
+            tracing::debug!("[Add::forward] → {}", crate::legacy::tensor::operators::debug::summary_raw("out", &r[0].data, &r[0].shape));
         }
 
         result
@@ -112,7 +112,7 @@ impl Function for Add {
         tracing::debug!(
             "[Add::backward] lhs_shape={:?} rhs_shape={:?}  {}",
             first_shape, second_shape,
-            crate::tensor::operators::debug::summary("grad_in", grad)
+            crate::legacy::tensor::operators::debug::summary("grad_in", grad)
         );
 
         // Broadcasting 케이스: [M, N] + [N] → bias grad는 batch 차원으로 합산 (hot path)
@@ -148,7 +148,7 @@ impl Function for Add {
         #[cfg(feature = "debugging")]
         if let Ok(ref r) = result {
             for (i, g) in r.iter().enumerate() {
-                crate::tensor::operators::debug::stats_raw(&format!("  └─ grad_out[{}]", i), &g.data, &g.shape);
+                crate::legacy::tensor::operators::debug::stats_raw(&format!("  └─ grad_out[{}]", i), &g.data, &g.shape);
             }
         }
 
@@ -278,7 +278,7 @@ impl std::ops::AddAssign<Variable> for Variable {
 #[cfg(test)]
 mod broadcast_tests {
     use super::*;
-    use crate::tensor::Tensor;
+    use crate::legacy::tensor::Tensor;
 
     #[test]
     fn add_time_emb_forward() -> MlResult<()> {

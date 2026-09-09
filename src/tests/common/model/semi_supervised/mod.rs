@@ -15,7 +15,7 @@
 
 use super::*;
 
-use crate::{
+use crate::legacy::{
     loss::{MeanSquaredError, SoftmaxCrossEntropyLoss},
     nn::Variable,
     tensor::{
@@ -88,7 +88,7 @@ impl PiToyClassifier {
 // ────────────────────────────────────────────────────────────────────────────
 
 #[cfg(feature = "enableBackward")]
-impl crate::trainer::SemiSupervisedModel for PiToyClassifier {
+impl crate::legacy::trainer::SemiSupervisedModel for PiToyClassifier {
     fn forward_loss(
         &mut self,
         x_l: &Variable,
@@ -124,10 +124,10 @@ impl crate::trainer::SemiSupervisedModel for PiToyClassifier {
     }
 }
 
-impl crate::trainer::TrainableModel for PiToyClassifier {
+impl crate::legacy::trainer::TrainableModel for PiToyClassifier {
     fn params(&self) -> Vec<&dyn Parameter> { vec![&self.w1, &self.b1] }
 }
-impl crate::trainer::CheckpointableModel for PiToyClassifier {}
+impl crate::legacy::trainer::CheckpointableModel for PiToyClassifier {}
 
 // ────────────────────────────────────────────────────────────────────────────
 // 테스트
@@ -137,7 +137,7 @@ impl crate::trainer::CheckpointableModel for PiToyClassifier {}
 #[cfg(feature = "enableBackward")]
 mod tests {
     use super::*;
-    use crate::{
+    use crate::legacy::{
         optimizer::{Adam, Optimizer},
         trainer::{ConsistencyRamp, SemiSupervisedModel, Trainer, TrainableModel},
     };
@@ -167,27 +167,27 @@ mod tests {
             [ 1.2,  0.8], [ 0.7,  1.3], [ 1.1,  1.0], [ 0.8,  0.9],
             [-1.2, -0.8], [-0.7, -1.3], [-1.1, -1.0], [-0.8, -0.9],
         ];
-        let labeled_dataset = crate::trainer::DatasetBuilder::from_source(
-            crate::trainer::MemorySource::new(labeled),
+        let labeled_dataset = crate::legacy::trainer::DatasetBuilder::from_source(
+            crate::legacy::trainer::MemorySource::new(labeled),
         )
-        .map(|(input, target): ([f32; 2], [f32; 2])| Ok(crate::trainer::SupervisedSample::new(
+        .map(|(input, target): ([f32; 2], [f32; 2])| Ok(crate::legacy::trainer::SupervisedSample::new(
             Tensor::from_vec(input.to_vec(), &[2])?,
             Tensor::from_vec(target.to_vec(), &[2])?,
         )))
         .build()?;
-        let unlabeled_dataset = crate::trainer::DatasetBuilder::from_source(
-            crate::trainer::MemorySource::new(unlabeled),
+        let unlabeled_dataset = crate::legacy::trainer::DatasetBuilder::from_source(
+            crate::legacy::trainer::MemorySource::new(unlabeled),
         )
-        .map(|input: [f32; 2]| Ok(crate::trainer::UnsupervisedSample::new(
+        .map(|input: [f32; 2]| Ok(crate::legacy::trainer::UnsupervisedSample::new(
             Tensor::from_vec(input.to_vec(), &[2])?,
         )))
         .build()?;
-        let mut loader = crate::trainer::SemiSupervisedDataLoader::builder(
+        let mut loader = crate::legacy::trainer::SemiSupervisedDataLoader::builder(
             labeled_dataset,
             unlabeled_dataset,
         )
-        .labeled_collator(crate::trainer::SupervisedStackCollator::new())
-        .unlabeled_collator(crate::trainer::UnsupervisedStackCollator::new())
+        .labeled_collator(crate::legacy::trainer::SupervisedStackCollator::new())
+        .unlabeled_collator(crate::legacy::trainer::UnsupervisedStackCollator::new())
         .labeled_batch_size(2)
         .unlabeled_batch_size(4)
         .build()?;
@@ -198,7 +198,7 @@ mod tests {
 
         let result = trainer.fit(&mut model, &mut opt,
             &mut loader,
-            crate::trainer::EpochSchedule::new(8)?.with_tolerance(1e-10))?;
+            crate::legacy::trainer::EpochSchedule::new(8)?.with_tolerance(1e-10))?;
 
         // ── 검증 ────────────────────────────────────────────────────────
         assert!(result.units_completed > 0, "적어도 1 에폭은 학습되어야 함");
@@ -236,8 +236,8 @@ mod tests {
             .with_ramp(ConsistencyRamp::Constant(0.0));
 
         let result = trainer.fit(&mut model, &mut opt,
-            crate::trainer::SemiSupervisedDataset::new(&x_l_slice, &t_l_slice, &x_u_slice)?,
-            crate::trainer::EpochSchedule::new(3)?.with_tolerance(1e-10))?;
+            crate::legacy::trainer::SemiSupervisedDataset::new(&x_l_slice, &t_l_slice, &x_u_slice)?,
+            crate::legacy::trainer::EpochSchedule::new(3)?.with_tolerance(1e-10))?;
 
         assert!(result.final_loss.is_finite());
         Ok(())

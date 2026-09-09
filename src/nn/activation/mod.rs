@@ -1,8 +1,14 @@
+#[path = "sigmoid.rs"]
 pub mod sigmoid;
+#[path = "tanh.rs"]
 pub mod tanh;
+#[path = "relu.rs"]
 pub mod relu;
+#[path = "softmax.rs"]
 pub mod softmax;
+#[path = "identity.rs"]
 pub mod identity;
+#[path = "silu.rs"]
 mod silu;
 
 use super::*;

@@ -114,12 +114,12 @@ impl Function for Topk {
 #[cfg(test)]
 mod tests {
     #[cfg(feature = "enableBackward")]
-    use crate::nn::{Parameter, Variable};
-    use crate::tensor::operators::{Function, Topk};
-    use crate::tensor::{Tensor, TensorBase};
+    use crate::legacy::nn::{Parameter, Variable};
+    use crate::legacy::tensor::operators::{Function, Topk};
+    use crate::legacy::tensor::{Tensor, TensorBase};
     #[cfg(feature = "enableBackward")]
-    use crate::tensor::{AutogradFunction, ComputationGraph};
-    use crate::{tensor_ops, MlResult};
+    use crate::legacy::tensor::{AutogradFunction, ComputationGraph};
+    use crate::legacy::{tensor_ops, MlResult};
 
     #[test]
     fn test_topk() -> MlResult<()> {

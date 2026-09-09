@@ -6,8 +6,8 @@ impl MLP {
         info!("Network Structure: {}(Input) -> {}(Hidden) -> {}(Output)", n_input, n_hidden, n_output);
         let mlp = MLP::new(
             &[n_input, n_hidden, n_output],
-            Box::new(crate::nn::activation::Sigmoid::new("hidden_act")?),
-            Box::new(crate::nn::activation::Softmax::new("output_act")?),
+            Box::new(crate::legacy::nn::activation::Sigmoid::new("hidden_act")?),
+            Box::new(crate::legacy::nn::activation::Softmax::new("output_act")?),
             loss_function,
         )?;
         info!("MLP model created successfully.");
@@ -21,9 +21,9 @@ impl MLP {
         loss_function: GlobalFunction,
     ) -> MlResult<Self> {
         let layer = Sequential::from(vec![
-            Box::new(crate::nn::Linear::new(layer_params[0], layer_params[1], "linear1")?),
+            Box::new(crate::legacy::nn::Linear::new(layer_params[0], layer_params[1], "linear1")?),
             hidden_act,
-            Box::new(crate::nn::Linear::new(layer_params[1], layer_params[2], "linear2")?),
+            Box::new(crate::legacy::nn::Linear::new(layer_params[1], layer_params[2], "linear2")?),
             output_act,
         ], "MLP");
         Ok(Self { layer, loss_function })
@@ -43,7 +43,7 @@ impl Model for MLP {
 }
 
 #[cfg(feature = "enableBackward")]
-impl crate::trainer::SupervisedModel for MLP {
+impl crate::legacy::trainer::SupervisedModel for MLP {
     fn forward_loss(
         &mut self,
         x: &Variable,
@@ -62,10 +62,10 @@ impl crate::trainer::SupervisedModel for MLP {
     }
 }
 
-impl crate::trainer::TrainableModel for MLP {
+impl crate::legacy::trainer::TrainableModel for MLP {
     fn params(&self) -> Vec<&dyn Parameter> { self.layer.params() }
 }
-impl crate::trainer::CheckpointableModel for MLP {
+impl crate::legacy::trainer::CheckpointableModel for MLP {
     fn save_checkpoint(&self, path: &std::path::Path) -> MlResult<()> {
         self.layer.save(path.to_string_lossy().as_ref())
     }

@@ -1,4 +1,4 @@
-use crate::tensor::TensorBase;
+use crate::legacy::tensor::TensorBase;
 
 /// shape + 앞 최대 4개 값 + NaN/Inf 여부를 포함한 요약 문자열 반환
 pub fn summary(label: &str, t: &dyn TensorBase) -> String {

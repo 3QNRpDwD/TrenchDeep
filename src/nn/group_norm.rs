@@ -1,5 +1,5 @@
 use super::*;
-use crate::tensor::operators::GroupNormOp;
+use crate::legacy::tensor::operators::GroupNormOp;
 
 layer_params!(GroupNorm, "GroupNorm", [gamma, beta], |s| serde_json::json!({
     "num_groups":   s.num_groups,

@@ -3,7 +3,7 @@ use super::*;
 impl LinearRegression {
     pub fn build_model(n_input: usize, n_output: usize) -> MlResult<LinearRegression> {
         let activation = IdentityOp::new()?;
-        let loss_function = crate::loss::MeanSquaredError::new()?;
+        let loss_function = crate::legacy::loss::MeanSquaredError::new()?;
 
         info!("Network Structure: {}(Input) -> {}(Output)", n_input, n_output);
         info!("Activation Functions: {} (Output)", activation.name());
@@ -64,7 +64,7 @@ impl Model for LinearRegression {
 }
 
 #[cfg(feature = "enableBackward")]
-impl crate::trainer::SupervisedModel for LinearRegression {
+impl crate::legacy::trainer::SupervisedModel for LinearRegression {
     fn forward_loss(
         &mut self,
         x: &Variable,
@@ -83,15 +83,15 @@ impl crate::trainer::SupervisedModel for LinearRegression {
     }
 }
 
-impl crate::trainer::TrainableModel for LinearRegression {
+impl crate::legacy::trainer::TrainableModel for LinearRegression {
     fn params(&self) -> Vec<&dyn Parameter> { vec![&self.w1, &self.b1] }
 }
-impl crate::trainer::CheckpointableModel for LinearRegression {}
+impl crate::legacy::trainer::CheckpointableModel for LinearRegression {}
 
 #[cfg(all(test, feature = "enableBackward"))]
 mod data_loader_tests {
     use super::*;
-    use crate::{
+    use crate::legacy::{
         optimizer::{Optimizer, SGD},
         trainer::{
             DataLoader, DatasetBuilder, EpochSchedule, MemorySource, SupervisedSample,
@@ -122,7 +122,7 @@ mod data_loader_tests {
 
         let mut model = LinearRegression::build_model(2, 1)?;
         let mut optimizer = SGD::new(0.01);
-        for parameter in crate::trainer::TrainableModel::params(&model) {
+        for parameter in crate::legacy::trainer::TrainableModel::params(&model) {
             optimizer.register(parameter);
         }
 

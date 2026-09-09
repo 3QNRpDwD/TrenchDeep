@@ -1,8 +1,6 @@
 //! Small explicit-context models used as P1 migration and E2E benchmark pilots.
 
 mod autoregressive;
-#[cfg(test)]
-mod diffusion;
 mod reinforcement;
 mod semi_supervised;
 

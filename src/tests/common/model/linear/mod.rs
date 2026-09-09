@@ -1,7 +1,8 @@
 use super::*;
 
-use crate::nn::activation::IdentityOp;
+use crate::legacy::nn::activation::IdentityOp;
 
+#[path = "linear.rs"]
 pub mod linear;
 
 pub struct LinearRegression {

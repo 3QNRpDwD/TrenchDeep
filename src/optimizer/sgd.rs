@@ -12,7 +12,7 @@ struct ParamEntry {
 ///
 /// BGD/MiniBGD와 업데이트 규칙은 동일하며, 배치 구성은 학습 루프 측에서 담당한다.
 pub struct SGD {
-    lr:     gitf32,
+    lr:     f32,
     params: Vec<ParamEntry>,
 }
 

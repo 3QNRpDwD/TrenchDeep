@@ -43,12 +43,12 @@ pub trait SupervisedModel: TrainableModel {
     /// - `t`: 정답(타깃) 배치
     fn forward_loss(
         &mut self,
-        x: &crate::nn::Variable,
-        t: &crate::nn::Variable,
-    ) -> MlResult<(crate::nn::Variable, crate::nn::Variable)>;
+        x: &crate::legacy::nn::Variable,
+        t: &crate::legacy::nn::Variable,
+    ) -> MlResult<(crate::legacy::nn::Variable, crate::legacy::nn::Variable)>;
 
     /// No-grad 순전파. 초기 손실 표시 및 평가에 사용한다.
-    fn predict_raw(&mut self, x: &dyn TensorBase) -> MlResult<crate::tensor::GlobalTensor<f32>>;
+    fn predict_raw(&mut self, x: &dyn TensorBase) -> MlResult<crate::legacy::tensor::GlobalTensor<f32>>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -168,7 +168,7 @@ impl SupervisedTrainer {
     pub fn fit<M, I>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         input: I,
         schedule: EpochSchedule,
     ) -> MlResult<TrainResult>
@@ -192,7 +192,7 @@ impl SupervisedTrainer {
     pub fn fit_checkpointed<M, I>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         input: I,
         schedule: EpochSchedule,
     ) -> MlResult<TrainResult>
@@ -220,7 +220,7 @@ impl SupervisedTrainer {
     pub fn resume<M, I>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         input: I,
         checkpoint_path: &str,
     ) -> MlResult<TrainResult>
@@ -259,7 +259,7 @@ impl SupervisedTrainer {
     fn fit_inner<M, L>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         mut loader: L,
         epochs: usize,
         convergence: Convergence,
@@ -434,11 +434,11 @@ impl SupervisedTrainer {
 #[cfg(feature = "enableBackward")]
 struct SupervisedEpochStep<'a, M: SupervisedModel> {
     model: &'a mut M,
-    optimizer: &'a mut dyn crate::optimizer::Optimizer,
+    optimizer: &'a mut dyn crate::legacy::optimizer::Optimizer,
     // MetricHook 가 접근할 수 있도록 이번 배치의 예측/타깃을 stash.
     // ClassificationAccuracy 누적은 훅 경로(`run_epoch` 의 `hook.update`) 에 일임한다.
-    last_y: Option<crate::nn::Variable>,
-    last_t: Option<crate::nn::Variable>,
+    last_y: Option<crate::legacy::nn::Variable>,
+    last_t: Option<crate::legacy::nn::Variable>,
 }
 
 #[cfg(feature = "enableBackward")]
@@ -456,7 +456,7 @@ impl<'a, M: SupervisedModel> EpochStep for SupervisedEpochStep<'a, M> {
         batch: SupervisedBatch,
         cfg: &LogConfig,
     ) -> MlResult<StepOutput> {
-        use crate::tensor::ComputationGraph;
+        use crate::legacy::tensor::ComputationGraph;
         use std::time::Instant;
 
         ComputationGraph::reset_graph();

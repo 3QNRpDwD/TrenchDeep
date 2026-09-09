@@ -64,7 +64,7 @@ fn legacy_public_scope_preserves_owned_outputs_and_rejects_unsupported_requests(
     }
     let failure: MlResult<()> = ctx.with_training_scope(|| {
         let _loss = p.mul(p.tensor())?;
-        p.div(p.tensor())?;
+        p.abs()?;
         Ok(())
     });
     assert!(matches!(

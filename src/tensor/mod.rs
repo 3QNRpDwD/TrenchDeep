@@ -5,19 +5,18 @@ use std::{
     sync::{Arc, atomic::Ordering},
 };
 
-use crate::backend::{Backend, CpuBackend, Device};
+use crate::legacy::backend::{Backend, CpuBackend, Device};
 
+#[path = "broadcast.rs"]
 pub mod broadcast;
-pub mod context;
+#[path = "creation.rs"]
 pub mod creation;
+#[path = "display.rs"]
 pub mod display;
+#[path = "graph.rs"]
 pub mod graph;
+#[path = "operators/mod.rs"]
 pub mod operators;
-pub use context::{
-    CustomOp, OpOutput,
-    BackwardOp, BackwardOptions, ContextId, ContextTensor, ContextVariable, ExecutionContext,
-    GraphStats, MaxResult, RequiresGrad, TensorView, TopKResult,
-};
 
 /// 명시적으로 라벨이 부여된 텐서인지 판별합니다.
 /// 기본 생성 레이블(`"tensor_*"`, `"tensor_ref_*"`)은 false를 반환합니다.
@@ -28,13 +27,13 @@ fn tensor_is_labeled(label: &str) -> bool {
     !label.starts_with("tensor_")
 }
 
-use crate::nn::{Parameter, Variable};
-use crate::{MlError, MlResult, TensorError, register_operator, tensor::operators::Function};
+use crate::legacy::nn::{Parameter, Variable};
+use crate::legacy::{MlError, MlResult, TensorError, register_operator, tensor::operators::Function};
 
 #[macro_export]
 macro_rules! tensor_ops {
     ($tensor:expr, Pow, $exponent:expr) => {{
-        let op = crate::tensor::operators::Pow::new().unwrap();
+        let op = crate::legacy::tensor::operators::Pow::new().unwrap();
         let power_t = Tensor::scalar($exponent);
         op.forward(&[&$tensor, &power_t]).unwrap().remove(0)
     }};
@@ -52,7 +51,7 @@ macro_rules! tensor_ops {
     };
 
     ($tensor:expr, Topk, $k:expr, $sorted:expr) => {{
-        let op = crate::tensor::operators::Topk::new().unwrap();
+        let op = crate::legacy::tensor::operators::Topk::new().unwrap();
         let k_t = Tensor::scalar($k as f32);
         let sorted_t = Tensor::scalar(if $sorted { 1.0 } else { 0.0 });
         let mut result = op.forward(&[&$tensor, &k_t, &sorted_t]).unwrap();
@@ -60,7 +59,7 @@ macro_rules! tensor_ops {
     }};
 
     ($tensor:expr, Matmax, $dim:expr, $keepdim:expr) => {{
-        let op = crate::tensor::operators::Matmax::new().unwrap();
+        let op = crate::legacy::tensor::operators::Matmax::new().unwrap();
         let dim_val: Option<i32> = $dim;
         let dim_t = match dim_val {
             Some(d) => Tensor::scalar(d as f32),
@@ -120,7 +119,7 @@ macro_rules! scalar_ops {
 #[macro_export]
 macro_rules! scalar {
     ($scalar:expr) => {{
-        use crate::tensor::GlobalTensor;
+        use crate::legacy::tensor::GlobalTensor;
         { GlobalTensor::new(vec![vec![$scalar]]) }
     }};
 }
@@ -136,7 +135,7 @@ pub struct GlobalTensor<Type> {
 //     #[cfg(all(feature = "enableVisualization"))]
 //     label: String,
 //     #[cfg(all(feature = "enableVisualization"))]
-//     node_type: crate::visualization::NodeRole,
+//     node_type: crate::legacy::visualization::NodeRole,
 //     tensor: Tensor,
 //     requires_grad: RefCell<bool>,
 //     grad: RefCell<Option<Tensor>>,
@@ -169,25 +168,8 @@ impl Drop for TensorHandle {
             let Ok(mut storage) = storage.try_borrow_mut() else {
                 return;
             };
-            if storage.remove(&id).is_some() {
-                #[cfg(feature = "debugging")]
-                {
-                    #[cfg(feature = "enableVisualization")]
-                    {
-                        if self.label.as_deref().is_some_and(tensor_is_labeled) {
-                            tracing::debug!(
-                                "[Tensor::drop] id={:?} label='{}' freed",
-                                id,
-                                self.label.as_deref().unwrap_or("unlabeled")
-                            );
-                        } else {
-                            tracing::trace!("[Tensor::drop] id={:?} freed", id);
-                        }
-                    }
-                    #[cfg(not(feature = "enableVisualization"))]
-                    tracing::trace!("[Tensor::drop] id={:?} freed", id);
-                }
-            }
+            // Tracing may already be destroyed during TLS teardown.
+            storage.remove(&id);
         });
     }
 }
@@ -632,11 +614,11 @@ pub trait AutogradFunction: Function {
 
 #[cfg(test)]
 mod tests {
-    use crate::MlResult;
-    use crate::tensor::operators::{
+    use crate::legacy::MlResult;
+    use crate::legacy::tensor::operators::{
         Abs, Add, Div, Exp, Function, Log, Matmul, Mul, Neg, Sqrt, Square, Sub,
     };
-    use crate::tensor::{Tensor, TensorBase};
+    use crate::legacy::tensor::{Tensor, TensorBase};
 
     pub fn assert_tensor_eq(
         tensor: &dyn TensorBase,

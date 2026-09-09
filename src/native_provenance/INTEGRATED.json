@@ -1,0 +1,741 @@
+{
+  "files": [
+    {
+      "original": "backend/cpu/compute.rs",
+      "path": "src/backend/cpu/legacy_compute.rs",
+      "sha256": "b00125e180f54138d0e8f801ff5ecf2310920b05ac11b743e0c0a9ef7b8550b7"
+    },
+    {
+      "original": "backend/cpu/core.rs",
+      "path": "src/backend/cpu/legacy_core.rs",
+      "sha256": "951b1390945bbee2ed07a5314756d64c8e682c69a733719c1fa7ab1cc106b67b"
+    },
+    {
+      "original": "backend/cpu/mod.rs",
+      "path": "src/backend/cpu/legacy_mod.rs",
+      "sha256": "4dfc7930396012beb0a5961d5dd8cb3279bda3a6c9e65f69eb2251b9cf5f2709"
+    },
+    {
+      "original": "backend/cpu/parallel.rs",
+      "path": "src/backend/cpu/legacy_parallel.rs",
+      "sha256": "84f6de8c8576bb82b0194f5e798a2ac605639e6364b3d38547d5818012496759"
+    },
+    {
+      "original": "backend/device.rs",
+      "path": "src/backend/legacy_device.rs",
+      "sha256": "13b717174b715f31d72159cec4bcb82f3a72bd2c717fb72acef1e36322da48bd"
+    },
+    {
+      "original": "backend/feature.rs",
+      "path": "src/backend/feature.rs",
+      "sha256": "c09776e7af081c6a75345d947cbcb2c6f184b959e28fcac7a93b8b4e59b39308"
+    },
+    {
+      "original": "backend/mod.rs",
+      "path": "src/backend/legacy_mod.rs",
+      "sha256": "09eaa80b9134fd23ac3265a8d1d5c0334203b511abb4b630737a7691ad895fb8"
+    },
+    {
+      "original": "lib.rs",
+      "path": "src/legacy.rs",
+      "sha256": "288e38fdda3788959c02fe7d68d8af0ad0e16b23a332efe0ea02cbee5866af1b"
+    },
+    {
+      "original": "loss/display.rs",
+      "path": "src/loss/display.rs",
+      "sha256": "e71f16ced9c1ea7d8dbdfebad9797d1e076053f6c88549612f47c55633236fe7"
+    },
+    {
+      "original": "loss/function.rs",
+      "path": "src/loss/function.rs",
+      "sha256": "b19f53285dd79bc2b92506c7a7a222ab12d91cafcad4d8b32dad2b427ab2b9e5"
+    },
+    {
+      "original": "loss/mod.rs",
+      "path": "src/loss/mod.rs",
+      "sha256": "f1245142c2478c5b99579bb6fd5284821f19c1b222fbf75ae424d3ac10d42821"
+    },
+    {
+      "original": "nn/activation/identity.rs",
+      "path": "src/nn/activation/identity.rs",
+      "sha256": "f212ef24d78bb975b4dc2ca79226497732807089952a291fb7e88280911ca152"
+    },
+    {
+      "original": "nn/activation/mod.rs",
+      "path": "src/nn/activation/mod.rs",
+      "sha256": "bdc28e59a5b5c681096824d7e240fa3f914f880ed36cfae3a87035aed63c9766"
+    },
+    {
+      "original": "nn/activation/relu.rs",
+      "path": "src/nn/activation/relu.rs",
+      "sha256": "84223a5e2d65e6498e2f2f7a06b0ad89a553ca6c4c5a58acc5c0316f9ecefe71"
+    },
+    {
+      "original": "nn/activation/sigmoid.rs",
+      "path": "src/nn/activation/sigmoid.rs",
+      "sha256": "e2744d28e8e872876f975c98b62e4b25de348c26e815a6fb48e1bd3c5d72fee7"
+    },
+    {
+      "original": "nn/activation/silu.rs",
+      "path": "src/nn/activation/silu.rs",
+      "sha256": "178aadd69c72656b03b0c3ea4b541fcfb69a764aee40affb285a8b11666cf45c"
+    },
+    {
+      "original": "nn/activation/softmax.rs",
+      "path": "src/nn/activation/softmax.rs",
+      "sha256": "88707c55ab2889550cbccbdfc0a605ab9bf4171e9fe58dc8be0e1246468b7e09"
+    },
+    {
+      "original": "nn/activation/tanh.rs",
+      "path": "src/nn/activation/tanh.rs",
+      "sha256": "99de30b76ad63facd8c3ccc1730b9406c379fd8bbad050dbaaf22d66f96a23c0"
+    },
+    {
+      "original": "nn/checkpoint.rs",
+      "path": "src/nn/legacy_checkpoint.rs",
+      "sha256": "3a1fbfeac738608adcc5cdf74d7abe02f8311a55f03b1096ac6b4f9301569ad2"
+    },
+    {
+      "original": "nn/context.rs",
+      "path": "src/nn/context.rs",
+      "sha256": "562706fe0d57dfe9c936a296b78eb379542f29c903a3507be176ee1e75de3c9c",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "nn/conv2d.rs",
+      "path": "src/nn/conv2d.rs",
+      "sha256": "a66ab900aec023df21732fc7cd9c0191f0641b00b84ae49385260af94f021897"
+    },
+    {
+      "original": "nn/group_norm.rs",
+      "path": "src/nn/group_norm.rs",
+      "sha256": "cfa0097e987a05ee4770f666891e77933bf0e3567fd7b008b105a0d8ed0e4dae"
+    },
+    {
+      "original": "nn/linear.rs",
+      "path": "src/nn/linear.rs",
+      "sha256": "05c3cd175d8ca6f4e51df4c527bd1e29b1e31d43b3970380992e40d640b92d1e"
+    },
+    {
+      "original": "nn/mod.rs",
+      "path": "src/nn/legacy_mod.rs",
+      "sha256": "059896985b2ce7e97af5ea4eeafebfab80c9dd5c097b4076a0ec3c7b2d8fb7f6"
+    },
+    {
+      "original": "nn/parameter.rs",
+      "path": "src/nn/parameter.rs",
+      "sha256": "d7a02606d558fa5009b03dc80e0c3de571d10dd43e7e952cd640daa1226d8ccf"
+    },
+    {
+      "original": "nn/pilots.rs",
+      "path": "src/nn/legacy_pilots.rs",
+      "sha256": "a732be9823df0001779f915c6add8e4b1a3741b7338ed28809e9cb0f7f41ecc9",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "nn/pilots/autoregressive.rs",
+      "path": "src/nn/pilots/legacy_autoregressive.rs",
+      "sha256": "cf4acb44cc3b971268969f1f6118514224ca522568182ba0349d633665312638",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "nn/pilots/diffusion.rs",
+      "path": "src/nn/pilots/legacy_diffusion.rs",
+      "sha256": "34b2e372efe7c5dafdc4d86fa0d7bf602e0d57965901a8d55dc1be28d1a90a5d",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "nn/pilots/reinforcement.rs",
+      "path": "src/nn/pilots/legacy_reinforcement.rs",
+      "sha256": "c36fc7533fdbcad0b4d48242473b26d34d00c14f04c3b5bcb0679f7957dfecba",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "nn/pilots/semi_supervised.rs",
+      "path": "src/nn/pilots/legacy_semi_supervised.rs",
+      "sha256": "825bb5f85c8327fba2f4a99d75645fcce5b042627ee06fe0204864801ca964b6",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "nn/pooling.rs",
+      "path": "src/nn/pooling.rs",
+      "sha256": "ef5d8d332e5600c31ed024a966ae37c8e548a9dbba466a52d841e08df99c7b2d"
+    },
+    {
+      "original": "nn/reshape.rs",
+      "path": "src/nn/reshape.rs",
+      "sha256": "9a40ea3c2d79cde52d77796ee24f0c9ce9067bdd18a151c5a7c2d0265bab9062"
+    },
+    {
+      "original": "optimizer/adagrad.rs",
+      "path": "src/optimizer/adagrad.rs",
+      "sha256": "6b2659198e3c124316eddccffde64c592303d567390dedf63282679c8349e62d"
+    },
+    {
+      "original": "optimizer/adam.rs",
+      "path": "src/optimizer/adam.rs",
+      "sha256": "5121bb26a3fbb228517b0b511f2b174643c1af954622afe93a88ce0216f9b3b1"
+    },
+    {
+      "original": "optimizer/adamw.rs",
+      "path": "src/optimizer/adamw.rs",
+      "sha256": "0d0f438a078f7a5529849e6469e127ceb7738080229ed8d8720d02a3916b6d1f"
+    },
+    {
+      "original": "optimizer/context.rs",
+      "path": "src/optimizer/context.rs",
+      "sha256": "68eb0d2598b032f2b64a2bb99927667668674e0a352aac0cb13f2ca0f7465613",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "optimizer/mod.rs",
+      "path": "src/optimizer/legacy_mod.rs",
+      "sha256": "b8ffbcb71d9823b52a58d8129f3cb2388cae1955e1eaf00aeaa11d938ba3e8e1"
+    },
+    {
+      "original": "optimizer/momentum.rs",
+      "path": "src/optimizer/momentum.rs",
+      "sha256": "262ab55d9fd31dfe49d811f050faebe3dcd6649603fd5775854327422c44f0d3"
+    },
+    {
+      "original": "optimizer/rmsprop.rs",
+      "path": "src/optimizer/rmsprop.rs",
+      "sha256": "705c810d9d4c507fa37a691bdcbda3d3ac7b038c02bd5f3192e1f027d85a9796"
+    },
+    {
+      "original": "optimizer/sgd.rs",
+      "path": "src/optimizer/sgd.rs",
+      "sha256": "2d34e1eec47b1bb680ee71fd89ff8f284214b34607c4bb960f09b1bf454031af"
+    },
+    {
+      "original": "tensor/broadcast.rs",
+      "path": "src/tensor/broadcast.rs",
+      "sha256": "18b183d16a997e70dc694d52a5361afdcbd88fc41e31c7bd9e84de833e3ac6fa"
+    },
+    {
+      "original": "tensor/context/custom.rs",
+      "path": "src/tensor/context/custom.rs",
+      "sha256": "8228fec56909bad45954d4b81bd4f69f46862b33da2aac7550b2d21d943ad885",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "tensor/context/functional.rs",
+      "path": "src/tensor/context/functional.rs",
+      "sha256": "659acce8d8e374f8bc93711c8e730db5093c547fcc63d4857a7936055a4d3669",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "tensor/context/handles.rs",
+      "path": "src/tensor/context/handles.rs",
+      "sha256": "97f9e1d23799d340ea1d960f42d3f253a05f4c10a2e7a2f2490c89f260594b0f",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "tensor/context/kernels.rs",
+      "path": "src/tensor/context/kernels.rs",
+      "sha256": "033232e9d31d3626dda80de87e40a6233161065c6754996be6b0d9c537375e6b",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "tensor/context/mod.rs",
+      "path": "src/tensor/context/mod.rs",
+      "sha256": "72c2b31511b11d11ec81b8067304c845989312d28c92fe4255a8d3d2d29d0b63",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "tensor/context/receiver.rs",
+      "path": "src/tensor/context/receiver.rs",
+      "sha256": "9f3bcdff425e26c89d8a74cee655408d3ce376cf0ea6798c0408bc5e72fa519b",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "tensor/context/runtime.rs",
+      "path": "src/tensor/context/runtime.rs",
+      "sha256": "467a93dc64379817da6b0fb65ee68b1566d01b2eaf73ff3f4e72dd56e6a4ba1f",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "tensor/context/tests.rs",
+      "path": "src/tensor/context/tests.rs",
+      "sha256": "b9c5fd9e9e5c9afd471d5ed77cce4da52e2964e5d8666d51058512d026c09d3a",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "tensor/context/training.rs",
+      "path": "src/tensor/context/training.rs",
+      "sha256": "39a85885d22705c823c056e5ccf1c8d6a879c74c57081c4efb3165442b337c91",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "tensor/creation.rs",
+      "path": "src/tensor/creation.rs",
+      "sha256": "d73bde797b9d930838340ea16fae856a28ef5e5c240f8b124b858e46b2b33970"
+    },
+    {
+      "original": "tensor/display.rs",
+      "path": "src/tensor/display.rs",
+      "sha256": "52ec3ec16d73695d580c498181614014f385d00730e4b5fb31a3f02e68ec89c5"
+    },
+    {
+      "original": "tensor/graph.rs",
+      "path": "src/tensor/graph.rs",
+      "sha256": "16acb4f34c4fff8bf315fc82e7bbf06d532eeb45c88a51d13155485ede42754c"
+    },
+    {
+      "original": "tensor/mod.rs",
+      "path": "src/tensor/mod.rs",
+      "sha256": "c5a8329c931c7b9d992f55bce85ddb665f21969c29d54c3ef95743140be77454"
+    },
+    {
+      "original": "tensor/operators/add.rs",
+      "path": "src/tensor/operators/add.rs",
+      "sha256": "02d2d60b6241fd93635daf763e89fcb14ac871b8056a4ac0ba4f44e43d6f72f9"
+    },
+    {
+      "original": "tensor/operators/concat.rs",
+      "path": "src/tensor/operators/concat.rs",
+      "sha256": "342373301405f507b49bbaab39fa51b497995b5683b61a251807198ac76b5aa2"
+    },
+    {
+      "original": "tensor/operators/conv2d.rs",
+      "path": "src/tensor/operators/conv2d.rs",
+      "sha256": "42d2664e659c74d11f2bba608e6101f8184fe9818baa953f95e96b6b964517d9"
+    },
+    {
+      "original": "tensor/operators/debug.rs",
+      "path": "src/tensor/operators/debug.rs",
+      "sha256": "50985cd64bab1f088776096151297684ddcd531d7b483be7904a4414d9d53585"
+    },
+    {
+      "original": "tensor/operators/div.rs",
+      "path": "src/tensor/operators/div.rs",
+      "sha256": "5088b7ff642940a91f122fbe062d31df8a6204cb771269a15dc69d834748a4ef"
+    },
+    {
+      "original": "tensor/operators/group_norm.rs",
+      "path": "src/tensor/operators/group_norm.rs",
+      "sha256": "e9169c1d2b33714466b5b787d5b9eb852a6b185c97080291296bcfce0662c6d4"
+    },
+    {
+      "original": "tensor/operators/matmax.rs",
+      "path": "src/tensor/operators/matmax.rs",
+      "sha256": "9e0b61c28523518259028016976ce92a42a27d08d720e68cec78426f9b9b5f88"
+    },
+    {
+      "original": "tensor/operators/matmul.rs",
+      "path": "src/tensor/operators/matmul.rs",
+      "sha256": "0265c6b050409d6e19e067875e47aa21f725c50f536e5e9410bf46e1f0306ee2"
+    },
+    {
+      "original": "tensor/operators/mod.rs",
+      "path": "src/tensor/operators/mod.rs",
+      "sha256": "b72b70e7f6a6b1bb20399b9dc8c313deff35f9cc2c84f5cacfa7d4af8ff1de77"
+    },
+    {
+      "original": "tensor/operators/mul.rs",
+      "path": "src/tensor/operators/mul.rs",
+      "sha256": "78f4d76672273b6f64cb3a6fa2ba15867f54dc46b3c4bcf8f7402b889d717bc8"
+    },
+    {
+      "original": "tensor/operators/neg.rs",
+      "path": "src/tensor/operators/neg.rs",
+      "sha256": "0767415c954f05f14ff61039b4f7cd4336efd1861611bc5387ceaca181e2546d"
+    },
+    {
+      "original": "tensor/operators/pool2d.rs",
+      "path": "src/tensor/operators/pool2d.rs",
+      "sha256": "9e3e097cd2b1736ada07d709e0a8f55d8b944fa0b8b03c25d979f2f2a427b26a"
+    },
+    {
+      "original": "tensor/operators/reshape.rs",
+      "path": "src/tensor/operators/reshape.rs",
+      "sha256": "f71c76a731765e13b09ca0c918fc9c02a5dbae36aa094173c41ab10ab66dbfe4"
+    },
+    {
+      "original": "tensor/operators/sub.rs",
+      "path": "src/tensor/operators/sub.rs",
+      "sha256": "b1c1d95702b13283227bed494ef6fd2f9b7fae3eaddb38f2dd8a126e3592db68"
+    },
+    {
+      "original": "tensor/operators/sum.rs",
+      "path": "src/tensor/operators/sum.rs",
+      "sha256": "cd4051e7a1e9520db649bef9a480415dd08bb5cbe77aecd92ac0f2e01f4e83b9"
+    },
+    {
+      "original": "tensor/operators/topk.rs",
+      "path": "src/tensor/operators/topk.rs",
+      "sha256": "5970a6d78ce9506dbb9dbc6148d583735ee48a74c94decf6f52e9825b49d957d"
+    },
+    {
+      "original": "tensor/operators/transpose.rs",
+      "path": "src/tensor/operators/transpose.rs",
+      "sha256": "60cc630d7a1cd42a8cd79f991f5449b0209c3178ad158297aa8805e578669d93"
+    },
+    {
+      "original": "tensor/operators/trigonometric.rs",
+      "path": "src/tensor/operators/trigonometric.rs",
+      "sha256": "8c8fa46d6077a3058847aeb2878da26386d9e8a53a71199329f3fa1e21862e50"
+    },
+    {
+      "original": "tensor/operators/unary.rs",
+      "path": "src/tensor/operators/unary.rs",
+      "sha256": "0fc1a8e2898dd1bff13bca764a01959bcebb2bbfc3d6e062797c09d9b22d5ddf"
+    },
+    {
+      "original": "tensor/operators/upsample.rs",
+      "path": "src/tensor/operators/upsample.rs",
+      "sha256": "8530038eb5e44ed6ea04180c46f89a64578d56cb3c13fedcc5eb38d9fa4bff8a"
+    },
+    {
+      "original": "tests/checkpoint_test.rs",
+      "path": "src/tests/checkpoint_test.rs",
+      "sha256": "668704531881dbee45f972b900e988721afd348894c8362c130cb181758aaa9d"
+    },
+    {
+      "original": "tests/common/data/mnist.rs",
+      "path": "src/tests/common/data/mnist.rs",
+      "sha256": "1a627ba4cc5d2c9702c4c9c00badc7bf177832054909ef3951f34e6b17ad1337"
+    },
+    {
+      "original": "tests/common/data/mod.rs",
+      "path": "src/tests/common/data/mod.rs",
+      "sha256": "7791a7746518d934e739f04d54abc0187cf1d9c7479bc614d88eb6c223918886"
+    },
+    {
+      "original": "tests/common/logging.rs",
+      "path": "src/tests/common/logging.rs",
+      "sha256": "4b7b28701f94b1ba2833bd80a43e537b6052041116a606da74b319e194eb511c"
+    },
+    {
+      "original": "tests/common/mod.rs",
+      "path": "src/tests/common/mod.rs",
+      "sha256": "cd291c21518ec955a7cc6c98abd6292898278cf58cb091a323661ce507ae80e0"
+    },
+    {
+      "original": "tests/common/model/autoregressive/mod.rs",
+      "path": "src/tests/common/model/autoregressive/mod.rs",
+      "sha256": "5626965b8b9c9def37921dfb27e9b49625043fc32217b81cbd476f1f948e7acc"
+    },
+    {
+      "original": "tests/common/model/diffusion/decoder.rs",
+      "path": "src/tests/common/model/diffusion/decoder.rs",
+      "sha256": "dcbf784941d86f4cbf5d1ab1470766d237adb9934fbd9a1c74405cdf8c109f38"
+    },
+    {
+      "original": "tests/common/model/diffusion/embedding.rs",
+      "path": "src/tests/common/model/diffusion/embedding.rs",
+      "sha256": "0560f9f49b7f87ccfc1b0fd08a556c870b1a63dc817454457f12cf504f160cb2"
+    },
+    {
+      "original": "tests/common/model/diffusion/encoder.rs",
+      "path": "src/tests/common/model/diffusion/encoder.rs",
+      "sha256": "4b4255c749c672929a3391331cd0a699e9c205ad5956439766f597586db5a8aa"
+    },
+    {
+      "original": "tests/common/model/diffusion/mod.rs",
+      "path": "src/tests/common/model/diffusion/mod.rs",
+      "sha256": "6e159dac27b7fe3f8979b72ebb20116e184cb64ae813550786bbebd8f63a6692"
+    },
+    {
+      "original": "tests/common/model/diffusion/scheduler.rs",
+      "path": "src/tests/common/model/diffusion/scheduler.rs",
+      "sha256": "29b0eb6b8373e988a9be5ec33c57bf51bbe614c7b161bc6f27dfc5641deb1e5d"
+    },
+    {
+      "original": "tests/common/model/diffusion/unet.rs",
+      "path": "src/tests/common/model/diffusion/unet.rs",
+      "sha256": "d9c249e5ed4153dd59c19facac9c8011db88465f909a45af7177dd89c95e798f"
+    },
+    {
+      "original": "tests/common/model/linear/linear.rs",
+      "path": "src/tests/common/model/linear/linear.rs",
+      "sha256": "ea4fa7be5f13ef248eabf0ac1f2409792284203fc7d1cc59f395a63249c2266c"
+    },
+    {
+      "original": "tests/common/model/linear/mod.rs",
+      "path": "src/tests/common/model/linear/mod.rs",
+      "sha256": "c74b2a1d6105d7d89e840c931710d85dbf426183d62eea77f010c60fac2721d7"
+    },
+    {
+      "original": "tests/common/model/mlp/mlp.rs",
+      "path": "src/tests/common/model/mlp/mlp.rs",
+      "sha256": "3acfaf12b0f1a4b74c46b38be4a46dc1b96f4ad8e2b4deb6b6203c81bf9d9e3b"
+    },
+    {
+      "original": "tests/common/model/mlp/mod.rs",
+      "path": "src/tests/common/model/mlp/mod.rs",
+      "sha256": "7a1703f6f4847ee0c0216e8e3f3723f33a5626fc1c5c90f7251efe614ba7e040"
+    },
+    {
+      "original": "tests/common/model/mod.rs",
+      "path": "src/tests/common/model/mod.rs",
+      "sha256": "cb4e8795718401c2574b40f3b63e4bc94964a093c8204a9c57199da194664879"
+    },
+    {
+      "original": "tests/common/model/nonlinear/logistic.rs",
+      "path": "src/tests/common/model/nonlinear/logistic.rs",
+      "sha256": "9880d29c496ff56587597404d40544bda3d6b6b27b749c6dc80aa6d88210c302"
+    },
+    {
+      "original": "tests/common/model/nonlinear/mod.rs",
+      "path": "src/tests/common/model/nonlinear/mod.rs",
+      "sha256": "ea3f03fda47b1d30d103cf8eab47ea36c6370d2880f0a14059d0d588f83966c1"
+    },
+    {
+      "original": "tests/common/model/nonlinear/softmax.rs",
+      "path": "src/tests/common/model/nonlinear/softmax.rs",
+      "sha256": "f4215acdd758b59a578d1c156f342306984b96d7397c219bdd1e7359460453a2"
+    },
+    {
+      "original": "tests/common/model/reinforcement/mod.rs",
+      "path": "src/tests/common/model/reinforcement/mod.rs",
+      "sha256": "2b572e0c056875f1644269ea6501e64098ce8683c923f332bc1552ac6edca9a5"
+    },
+    {
+      "original": "tests/common/model/semi_supervised/mod.rs",
+      "path": "src/tests/common/model/semi_supervised/mod.rs",
+      "sha256": "53162339be644914da49a6242ab54a23a1ede37ac77f775bbfb502c325ea6918"
+    },
+    {
+      "original": "tests/common/model/transformer/mod.rs",
+      "path": "src/tests/common/model/transformer/mod.rs",
+      "sha256": "f4d83b47df6efaa2d2f345705ee5af9199b454673871a6459badaf851de6b512"
+    },
+    {
+      "original": "tests/mnist_test.rs",
+      "path": "src/tests/mnist_test.rs",
+      "sha256": "0acf8ca13000f72a043721a34c6c667f164303ced0fd3646a5a0662def016505"
+    },
+    {
+      "original": "tests/mod.rs",
+      "path": "src/tests/mod.rs",
+      "sha256": "6a854a876b6a604d2532ef8f895df6b9128539c614a1ada7450edeb4ee47e474"
+    },
+    {
+      "original": "tests/repro.rs",
+      "path": "src/tests/repro.rs",
+      "sha256": "bb9a1c4f086cd3fbd0320de682923c71893e8ebb22bd428b5bd62d9f798c96f2"
+    },
+    {
+      "original": "trainer/api.rs",
+      "path": "src/trainer/legacy_api.rs",
+      "sha256": "531c73909c3ff83fbee42bb436ffaa7092ab4060b04aac9af0bbbb97f3bc5146"
+    },
+    {
+      "original": "trainer/autoregressive.rs",
+      "path": "src/trainer/autoregressive.rs",
+      "sha256": "697ea1dad08e573e2a0830cdcf6b7424d490075023b2809767b50825a2178d9b"
+    },
+    {
+      "original": "trainer/checkpoint.rs",
+      "path": "src/trainer/legacy_checkpoint.rs",
+      "sha256": "96682eda8f38791dae0d33d6454ab24e9514286aa0c3200c7621a2ac402b9226"
+    },
+    {
+      "original": "trainer/context.rs",
+      "path": "src/trainer/context.rs",
+      "sha256": "8e650c8e75c5c86ef85aea562fc77fcb1eaa3254a2762850af69d8ecc92ede5d",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "trainer/context/autoregressive.rs",
+      "path": "src/trainer/context/autoregressive.rs",
+      "sha256": "3587a403793c1c921cebc2555e96fa59496964a87b02744ef6130064f4244b4f",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "trainer/context/baseline/autoregressive.rs",
+      "path": "src/trainer/context/baseline/autoregressive.rs",
+      "sha256": "697ea1dad08e573e2a0830cdcf6b7424d490075023b2809767b50825a2178d9b",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "trainer/context/baseline/reinforcement.rs",
+      "path": "src/trainer/context/baseline/reinforcement.rs",
+      "sha256": "ecded0ab7fe3be7a19b24d3fe36a4ae6efb8598187ac8917af18b020ebac42a6",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "trainer/context/baseline/semi_supervised.rs",
+      "path": "src/trainer/context/baseline/semi_supervised.rs",
+      "sha256": "ec8da1631fe1e6836109d4d59741aeee226bb76385677538354c18d282c5c9bf",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "trainer/context/baseline/supervised.rs",
+      "path": "src/trainer/context/baseline/supervised.rs",
+      "sha256": "6cf0e8b06128dfe568d8dd58c63fbd1b1df10613d19f1a8980a5a94fe30cb960",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "trainer/context/baseline/unsupervised.rs",
+      "path": "src/trainer/context/baseline/unsupervised.rs",
+      "sha256": "3c2a486b008e7d6e701daf28e56b2ed062b6a2e0b80cb8879637de967786a3dc",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "trainer/context/reinforcement.rs",
+      "path": "src/trainer/context/reinforcement.rs",
+      "sha256": "d48b85cca422d666ec598e8e22801925a29ba34c2ad4c43b7a0f699ead9f6e9f",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "trainer/context/semi_supervised.rs",
+      "path": "src/trainer/context/semi_supervised.rs",
+      "sha256": "b6c045daa31de83a32e4be84055d2006d9da347a2db484899e6430a16e653329",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "trainer/context/unsupervised.rs",
+      "path": "src/trainer/context/unsupervised.rs",
+      "sha256": "785fb6f7097b33ac9d04f69ff2c66be48b1a7764130f10bd012ff97564769b7f",
+      "removed": "Superseded pre-P1 context implementation; current runtime and direct product E2E retained."
+    },
+    {
+      "original": "trainer/core/config.rs",
+      "path": "src/trainer/core/legacy_config.rs",
+      "sha256": "5a6db5c546d034e6d8bbcbc2db30e82970c7b6c791130530da20a8028843edb8"
+    },
+    {
+      "original": "trainer/core/convergence.rs",
+      "path": "src/trainer/core/legacy_convergence.rs",
+      "sha256": "f3c796d712b6dab882d7611b15fff6e1d02b9ad9a7348180fc6492e03e5bc0bf"
+    },
+    {
+      "original": "trainer/core/debug_trace.rs",
+      "path": "src/trainer/core/debug_trace.rs",
+      "sha256": "65b342440a61d056c297d13cec81bd0f1e7f9e782461a1772cc26eb6257aa49d"
+    },
+    {
+      "original": "trainer/core/epoch_loop.rs",
+      "path": "src/trainer/core/epoch_loop.rs",
+      "sha256": "3e9d30ee6e6fc4a39c310f162fd09fc98f892d3c347ec50f3d99a0853dc46b28"
+    },
+    {
+      "original": "trainer/core/graph_capture.rs",
+      "path": "src/trainer/core/graph_capture.rs",
+      "sha256": "2adb29c12fa10daf471344a29d30e480c7b7d14ee270fac21f6551f84f208884"
+    },
+    {
+      "original": "trainer/core/metric_hook.rs",
+      "path": "src/trainer/core/legacy_metric_hook.rs",
+      "sha256": "3b12bbeadbe92070100c56666ae5f61fe9f8c492686f2aa06035ced7cf4138ae"
+    },
+    {
+      "original": "trainer/core/metrics.rs",
+      "path": "src/trainer/core/legacy_metrics.rs",
+      "sha256": "9eee36e7c05e428d15c9406790b8262c510a2885c03ca137fa6531aa19bc1537"
+    },
+    {
+      "original": "trainer/core/mod.rs",
+      "path": "src/trainer/core/legacy_mod.rs",
+      "sha256": "1860c1cff1ba6f9e41e73b5af49af805dd06cea2a2871f05b912054298dceb91"
+    },
+    {
+      "original": "trainer/core/observer.rs",
+      "path": "src/trainer/core/legacy_observer.rs",
+      "sha256": "4ea734987a223b1b002e93c2b7ae41b8b1de91f462f280fdc0fae4b06c3b14ed"
+    },
+    {
+      "original": "trainer/core/runtime.rs",
+      "path": "src/trainer/core/legacy_runtime.rs",
+      "sha256": "993573cf0b39b049ad313510fb6ec8a908ba77388261b7bb7ba99a1748118968"
+    },
+    {
+      "original": "trainer/data/legacy.rs",
+      "path": "src/trainer/data/legacy.rs",
+      "sha256": "beeadd4ccd0dd60d0469e8f6228d92841c34d91c603377f7a49aa563eb804849"
+    },
+    {
+      "original": "trainer/data/loader.rs",
+      "path": "src/trainer/data/legacy_loader.rs",
+      "sha256": "de80804681f5d45421e86b86a62a2048f8eefe738aa05ca0c20f14f5943b34d7"
+    },
+    {
+      "original": "trainer/data/mod.rs",
+      "path": "src/trainer/data/legacy_mod.rs",
+      "sha256": "f735dd3bd10a22746dc57ff84f92a2f8023cc15733c63cf1985a1df10329f88c"
+    },
+    {
+      "original": "trainer/data/source.rs",
+      "path": "src/trainer/data/legacy_source.rs",
+      "sha256": "2c9481844d00c4c805ae9efb47cdbb220cd36926450982b5e6d0344eee0d24f6"
+    },
+    {
+      "original": "trainer/mod.rs",
+      "path": "src/trainer/legacy_mod.rs",
+      "sha256": "5a25c93c75dd2b1710268b5bdf45affecc872f7ce8c99d32464e390944c96cfd"
+    },
+    {
+      "original": "trainer/progress.rs",
+      "path": "src/trainer/legacy_progress.rs",
+      "sha256": "99a42631f7f0bd4fd05eb218f59ddd847fcd60ed51aae1f919d4d22412d93511"
+    },
+    {
+      "original": "trainer/reinforcement.rs",
+      "path": "src/trainer/legacy_reinforcement.rs",
+      "sha256": "ecded0ab7fe3be7a19b24d3fe36a4ae6efb8598187ac8917af18b020ebac42a6"
+    },
+    {
+      "original": "trainer/semi_supervised.rs",
+      "path": "src/trainer/semi_supervised.rs",
+      "sha256": "ec8da1631fe1e6836109d4d59741aeee226bb76385677538354c18d282c5c9bf"
+    },
+    {
+      "original": "trainer/supervised.rs",
+      "path": "src/trainer/supervised.rs",
+      "sha256": "6cf0e8b06128dfe568d8dd58c63fbd1b1df10613d19f1a8980a5a94fe30cb960"
+    },
+    {
+      "original": "trainer/unsupervised.rs",
+      "path": "src/trainer/unsupervised.rs",
+      "sha256": "3c2a486b008e7d6e701daf28e56b2ed062b6a2e0b80cb8879637de967786a3dc"
+    },
+    {
+      "original": "visualization/capture.rs",
+      "path": "src/visualization/capture.rs",
+      "sha256": "c8bd2dc2fe94daca2b2bba3e17fce19be3f7ee50b6cce30743d6113f131bfbf7"
+    },
+    {
+      "original": "visualization/dot.rs",
+      "path": "src/visualization/legacy_dot.rs",
+      "sha256": "c1ca736f87733204e9e4a1e6063623d0b3b3f7b8dbd016d809854e5cb2b615f2"
+    },
+    {
+      "original": "visualization/error.rs",
+      "path": "src/visualization/error.rs",
+      "sha256": "2e79c19d3c5f5abbcedd1312cf7b08fdd4515e7ae7a3609406baad0d058980f0"
+    },
+    {
+      "original": "visualization/graphviz.rs",
+      "path": "src/visualization/graphviz.rs",
+      "sha256": "39f01cd540ae7f0f0a0f6ff64ddbae31157ac3628da9a3679aef612560155ba7"
+    },
+    {
+      "original": "visualization/mod.rs",
+      "path": "src/visualization/legacy_mod.rs",
+      "sha256": "da45f181a9c02c6654139e7a0efd64ed7871bb3d807f6bb058ce28710d1a038c"
+    },
+    {
+      "original": "visualization/recording.rs",
+      "path": "src/visualization/recording.rs",
+      "sha256": "c236022f867bd6a390c3c2aaf579aa7adb401b5ca89deef659bad710f89746a2"
+    },
+    {
+      "original": "visualization/snapshot.rs",
+      "path": "src/visualization/legacy_snapshot.rs",
+      "sha256": "ee5535a35463f0624357d8f0d7050ca58e490958d33fa8cd1ef136055c8447c6"
+    },
+    {
+      "original": "visualization/statistics.rs",
+      "path": "src/visualization/statistics.rs",
+      "sha256": "fefa9a678a096ba65275b310bec42b6baf3740c9d0a325687f16d8e218dffb7e"
+    },
+    {
+      "original": "visualization/writer.rs",
+      "path": "src/visualization/writer.rs",
+      "sha256": "65cc7ddd5f228c1a828cbee6d13e05837b81202710a2cd26d3ed02d8b1765cae"
+    }
+  ],
+  "note": "Root-src integration with native namespace/path adaptation and direct read-only parameter accessors. Removed pre-P1 context duplicates; shared comparison modules. TensorHandle drop no longer logs during TLS teardown; native DOT test matches scalar-input filtering. Historical corrections preserved separately."
+}

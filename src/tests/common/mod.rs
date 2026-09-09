@@ -10,8 +10,11 @@ use tracing_subscriber::{
 
 // 다수 하위 모듈에서 사용
 use tracing::info;
-use crate::MlResult;
+use crate::legacy::MlResult;
 
+#[path = "logging.rs"]
 pub(crate) mod logging;
+#[path = "data/mod.rs"]
 pub(crate) mod data;
+#[path = "model/mod.rs"]
 pub mod model;

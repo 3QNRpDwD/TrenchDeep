@@ -1,5 +1,5 @@
 use super::*;
-use crate::tensor::GlobalTensor;
+use crate::legacy::tensor::GlobalTensor;
 
 // Variable in-place operator overloading (no graph registration, for parameter updates)
 impl std::ops::SubAssign<GlobalTensor<f32>> for Variable {
@@ -88,8 +88,8 @@ impl Parameter for Variable {
     }
 
     #[cfg(feature = "enableVisualization")]
-    fn node_type(&self) -> &crate::visualization::NodeRole {
-        static VARIABLE: crate::visualization::NodeRole = crate::visualization::NodeRole::Variable;
+    fn node_type(&self) -> &crate::legacy::visualization::NodeRole {
+        static VARIABLE: crate::legacy::visualization::NodeRole = crate::legacy::visualization::NodeRole::Variable;
         self.node_type.as_ref().unwrap_or(&VARIABLE)
     }
 
@@ -107,7 +107,7 @@ impl Parameter for Variable {
         //
         // dirty 플래그는 GlobalTensor 안에 저장되므로 모든 Variable 클론이
         // 동일한 상태를 공유한다.
-        crate::tensor::TENSOR_STORAGE.with_borrow_mut(|storage| {
+        crate::legacy::tensor::TENSOR_STORAGE.with_borrow_mut(|storage| {
             if let Some(gt) = storage.get_mut(&self.grad.id()) {
                 if !gt.dirty {
                     return;
@@ -120,7 +120,7 @@ impl Parameter for Variable {
 
     #[cfg(feature = "enableBackward")]
     fn is_grad_dirty(&self) -> bool {
-        crate::tensor::TENSOR_STORAGE.with(|storage| {
+        crate::legacy::tensor::TENSOR_STORAGE.with(|storage| {
             storage
                 .borrow()
                 .get(&self.grad.id())
@@ -165,7 +165,7 @@ impl Parameter for Variable {
             // 이후 with_borrow_mut()과 충돌하지 않는다.
             // grad.id() != new_grad.id() 조건은 backward 구조상 항상 성립한다.
             let new_data: &[f32] = new_grad.data();
-            crate::tensor::TENSOR_STORAGE.with_borrow_mut(|storage| {
+            crate::legacy::tensor::TENSOR_STORAGE.with_borrow_mut(|storage| {
                 if let Some(gt) = storage.get_mut(&self.grad.id()) {
                     gt.data
                         .iter_mut()
@@ -183,7 +183,7 @@ impl Variable {
     #[cfg(feature = "enableVisualization")]
     pub(crate) fn visualization_metadata(
         &self,
-    ) -> (Option<&str>, Option<&crate::visualization::NodeRole>) {
+    ) -> (Option<&str>, Option<&crate::legacy::visualization::NodeRole>) {
         (
             self.label.as_deref().map(String::as_str),
             self.node_type.as_ref(),
@@ -197,7 +197,7 @@ impl Variable {
 
     #[cfg(feature = "enableVisualization")]
     fn with_transient_label(tensor: Tensor, label_hint: &str) -> Self {
-        if crate::visualization::recording::is_active() {
+        if crate::legacy::visualization::recording::is_active() {
             Self::with_persistent_label(tensor, label_hint)
         } else {
             Variable {
@@ -212,10 +212,10 @@ impl Variable {
 
     #[cfg(feature = "enableVisualization")]
     pub(crate) fn new_saved(tensor: Tensor) -> Self {
-        if crate::visualization::recording::is_active() {
+        if crate::legacy::visualization::recording::is_active() {
             Variable {
                 label: None,
-                node_type: Some(crate::visualization::NodeRole::Saved),
+                node_type: Some(crate::legacy::visualization::NodeRole::Saved),
                 grad: Tensor::new_empty(),
                 tensor,
                 requires_grad: false.into(),
@@ -230,7 +230,7 @@ impl Variable {
 
         #[cfg(feature = "enableVisualization")]
         {
-            use crate::visualization::NodeRole;
+            use crate::legacy::visualization::NodeRole;
             let label = Arc::new(label_hint.to_string());
 
             // 라벨을 Tensor 핸들에 반영
@@ -347,12 +347,12 @@ macro_rules! var_input {
     ($tensor:expr) => {{
         #[cfg(feature = "enableVisualization")]
         {
-            crate::nn::Variable::new_input($tensor)
+            crate::legacy::nn::Variable::new_input($tensor)
         }
 
         #[cfg(not(feature = "enableVisualization"))]
         {
-            crate::nn::Variable::new($tensor)
+            crate::legacy::nn::Variable::new($tensor)
         }
     }};
 }
@@ -362,12 +362,12 @@ macro_rules! var_output {
     ($tensor:expr) => {{
         #[cfg(feature = "enableVisualization")]
         {
-            crate::nn::Variable::new_output($tensor)
+            crate::legacy::nn::Variable::new_output($tensor)
         }
 
         #[cfg(not(feature = "enableVisualization"))]
         {
-            crate::nn::Variable::new($tensor)
+            crate::legacy::nn::Variable::new($tensor)
         }
     }};
 }
@@ -378,12 +378,12 @@ macro_rules! var_act {
         use std::sync::Arc;
         #[cfg(feature = "enableVisualization")]
         {
-            crate::nn::Variable::new_activation($tensor, $type_name)
+            crate::legacy::nn::Variable::new_activation($tensor, $type_name)
         }
 
         #[cfg(not(feature = "enableVisualization"))]
         {
-            crate::nn::Variable::new($tensor)
+            crate::legacy::nn::Variable::new($tensor)
         }
     }};
 }
@@ -393,12 +393,12 @@ macro_rules! var_weight {
     ($tensor:expr) => {{
         #[cfg(feature = "enableVisualization")]
         {
-            crate::nn::Variable::new_weight($tensor)
+            crate::legacy::nn::Variable::new_weight($tensor)
         }
 
         #[cfg(not(feature = "enableVisualization"))]
         {
-            crate::nn::Variable::new($tensor)
+            crate::legacy::nn::Variable::new($tensor)
         }
     }};
 }
@@ -408,12 +408,12 @@ macro_rules! var_bias {
     ($tensor:expr) => {{
         #[cfg(feature = "enableVisualization")]
         {
-            crate::nn::Variable::new_bias($tensor)
+            crate::legacy::nn::Variable::new_bias($tensor)
         }
 
         #[cfg(not(feature = "enableVisualization"))]
         {
-            crate::nn::Variable::new($tensor)
+            crate::legacy::nn::Variable::new($tensor)
         }
     }};
 }
@@ -423,12 +423,12 @@ macro_rules! var_with_label {
     ($tensor:expr, $label:expr) => {{
         #[cfg(feature = "enableVisualization")]
         {
-            crate::nn::Variable::with_label($tensor, $label)
+            crate::legacy::nn::Variable::with_label($tensor, $label)
         }
 
         #[cfg(not(feature = "enableVisualization"))]
         {
-            crate::nn::Variable::new($tensor)
+            crate::legacy::nn::Variable::new($tensor)
         }
     }};
 }

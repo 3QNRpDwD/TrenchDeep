@@ -16,8 +16,8 @@ impl Function for Div {
         #[cfg(feature = "debugging")]
         tracing::debug!(
             "[Div::forward] {} / {}",
-            crate::tensor::operators::debug::summary("lhs", targets[0]),
-            crate::tensor::operators::debug::summary("rhs", targets[1])
+            crate::legacy::tensor::operators::debug::summary("lhs", targets[0]),
+            crate::legacy::tensor::operators::debug::summary("rhs", targets[1])
         );
 
         match targets[0].chk_shape(targets[1]) {
@@ -36,16 +36,24 @@ impl Function for Div {
     #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         #[cfg(feature = "debugging")]
-        tracing::debug!("[Div::backward] {}", crate::tensor::operators::debug::summary("grad", grad));
+        tracing::debug!("[Div::backward] {}", crate::legacy::tensor::operators::debug::summary("grad", grad));
 
         let x1 = targets[1];
         let dlhs = self.forward(&[grad, x1])?.remove(0);                                  // grad / x2
-        let drhs = grad * &self.forward(&[&-targets[0], &(x1 * x1)])?.remove(0);          // grad * (-x0 / x1^2)
+        // Backward runs with the operator registry borrowed. Use backend kernels
+        // directly rather than overloaded operators that re-enter that registry.
+        let negative_lhs = targets[0].data().iter().map(|&x| -x).collect::<Vec<_>>();
+        let denominator = self.backend().multiply(x1.data(), x1.data());
+        let quotient = self.backend().div(&negative_lhs, &denominator);
+        let drhs = GlobalTensor::from_vec(
+            self.backend().multiply(grad.data(), &quotient),
+            x1.shape(),
+        )?;
 
         #[cfg(feature = "debugging")]
         {
-            crate::tensor::operators::debug::stats_raw("  └─ dlhs", &dlhs.data, &dlhs.shape);
-            crate::tensor::operators::debug::stats_raw("  └─ drhs", &drhs.data, &drhs.shape);
+            crate::legacy::tensor::operators::debug::stats_raw("  └─ dlhs", &dlhs.data, &dlhs.shape);
+            crate::legacy::tensor::operators::debug::stats_raw("  └─ drhs", &drhs.data, &drhs.shape);
         }
 
         Ok(vec![dlhs, drhs])

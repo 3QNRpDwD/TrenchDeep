@@ -30,12 +30,12 @@ impl_function!(Cos,
 
 /// 표준 sin/cos forward에 디버깅 로그 추가
 #[cfg(feature = "debugging")]
-fn log_trig_forward(name: &str, input: &dyn crate::tensor::TensorBase, output: &[f32], shape: &[usize]) {
+fn log_trig_forward(name: &str, input: &dyn crate::legacy::tensor::TensorBase, output: &[f32], shape: &[usize]) {
     tracing::debug!(
         "[{}::forward] {} → {}",
         name,
-        crate::tensor::operators::debug::summary("in", input),
-        crate::tensor::operators::debug::summary_raw("out", output, shape)
+        crate::legacy::tensor::operators::debug::summary("in", input),
+        crate::legacy::tensor::operators::debug::summary_raw("out", output, shape)
     );
 }
 

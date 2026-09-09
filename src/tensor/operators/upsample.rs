@@ -111,7 +111,7 @@ impl Function for NearestUpsample2d {
         }
 
         #[cfg(feature = "debugging")]
-        crate::tensor::operators::debug::stats_raw("  └─ dX (NearestUpsample2d)", &dx, in_shape);
+        crate::legacy::tensor::operators::debug::stats_raw("  └─ dX (NearestUpsample2d)", &dx, in_shape);
 
         let zero = GlobalTensor::from_vec(vec![0.0], &[1, 1])?;
         Ok(vec![

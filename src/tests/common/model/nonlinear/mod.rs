@@ -1,8 +1,10 @@
 use super::*;
 
-use crate::nn::activation::{SoftmaxOp, SigmoidOp};
+use crate::legacy::nn::activation::{SoftmaxOp, SigmoidOp};
 
+#[path = "logistic.rs"]
 pub mod logistic;
+#[path = "softmax.rs"]
 pub mod softmax;
 
 pub struct LogisticRegression {

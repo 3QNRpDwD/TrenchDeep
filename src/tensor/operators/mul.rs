@@ -1,7 +1,7 @@
 use super::*;
-use crate::nn::Variable;
-use crate::tensor::AutogradFunction;
-use crate::tensor::broadcast::{broadcast_offsets, broadcast_shape, reduce_to_shape};
+use crate::legacy::nn::Variable;
+use crate::legacy::tensor::AutogradFunction;
+use crate::legacy::tensor::broadcast::{broadcast_offsets, broadcast_shape, reduce_to_shape};
 
 impl Function for Mul {
     fn new() -> MlResult<GlobalFunction> {
@@ -22,8 +22,8 @@ impl Function for Mul {
         #[cfg(feature = "debugging")]
         tracing::debug!(
             "[Mul::forward] {} ⊙ {}",
-            crate::tensor::operators::debug::summary("lhs", targets[0]),
-            crate::tensor::operators::debug::summary("rhs", targets[1])
+            crate::legacy::tensor::operators::debug::summary("lhs", targets[0]),
+            crate::legacy::tensor::operators::debug::summary("rhs", targets[1])
         );
 
         // [1,1] 텐서인 경우에만 브로드캐스팅 (hot path)
@@ -106,8 +106,8 @@ impl Function for Mul {
 
         #[cfg(feature = "debugging")]
         {
-            crate::tensor::operators::debug::stats_raw("  └─ dlhs", &result[0].data, &result[0].shape);
-            crate::tensor::operators::debug::stats_raw("  └─ drhs", &result[1].data, &result[1].shape);
+            crate::legacy::tensor::operators::debug::stats_raw("  └─ dlhs", &result[0].data, &result[0].shape);
+            crate::legacy::tensor::operators::debug::stats_raw("  └─ drhs", &result[1].data, &result[1].shape);
         }
 
         Ok(result)
@@ -238,7 +238,7 @@ impl std::ops::MulAssign<Variable> for Variable {
 #[cfg(test)]
 mod broadcast_tests {
     use super::*;
-    use crate::tensor::Tensor;
+    use crate::legacy::tensor::Tensor;
 
     #[test]
     fn mul_scalar_hot_path() -> MlResult<()> {

@@ -71,14 +71,14 @@ impl ComputationGraph {
 
         #[cfg(feature = "enableVisualization")]
         {
-            if crate::visualization::recording::is_active() {
+            if crate::legacy::visualization::recording::is_active() {
                 let (label, role) = variable.visualization_metadata();
-                crate::visualization::recording::record_node(
+                crate::legacy::visualization::recording::record_node(
                     node_id,
                     variable.tensor(),
                     label,
                     role,
-                    crate::visualization::NodeRole::Input,
+                    crate::legacy::visualization::NodeRole::Input,
                 );
             }
         }
@@ -117,14 +117,14 @@ impl ComputationGraph {
             self.nodes.len() + 1
         );
         #[cfg(feature = "enableVisualization")]
-        if crate::visualization::recording::is_active() {
+        if crate::legacy::visualization::recording::is_active() {
             let (label, role) = variable.visualization_metadata();
-            crate::visualization::recording::record_node(
+            crate::legacy::visualization::recording::record_node(
                 variable.node_id(),
                 variable.tensor(),
                 label,
                 role,
-                crate::visualization::NodeRole::Variable,
+                crate::legacy::visualization::NodeRole::Variable,
             );
         }
 
@@ -168,8 +168,8 @@ impl ComputationGraph {
             g.clear();
         });
         #[cfg(feature = "enableVisualization")]
-        if crate::visualization::recording::is_active() {
-            crate::visualization::recording::clear_temporary();
+        if crate::legacy::visualization::recording::is_active() {
+            crate::legacy::visualization::recording::clear_temporary();
         }
     }
 
@@ -274,7 +274,7 @@ impl ComputationGraph {
                 "[backward] op='{}' id={:?}  {}",
                 function,
                 node.id,
-                crate::tensor::operators::debug::summary("grad", grad)
+                crate::legacy::tensor::operators::debug::summary("grad", grad)
             );
 
             let input_tensors: Vec<&dyn TensorBase> = node
@@ -301,7 +301,7 @@ impl ComputationGraph {
 
             #[cfg(feature = "debugging")]
             for (i, ig) in input_grads.iter().enumerate() {
-                crate::tensor::operators::debug::stats_raw(
+                crate::legacy::tensor::operators::debug::stats_raw(
                     &format!("  └─ input_grad[{}]", i),
                     &ig.data,
                     &ig.shape,
@@ -471,7 +471,7 @@ impl AutogradFunction for GlobalFunction {
             .collect::<Vec<&dyn TensorBase>>();
         let output_tensor = self.forward(&tensors)?.remove(0).to_id()?;
         #[cfg(feature = "enableVisualization")]
-        let output = if crate::visualization::recording::is_active() {
+        let output = if crate::legacy::visualization::recording::is_active() {
             Variable::with_label(output_tensor, label)
         } else {
             Variable::new(output_tensor)

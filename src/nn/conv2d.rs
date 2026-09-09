@@ -1,5 +1,5 @@
 use super::*;
-use crate::tensor::operators::Conv2dOp;
+use crate::legacy::tensor::operators::Conv2dOp;
 
 layer_params!(Conv2D, "Conv2D", [weight, bias], |s| serde_json::json!({
     "in_channels":  s.in_channels,

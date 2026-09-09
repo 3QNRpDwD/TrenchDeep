@@ -54,11 +54,11 @@ pub trait AutoregressiveModel: TrainableModel {
     ///                 퍼플렉서티를 정확히 계산하기 위해 필요.
     fn forward_loss(
         &mut self,
-        x: &crate::nn::Variable,
-    ) -> MlResult<(crate::nn::Variable, crate::nn::Variable, usize)>;
+        x: &crate::legacy::nn::Variable,
+    ) -> MlResult<(crate::legacy::nn::Variable, crate::legacy::nn::Variable, usize)>;
 
     /// No-grad 순전파. 초기 손실 표시 및 평가에 사용한다.
-    fn predict_raw(&mut self, x: &dyn TensorBase) -> MlResult<crate::tensor::GlobalTensor<f32>>;
+    fn predict_raw(&mut self, x: &dyn TensorBase) -> MlResult<crate::legacy::tensor::GlobalTensor<f32>>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -166,7 +166,7 @@ impl AutoregressiveTrainer {
     pub fn fit<M, I>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         input: I,
         schedule: EpochSchedule,
     ) -> MlResult<TrainResult>
@@ -189,7 +189,7 @@ impl AutoregressiveTrainer {
     pub fn fit_checkpointed<M, I>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         input: I,
         schedule: EpochSchedule,
     ) -> MlResult<TrainResult>
@@ -214,7 +214,7 @@ impl AutoregressiveTrainer {
     pub fn resume<M, I>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         input: I,
         checkpoint_path: &str,
     ) -> MlResult<TrainResult>
@@ -252,7 +252,7 @@ impl AutoregressiveTrainer {
     fn fit_inner<M, L>(
         &self,
         model: &mut M,
-        optimizer: &mut dyn crate::optimizer::Optimizer,
+        optimizer: &mut dyn crate::legacy::optimizer::Optimizer,
         mut loader: L,
         epochs: usize,
         convergence: Convergence,
@@ -427,11 +427,11 @@ impl AutoregressiveTrainer {
 #[cfg(feature = "enableBackward")]
 struct AutoregressiveEpochStep<'a, M: AutoregressiveModel> {
     model: &'a mut M,
-    optimizer: &'a mut dyn crate::optimizer::Optimizer,
+    optimizer: &'a mut dyn crate::legacy::optimizer::Optimizer,
     // Perplexity 누적/에폭 요약 PPL 문자열은 Perplexity 훅(From<Trainer> 에서
     // 자동 장착) 이 담당한다. 배치 레벨 live PPL 도 훅으로 일원화된 경로로 넘어가
     // 이 구조체는 순수 루프 상태만 보관한다.
-    last_y: Option<crate::nn::Variable>,
+    last_y: Option<crate::legacy::nn::Variable>,
     last_n_tokens: Option<usize>,
 }
 
@@ -450,7 +450,7 @@ impl<'a, M: AutoregressiveModel> EpochStep for AutoregressiveEpochStep<'a, M> {
         batch: AutoregressiveBatch,
         cfg: &LogConfig,
     ) -> MlResult<StepOutput> {
-        use crate::tensor::ComputationGraph;
+        use crate::legacy::tensor::ComputationGraph;
         use std::time::Instant;
 
         ComputationGraph::reset_graph();

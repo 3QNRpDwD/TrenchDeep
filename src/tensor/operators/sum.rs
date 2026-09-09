@@ -14,7 +14,7 @@ impl_function!(Sum,
         #[cfg(feature = "debugging")]
         tracing::debug!(
             "[Sum::forward] {} → scalar={:.6}",
-            crate::tensor::operators::debug::summary("in", target),
+            crate::legacy::tensor::operators::debug::summary("in", target),
             total_sum
         );
 
@@ -28,11 +28,18 @@ impl_function!(Sum,
         #[cfg(feature = "debugging")]
         tracing::debug!(
             "[Sum::backward] {} → broadcast×{}",
-            crate::tensor::operators::debug::summary("grad", grad),
+            crate::legacy::tensor::operators::debug::summary("grad", grad),
             targets.len()
         );
 
-        let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec(), dirty: false };
-        Ok(vec![gt.clone(); targets.len()])
+        if targets.len() != 1 || grad.data().len() != 1 {
+            return Err(MlError::StringError(
+                "Sum backward expects one input and a scalar upstream gradient".into()
+            ));
+        }
+        Ok(vec![GlobalTensor::from_vec(
+            vec![grad.data()[0]; targets[0].data().len()],
+            targets[0].shape(),
+        )?])
     }
 );

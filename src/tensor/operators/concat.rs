@@ -131,7 +131,7 @@ impl Function for Concat {
         #[cfg(feature = "debugging")]
         {
             for (i, g) in grads.iter().take(grads.len() - 1).enumerate() {
-                crate::tensor::operators::debug::stats_raw(&format!("  └─ dInput[{}]", i), &g.data, &g.shape);
+                crate::legacy::tensor::operators::debug::stats_raw(&format!("  └─ dInput[{}]", i), &g.data, &g.shape);
             }
         }
 

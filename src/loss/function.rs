@@ -466,7 +466,7 @@ impl Function for SoftmaxCrossEntropyLoss {
 #[cfg(test)]
 mod softmax_ce_tests {
     use super::*;
-    use crate::tensor::{operators::Function, Tensor};
+    use crate::legacy::tensor::{operators::Function, Tensor};
 
     /// [1, V] 단일 행: 균등 logit → loss = log V.
     #[test]
