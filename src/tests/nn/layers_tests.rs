@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-#[cfg(all(feature = "enableBackward"))]
+#[cfg(all(feature = "enableBackward", feature = "builtinKernels", feature = "builtinStorage"))]
 fn context_linear_tracks_parameters_and_predicts_without_a_graph() -> MlResult<()> {
     let context = ExecutionContext::new();
     let layer = Linear::new(&context, 2, 3, "linear")?;
@@ -19,6 +19,7 @@ fn context_linear_tracks_parameters_and_predicts_without_a_graph() -> MlResult<(
 }
 
 #[test]
+#[cfg(all(feature = "builtinKernels", feature = "builtinStorage"))]
 fn context_linear_rejects_foreign_inputs() -> MlResult<()> {
     let context = ExecutionContext::new();
     let foreign = ExecutionContext::new();
@@ -85,6 +86,7 @@ fn convolution_group_norm_and_pooling_form_a_context_graph() -> MlResult<()> {
 }
 
 #[test]
+#[cfg(all(feature = "builtinKernels", feature = "builtinStorage"))]
 fn sequential_rejects_foreign_layers_and_inputs() -> MlResult<()> {
     let context = ExecutionContext::new();
     let foreign = ExecutionContext::new();
@@ -129,6 +131,7 @@ fn reshape_and_upsample_layers_preserve_context_autograd() -> MlResult<()> {
 }
 
 #[test]
+#[cfg(all(feature = "builtinKernels", feature = "builtinStorage"))]
 fn sequential_checkpoint_round_trip_uses_existing_format() -> MlResult<()> {
     let context = ExecutionContext::new();
     let mut model = Sequential::new(&context, "model");

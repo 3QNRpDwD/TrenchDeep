@@ -484,6 +484,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(all(feature = "builtinKernels", feature = "builtinStorage"))]
     fn registration_rejects_duplicates_and_foreign_contexts() -> MlResult<()> {
         let context = ExecutionContext::new();
         let foreign = ExecutionContext::new();
