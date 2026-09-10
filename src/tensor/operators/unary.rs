@@ -3,6 +3,12 @@ use super::*;
 impl_function!(Abs,
     forward(self, targets) {
         Ok(vec![GlobalTensor::from_vec(targets[0].data().iter().map(|&x| x.abs()).collect(), targets[0].shape())?])
+    },
+    backward(self, targets, grad) {
+        let gradient = targets[0].data().iter().zip(grad.data().iter())
+            .map(|(&x, &g)| if x > 0.0 { g } else if x < 0.0 { -g } else { 0.0 })
+            .collect();
+        Ok(vec![GlobalTensor::from_vec(gradient, targets[0].shape())?])
     }
 );
 
@@ -32,6 +38,11 @@ impl_function!(Exp,
 impl_function!(Log,
     forward(self, targets) {
         Ok(vec![GlobalTensor::from_vec(targets[0].data().iter().map(|&x| x.ln()).collect(), targets[0].shape())?])
+    },
+    backward(self, targets, grad) {
+        let gradient = targets[0].data().iter().zip(grad.data().iter())
+            .map(|(&x, &g)| g / x).collect();
+        Ok(vec![GlobalTensor::from_vec(gradient, targets[0].shape())?])
     }
 );
 
@@ -86,5 +97,11 @@ impl_function!(Square,
 impl_function!(Sqrt,
     forward(self, targets) {
         Ok(vec![GlobalTensor::from_vec(self.backend().sqrt(targets[0].data()), targets[0].shape())?])
+    },
+    backward(self, targets, grad) {
+        let output = self.backend().sqrt(targets[0].data());
+        let gradient = output.iter().zip(grad.data().iter())
+            .map(|(&y, &g)| g * 0.5 / y).collect();
+        Ok(vec![GlobalTensor::from_vec(gradient, targets[0].shape())?])
     }
 );

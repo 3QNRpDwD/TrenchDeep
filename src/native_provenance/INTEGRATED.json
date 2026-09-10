@@ -119,7 +119,8 @@
     {
       "original": "nn/mod.rs",
       "path": "src/nn/legacy_mod.rs",
-      "sha256": "059896985b2ce7e97af5ea4eeafebfab80c9dd5c097b4076a0ec3c7b2d8fb7f6"
+      "sha256": "5b883aa35e55b94dd1fe717d0310996725d60befc5078875502e874cc2f8875f",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "nn/parameter.rs",
@@ -354,7 +355,8 @@
     {
       "original": "tensor/operators/sub.rs",
       "path": "src/tensor/operators/sub.rs",
-      "sha256": "b1c1d95702b13283227bed494ef6fd2f9b7fae3eaddb38f2dd8a126e3592db68"
+      "sha256": "f4d99186efe825ebec4226e54c69d54972ca818bb252c4c02242ed797c6d270e",
+      "change": "2026-09-10: Native Sub supports nonempty trailing-axis broadcasting, reduces signed gradients to original input shapes, validates backward shape, and shares forward logic with assignment. Unequal-shape empty inputs are rejected pending shared zero-axis contract."
     },
     {
       "original": "tensor/operators/sum.rs",
@@ -379,7 +381,8 @@
     {
       "original": "tensor/operators/unary.rs",
       "path": "src/tensor/operators/unary.rs",
-      "sha256": "0fc1a8e2898dd1bff13bca764a01959bcebb2bbfc3d6e062797c09d9b22d5ddf"
+      "sha256": "8dd880f0e95cd5abb50df38e48fda7b744e511262e0d534e7376e5fcbf3ea39f",
+      "change": "2026-09-10: Added native Abs, Log and Sqrt backward; Abs uses zero subgradient at zero, Log g/x, Sqrt g*0.5/sqrt(x). Existing forward/domain behavior preserved."
     },
     {
       "original": "tensor/operators/upsample.rs",
@@ -413,93 +416,111 @@
     },
     {
       "original": "tests/common/model/autoregressive/mod.rs",
-      "path": "src/tests/common/model/autoregressive/mod.rs",
-      "sha256": "5626965b8b9c9def37921dfb27e9b49625043fc32217b81cbd476f1f948e7acc"
+      "path": "src/nn/native_models/autoregressive/mod.rs",
+      "sha256": "2041709a5aba7a137f963292e5331a4fde7322aec3fea54b16c17f7f37f1d4c0",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/diffusion/decoder.rs",
-      "path": "src/tests/common/model/diffusion/decoder.rs",
-      "sha256": "dcbf784941d86f4cbf5d1ab1470766d237adb9934fbd9a1c74405cdf8c109f38"
+      "path": "src/nn/native_models/diffusion/decoder.rs",
+      "sha256": "dcbf784941d86f4cbf5d1ab1470766d237adb9934fbd9a1c74405cdf8c109f38",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/diffusion/embedding.rs",
-      "path": "src/tests/common/model/diffusion/embedding.rs",
-      "sha256": "0560f9f49b7f87ccfc1b0fd08a556c870b1a63dc817454457f12cf504f160cb2"
+      "path": "src/nn/native_models/diffusion/embedding.rs",
+      "sha256": "7b42a784841e0c2c732cb9623a7b25a148d993fa50af5f9e6c0bb033cad2a2d6",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/diffusion/encoder.rs",
-      "path": "src/tests/common/model/diffusion/encoder.rs",
-      "sha256": "4b4255c749c672929a3391331cd0a699e9c205ad5956439766f597586db5a8aa"
+      "path": "src/nn/native_models/diffusion/encoder.rs",
+      "sha256": "7ed0d484ab478d769badaea5bffe5d12e78ae0208183176760dfe4e2129600d5",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/diffusion/mod.rs",
-      "path": "src/tests/common/model/diffusion/mod.rs",
-      "sha256": "6e159dac27b7fe3f8979b72ebb20116e184cb64ae813550786bbebd8f63a6692"
+      "path": "src/nn/native_models/diffusion/mod.rs",
+      "sha256": "8596899d231086a88ba6078e63512082b6698e1c99344eee4516cb4e39fd4401",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/diffusion/scheduler.rs",
-      "path": "src/tests/common/model/diffusion/scheduler.rs",
-      "sha256": "29b0eb6b8373e988a9be5ec33c57bf51bbe614c7b161bc6f27dfc5641deb1e5d"
+      "path": "src/nn/native_models/diffusion/scheduler.rs",
+      "sha256": "2c65cd2dfe49571ab9dce05e8461c72f57ffb326a867d9d2d2f118871b297eb9",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/diffusion/unet.rs",
-      "path": "src/tests/common/model/diffusion/unet.rs",
-      "sha256": "d9c249e5ed4153dd59c19facac9c8011db88465f909a45af7177dd89c95e798f"
+      "path": "src/nn/native_models/diffusion/unet.rs",
+      "sha256": "bd871164fbfa964b28f6e85dea5cd9b47af75c2d645d2fb4d61dac562d867954",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/linear/linear.rs",
-      "path": "src/tests/common/model/linear/linear.rs",
-      "sha256": "ea4fa7be5f13ef248eabf0ac1f2409792284203fc7d1cc59f395a63249c2266c"
+      "path": "src/nn/native_models/linear/linear.rs",
+      "sha256": "9f901fece72d64af7e93e0455ea00622381c85513f59e3207d80079bbd99f415",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/linear/mod.rs",
-      "path": "src/tests/common/model/linear/mod.rs",
-      "sha256": "c74b2a1d6105d7d89e840c931710d85dbf426183d62eea77f010c60fac2721d7"
+      "path": "src/nn/native_models/linear/mod.rs",
+      "sha256": "c74b2a1d6105d7d89e840c931710d85dbf426183d62eea77f010c60fac2721d7",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/mlp/mlp.rs",
-      "path": "src/tests/common/model/mlp/mlp.rs",
-      "sha256": "3acfaf12b0f1a4b74c46b38be4a46dc1b96f4ad8e2b4deb6b6203c81bf9d9e3b"
+      "path": "src/nn/native_models/mlp/mlp.rs",
+      "sha256": "3acfaf12b0f1a4b74c46b38be4a46dc1b96f4ad8e2b4deb6b6203c81bf9d9e3b",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/mlp/mod.rs",
-      "path": "src/tests/common/model/mlp/mod.rs",
-      "sha256": "7a1703f6f4847ee0c0216e8e3f3723f33a5626fc1c5c90f7251efe614ba7e040"
+      "path": "src/nn/native_models/mlp/mod.rs",
+      "sha256": "7a1703f6f4847ee0c0216e8e3f3723f33a5626fc1c5c90f7251efe614ba7e040",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/mod.rs",
-      "path": "src/tests/common/model/mod.rs",
-      "sha256": "cb4e8795718401c2574b40f3b63e4bc94964a093c8204a9c57199da194664879"
+      "path": "src/nn/native_models/mod.rs",
+      "sha256": "f2149117de42859d7df6f41421438c06f7be35c71f3721ccdc76ea631273f1fe",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/nonlinear/logistic.rs",
-      "path": "src/tests/common/model/nonlinear/logistic.rs",
-      "sha256": "9880d29c496ff56587597404d40544bda3d6b6b27b749c6dc80aa6d88210c302"
+      "path": "src/nn/native_models/nonlinear/logistic.rs",
+      "sha256": "9880d29c496ff56587597404d40544bda3d6b6b27b749c6dc80aa6d88210c302",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/nonlinear/mod.rs",
-      "path": "src/tests/common/model/nonlinear/mod.rs",
-      "sha256": "ea3f03fda47b1d30d103cf8eab47ea36c6370d2880f0a14059d0d588f83966c1"
+      "path": "src/nn/native_models/nonlinear/mod.rs",
+      "sha256": "ea3f03fda47b1d30d103cf8eab47ea36c6370d2880f0a14059d0d588f83966c1",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/nonlinear/softmax.rs",
-      "path": "src/tests/common/model/nonlinear/softmax.rs",
-      "sha256": "f4215acdd758b59a578d1c156f342306984b96d7397c219bdd1e7359460453a2"
+      "path": "src/nn/native_models/nonlinear/softmax.rs",
+      "sha256": "f4215acdd758b59a578d1c156f342306984b96d7397c219bdd1e7359460453a2",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/reinforcement/mod.rs",
-      "path": "src/tests/common/model/reinforcement/mod.rs",
-      "sha256": "2b572e0c056875f1644269ea6501e64098ce8683c923f332bc1552ac6edca9a5"
+      "path": "src/nn/native_models/reinforcement/mod.rs",
+      "sha256": "72860ff867453b18cfd1b36589765d7adfcce806fd37fadb0be9dcf2a8447c32",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/semi_supervised/mod.rs",
-      "path": "src/tests/common/model/semi_supervised/mod.rs",
-      "sha256": "53162339be644914da49a6242ab54a23a1ede37ac77f775bbfb502c325ea6918"
+      "path": "src/nn/native_models/semi_supervised/mod.rs",
+      "sha256": "3309fb63bf24b31a955252268175db4d3dcb52897dbde6ec0dbe88ae5562e783",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/common/model/transformer/mod.rs",
-      "path": "src/tests/common/model/transformer/mod.rs",
-      "sha256": "f4d83b47df6efaa2d2f345705ee5af9199b454673871a6459badaf851de6b512"
+      "path": "src/nn/native_models/transformer/mod.rs",
+      "sha256": "f4d83b47df6efaa2d2f345705ee5af9199b454673871a6459badaf851de6b512",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "tests/mnist_test.rs",
@@ -519,17 +540,20 @@
     {
       "original": "trainer/api.rs",
       "path": "src/trainer/legacy_api.rs",
-      "sha256": "531c73909c3ff83fbee42bb436ffaa7092ab4060b04aac9af0bbbb97f3bc5146"
+      "sha256": "5292aafbb951801126df519c2dd378db8f1b82593d19d8d976a2b9112ddcab5a",
+      "organization": "2026-09-10: Trainer unit tests relocated to src/tests/trainer; production implementation unchanged."
     },
     {
       "original": "trainer/autoregressive.rs",
       "path": "src/trainer/autoregressive.rs",
-      "sha256": "697ea1dad08e573e2a0830cdcf6b7424d490075023b2809767b50825a2178d9b"
+      "sha256": "fde16509c41c5db276ade89b8f918702b04f79509d3005c15e165728842f65d8",
+      "organization": "2026-09-10: Trainer unit tests relocated to src/tests/trainer; production implementation unchanged."
     },
     {
       "original": "trainer/checkpoint.rs",
       "path": "src/trainer/legacy_checkpoint.rs",
-      "sha256": "96682eda8f38791dae0d33d6454ab24e9514286aa0c3200c7621a2ac402b9226"
+      "sha256": "724f4a988466fe2186d2b23045ff00a533fd2be75d09d4ccb029fde94a67c201",
+      "organization": "2026-09-10: Trainer unit tests relocated to src/tests/trainer; production implementation unchanged."
     },
     {
       "original": "trainer/context.rs",
@@ -599,7 +623,8 @@
     {
       "original": "trainer/core/convergence.rs",
       "path": "src/trainer/core/legacy_convergence.rs",
-      "sha256": "f3c796d712b6dab882d7611b15fff6e1d02b9ad9a7348180fc6492e03e5bc0bf"
+      "sha256": "b14f04b1d9a712e80bb3e2a33167bdf09cb920086dec34ddc806e2b689314e3d",
+      "organization": "2026-09-10: Models moved under nn; inline tests relocated to src/tests/nn; compatibility exports and shared convergence policy. Numerical implementations preserved."
     },
     {
       "original": "trainer/core/debug_trace.rs",
@@ -609,7 +634,8 @@
     {
       "original": "trainer/core/epoch_loop.rs",
       "path": "src/trainer/core/epoch_loop.rs",
-      "sha256": "3e9d30ee6e6fc4a39c310f162fd09fc98f892d3c347ec50f3d99a0853dc46b28"
+      "sha256": "0bdfd36c2919874e0acb1e0254cac869e7b38618e335233deceff12b1168385c",
+      "organization": "2026-09-10: Trainer unit tests relocated to src/tests/trainer; production implementation unchanged."
     },
     {
       "original": "trainer/core/graph_capture.rs",
@@ -624,7 +650,8 @@
     {
       "original": "trainer/core/metrics.rs",
       "path": "src/trainer/core/legacy_metrics.rs",
-      "sha256": "9eee36e7c05e428d15c9406790b8262c510a2885c03ca137fa6531aa19bc1537"
+      "sha256": "d18edcab193de3925d1b1533f140c2f20d900b8ca6d6f4cb1fc42dba194a21ed",
+      "organization": "2026-09-10: Trainer unit tests relocated to src/tests/trainer; production implementation unchanged."
     },
     {
       "original": "trainer/core/mod.rs",
@@ -634,7 +661,8 @@
     {
       "original": "trainer/core/observer.rs",
       "path": "src/trainer/core/legacy_observer.rs",
-      "sha256": "4ea734987a223b1b002e93c2b7ae41b8b1de91f462f280fdc0fae4b06c3b14ed"
+      "sha256": "0c33ed5566b91b98b06c55bbc0c164d783c3d52fa2aa821d0a87386594fe7968",
+      "organization": "2026-09-10: Trainer unit tests relocated to src/tests/trainer; production implementation unchanged."
     },
     {
       "original": "trainer/core/runtime.rs",
@@ -654,7 +682,8 @@
     {
       "original": "trainer/data/mod.rs",
       "path": "src/trainer/data/legacy_mod.rs",
-      "sha256": "f735dd3bd10a22746dc57ff84f92a2f8023cc15733c63cf1985a1df10329f88c"
+      "sha256": "85237cf7250515f1af8570d2cfdf7291fd7fe1c436fb792a65ed0a8cecf83a8d",
+      "organization": "2026-09-10: Trainer unit tests relocated to src/tests/trainer; production implementation unchanged."
     },
     {
       "original": "trainer/data/source.rs",
@@ -664,7 +693,8 @@
     {
       "original": "trainer/mod.rs",
       "path": "src/trainer/legacy_mod.rs",
-      "sha256": "5a25c93c75dd2b1710268b5bdf45affecc872f7ce8c99d32464e390944c96cfd"
+      "sha256": "9089c36df091881a5ee7764134de9e8c7031cc9571389ab6599333ac5a3a8a64",
+      "organization": "2026-09-10: Trainer unit tests relocated to src/tests/trainer; production implementation unchanged."
     },
     {
       "original": "trainer/progress.rs",
@@ -674,17 +704,20 @@
     {
       "original": "trainer/reinforcement.rs",
       "path": "src/trainer/legacy_reinforcement.rs",
-      "sha256": "ecded0ab7fe3be7a19b24d3fe36a4ae6efb8598187ac8917af18b020ebac42a6"
+      "sha256": "1514660486aac6ebe196ce547bc37dee091ffef6e465be49ffd2b271653a232b",
+      "organization": "2026-09-10: Trainer unit tests relocated to src/tests/trainer; production implementation unchanged."
     },
     {
       "original": "trainer/semi_supervised.rs",
       "path": "src/trainer/semi_supervised.rs",
-      "sha256": "ec8da1631fe1e6836109d4d59741aeee226bb76385677538354c18d282c5c9bf"
+      "sha256": "9864baa7ef00156d3ad4a8058cd975e8a47eaa2b3263c621c1c4e5b9999b03d4",
+      "organization": "2026-09-10: Trainer unit tests relocated to src/tests/trainer; production implementation unchanged."
     },
     {
       "original": "trainer/supervised.rs",
       "path": "src/trainer/supervised.rs",
-      "sha256": "6cf0e8b06128dfe568d8dd58c63fbd1b1df10613d19f1a8980a5a94fe30cb960"
+      "sha256": "101dca06d4b07282ccca0a874db99dede86bf38291837235a554b4289554fb60",
+      "organization": "2026-09-10: Trainer unit tests relocated to src/tests/trainer; production implementation unchanged."
     },
     {
       "original": "trainer/unsupervised.rs",

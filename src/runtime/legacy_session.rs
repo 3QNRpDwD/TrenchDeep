@@ -606,12 +606,7 @@ impl NativeSession {
             Operation::Reshape(_) => ReshapeOp::new().map_err(translate)?,
             Operation::Transpose(_) => Transpose::new().map_err(translate)?,
             Operation::Matmul => Matmul::new().map_err(translate)?,
-            Operation::Sub => {
-                if inputs[0].tensor().shape() != inputs[1].tensor().shape() {
-                    return Err(unsupported("broadcast subtraction"));
-                }
-                Sub::new().map_err(translate)?
-            }
+            Operation::Sub => Sub::new().map_err(translate)?,
             Operation::Neg => Neg::new().map_err(translate)?,
             Operation::Square => Square::new().map_err(translate)?,
             Operation::Exp => Exp::new().map_err(translate)?,
@@ -619,9 +614,9 @@ impl NativeSession {
             Operation::Cos => Cos::new().map_err(translate)?,
             Operation::Relu => old::nn::activation::ReLUOp::new().map_err(translate)?,
             Operation::Silu => old::nn::activation::SiLUOp::new().map_err(translate)?,
-            Operation::Abs if self.no_grad => Abs::new().map_err(translate)?,
-            Operation::Log if self.no_grad => Log::new().map_err(translate)?,
-            Operation::Sqrt if self.no_grad => Sqrt::new().map_err(translate)?,
+            Operation::Abs => Abs::new().map_err(translate)?,
+            Operation::Log => Log::new().map_err(translate)?,
+            Operation::Sqrt => Sqrt::new().map_err(translate)?,
             _ => {
                 return Err(MlError::UnsupportedCapability {
                     module: "legacy execution",
@@ -857,7 +852,7 @@ mod tests {
         assert_eq!(session.snapshot(parameter)?, before);
         let failure = session.training_step(|session| {
             session.execute(&Operation::Mul, &[parameter, parameter])?;
-            session.execute(&Operation::Abs, &[parameter])?;
+            session.execute(&Operation::Matmax { axis: None, keepdim: false }, &[parameter])?;
             unreachable!()
         });
         assert!(failure.is_err());
@@ -922,7 +917,7 @@ mod tests {
             session.backward(loss)?;
             assert_eq!(session.gradient(x)?.data(), &[5.0]);
             assert_eq!((session.forwards, session.backwards), (2, 1));
-            assert!(session.execute(&Operation::Abs, &[x]).is_err());
+            assert!(session.execute(&Operation::Matmax { axis: None, keepdim: false }, &[x]).is_err());
             session.clear_graph();
             assert_eq!(old::comparison::statistics().map_err(translate)?.1, 0);
             assert_eq!(session.snapshot(x)?.data(), &[2.0]);

@@ -5,10 +5,12 @@ src/legacy.rs in the same crate. The separate package and legacy/ directory are
 removed. Provenance lives in src/native_provenance/. This table describes route
 capabilities; historical build/test log counts below predate source integration.
 
-Consolidated 2026-09-09. Remaining-work order and acceptance criteria:
+Consolidated 2026-09-10. Remaining-work order and acceptance criteria:
 [P1_REVISED_PLAN.md](P1_REVISED_PLAN.md). Sigmoid route wiring is complete.
 Div/Sum backward fixes and shared Context Diffusion/Trainer training E2E are complete.
-Next: per-step and final sampling comparison with identical noise.
+Identical-noise product sampling comparison and Abs/Log/Sqrt backward are complete.
+Sub nonempty broadcasting and gradient reduction are complete.
+Next: single-input Concat and remaining shape contracts.
 
 Current adapter: `src/runtime/legacy_session.rs`. Default route remains P1.
 This table supersedes earlier incremental support lists in the handoff/status.
@@ -20,7 +22,7 @@ execution, not universal numerical equivalence with P1.
 | Operations | Current Legacy route support |
 | --- | --- |
 | Add, Mul | Native forward/backward |
-| Sub | Forward/backward for equal shapes; broadcasting rejected |
+| Sub | Native forward/backward with nonempty trailing-axis broadcasting; gradients reduced to each input shape; assignment uses the same forward |
 | Neg, Square, Exp, Sin, Cos, ReLU, SiLU, Pow | Native forward/backward |
 | ApproxSin, ApproxCos | Native forward/backward; positive finite threshold validated; both originals use fixed-order polynomials and ignore threshold |
 | Reshape | Native forward/backward, same element count; full target-shape dummy buffer required by original API |
@@ -33,7 +35,7 @@ execution, not universal numerical equivalence with P1.
 | AvgPool2d, NearestUpsample2d | Native forward/backward; validated spatial attributes |
 | MSE, MAE, Huber, BCE, CE, SoftmaxCE | Native mean reduction; Huber delta=1; categorical losses rank 1/2; equal nonempty prediction/target shapes |
 | Tanh, Softmax | Native forward/backward; backward recomputes outputs from inputs |
-| Abs, Log, Sqrt | Inference only; tracked use rejected before graph recording |
+| Abs, Log, Sqrt | Native forward/backward; Abs uses zero subgradient at zero; Log g/x; Sqrt g*0.5/sqrt(x) |
 | Div | Native forward/backward for equal shapes; broadcasting rejected |
 | Sum | Native forward/backward; scalar gradient expanded to input shape |
 | TopK, axis Matmax | Two native inference outputs; tracked use rejected |
@@ -48,7 +50,13 @@ TopK/axis Matmax preserve both values and indices through the public handle map.
 
 ## Remaining work and original constraints
 
-- Abs/Log/Sqrt have no original backward implementation.
+- Shared P1/native broadcast shape helpers use max(0, 1), which does not preserve
+  empty axes. Sub rejects unequal-shape empty inputs before recording/indexing;
+  zero-axis broadcasting needs a separate shared contract fix.
+- Abs/Log/Sqrt native backward was added after integration (INTEGRATED.json).
+  Scalar analytic gradients, weighted multidimensional gradients and no-grad are tested.
+  Existing domain behavior is preserved: negative Log returns -Inf on P1 and NaN
+  on native. At zero Log/Sqrt have infinite gradients; negative Sqrt is NaN.
 - Div backward uses backend kernels without re-entering the operator registry.
 - Sum backward expands the scalar upstream gradient to the original input shape.
 - Tanh/Softmax input/output contract mismatch is resolved: backward calls the

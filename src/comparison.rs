@@ -1,22 +1,22 @@
 //! Visibility bridge to unchanged baseline model implementations.
-pub use crate::legacy::tests::common::model::diffusion::Diffusion as ReferenceDiffusion;
+pub use crate::legacy::nn::models::diffusion::Diffusion as ReferenceDiffusion;
 use crate::legacy::{MlResult,var_with_label};
 use crate::legacy::nn::{Layer,Linear,Model,Parameter,Sequential,Variable,Conv2D,GroupNorm,activation::{SiLU,SoftmaxOp}};
 use crate::legacy::tensor::{AutogradFunction,GlobalFunction,GlobalTensor,Tensor,TensorBase,operators::{Add,Function,Matmul,Concat,Cos,Mul,NearestUpsample2d,ReshapeOp,Sin,Transpose}};
 use std::fmt::Debug;
 use tracing::info;
-pub use crate::legacy::tests::common::model::diffusion::encoder;
-pub use crate::legacy::tests::common::model::diffusion::embedding;
-pub use crate::legacy::tests::common::model::diffusion::unet;
-pub use crate::legacy::tests::common::model::diffusion::scheduler;
+pub use crate::legacy::nn::models::diffusion::encoder;
+pub use crate::legacy::nn::models::diffusion::embedding;
+pub use crate::legacy::nn::models::diffusion::unet;
+pub use crate::legacy::nn::models::diffusion::scheduler;
 use encoder::SinusoidalPE;
 use embedding::TimeEmbeddingMLP;
-pub use crate::legacy::tests::common::model::linear;
+pub use crate::legacy::nn::models::linear;
 use crate::legacy::loss::CrossEntropyLoss;
-pub use crate::legacy::tests::common::model::mlp;
-pub use crate::legacy::tests::common::model::autoregressive;
-pub use crate::legacy::tests::common::model::semi_supervised;
-pub use crate::legacy::tests::common::model::reinforcement;
+pub use crate::legacy::nn::models::mlp;
+pub use crate::legacy::nn::models::autoregressive;
+pub use crate::legacy::nn::models::semi_supervised;
+pub use crate::legacy::nn::models::reinforcement;
 pub fn clear_graph() { crate::legacy::tensor::ComputationGraph::reset_graph(); }
 
 /// Read the original DDPM's random choices after its unmodified forward call.

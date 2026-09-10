@@ -5,7 +5,7 @@ Legacy route는 src/legacy.rs에서 root src의 native 구현을 연결한다.
 제품 Diffusion·공통 Trainer 경로를 유지하고, 구형 Context 사본과 중복 테스트를
 정리했다. 보정/통합 매핑은 src/native_provenance/에 보존한다.
 
-갱신: 2026-09-09. 완료 사실은 [현황](P1_STATUS.md),
+갱신: 2026-09-10. 완료 사실은 [현황](P1_STATUS.md),
 연산별 제한은 [지원표](P1_LEGACY_OPERATIONS.md)에 기록한다.
 
 ## 유지할 구조
@@ -31,12 +31,11 @@ CORRECTIONS.json에 근거하며 레거시·비교 도구를 보존한다.
 
 | 항목 | 남은 작업 |
 |---|---|
-| Abs·Log·Sqrt | 원본 backward 구현 추가 |
-| Sub | broadcasting 및 gradient 계약 지원 |
+| 빈 축 broadcasting | 공용 shape 계산의 0과 1 축 처리·gradient 계약 정리. Sub는 shape가 다른 빈 입력을 오류로 차단 |
 | Shape 연산 | 일반 Transpose 순열, 추가 Matmul batch/vector broadcasting·singleton batch shape, 단일 입력 Concat |
 | 손실 함수 | mean 외 reduction, 사용자 지정 Huber delta, 고차원 categorical reduction |
 | Global Matmax | scalar 최대값과 실제 argmax index 반환 |
-| 수치 차이 | ApproxCos 미분 다항식, MAE 오차 0 지점, BCE·CE clipping 차이 해소·검증 |
+| 수치 차이 | ApproxCos 미분 다항식, MAE 오차 0 지점, BCE·CE clipping 차이, 음수 Log 출력(P1 -Inf/native NaN) 계약 정리 |
 
 TopK·Matmax tracked differentiation은 P1에서도 미지원이다.
 이를 Legacy 연결 누락으로 간주하지 않으며 지원 범위는 별도로 정한다.
@@ -45,7 +44,12 @@ Tanh/Softmax backward 입력 계약은 해결됐다. Tanh의 기존 exp 순전�
 
 Sigmoid 연결 및 출력/gradient/no-grad 비교 검증은 완료했다.
 Div·Sum 수정과 공통 Diffusion·DataLoader·Trainer·Adam 3 epoch 학습 E2E 검증도 완료했다.
-우선순위: **동일 noise의 sampling 각 step·최종 결과 비교**.
+동일 noise의 sampling 각 step·최종 결과 비교도 완료했다.
+Abs·Log·Sqrt native backward도 완료했다. Abs의 0 지점 gradient는 0이며,
+Log/Sqrt의 기존 순전파 정의역 동작은 유지한다.
+Sub의 nonempty trailing-axis broadcasting 및 원래 입력 shape로의 gradient 합산도
+완료했다. Native 대입 경로는 같은 forward를 사용한다.
+다음 우선순위: **단일 입력 Concat부터 Shape 연산 지원 확장**.
 나머지 연산도 지원 대상으로 유지한다. 구체적인 차이를 확인하며 진행하고,
 연산 연결만으로 P1 전체 완료를 선언하지 않는다.
 
@@ -68,7 +72,7 @@ UnsupervisedTrainer 3 epoch, tolerance=1e-10을 유지한다.
 
 - 완료: 공통 U-Net 예측, loss, 모든 parameter gradient와 Adam 첫 step·3 epoch 갱신을 원본 fixture와 비교. 개별 블록 검사는 기존 테스트 범위를 유지한다.
 - 완료: 동일 Context 모델·Trainer의 native/P1 선택과 원본 graph 생성 여부 확인.
-- 동일 noise의 sampling 각 step·최종 결과 비교.
+- 완료: 동일 noise의 제품 sampling 10단계 prediction·image·최종 결과 비교. 반복 실행과 중간 shape 오류의 임시 tensor/graph 정리, 입력 보존, 오류 후 추적 복원도 검증.
 - 반복 배치, 성공/오류/no-grad, 반환 handle 수명, graph/gradient 정리 검증.
 - 외부 provider·feature 제외·공유 parameter·observer 실패·checkpoint 경계 검사.
 - Legacy custom op, detach, explicit seed, capture, 부분 graph 정리 등 미지원

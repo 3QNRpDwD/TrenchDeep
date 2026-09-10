@@ -500,3 +500,6 @@ pub fn comparison_layer_parameters<'a>(
         .map(|(field, p)| (format!("{prefix}.{}", field.name), p))
         .collect()
 }
+
+#[path = "native_models/mod.rs"]
+pub mod models;

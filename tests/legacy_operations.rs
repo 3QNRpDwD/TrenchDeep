@@ -367,39 +367,74 @@ fn small_unary_categories_match_original_forward_and_backward() -> MlResult<()> 
 }
 
 #[test]
-fn inference_only_operators_reject_tracking_before_creating_graphs() -> MlResult<()> {
+fn abs_log_sqrt_match_weighted_gradients_and_no_grad() -> MlResult<()> {
     for operation in [Operation::Abs, Operation::Log, Operation::Sqrt] {
-        let (a, _) = run(
-            ExecutionRoute::P1,
-            &operation,
-            &[0.25, 1.0, 4.0],
-            &[3],
-            false,
-        )?;
-        let (b, _) = run(
-            ExecutionRoute::Legacy,
-            &operation,
-            &[0.25, 1.0, 4.0],
-            &[3],
-            false,
-        )?;
-        close(&a, &b);
-        let ctx = ExecutionContext::builder()
-            .route(ExecutionRoute::Legacy)
-            .build()?;
-        let x = ctx.parameter(vec![1.0], &[])?;
-        let before = ctx.graph_stats()?;
-        assert!(matches!(
-            ctx.execute(&operation, &[x.tensor()]),
-            Err(MlError::UnsupportedCapability { .. })
-        ));
-        assert_eq!(ctx.graph_stats()?, before);
+        let values = if matches!(operation, Operation::Abs) {
+            vec![-4.0, -0.25, -0.0, 0.0, 0.25, 4.0]
+        } else {
+            vec![0.0001, 0.25, 1.0, 4.0, 9.0, 100.0]
+        };
+        for backward in [false, true] {
+            for shape in [vec![6], vec![2, 3], vec![1, 2, 3]] {
+                compare_operation(operation.clone(), vec![(values.clone(), shape)], backward)?;
+            }
+        }
+        // Independent analytic expectations also cover scalar native backward.
+        for &x in &values {
+            let (expected, derivative) = match operation {
+                Operation::Abs => (x.abs(), if x > 0.0 { 1.0 } else if x < 0.0 { -1.0 } else { 0.0 }),
+                Operation::Log => (x.ln(), 1.0 / x),
+                Operation::Sqrt => (x.sqrt(), 0.5 / x.sqrt()),
+                _ => unreachable!(),
+            };
+            for route in [ExecutionRoute::P1, ExecutionRoute::Legacy] {
+                let (y, gradient) = run(route, &operation, &[x], &[], true)?;
+                close(&y, &[expected]);
+                close(&gradient, &[derivative]);
+            }
+        }
     }
     Ok(())
 }
 
 #[test]
-fn subtraction_gradients_and_rejected_broadcast() -> MlResult<()> {
+fn log_sqrt_preserve_domain_boundary_behavior() -> MlResult<()> {
+    for operation in [Operation::Log, Operation::Sqrt] {
+        for x in [0.0, -1.0] {
+            let (a, da) = run(ExecutionRoute::P1, &operation, &[x], &[], true)?;
+            let (b, db) = run(ExecutionRoute::Legacy, &operation, &[x], &[], true)?;
+            // Existing forward contracts differ outside Log's real domain:
+            // P1 clamps nonpositive inputs to -Inf; native calls f32::ln.
+            if matches!(operation, Operation::Log) && x < 0.0 {
+                assert_eq!(a, vec![f32::NEG_INFINITY]);
+                assert!(b[0].is_nan());
+            } else {
+                assert!((a[0].is_nan() && b[0].is_nan()) || a == b);
+            }
+            for (left, right) in da.iter().zip(&db) {
+                assert!((left.is_nan() && right.is_nan()) || left == right,
+                    "{operation:?}({x}): {left} != {right}");
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn subtraction_broadcast_gradients_and_invalid_shapes() -> MlResult<()> {
+    for (a, b) in [
+        (vec![], vec![2, 3]), (vec![2, 3], vec![]),
+        (vec![2, 3], vec![3]), (vec![3], vec![2, 3]),
+        (vec![2, 1, 3], vec![1, 4, 1]),
+        (vec![1, 4, 1], vec![2, 1, 3]),
+        (vec![2, 3, 2, 2], vec![1, 3, 1, 1]),
+    ] {
+        for backward in [false, true] {
+            let lhs = (0..a.iter().product()).map(|i| i as f32 * 0.2 - 1.0).collect();
+            let rhs = (0..b.iter().product()).map(|i| i as f32 * -0.3 + 0.7).collect();
+            compare_operation(Operation::Sub, vec![(lhs, a.clone()), (rhs, b.clone())], backward)?;
+        }
+    }
     let ctx = ExecutionContext::builder()
         .route(ExecutionRoute::Legacy)
         .build()?;
@@ -413,12 +448,44 @@ fn subtraction_gradients_and_rejected_broadcast() -> MlResult<()> {
         assert_eq!(y.grad()?.unwrap().data(), &[-1.0]);
         Ok(())
     })?;
-    let vector = ctx.tensor(vec![1.0, 2.0], &[2])?;
-    assert!(matches!(
-        x.sub(&vector),
-        Err(MlError::UnsupportedCapability { .. })
-    ));
+    let matrix = ctx.parameter(vec![1.0; 6], &[2, 3])?;
+    let bias = ctx.parameter(vec![0.5; 3], &[3])?;
+    let bad = ctx.tensor(vec![1.0; 2], &[2])?;
+    let empty = ctx.tensor(vec![], &[0, 3])?;
+    let baseline = ctx.graph_stats()?;
+    for _ in 0..4 {
+        ctx.with_training_scope(|| {
+            matrix.sub(bias.tensor())?.sum()?.backward()?;
+            close(matrix.grad()?.unwrap().data(), &[1.0; 6]);
+            close(bias.grad()?.unwrap().data(), &[-2.0; 3]);
+            Ok(())
+        })?;
+        ctx.with_training_scope(|| {
+            matrix.sub(matrix.tensor())?.sum()?.backward()?;
+            close(matrix.grad()?.unwrap().data(), &[0.0; 6]);
+            Ok(())
+        })?;
+        assert!(matrix.sub(&bad).is_err());
+        assert!(x.sub(&empty).is_err());
+        assert!(empty.as_variable()?.sub(bias.tensor()).is_err());
+        assert_eq!(ctx.graph_stats()?, baseline);
+    }
     assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+    Ok(())
+}
+
+#[test]
+fn native_sub_assignment_and_backward_shape_contract() -> MlResult<()> {
+    use trench_deep::legacy::{tensor::{Tensor as NativeTensor, TensorBase, operators::{Function, Sub}}, MlError as NativeError};
+    let op = Sub::new().map_err(|e| MlError::StringError(e.to_string()))?;
+    let lhs = NativeTensor::from_vec(vec![2.0, 4.0], &[2, 1]).unwrap();
+    let rhs = NativeTensor::from_vec(vec![0.5, 1.0, 1.5], &[3]).unwrap();
+    let out = op.assign_forward(&[&lhs, &rhs], lhs.id()).unwrap().remove(0);
+    assert_eq!(out.id(), lhs.id());
+    assert_eq!(out.shape(), &[2, 3]);
+    close(out.data(), &[1.5, 1.0, 0.5, 3.5, 3.0, 2.5]);
+    let wrong = NativeTensor::from_vec(vec![1.0], &[]).unwrap();
+    assert!(matches!(op.backward(&[&out, &rhs], &wrong), Err(NativeError::TensorError(_))));
     Ok(())
 }
 

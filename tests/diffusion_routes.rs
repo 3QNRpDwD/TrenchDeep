@@ -3,7 +3,7 @@
     feature = "builtinStorage",
     feature = "builtinKernels"
 ))]
-//! Direct product-model training: no legacy reference model or replay wrapper.
+//! Direct product-model training and sampling on both execution routes.
 use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 use trench_deep::{
     nn::{Diffusion, DiffusionScheduler, Unet},
@@ -149,5 +149,135 @@ fn product_diffusion_and_common_trainer_switch_execution_routes() -> MlResult<()
             }
         }
     }
+    Ok(())
+}
+
+struct SamplingTrace {
+    weights: BTreeMap<String, Vec<f32>>,
+    steps: Vec<(usize, Vec<f32>, Vec<f32>)>,
+    output: Vec<f32>,
+}
+
+fn sampling_trace(route: ExecutionRoute) -> MlResult<SamplingTrace> {
+    let ctx = ExecutionContext::builder()
+        .initialization_seed(7)
+        .route(route)
+        .build()?;
+    let model = Diffusion::new(
+        &ctx,
+        Unet::new(&ctx, 1, 8, &[1, 2], 4, &[])?,
+        DiffusionScheduler::linear(10, 1e-4, 0.02)?,
+        11,
+    )?;
+    let weights = model
+        .unet
+        .named_parameters()
+        .into_iter()
+        .map(|(name, p)| Ok((name, p.tensor().to_vec()?)))
+        .collect::<MlResult<BTreeMap<_, _>>>()?;
+    // Host-generated fixtures are identical across routes, with distinct values
+    // for every timestep, pixel and batch member. No route-local RNG is involved.
+    let initial_values: Vec<_> = (0..128).map(|i| (i as f32 * 0.17).sin()).collect();
+    let initial = ctx.tensor(initial_values.clone(), &[2, 1, 8, 8])?;
+    let noise_values: Vec<Vec<f32>> = (0..10)
+        .map(|t| {
+            (0..128)
+                .map(|i| ((i + 137 * t) as f32 * 0.13).cos())
+                .collect()
+        })
+        .collect();
+    let noises = noise_values
+        .iter()
+        .map(|values| ctx.tensor(values.clone(), &[2, 1, 8, 8]))
+        .collect::<MlResult<Vec<_>>>()?;
+    let baseline = ctx.graph_stats()?.tensors;
+    let steps = ctx.no_grad(|| {
+        let mut image = initial.clone();
+        let mut steps = Vec::new();
+        for t in (0..model.scheduler.timesteps()).rev() {
+            let times = ctx.tensor(vec![t as f32 / 10.0; 2], &[2, 1])?;
+            let prediction = model.unet.predict(&image, &times)?;
+            image = model
+                .scheduler
+                .reverse_step(&image, &prediction, &noises[t], t)?;
+            assert_eq!(image.shape()?, vec![2, 1, 8, 8]);
+            steps.push((t, prediction.to_vec()?, image.to_vec()?));
+        }
+        Ok(steps)
+    })?;
+    // Compare the instrumented public building blocks with the actual product
+    // sampler too, so a timestep/noise ordering bug in its loop cannot be missed.
+    let output = model.sample_with_noise(&initial, &noises)?.to_vec()?;
+    assert_eq!(output, steps.last().unwrap().2);
+    for _ in 0..2 {
+        assert_eq!(
+            model.sample_with_noise(&initial, &noises)?.to_vec()?,
+            output
+        );
+        assert_eq!(ctx.graph_stats()?.tensors, baseline);
+        assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+    }
+    // A failure after several reverse steps must release temporary tensors and
+    // restore no-grad state, just like successful sampling.
+    let mut invalid = noises.clone();
+    invalid[5] = ctx.tensor(vec![0.0], &[1])?;
+    let error_baseline = ctx.graph_stats()?.tensors;
+    assert!(model.sample_with_noise(&initial, &invalid).is_err());
+    assert_eq!(ctx.graph_stats()?.tensors, error_baseline);
+    assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+    drop(invalid);
+    assert_eq!(ctx.graph_stats()?.tensors, baseline);
+    assert_eq!(initial.to_vec()?, initial_values);
+    for (noise, values) in noises.iter().zip(&noise_values) {
+        assert_eq!(&noise.to_vec()?, values);
+    }
+    assert!(
+        model
+            .parameters()
+            .iter()
+            .all(|p| p.grad().unwrap().is_none())
+    );
+    // Verify that an error did not leave the context permanently in no-grad.
+    let tracked = model.parameters()[0].variable().square()?;
+    assert!(ctx.graph_stats()?.graph_nodes > 0);
+    drop(tracked);
+    ctx.clear_graph()?;
+    Ok(SamplingTrace {
+        weights,
+        steps,
+        output,
+    })
+}
+
+#[test]
+fn product_diffusion_sampling_switches_routes_with_identical_noise() -> MlResult<()> {
+    let p1 = sampling_trace(ExecutionRoute::P1)?;
+    let legacy = sampling_trace(ExecutionRoute::Legacy)?;
+    assert_eq!(p1.weights, legacy.weights);
+    let close = |label: &str, a: &[f32], b: &[f32]| {
+        assert_eq!(a.len(), b.len(), "{label}");
+        for (i, (&x, &y)) in a.iter().zip(b).enumerate() {
+            assert!(
+                x.is_finite()
+                    && y.is_finite()
+                    && (x - y).abs() <= 1e-3f32.max(1e-3 * x.abs().max(y.abs())),
+                "{label}[{i}]: {x} != {y}"
+            );
+        }
+    };
+    assert_eq!(p1.steps.len(), 10);
+    assert_eq!(p1.steps.len(), legacy.steps.len());
+    for ((t, prediction, image), (other_t, other_prediction, other_image)) in
+        p1.steps.iter().zip(&legacy.steps)
+    {
+        assert_eq!(t, other_t);
+        close(
+            &format!("step {t} prediction"),
+            prediction,
+            other_prediction,
+        );
+        close(&format!("step {t} image"), image, other_image);
+    }
+    close("final sample", &p1.output, &legacy.output);
     Ok(())
 }

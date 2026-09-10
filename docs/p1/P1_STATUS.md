@@ -1,6 +1,6 @@
 # P1 구현·검증 현황
 
-갱신: 2026-09-09.
+갱신: 2026-09-10.
 
 ## 실행 구조
 
@@ -20,7 +20,7 @@ TensorHandle 소멸자의 tracing 호출을 제거해 TLS 종료 후 접근 오�
 
 | 테스트 | 책임 |
 |---|---|
-| diffusion_routes | 제품 Diffusion·Adam·공통 Trainer 직접 사용, ctx route만 변경; 3 epoch loss·전체 parameter 갱신·정리 |
+| diffusion_routes | 제품 Diffusion·Adam·공통 Trainer 직접 사용, ctx route만 변경; 3 epoch 학습 및 동일 noise의 10단계 sampling·최종 결과·정리 |
 | legacy_reference_diffusion | 원본 timestep/noise 추출, 예측/loss/gradient/Adam 재생 및 fixture 유효성 |
 | diffusion | U-Net 학습·sampling·scheduler·checkpoint |
 | execution_route, legacy_operations | 생성·capability·실제 route 연산·gradient·scope 수명 |
@@ -34,6 +34,30 @@ P1-only 기준 구성 Trainer 테스트와 단일-convolution migration pilot은
 
 ## 이번 검증
 
+- Sub broadcasting 추가 후 all-features: **372 passed, 0 failed, 기존 4 ignored**
+  (target/p1/sub-all-features.log). Scalar·양방향·다차원 가중 gradient/no-grad,
+  bias 합산·공유 입력 gradient 상쇄·반복 scope 정리·잘못된 shape/빈 입력 차단,
+  native assign_forward 및 backward shape 검증 통과.
+  Native-only 빌드(sub-native-only.log)와 소스 해시 검사도 통과했다.
+  빈 축 broadcasting 공용 계약은 잔여 항목으로 유지한다.
+- 모델/테스트 재배치 후 all-features: **371 passed, 0 failed, 기존 4 ignored**
+  (target/p1/model-layout-final.log). 중복 Convergence 테스트 6개를 공용화했고,
+  Context pilot 테스트 7개는 tests/models.rs로 이동해 그대로 실행한다.
+  Native 모델 18파일은 src/nn/native_models, 내부 테스트는 src/tests/nn·trainer에
+  위치한다. 구 model 경로는 재수출만 남는다. 모델 수치 구현은 변경하지 않았다.
+  Benchmark/example 빌드(model-layout-consumers.log), native-only 빌드
+  (model-layout-native.log), 소스 매핑/해시 검사 통과.
+- Abs·Log·Sqrt native backward 연결 후 all-features lib/integration:
+  **377 passed, 0 failed, 기존 4 ignored** (target/p1/unary-all-features.log).
+  Scalar 해석적 gradient, 다차원 가중 gradient/no-grad 및 Log/Sqrt 경계값을 검사했다.
+  음수 Log의 기존 출력 차이(P1 -Inf/native NaN)는 명시적으로 검증하며 유지한다.
+  Native-only 빌드(unary-native-only.log)와 소스 매핑/해시 검사도 통과했다.
+- sampling 추가 후 diffusion_routes: 2 passed. target/p1/sampling-routes.log.
+  동일 초기 가중치·이미지·단계별 noise로 prediction과 reverse-step image를
+  abs 또는 rel 1e-3 이내에서 비교했다. 실제 sample_with_noise의 최종 결과도
+  단계별 실행 결과와 일치한다. 반복 실행, 중간 shape 오류, 입력 보존,
+  tensor/graph 정리 및 오류 후 gradient 추적 복원을 확인했다.
+  아래 전체 suite 결과는 sampling 테스트 추가 전 기록이다.
 - 통합 all-features lib/integration: 375 passed, 기존 4 ignored.
   target/p1/integrated-all.log 및 최종 공용 파일 통합 후 integrated-final-all.log.
 - legacy/ 제거 후 직접 Diffusion route·원본 재생·route 경계 검사:

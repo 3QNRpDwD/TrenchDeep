@@ -1,6 +1,7 @@
 use super::*;
 use crate::legacy::nn::Variable;
 use crate::legacy::tensor::AutogradFunction;
+use crate::legacy::tensor::broadcast::{broadcast_shape, broadcast_offsets, reduce_to_shape};
 
 impl Function for Sub {
     fn new() -> MlResult<GlobalFunction> {
@@ -21,6 +22,14 @@ impl Function for Sub {
             crate::legacy::tensor::operators::debug::summary("rhs", targets[1])
         );
 
+        // Shared broadcast_shape currently treats max(0, 1) as 1. Avoid
+        // indexing empty inputs until that shared contract is corrected.
+        if targets[0].shape() != targets[1].shape() && targets.iter().any(|t| t.data().is_empty()) {
+            return Err(MlError::TensorError(TensorError::InvalidOperation {
+                op: "sub", reason: "broadcast subtraction requires nonempty inputs".into(),
+            }));
+        }
+
         if targets[0].shape().len() == 2 && targets[1].shape().len() == 1 && targets[0].shape()[1] == targets[1].shape()[0] {
             let (batch_size, features) = (targets[0].shape()[0], targets[0].shape()[1]);
             let mut data = vec![0.0; targets[0].data().len()];
@@ -33,38 +42,34 @@ impl Function for Sub {
             return Ok(vec![GlobalTensor::from_vec(data, &targets[0].shape())?])
         }
 
-        match targets[0].chk_shape(targets[1]) {
-            Err(e) => Err(e),
-            _ => Ok(vec![GlobalTensor::from_vec(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape())?])
+        if targets[0].shape() == targets[1].shape() {
+            return Ok(vec![GlobalTensor::from_vec(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape())?]);
         }
+        let shape = broadcast_shape(targets[0].shape(), targets[1].shape())?;
+        let offsets = broadcast_offsets(targets[0].shape(), targets[1].shape(), &shape);
+        let data = offsets.iter().map(|&(a, b)| targets[0].data()[a] - targets[1].data()[b]).collect();
+        Ok(vec![GlobalTensor::from_vec(data, &shape)?])
     }
 
     fn assign_forward(&self, targets: &[&dyn TensorBase], node_id: NodeId) -> MlResult<Vec<Tensor>> {
-        if targets[0].shape().len() == 2 && targets[1].shape().len() == 1 && targets[0].shape()[1] == targets[1].shape()[0] {
-            let (batch_size, features) = (targets[0].shape()[0], targets[0].shape()[1]);
-            let mut data = vec![0.0; targets[0].data().len()];
-
-            for i in 0..batch_size {
-                for j in 0..features {
-                    data[i * features + j] = targets[0].data()[i * features + j] - targets[1].data()[j];
-                }
-            }
-            return Ok(vec![Tensor::with_id(data, &targets[0].shape(), node_id)?])
-        }
-
-        match targets[0].chk_shape(targets[1]) {
-            Err(e) => Err(e),
-            _ => Ok(vec![Tensor::with_id(self.backend().sub(targets[0].data(), targets[1].data()), targets[0].shape(), node_id)?])
-        }
+        let result = self.forward(targets)?.remove(0);
+        Ok(vec![Tensor::with_id(result.data().to_vec(), result.shape(), node_id)?])
     }
 
     #[cfg(all(feature = "enableBackward"))]
-    fn backward(&self, _: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
+    fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
         #[cfg(feature = "debugging")]
         tracing::debug!("[Sub::backward] {}", crate::legacy::tensor::operators::debug::summary("grad", grad));
 
-        let gt = GlobalTensor { data: grad.data().to_vec(), shape: grad.shape().to_vec(), dirty: false };
-        let neg = GlobalTensor::from_vec(grad.data().iter().map(|&x| -x).collect(), grad.shape())?;
+        let expected = broadcast_shape(targets[0].shape(), targets[1].shape())?;
+        if grad.shape() != expected {
+            return Err(MlError::TensorError(TensorError::InvalidShape {
+                expected, got: grad.shape().to_vec(),
+            }));
+        }
+        let gt = GlobalTensor::from_vec(reduce_to_shape(grad.data(), grad.shape(), targets[0].shape()), targets[0].shape())?;
+        let rhs = reduce_to_shape(grad.data(), grad.shape(), targets[1].shape());
+        let neg = GlobalTensor::from_vec(rhs.iter().map(|&x| -x).collect(), targets[1].shape())?;
 
         #[cfg(feature = "debugging")]
         {
@@ -90,7 +95,7 @@ impl Function for Sub {
 /// A new tensor containing the element-wise difference
 ///
 /// # Broadcasting
-/// * Supports broadcasting when subtracting a 1D tensor from each row of a 2D tensor
+/// * Supports trailing-axis broadcasting for nonempty tensors
 impl std::ops::Sub<Tensor> for Tensor {
     type Output = Tensor;
 
