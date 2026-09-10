@@ -11,14 +11,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: default
+            args: ""
           - name: no-features
             args: "--no-default-features"
           - name: backward
             args: "--features enableBackward"
           - name: visualization
             args: "--features enableVisualization"
-          - name: higher-order
-            args: "--features enableHigherOrderDifferentiation"
+          - name: legacy
+            args: "--features legacyBenchmark"
           - name: all-features
             args: "--all-features"
     name: test (${{ matrix.name }})
