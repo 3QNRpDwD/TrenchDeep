@@ -23,5 +23,9 @@
 - Sub: nonempty trailing-axis broadcasting과 입력 shape별 gradient 합산, backward shape 검증 및 native 대입 경로 공유를 완료했다. 공용 shape 함수의 빈 축 문제 때문에 shape가 다른 빈 입력은 오류로 차단한다.
 - 최신 전체 372 passed, 기존 4 ignored(sub-all-features.log). Native-only 빌드·해시 검사 통과.
 
-다음: 단일 입력 Concat부터 Shape 연산 지원 확장, 빈 축 broadcasting 계약, 수치 검증 후 benchmark. Native Trainer는 원본 회귀 검증용으로 여전히 존재하며 제거 완료로 간주하지 않는다.
+- 단일 입력 Concat 지원 완료: 기존 native forward/backward를 유지하고 입력 개수 제한만 완화했다. 1~3차원 각 축의 값·가중 gradient/no-grad, 독립 output handle 및 반복 scope 정리를 검증했다(legacy_operations 14 passed, concat-single.log).
+
+- 일반 Transpose 순열 지원: native 축 교환을 합성하고 rank 0/1은 native Reshape로 연결했다. 순열 전체를 먼저 검증하며, public forward는 1회지만 native 교환별 중간 텐서·노드가 생길 수 있다. 정적/zero-copy 전환은 아니다.
+
+다음: 추가 Matmul broadcasting, 빈 축 broadcasting 계약, 수치 검증 후 benchmark. Native Trainer는 원본 회귀 검증용으로 여전히 존재하며 제거 완료로 간주하지 않는다.
 기존 사용자 워크트리와 .gitignore 변경을 보존한다.

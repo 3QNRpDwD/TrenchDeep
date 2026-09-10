@@ -295,7 +295,8 @@
     {
       "original": "tensor/operators/concat.rs",
       "path": "src/tensor/operators/concat.rs",
-      "sha256": "342373301405f507b49bbaab39fa51b497995b5683b61a251807198ac76b5aa2"
+      "sha256": "61ace7846dda6c3b37a9c0d3baed40da9bc645cc1b16f98ceef9f82e5776a3c9",
+      "change": "2026-09-10: Accept one tensor plus axis in native Concat; existing forward/backward loops unchanged."
     },
     {
       "original": "tensor/operators/conv2d.rs",

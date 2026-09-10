@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+#[cfg(all(feature = "enableBackward"))]
 fn context_linear_tracks_parameters_and_predicts_without_a_graph() -> MlResult<()> {
     let context = ExecutionContext::new();
     let layer = Linear::new(&context, 2, 3, "linear")?;
@@ -31,6 +32,7 @@ fn context_linear_rejects_foreign_inputs() -> MlResult<()> {
 }
 
 #[test]
+#[cfg(all(feature = "enableBackward"))]
 fn parameter_updates_are_fallible_shared_and_graph_free() -> MlResult<()> {
     let context = ExecutionContext::new();
     let layer = Linear::new(&context, 2, 1, "linear")?;
@@ -56,6 +58,7 @@ fn parameter_updates_are_fallible_shared_and_graph_free() -> MlResult<()> {
 }
 
 #[test]
+#[cfg(all(feature = "enableBackward"))]
 fn convolution_group_norm_and_pooling_form_a_context_graph() -> MlResult<()> {
     let context = ExecutionContext::new();
     let convolution = Conv2D::new(&context, 1, 2, (3, 3), (1, 1), (1, 1), "conv")?;
@@ -102,6 +105,7 @@ fn sequential_rejects_foreign_layers_and_inputs() -> MlResult<()> {
 }
 
 #[test]
+#[cfg(all(feature = "enableBackward"))]
 fn reshape_and_upsample_layers_preserve_context_autograd() -> MlResult<()> {
     let context = ExecutionContext::new();
     let reshape = Reshape::new(&context, &[0, -1], "flatten")?;

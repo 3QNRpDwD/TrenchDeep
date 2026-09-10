@@ -414,6 +414,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(all(feature = "enableBackward"))]
     fn all_context_optimizers_match_their_first_step() -> MlResult<()> {
         let context = ExecutionContext::new();
         let parameter = parameter_with_gradient(&context)?;
@@ -460,6 +461,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(all(feature = "enableBackward"))]
     fn context_optimizer_zero_grad_and_clipping_use_context_storage() -> MlResult<()> {
         let context = ExecutionContext::new();
         let parameter = parameter_with_gradient(&context)?;

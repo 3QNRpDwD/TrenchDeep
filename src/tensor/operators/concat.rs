@@ -14,9 +14,9 @@ impl Function for Concat {
     /// # Returns
     /// 모든 입력 텐서를 `axis` 방향으로 이어붙인 텐서 하나를 담은 Vec.
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
-        if targets.len() < 3 {
+        if targets.len() < 2 {
             return Err(MlError::StringError(
-                "Concat: 최소 2개의 텐서와 axis 스칼라가 필요합니다.".into(),
+                "Concat: 최소 1개의 텐서와 axis 스칼라가 필요합니다.".into(),
             ));
         }
 

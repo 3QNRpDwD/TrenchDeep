@@ -34,6 +34,11 @@ P1-only 기준 구성 Trainer 테스트와 단일-convolution migration pilot은
 
 ## 이번 검증
 
+- 단일 입력 Concat 추가: legacy_operations 14 passed(concat-single.log),
+  all-features lib Concat 회귀 3 passed(concat-native.log).
+  1~3차원 각 축의 weighted gradient/no-grad, 독립 반환 handle 수명,
+  반복 scope 정리 및 빈 입력 목록·잘못된 축 거부를 검증했다.
+  아래 전체 suite 결과는 이 테스트 추가 전 기록이다.
 - Sub broadcasting 추가 후 all-features: **372 passed, 0 failed, 기존 4 ignored**
   (target/p1/sub-all-features.log). Scalar·양방향·다차원 가중 gradient/no-grad,
   bias 합산·공유 입력 gradient 상쇄·반복 scope 정리·잘못된 shape/빈 입력 차단,

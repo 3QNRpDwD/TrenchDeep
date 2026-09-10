@@ -498,8 +498,7 @@ impl NativeSession {
             }
             Operation::Transpose(axes) => {
                 let rank = inputs[0].tensor().shape().len();
-                if rank < 2
-                    || axes.len() != rank
+                if axes.len() != rank
                     || axes.iter().copied().collect::<HashSet<_>>().len() != rank
                     || axes.iter().any(|&axis| axis >= rank)
                 {
@@ -509,21 +508,37 @@ impl NativeSession {
                     }
                     .into());
                 }
-                let changed = axes
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(i, &axis)| (axis != i).then_some(i))
-                    .collect::<Vec<_>>();
-                let (a, b) = match changed.as_slice() {
-                    [] => (0, 0),
-                    [a, b] if axes[*a] == *b && axes[*b] == *a => (*a, *b),
-                    _ => return Err(unsupported("transpose permutations beyond one axis swap")),
-                };
-                for axis in [a, b] {
-                    attributes.push(Variable::new(
-                        old::tensor::Tensor::from_vec(vec![axis as f32], &[]).map_err(translate)?,
-                    ));
+                if rank < 2 {
+                    let same_shape = shape.to_vec();
+                    return self.execute_many(&Operation::Reshape(same_shape), handles);
                 }
+                // Decompose the output-axis order into native pairwise swaps.
+                // Validate the entire permutation before recording any node.
+                let mut order = (0..rank).collect::<Vec<_>>();
+                let mut swaps = Vec::new();
+                for (a, &wanted) in axes.iter().enumerate() {
+                    let b = order.iter().position(|&axis| axis == wanted).unwrap();
+                    if a != b {
+                        swaps.push((a, b));
+                        order.swap(a, b);
+                    }
+                }
+                // Identity still produces an independent output handle.
+                if swaps.is_empty() { swaps.push((0, 0)); }
+                let mut value = (*inputs[0]).clone();
+                let mut transpose = Transpose::new().map_err(translate)?;
+                for (a, b) in swaps {
+                    let a = Variable::new(old::tensor::Tensor::from_vec(vec![a as f32], &[]).map_err(translate)?);
+                    let b = Variable::new(old::tensor::Tensor::from_vec(vec![b as f32], &[]).map_err(translate)?);
+                    value = if self.no_grad {
+                        Variable::new(transpose.forward(&[value.tensor(), a.tensor(), b.tensor()])
+                            .map_err(translate)?.remove(0).to_id().map_err(translate)?)
+                    } else {
+                        transpose.apply(&[&value, &a, &b]).map_err(translate)?
+                    };
+                }
+                self.forwards += 1;
+                return Ok(vec![self.insert(value)]);
             }
             Operation::Matmul => {
                 let a = inputs[0].tensor().shape();

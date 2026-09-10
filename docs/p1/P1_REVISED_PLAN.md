@@ -32,7 +32,7 @@ CORRECTIONS.json에 근거하며 레거시·비교 도구를 보존한다.
 | 항목 | 남은 작업 |
 |---|---|
 | 빈 축 broadcasting | 공용 shape 계산의 0과 1 축 처리·gradient 계약 정리. Sub는 shape가 다른 빈 입력을 오류로 차단 |
-| Shape 연산 | 일반 Transpose 순열, 추가 Matmul batch/vector broadcasting·singleton batch shape, 단일 입력 Concat |
+| Shape 연산 | 추가 Matmul batch/vector broadcasting·singleton batch shape |
 | 손실 함수 | mean 외 reduction, 사용자 지정 Huber delta, 고차원 categorical reduction |
 | Global Matmax | scalar 최대값과 실제 argmax index 반환 |
 | 수치 차이 | ApproxCos 미분 다항식, MAE 오차 0 지점, BCE·CE clipping 차이, 음수 Log 출력(P1 -Inf/native NaN) 계약 정리 |
@@ -49,7 +49,9 @@ Abs·Log·Sqrt native backward도 완료했다. Abs의 0 지점 gradient는 0이
 Log/Sqrt의 기존 순전파 정의역 동작은 유지한다.
 Sub의 nonempty trailing-axis broadcasting 및 원래 입력 shape로의 gradient 합산도
 완료했다. Native 대입 경로는 같은 forward를 사용한다.
-다음 우선순위: **단일 입력 Concat부터 Shape 연산 지원 확장**.
+단일 입력 Concat은 native 입력 개수 제한을 완화하고 기존 forward/backward를
+그대로 연결했다. 일반 Transpose 순열은 native 축 교환을 합성하며, rank 0/1은
+native Reshape로 처리한다. 다음 우선순위: **추가 Matmul broadcasting 계약**.
 나머지 연산도 지원 대상으로 유지한다. 구체적인 차이를 확인하며 진행하고,
 연산 연결만으로 P1 전체 완료를 선언하지 않는다.
 

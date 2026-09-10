@@ -475,6 +475,89 @@ fn subtraction_broadcast_gradients_and_invalid_shapes() -> MlResult<()> {
 }
 
 #[test]
+fn arbitrary_transpose_permutations_match_gradients_and_cleanup() -> MlResult<()> {
+    fn permutations(values: &mut [usize], start: usize, out: &mut Vec<Vec<usize>>) {
+        if start == values.len() { out.push(values.to_vec()); return; }
+        for i in start..values.len() {
+            values.swap(start, i);
+            permutations(values, start + 1, out);
+            values.swap(start, i);
+        }
+    }
+    for shape in [vec![], vec![3], vec![2, 3, 4], vec![2, 1, 3, 2]] {
+        let mut axes = (0..shape.len()).collect::<Vec<_>>();
+        let mut orders = Vec::new();
+        permutations(&mut axes, 0, &mut orders);
+        let data = (0..shape.iter().product()).map(|i| i as f32 * 0.17 - 1.0).collect::<Vec<_>>();
+        for order in orders {
+            for backward in [false, true] {
+                compare_operation(Operation::Transpose(order.clone()), vec![(data.clone(), shape.clone())], backward)?;
+            }
+        }
+    }
+    for route in [ExecutionRoute::P1, ExecutionRoute::Legacy] {
+        let ctx = ExecutionContext::builder().route(route).build()?;
+        let x = ctx.parameter((0..24).map(|i| i as f32).collect(), &[2, 3, 4])?;
+        let baseline = ctx.graph_stats()?;
+        for _ in 0..4 {
+            let output = ctx.with_training_scope(|| {
+                let output = ctx.execute(&Operation::Transpose(vec![1, 2, 0]), &[x.tensor()])?.remove(0);
+                output.as_variable()?.sum()?.backward()?;
+                close(x.grad()?.unwrap().data(), &[1.0; 24]);
+                Ok(output)
+            })?;
+            assert_eq!(output.shape()?, vec![3, 4, 2]);
+            assert_eq!(output.to_vec()?.len(), 24);
+            assert!(x.grad()?.is_none());
+            drop(output);
+            assert_eq!(ctx.graph_stats()?, baseline);
+            for axes in [vec![1, 1, 0], vec![1, 2], vec![1, 2, 3]] {
+                assert!(ctx.execute(&Operation::Transpose(axes), &[x.tensor()]).is_err());
+                assert_eq!(ctx.graph_stats()?, baseline);
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn single_input_concat_preserves_values_gradients_and_owned_output() -> MlResult<()> {
+    for shape in [vec![3], vec![2, 3], vec![2, 1, 3]] {
+        let values = (0..shape.iter().product()).map(|i| i as f32 * 0.3 - 0.7).collect::<Vec<_>>();
+        for axis in 0..shape.len() {
+            for backward in [false, true] {
+                compare_operation(Operation::Concat { axis }, vec![(values.clone(), shape.clone())], backward)?;
+            }
+        }
+    }
+    for route in [ExecutionRoute::P1, ExecutionRoute::Legacy] {
+        let ctx = ExecutionContext::builder().route(route).build()?;
+        let x = ctx.parameter(vec![1.0, 2.0, 3.0], &[3])?;
+        let baseline = ctx.graph_stats()?;
+        for _ in 0..4 {
+            let output = ctx.with_training_scope(|| {
+                let output = ctx.execute(&Operation::Concat { axis: 0 }, &[x.tensor()])?.remove(0);
+                // Concat produces its own handle; it must not shortcut to an
+                // alias of the leaf and lose the native graph connection.
+                assert_ne!(output.id(), x.tensor().id());
+                output.as_variable()?.sum()?.backward()?;
+                close(x.grad()?.unwrap().data(), &[1.0; 3]);
+                Ok(output)
+            })?;
+            close(&output.to_vec()?, &[1.0, 2.0, 3.0]);
+            assert!(x.grad()?.is_none());
+            assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+            drop(output);
+            assert_eq!(ctx.graph_stats()?, baseline);
+        }
+        assert!(ctx.execute(&Operation::Concat { axis: 0 }, &[]).is_err());
+        assert!(ctx.execute(&Operation::Concat { axis: 1 }, &[x.tensor()]).is_err());
+        assert_eq!(ctx.graph_stats()?, baseline);
+    }
+    Ok(())
+}
+
+#[test]
 fn native_sub_assignment_and_backward_shape_contract() -> MlResult<()> {
     use trench_deep::legacy::{tensor::{Tensor as NativeTensor, TensorBase, operators::{Function, Sub}}, MlError as NativeError};
     let op = Sub::new().map_err(|e| MlError::StringError(e.to_string()))?;
@@ -564,10 +647,7 @@ fn shape_validation_and_no_grad_leave_no_native_graph() -> MlResult<()> {
     let before = ctx.graph_stats()?;
     assert!(x.reshape(&[5]).is_err());
     assert!(x.transpose(&[0, 0, 2]).is_err());
-    assert!(matches!(
-        x.transpose(&[1, 2, 0]),
-        Err(MlError::UnsupportedCapability { .. })
-    ));
+    assert!(x.transpose(&[1, 2, 3]).is_err());
     assert!(x.matmul(x.tensor()).is_err());
     assert_eq!(ctx.graph_stats()?, before);
     ctx.no_grad(|| {

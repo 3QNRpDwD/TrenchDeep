@@ -10,7 +10,8 @@ Consolidated 2026-09-10. Remaining-work order and acceptance criteria:
 Div/Sum backward fixes and shared Context Diffusion/Trainer training E2E are complete.
 Identical-noise product sampling comparison and Abs/Log/Sqrt backward are complete.
 Sub nonempty broadcasting and gradient reduction are complete.
-Next: single-input Concat and remaining shape contracts.
+Single-input Concat and general Transpose permutations are complete.
+Next: remaining Matmul broadcasting contracts.
 
 Current adapter: `src/runtime/legacy_session.rs`. Default route remains P1.
 This table supersedes earlier incremental support lists in the handoff/status.
@@ -26,9 +27,9 @@ execution, not universal numerical equivalence with P1.
 | Neg, Square, Exp, Sin, Cos, ReLU, SiLU, Pow | Native forward/backward |
 | ApproxSin, ApproxCos | Native forward/backward; positive finite threshold validated; both originals use fixed-order polynomials and ignore threshold |
 | Reshape | Native forward/backward, same element count; full target-shape dummy buffer required by original API |
-| Transpose | Rank >= 2, identity or one swapped axis pair |
+| Transpose | General validated permutations composed from native axis swaps; rank 0/1 identity uses native Reshape; independent output handle |
 | Matmul | Nonempty 1D/2D combinations; matrix batches with equal batch prefixes, or one rank-2 operand; singleton left batch with rank-2 right rejected because original drops batch shape |
-| Concat | Native variadic forward/backward, at least two inputs |
+| Concat | Native variadic forward/backward, at least one input; single-input output remains an independently owned tensor |
 | Conv2d | Native forward/backward; validated NCHW, weight/bias shapes, stride/padding/kernel |
 | GroupNorm | Native `apply_with_saved`, preserving x_hat/mean/variance |
 | MaxPool2d | Native `apply_with_saved`, preserving mask |
@@ -65,8 +66,11 @@ TopK/axis Matmax preserve both values and indices through the public handle map.
   retaining the general VJP rather than the fused cross-entropy derivative.
   Its axis gradient now uses the original axis tensor's shape. Tanh's existing
   exponential forward formula and large-input overflow behavior are unchanged.
-- General transpose permutations, additional matrix batch broadcasting, and
-  single-input Concat need adapter composition or explicit contract decisions.
+- Additional matrix batch/vector broadcasting and singleton batch shapes need
+  adapter composition or explicit contract decisions.
+- General Transpose uses up to rank-1 native swaps (identity uses one native op).
+  Public forward count remains one; native node/copy counts can be higher.
+  This does not introduce a zero-copy transpose or static graph execution.
 - Non-mean losses and non-default Huber delta are absent from the original
   registered operator interface. High-rank categorical reductions differ.
 - Global Matmax needs an index-producing operation or original behavior change.
