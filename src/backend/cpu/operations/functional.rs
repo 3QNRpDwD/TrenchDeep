@@ -384,8 +384,9 @@ pub(crate) fn loss_backward(
         }
         LossKind::Mae => {
             for index in 0..gradient.len() {
-                gradient[index] =
-                    scale_for(index) * (prediction.data[index] - target.data[index]).signum();
+                let difference = prediction.data[index] - target.data[index];
+                gradient[index] = scale_for(index)
+                    * if difference == 0.0 { 0.0 } else { difference.signum() };
             }
         }
         LossKind::Huber { delta } => {

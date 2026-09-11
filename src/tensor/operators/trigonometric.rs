@@ -156,20 +156,19 @@ impl Function for ApproxCos {
 
     #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        let mut sin = ApproxSin {
-            backend: Arc::clone(&self.backend),
-            node_id: NODE_ID_GEN.next(),
-            threshold: self.threshold,
-        };
-
-        let sin_output = sin.forward(targets)?;
         let x = targets[0];
-        sin_output[0].chk_shape(grad)?;
-
-        let grad_data = grad.data();
-        let sin_data = sin_output[0].data();
-        let neg_sin = self.backend.multiply(sin_data, &vec![-1.0; sin_data.len()]);
-        let result = self.backend.multiply(&neg_sin, grad_data);
+        x.chk_shape(grad)?;
+        // Differentiate the actual degree-14 forward polynomial, not degree-15 sin.
+        let derivative: Vec<f32> = x.data().iter().map(|&value| {
+            let mut term = -value;
+            let mut sum = term;
+            for degree in (3..=13).step_by(2) {
+                term *= -value * value / ((degree - 1) * degree) as f32;
+                sum += term;
+            }
+            sum
+        }).collect();
+        let result = self.backend.multiply(&derivative, grad.data());
 
         Ok(vec![GlobalTensor::from_vec(result, x.shape())?])
     }

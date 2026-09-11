@@ -39,7 +39,8 @@ use crate::legacy::{
     TensorError::InvalidInputCount
 };
 
-const EPSILON: f32 = 1e-15;
+// f32-representable probability protection, shared by forward and surrogate VJP.
+const EPSILON: f32 = 1e-7;
 
 #[derive(Debug, Clone)]
 pub enum LossError {

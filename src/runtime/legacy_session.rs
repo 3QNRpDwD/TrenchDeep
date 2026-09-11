@@ -247,6 +247,37 @@ struct NativeSession {
     _single_thread: PhantomData<Rc<()>>,
 }
 
+fn native_broadcast(value: &Variable, shape: &[usize], no_grad: bool) -> MlResult<Variable> {
+    if value.tensor().shape() == shape {
+        return Ok(value.clone());
+    }
+    // Native Mul already reduces broadcast gradients to each source shape.
+    // Keep expansion in the native graph rather than copying through P1.
+    let ones = Variable::new(old::tensor::Tensor::from_vec(
+        vec![1.0; shape.iter().product()], shape,
+    ).map_err(translate)?);
+    let mut multiply = Mul::new().map_err(translate)?;
+    if no_grad {
+        Ok(Variable::new(multiply.forward(&[value.tensor(), ones.tensor()])
+            .map_err(translate)?.remove(0).to_id().map_err(translate)?))
+    } else {
+        multiply.apply(&[value, &ones]).map_err(translate)
+    }
+}
+
+fn native_reshape(value: &Variable, shape: &[usize], no_grad: bool) -> MlResult<Variable> {
+    let shape_tensor = Variable::new(old::tensor::Tensor::from_vec(
+        vec![0.0; value.tensor().data().len()], shape,
+    ).map_err(translate)?);
+    let mut reshape = ReshapeOp::new().map_err(translate)?;
+    if no_grad {
+        Ok(Variable::new(reshape.forward(&[value.tensor(), shape_tensor.tensor()])
+            .map_err(translate)?.remove(0).to_id().map_err(translate)?))
+    } else {
+        reshape.apply(&[value, &shape_tensor]).map_err(translate)
+    }
+}
+
 fn translate(error: old::MlError) -> MlError {
     TensorError::InvalidOperation {
         op: "legacy execution",
@@ -346,6 +377,7 @@ impl NativeSession {
             reason: "invalid legacy operation attributes or shapes".into(),
         };
         let shape = inputs[0].tensor().shape();
+        let mut output_shape = None;
         let scalars: Vec<f32> = match operation {
             Operation::ApproxSin { threshold } | Operation::ApproxCos { threshold } => {
                 // Both implementations use a fixed-order polynomial. The
@@ -548,17 +580,63 @@ impl NativeSession {
                 }
                 if a.len() > 2 || b.len() > 2 {
                     if a.len() < 2 || b.len() < 2 {
-                        return Err(unsupported("batched vector matmul"));
+                        if a.contains(&0) || b.contains(&0)
+                            || a[a.len() - 1] != b[b.len().saturating_sub(2)] {
+                            return Err(invalid().into());
+                        }
+                        // Promote the vector to a native row/column matrix.
+                        // Only the final output enters the public handle map.
+                        let (lhs, rhs, result_shape) = if a.len() == 1 {
+                            let mut shape = b[..b.len() - 2].to_vec();
+                            shape.push(b[b.len() - 1]);
+                            (native_reshape(inputs[0], &[1, a[0]], self.no_grad)?,
+                             (*inputs[1]).clone(), shape)
+                        } else {
+                            ( (*inputs[0]).clone(),
+                              native_reshape(inputs[1], &[b[0], 1], self.no_grad)?,
+                              a[..a.len() - 1].to_vec())
+                        };
+                        let mut matmul = Matmul::new().map_err(translate)?;
+                        let result = if self.no_grad {
+                            Variable::new(matmul.forward(&[lhs.tensor(), rhs.tensor()])
+                                .map_err(translate)?.remove(0).to_id().map_err(translate)?)
+                        } else {
+                            matmul.apply(&[&lhs, &rhs]).map_err(translate)?
+                        };
+                        let result = native_reshape(&result, &result_shape, self.no_grad)?;
+                        self.forwards += 1;
+                        return Ok(vec![self.insert(result)]);
                     }
                     let ab = &a[..a.len() - 2];
                     let bb = &b[..b.len() - 2];
                     // Original flattens batch dimensions. Only accept layouts
                     // for which this is equivalent to the public batch contract.
                     if ab != bb && !ab.is_empty() && !bb.is_empty() {
-                        return Err(unsupported("multi-axis batch broadcasting"));
+                        // Validate all dimensions before creating expansion nodes.
+                        if a.contains(&0) || b.contains(&0) || a[a.len() - 1] != b[b.len() - 2] {
+                            return Err(invalid().into());
+                        }
+                        let batch = old::tensor::broadcast::broadcast_shape(ab, bb).map_err(translate)?;
+                        let mut lhs_shape = batch.clone();
+                        lhs_shape.extend_from_slice(&a[a.len() - 2..]);
+                        let mut rhs_shape = batch;
+                        rhs_shape.extend_from_slice(&b[b.len() - 2..]);
+                        let lhs = native_broadcast(inputs[0], &lhs_shape, self.no_grad)?;
+                        let rhs = native_broadcast(inputs[1], &rhs_shape, self.no_grad)?;
+                        let mut matmul = Matmul::new().map_err(translate)?;
+                        let result = if self.no_grad {
+                            Variable::new(matmul.forward(&[lhs.tensor(), rhs.tensor()])
+                                .map_err(translate)?.remove(0).to_id().map_err(translate)?)
+                        } else {
+                            matmul.apply(&[&lhs, &rhs]).map_err(translate)?
+                        };
+                        self.forwards += 1;
+                        return Ok(vec![self.insert(result)]);
                     }
                     if !ab.is_empty() && bb.is_empty() && ab.iter().product::<usize>() == 1 {
-                        return Err(unsupported("legacy singleton batch output shape"));
+                        let mut expected = ab.to_vec();
+                        expected.extend_from_slice(&[a[a.len() - 2], b[b.len() - 1]]);
+                        output_shape = Some(expected);
                     }
                 }
                 if a[a.len() - 1] != b[b.len().saturating_sub(2)]
@@ -673,21 +751,12 @@ impl NativeSession {
         // Original reductions return [1,1]; public reductions are rank-zero.
         // Express the metadata conversion through the original reshape op too.
         if matches!(operation, Operation::Sum | Operation::Loss { .. }) {
-            let scalar_shape =
-                Variable::new(old::tensor::Tensor::from_vec(vec![0.0], &[]).map_err(translate)?);
-            let mut reshape = ReshapeOp::new().map_err(translate)?;
-            value = if self.no_grad {
-                Variable::new(
-                    reshape
-                        .forward(&[value.tensor(), scalar_shape.tensor()])
-                        .map_err(translate)?
-                        .remove(0)
-                        .to_id()
-                        .map_err(translate)?,
-                )
-            } else {
-                reshape.apply(&[&value, &scalar_shape]).map_err(translate)?
-            };
+            output_shape = Some(vec![]);
+        }
+        // Native Matmul can drop a singleton lhs batch prefix when rhs is 2D.
+        // A native reshape preserves its numeric kernel and inverse VJP shape.
+        if let Some(shape) = output_shape {
+            value = native_reshape(&value, &shape, self.no_grad)?;
         }
         self.forwards += 1;
         Ok(vec![self.insert(value)])

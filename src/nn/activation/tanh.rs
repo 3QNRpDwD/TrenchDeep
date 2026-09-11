@@ -7,15 +7,10 @@ impl Function for TanhOp {
 
     fn forward(&self, targets: &[&dyn TensorBase]) -> MlResult<Vec<GlobalTensor<f32>>> {
         let x = targets[0];
-        let pos_exp = self.backend.exp(&x.data());
-        let neg_exp = self.backend.exp(&x.data().iter().map(|&val| -val).collect::<Vec<f32>>());
 
         Ok(vec![
             GlobalTensor::from_vec(
-                self.backend.div(
-                    &self.backend.sub(&pos_exp, &neg_exp),
-                    &self.backend.add(&pos_exp, &neg_exp)
-                ),
+                x.data().iter().map(|&value| value.tanh()).collect(),
                 x.shape()
             )?
         ])

@@ -1,0 +1,35 @@
+{
+  "corrections": [
+    {
+      "previous_sha256": "b19f53285dd79bc2b92506c7a7a222ab12d91cafcad4d8b32dad2b427ab2b9e5",
+      "sha256": "5855356be7191aa9ab41ee03dcddfa845f03d605f1b7f945df4d5863768a5e1e",
+      "reason": "MAE zero subgradient is zero for both signed zeros",
+      "path": "src/loss/function.rs"
+    },
+    {
+      "previous_sha256": "f1245142c2478c5b99579bb6fd5284821f19c1b222fbf75ae424d3ac10d42821",
+      "sha256": "492c3ae350729731243feb482459827dfc7cb7d2273b9e6a4938ae8e10ac91fb",
+      "reason": "BCE and CE use f32-valid 1e-7 clipping in forward and backward",
+      "path": "src/loss/mod.rs"
+    },
+    {
+      "previous_sha256": "99de30b76ad63facd8c3ccc1730b9406c379fd8bbad050dbaaf22d66f96a23c0",
+      "sha256": "5527ad963c7ad8daa4d3a2fe995529994ff86e1203e1c277393f1578beed6374",
+      "reason": "Stable f32 tanh avoids exponential overflow; backward still recomputes from input",
+      "path": "src/nn/activation/tanh.rs"
+    },
+    {
+      "previous_sha256": "8c8fa46d6077a3058847aeb2878da26386d9e8a53a71199329f3fa1e21862e50",
+      "sha256": "1938bbf6bbf1c807ceddc52c69e8bc9a85bc9498ac3894684a2c26a0a24c408e",
+      "reason": "ApproxCos VJP differentiates degree-14 forward polynomial",
+      "path": "src/tensor/operators/trigonometric.rs"
+    },
+    {
+      "previous_sha256": "9089c36df091881a5ee7764134de9e8c7031cc9571389ab6599333ac5a3a8a64",
+      "sha256": "9e6d425f6942d1c92e56a80db06e181fbd78eb3797d982526b0b3a62bb420008",
+      "reason": "HEAD bbd3ab9 changed only two doctests to pass ExecutionContext. Manifest matched HEAD parent bytes with CRLF (9089c36d...), verified before update",
+      "path": "src/trainer/legacy_mod.rs"
+    }
+  ],
+  "date": "2026-09-11"
+}

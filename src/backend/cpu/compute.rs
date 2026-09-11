@@ -176,7 +176,7 @@ impl CpuCompute {
     pub fn log(&self, a: &[f32]) -> Vec<f32> {
         let mut result = Vec::with_capacity(a.len());
         for &x in a {
-            result.push(if x <= 0.0 { f32::NEG_INFINITY } else { x.ln() });
+            result.push(x.ln());
         }
         result
     }

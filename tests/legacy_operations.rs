@@ -400,16 +400,12 @@ fn abs_log_sqrt_match_weighted_gradients_and_no_grad() -> MlResult<()> {
 #[test]
 fn log_sqrt_preserve_domain_boundary_behavior() -> MlResult<()> {
     for operation in [Operation::Log, Operation::Sqrt] {
-        for x in [0.0, -1.0] {
+        for x in [0.0, -0.0, -1.0] {
             let (a, da) = run(ExecutionRoute::P1, &operation, &[x], &[], true)?;
             let (b, db) = run(ExecutionRoute::Legacy, &operation, &[x], &[], true)?;
-            // Existing forward contracts differ outside Log's real domain:
-            // P1 clamps nonpositive inputs to -Inf; native calls f32::ln.
-            if matches!(operation, Operation::Log) && x < 0.0 {
-                assert_eq!(a, vec![f32::NEG_INFINITY]);
-                assert!(b[0].is_nan());
-            } else {
-                assert!((a[0].is_nan() && b[0].is_nan()) || a == b);
+            let expected = if matches!(operation, Operation::Log) { x.ln() } else { x.sqrt() };
+            for actual in [a[0], b[0]] {
+                assert!((actual.is_nan() && expected.is_nan()) || actual == expected);
             }
             for (left, right) in da.iter().zip(&db) {
                 assert!((left.is_nan() && right.is_nan()) || left == right,
@@ -471,6 +467,128 @@ fn subtraction_broadcast_gradients_and_invalid_shapes() -> MlResult<()> {
         assert_eq!(ctx.graph_stats()?, baseline);
     }
     assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+    Ok(())
+}
+
+#[test]
+fn matmul_broadcasts_multiple_batch_axes_and_reduces_gradients() -> MlResult<()> {
+    for (a, b) in [
+        (vec![2, 1, 2, 3], vec![1, 4, 3, 2]),
+        (vec![1, 4, 2, 3], vec![2, 1, 3, 2]),
+        (vec![4, 2, 3], vec![2, 1, 3, 2]),
+        (vec![2, 1, 2, 3], vec![4, 3, 2]),
+        (vec![1, 1, 2, 3], vec![1, 3, 2]),
+        (vec![1, 2, 3], vec![1, 1, 3, 2]),
+    ] {
+        for backward in [false, true] {
+            let lhs = (0..a.iter().product()).map(|i| i as f32 * 0.13 - 0.5).collect();
+            let rhs = (0..b.iter().product()).map(|i| i as f32 * -0.17 + 0.8).collect();
+            compare_operation(Operation::Matmul, vec![(lhs, a.clone()), (rhs, b.clone())], backward)?;
+        }
+    }
+    for route in [ExecutionRoute::P1, ExecutionRoute::Legacy] {
+        let ctx = ExecutionContext::builder().route(route).build()?;
+        let a = ctx.parameter(vec![1.0; 12], &[2, 1, 2, 3])?;
+        let b = ctx.parameter(vec![2.0; 24], &[1, 4, 3, 2])?;
+        let bad = ctx.tensor(vec![1.0; 18], &[3, 1, 3, 2])?;
+        let bad_inner = ctx.tensor(vec![1.0; 32], &[1, 4, 4, 2])?;
+        let baseline = ctx.graph_stats()?;
+        for _ in 0..4 {
+            let output = ctx.with_training_scope(|| {
+                let output = a.matmul(b.tensor())?;
+                assert_eq!(output.tensor().shape()?, vec![2, 4, 2, 2]);
+                output.sum()?.backward()?;
+                close(a.grad()?.unwrap().data(), &[16.0; 12]);
+                close(b.grad()?.unwrap().data(), &[4.0; 24]);
+                Ok(output)
+            })?;
+            close(&output.tensor().to_vec()?, &[6.0; 32]);
+            drop(output);
+            assert_eq!(ctx.graph_stats()?, baseline);
+            assert!(a.matmul(&bad).is_err());
+            assert!(a.matmul(&bad_inner).is_err());
+            assert_eq!(ctx.graph_stats()?, baseline);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn batched_vector_matmul_matches_gradients_and_cleanup() -> MlResult<()> {
+    for (a, b) in [
+        (vec![2, 3, 4], vec![4]), (vec![4], vec![2, 4, 3]),
+        (vec![2, 3, 2, 4], vec![4]), (vec![4], vec![2, 3, 4, 2]),
+        (vec![1, 1, 2, 4], vec![4]), (vec![4], vec![1, 1, 4, 2]),
+    ] {
+        for backward in [false, true] {
+            let lhs = (0..a.iter().product()).map(|i| i as f32 * 0.13 - 0.5).collect();
+            let rhs = (0..b.iter().product()).map(|i| i as f32 * -0.17 + 0.8).collect();
+            compare_operation(Operation::Matmul, vec![(lhs, a.clone()), (rhs, b.clone())], backward)?;
+        }
+    }
+    for route in [ExecutionRoute::P1, ExecutionRoute::Legacy] {
+        let ctx = ExecutionContext::builder().route(route).build()?;
+        let matrix = ctx.parameter(vec![2.0; 24], &[2, 3, 4])?;
+        let vector = ctx.parameter(vec![1.0; 4], &[4])?;
+        let bad = ctx.tensor(vec![1.0; 5], &[5])?;
+        let baseline = ctx.graph_stats()?;
+        for _ in 0..4 {
+            let result = ctx.with_training_scope(|| {
+                let result = matrix.matmul(vector.tensor())?;
+                assert_eq!(result.tensor().shape()?, vec![2, 3]);
+                result.sum()?.backward()?;
+                close(matrix.grad()?.unwrap().data(), &[1.0; 24]);
+                close(vector.grad()?.unwrap().data(), &[12.0; 4]);
+                Ok(result)
+            })?;
+            close(&result.tensor().to_vec()?, &[8.0; 6]);
+            drop(result);
+            assert_eq!(ctx.graph_stats()?, baseline);
+            assert!(matrix.matmul(&bad).is_err());
+            assert_eq!(ctx.graph_stats()?, baseline);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn matmul_preserves_singleton_batch_prefix_and_gradients() -> MlResult<()> {
+    for (a, b) in [
+        (vec![1, 2, 3], vec![3, 4]),
+        (vec![1, 1, 2, 3], vec![3, 4]),
+        (vec![2, 3], vec![1, 1, 3, 4]),
+        (vec![1, 1, 2, 3], vec![1, 1, 3, 4]),
+    ] {
+        for backward in [false, true] {
+            let lhs = (0..a.iter().product()).map(|i| i as f32 * 0.13 - 0.5).collect();
+            let rhs = (0..b.iter().product()).map(|i| i as f32 * -0.17 + 0.8).collect();
+            compare_operation(Operation::Matmul, vec![(lhs, a.clone()), (rhs, b.clone())], backward)?;
+        }
+    }
+    for route in [ExecutionRoute::P1, ExecutionRoute::Legacy] {
+        let ctx = ExecutionContext::builder().route(route).build()?;
+        let a = ctx.parameter(vec![1.0; 6], &[1, 1, 2, 3])?;
+        let b = ctx.parameter(vec![2.0; 12], &[3, 4])?;
+        let baseline = ctx.graph_stats()?;
+        for _ in 0..4 {
+            let result = ctx.with_training_scope(|| {
+                let result = a.matmul(b.tensor())?;
+                assert_eq!(result.tensor().shape()?, vec![1, 1, 2, 4]);
+                result.sum()?.backward()?;
+                let da = a.grad()?.unwrap();
+                let db = b.grad()?.unwrap();
+                assert_eq!(da.shape(), &[1, 1, 2, 3]);
+                assert_eq!(db.shape(), &[3, 4]);
+                close(da.data(), &[8.0; 6]);
+                close(db.data(), &[2.0; 12]);
+                Ok(result)
+            })?;
+            close(&result.tensor().to_vec()?, &[6.0; 8]);
+            assert!(a.grad()?.is_none() && b.grad()?.is_none());
+            drop(result);
+            assert_eq!(ctx.graph_stats()?, baseline);
+        }
+    }
     Ok(())
 }
 
@@ -661,5 +779,110 @@ fn shape_validation_and_no_grad_leave_no_native_graph() -> MlResult<()> {
         Ok(())
     })?;
     assert_eq!(ctx.graph_stats()?, before);
+    Ok(())
+}
+
+#[test]
+fn numerical_contract_unary_polynomial_and_saturation() -> MlResult<()> {
+    fn polynomial(x: f64) -> (f64, f64) {
+        let mut value = 1.0;
+        let mut derivative = 0.0;
+        let mut factorial = 1.0;
+        for degree in 1..=14 {
+            factorial *= degree as f64;
+            if degree % 2 == 0 {
+                let sign = if degree % 4 == 0 { 1.0 } else { -1.0 };
+                value += sign * x.powi(degree) / factorial;
+                derivative += sign * degree as f64 * x.powi(degree - 1) / factorial;
+            }
+        }
+        (value, derivative)
+    }
+    for x in [-4.0f32, -2.0, -0.5, -0.0, 0.0, 0.5, 2.0, 4.0] {
+        let (value, derivative) = polynomial(x as f64);
+        let h = 1e-4;
+        let finite_difference = (polynomial(x as f64 + h).0 - polynomial(x as f64 - h).0) / (2.0 * h);
+        assert!((derivative - finite_difference).abs() < 1e-7);
+        for route in [ExecutionRoute::P1, ExecutionRoute::Legacy] {
+            let (y, g) = run(route, &Operation::ApproxCos { threshold: 0.0001 }, &[x], &[], true)?;
+            close(&y, &[value as f32]);
+            close(&g, &[derivative as f32]);
+        }
+    }
+    for x in [-100.0f32, -20.0, -2.0, -0.0, 0.0, 2.0, 20.0, 100.0] {
+        let expected = (x as f64).tanh() as f32;
+        for route in [ExecutionRoute::P1, ExecutionRoute::Legacy] {
+            let (y, g) = run(route, &Operation::Tanh, &[x], &[], true)?;
+            close(&y, &[expected]);
+            close(&g, &[1.0 - expected * expected]);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn numerical_contract_mean_losses_and_weighted_gradients() -> MlResult<()> {
+    use trench_deep::contracts::{LossKind, Reduction};
+    let cases: [(LossKind, Vec<f32>, Vec<f32>, Vec<usize>); 4] = [
+        (LossKind::Mae, vec![0.0, -0.0, 2.0, -2.0], vec![0.0; 4], vec![4]),
+        (LossKind::BinaryCrossEntropy, vec![0.0, 1.0, 0.5e-7, 1e-7, 2e-7, 1.0-2e-7, 1.0-1e-7, 0.4], vec![0.0, 1.0, 0.2, 0.8, 1.0, 0.0, 0.3, 0.7], vec![2, 4]),
+        (LossKind::CrossEntropy, vec![0.0, 1e-7, 0.5, 0.0, 0.25, 0.75], vec![0.0, 1.0, 0.0, 1.0, 0.0, 0.0], vec![2, 3]),
+        (LossKind::CrossEntropy, vec![0.0, 0.5e-7, 2e-7, 0.8], vec![0.0, 1.0, 0.0, 0.0], vec![4]),
+    ];
+    for (kind, prediction, target, shape) in cases {
+        let count = if matches!(kind, LossKind::CrossEntropy) { if shape.len() == 1 { 1 } else { shape[0] } } else { prediction.len() } as f64;
+        let mut expected = 0.0;
+        let mut derivatives = Vec::new();
+        for (&p, &t) in prediction.iter().zip(&target) {
+            // Clipping is performed in f32, then the oracle computes in f64.
+            let (loss, derivative) = match kind {
+                LossKind::Mae => { let d = (p - t) as f64; (d.abs(), if d == 0.0 { 0.0 } else { d.signum() }) },
+                LossKind::BinaryCrossEntropy => { let q = p.clamp(1e-7f32, 1.0-1e-7) as f64; let t = t as f64; (-(t*q.ln()+(1.0-t)*(1.0-q).ln()), (q-t)/(q*(1.0-q))) },
+                LossKind::CrossEntropy => { let q = p.max(1e-7f32) as f64; (-(t as f64)*q.ln(), -(t as f64)/q) },
+                _ => unreachable!(),
+            };
+            expected += loss / count;
+            derivatives.push((2.5 * derivative / count) as f32);
+        }
+        for route in [ExecutionRoute::P1, ExecutionRoute::Legacy] {
+            let ctx = ExecutionContext::builder().route(route).build()?;
+            let p = ctx.parameter(prediction.clone(), &shape)?;
+            let t = ctx.parameter(target.clone(), &shape)?;
+            ctx.with_training_scope(|| {
+                let loss = ctx.execute(&Operation::Loss { kind: kind.clone(), reduction: Reduction::Mean }, &[p.tensor(), t.tensor()])?.remove(0);
+                close(&loss.to_vec()?, &[expected as f32]);
+                let weight = ctx.tensor(vec![2.5], &[])?;
+                ctx.execute(&Operation::Mul, &[&loss, &weight])?.remove(0).as_variable()?.backward()?;
+                close(p.grad()?.unwrap().data(), &derivatives);
+                assert!(t.grad()?.is_none());
+                Ok(())
+            })?;
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn categorical_soft_target_route_boundary_is_explicit() -> MlResult<()> {
+    use trench_deep::contracts::{LossKind, Reduction};
+    for route in [ExecutionRoute::P1, ExecutionRoute::Legacy] {
+        let ctx = ExecutionContext::builder().route(route).build()?;
+        let p = ctx.parameter(vec![0.3, 0.7], &[2])?;
+        let t = ctx.tensor(vec![0.2, 0.8], &[2])?;
+        let baseline = ctx.graph_stats()?;
+        ctx.with_training_scope(|| {
+            let result = ctx.execute(&Operation::Loss { kind: LossKind::CrossEntropy, reduction: Reduction::Mean }, &[p.tensor(), &t]);
+            if route == ExecutionRoute::P1 {
+                assert!(result.is_err());
+            } else {
+                let loss = result?.remove(0);
+                close(&loss.to_vec()?, &[-0.2 * 0.3f32.ln() - 0.8 * 0.7f32.ln()]);
+                loss.as_variable()?.backward()?;
+                close(p.grad()?.unwrap().data(), &[-0.2 / 0.3, -0.8 / 0.7]);
+            }
+            Ok(())
+        })?;
+        assert_eq!(ctx.graph_stats()?, baseline);
+    }
     Ok(())
 }

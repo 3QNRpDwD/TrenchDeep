@@ -84,7 +84,10 @@ impl Function for MeanAbsoluteError {
         let grad_pred_data: Vec<f32> = pred.data()
             .iter()
             .zip(target.data().iter())
-            .map(|(&p, &t)| grad_val * (p - t).signum() / n)
+            .map(|(&p, &t)| {
+                let difference = p - t;
+                grad_val * if difference == 0.0 { 0.0 } else { difference.signum() } / n
+            })
             .collect();
 
         let grad_target_data: Vec<f32> = grad_pred_data.iter().map(|&g| -g).collect();
