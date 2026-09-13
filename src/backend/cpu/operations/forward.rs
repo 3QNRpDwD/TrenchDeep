@@ -2,6 +2,7 @@ use super::*;
 
 use crate::backend::CpuBackend;
 impl OperationProvider for CpuBackend {
+    fn supports_prepared_replay(&self) -> bool { true }
     fn execute(
         &self,
         operation: &Operation,

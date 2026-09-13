@@ -298,6 +298,9 @@ pub struct OperationOutput {
     pub backward: Option<Box<dyn BackwardOp>>,
 }
 pub trait OperationProvider: Debug {
+    /// Opt in to shape-validated allocating replay of builtin descriptions.
+    /// This is not an execute-into or fixed-buffer capability.
+    fn supports_prepared_replay(&self) -> bool { false }
     fn execute(
         &self,
         operation: &Operation,

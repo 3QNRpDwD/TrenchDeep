@@ -15,6 +15,22 @@ fn reference() -> ExecutionContext {
         .operations(ReferenceOps)
         .build()
 }
+
+#[test]
+fn prepared_replay_requires_provider_opt_in() -> MlResult<()> {
+    use trench_deep::runtime::prepared::{PreparedMode,PreparedProgram};
+    let ctx = reference();
+    let mut program = PreparedProgram::new();
+    let x = program.input(&[1],false)?;
+    let y = program.operation(Operation::Square,&[x])?;
+    let baseline = ctx.graph_stats()?;
+    assert!(matches!(ctx.prepare(&program,&[],&[y],PreparedMode::Inference),
+        Err(MlError::UnsupportedCapability { .. })));
+    assert_eq!(ctx.graph_stats()?,baseline);
+    let empty = ExecutionContextBuilder::empty().build();
+    assert!(empty.prepare(&program,&[],&[y],PreparedMode::Inference).is_err());
+    Ok(())
+}
 fn train(ctx: &ExecutionContext) -> MlResult<Vec<f32>> {
     let mut model = LinearRegression::new(ctx, 1, 1)?;
     ctx.replace_parameter(

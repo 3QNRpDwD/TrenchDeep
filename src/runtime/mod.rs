@@ -20,6 +20,8 @@ pub use builtin_autograd::ReverseMode;
 static CONTEXT_IDS: AtomicU64 = AtomicU64::new(1);
 static PARAMETER_IDS: AtomicU64 = AtomicU64::new(1);
 
+pub mod prepared;
+
 pub(crate) fn missing(
     module: &'static str,
     capability: &'static str,
