@@ -158,6 +158,208 @@ struct SamplingTrace {
     output: Vec<f32>,
 }
 
+#[test]
+fn prepared_diffusion_feeds_reuse_plan_and_match_eager_updates() -> MlResult<()> {
+    fn make() -> MlResult<(ExecutionContext, Diffusion, Adam)> {
+        let ctx = ExecutionContext::builder()
+            .initialization_seed(7)
+            .model_seed(19)
+            .build();
+        let model = Diffusion::new(
+            &ctx,
+            Unet::new(&ctx, 1, 8, &[1, 2], 4, &[])?,
+            DiffusionScheduler::linear(10, 1e-4, 0.02)?,
+            11,
+        )?;
+        let mut adam = Adam::new(&ctx, 1e-3, 0.9, 0.999, 1e-8)?;
+        adam.register_all(&model.parameters())?;
+        Ok((ctx, model, adam))
+    }
+    let (ctx, mut model, mut adam) = make()?;
+    let (eager, mut other, mut other_adam) = make()?;
+    let before = ctx.graph_stats()?;
+    let initial = model
+        .parameters()
+        .iter()
+        .map(|p| p.tensor().to_vec())
+        .collect::<MlResult<Vec<_>>>()?;
+    let plan = {
+        let image = ctx.tensor(vec![0.0; 128], &[2, 1, 8, 8])?;
+        let inputs = model
+            .training_feeds(&ctx.tensor(vec![0.0; 128], &[2, 1, 8, 8])?, 0)?
+            .with("image", image)?;
+        ctx.prepare_forward(
+            &inputs,
+            &model.parameters(),
+            trench_deep::runtime::prepared::PreparedMode::Training,
+            |inputs| {
+                let (prediction, loss) =
+                    model.forward_loss_with_feeds(&inputs.get("image")?.as_variable()?, inputs)?;
+                Ok(vec![prediction.tensor().clone(), loss.tensor().clone()])
+            },
+        )?
+    };
+    assert_eq!(ctx.graph_stats()?, before);
+    assert!(plan.node_count() > 100);
+    assert!(!plan.uses_static_buffers());
+    assert_eq!(
+        initial,
+        model
+            .parameters()
+            .iter()
+            .map(|p| p.tensor().to_vec())
+            .collect::<MlResult<Vec<_>>>()?
+    );
+    // Neither the context streams nor the product's independent noise RNG move.
+    assert_eq!(ctx.model_uniform(4, 1.0)?, eager.model_uniform(4, 1.0)?);
+    assert_eq!(
+        ctx.initialization_uniform(4, 1.0)?,
+        eager.initialization_uniform(4, 1.0)?
+    );
+    let a = model.draw_training_feeds(&[2, 1, 8, 8])?;
+    let b = other.draw_training_feeds(&[2, 1, 8, 8])?;
+    assert_eq!(a.get("noise")?.to_vec()?, b.get("noise")?.to_vec()?);
+    assert_eq!(a.get("timesteps")?.to_vec()?, b.get("timesteps")?.to_vec()?);
+    drop((a, b));
+    let mut previous = None;
+    for (step, t) in [0, 4, 9].into_iter().enumerate() {
+        let values = (0..128)
+            .map(|i| ((i + step * 29) as f32 * 0.1).sin())
+            .collect::<Vec<_>>();
+        let noise = (0..128)
+            .map(|i| ((i + step * 71) as f32 * 0.13).cos())
+            .collect::<Vec<_>>();
+        let image = ctx.tensor(values.clone(), &[2, 1, 8, 8])?.as_variable()?;
+        let eimage = eager.tensor(values, &[2, 1, 8, 8])?.as_variable()?;
+        let feeds = model.training_feeds(&ctx.tensor(noise.clone(), &[2, 1, 8, 8])?, t)?;
+        let efeeds = other.training_feeds(&eager.tensor(noise, &[2, 1, 8, 8])?, t)?;
+        let inputs = feeds.with("image", image.tensor().clone())?;
+        let actual = plan.with_inputs(&ctx, &inputs, &model.parameters(), |out| {
+            let prediction = out[0].as_variable()?;
+            let loss = out[1].as_variable()?;
+            loss.backward()?;
+            let result = (
+                prediction.tensor().to_vec()?,
+                loss.tensor().to_vec()?,
+                model
+                    .parameters()
+                    .iter()
+                    .map(|p| p.grad())
+                    .collect::<MlResult<Vec<_>>>()?,
+            );
+            adam.step()?;
+            Ok(result)
+        })?;
+        let expected = eager.with_training_scope(|| {
+            let (prediction, loss) = other.forward_loss_with_feeds(&eimage, &efeeds)?;
+            loss.backward()?;
+            let result = (
+                prediction.tensor().to_vec()?,
+                loss.tensor().to_vec()?,
+                other
+                    .parameters()
+                    .iter()
+                    .map(|p| p.grad())
+                    .collect::<MlResult<Vec<_>>>()?,
+            );
+            other_adam.step()?;
+            Ok(result)
+        })?;
+        assert_eq!(actual, expected);
+        if let Some(previous) = previous {
+            assert_ne!(actual.1, previous);
+        }
+        previous = Some(actual.1);
+        for (a, b) in model.parameters().iter().zip(other.parameters()) {
+            assert_eq!(a.tensor().to_vec()?, b.tensor().to_vec()?);
+        }
+        assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+    }
+    assert_eq!(ctx.graph_stats()?, before);
+
+    assert_eq!(ctx.graph_stats()?, before);
+    Ok(())
+}
+
+#[test]
+fn prepared_sampling_reuses_two_step_topologies() -> MlResult<()> {
+    let ctx = ExecutionContext::builder().initialization_seed(7).build();
+    let model = Diffusion::new(
+        &ctx,
+        Unet::new(&ctx, 1, 8, &[1, 2], 4, &[])?,
+        DiffusionScheduler::linear(10, 1e-4, 0.02)?,
+        11,
+    )?;
+    let before = ctx.graph_stats()?;
+    let prepare = |t| {
+        let inputs = model
+            .step_feeds(&ctx.tensor(vec![0.0; 128], &[2, 1, 8, 8])?, t)?
+            .with("image", ctx.tensor(vec![0.0; 128], &[2, 1, 8, 8])?)?;
+        ctx.prepare_forward(
+            &inputs,
+            &model.parameters(),
+            trench_deep::runtime::prepared::PreparedMode::Inference,
+            |inputs| {
+                Ok(vec![
+                    model.reverse_step_with_feeds(inputs.get("image")?, inputs)?,
+                ])
+            },
+        )
+    };
+    let regular = prepare(1)?;
+    let final_step = prepare(0)?;
+    let run = |plan: &trench_deep::runtime::prepared::PreparedPlan,
+               image: &Tensor,
+               feeds: &trench_deep::runtime::prepared::ExecutionInputs| {
+        plan.with_inputs(
+            &ctx,
+            &feeds.clone().with("image", image.clone())?,
+            &model.parameters(),
+            |out| Ok(out[0].clone()),
+        )
+    };
+    assert_eq!(ctx.graph_stats()?, before);
+    let initial = ctx.tensor(
+        (0..128).map(|i| (i as f32 * 0.17).sin()).collect(),
+        &[2, 1, 8, 8],
+    )?;
+    let noises = (0..10)
+        .map(|t| {
+            ctx.tensor(
+                (0..128)
+                    .map(|i| ((i + 137 * t) as f32 * 0.13).cos())
+                    .collect(),
+                &[2, 1, 8, 8],
+            )
+        })
+        .collect::<MlResult<Vec<_>>>()?;
+    let baseline = ctx.graph_stats()?;
+    let mut actual = initial.clone();
+    let mut expected = initial.clone();
+    for t in (0..10).rev() {
+        let feeds = model.step_feeds(&noises[t], t)?;
+        actual = run(if t == 0 { &final_step } else { &regular }, &actual, &feeds)?;
+        expected = model.reverse_step_with_feeds(&expected, &feeds)?;
+        assert_eq!(actual.to_vec()?, expected.to_vec()?);
+    }
+    assert_eq!(
+        actual.to_vec()?,
+        model.sample_with_noise(&initial, &noises)?.to_vec()?
+    );
+    let feeds = model.step_feeds(&noises[0], 0)?;
+    assert!(run(&regular, &initial, &feeds).is_err());
+    let bad = ctx.tensor(vec![0.0], &[1, 1, 1, 1])?;
+    assert!(run(&final_step, &bad, &feeds).is_err());
+    drop((actual, expected, bad, feeds));
+    assert_eq!(ctx.graph_stats()?, baseline);
+    // The final step must not multiply unused nonfinite noise by zero.
+    let unused = ctx.tensor(vec![f32::NAN; 128], &[2, 1, 8, 8])?;
+    let feeds = model.step_feeds(&unused, 0)?;
+    let output = run(&final_step, &initial, &feeds)?;
+    assert!(output.to_vec()?.iter().all(|v| v.is_finite()));
+    Ok(())
+}
+
 fn sampling_trace(route: ExecutionRoute) -> MlResult<SamplingTrace> {
     let ctx = ExecutionContext::builder()
         .initialization_seed(7)

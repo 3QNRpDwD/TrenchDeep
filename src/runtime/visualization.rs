@@ -83,6 +83,7 @@ impl ExecutionContext {
         profile: CaptureProfile,
         context: CaptureContext,
     ) -> MlResult<GraphSnapshot> {
+        self.reject_prepared_extension()?;
         #[cfg(feature = "legacyBenchmark")]
         if self.route() == ExecutionRoute::Legacy {
             return Err(MlError::UnsupportedCapability {
@@ -107,6 +108,7 @@ impl ExecutionContext {
         context: CaptureContext,
     ) -> MlResult<GraphSnapshot> {
         let mut snapshot = None;
+        self.reject_prepared_extension()?;
         #[cfg(feature = "legacyBenchmark")]
         if self.route() == ExecutionRoute::Legacy {
             return Err(MlError::UnsupportedCapability {

@@ -12,7 +12,8 @@ use trench_deep::*;
 fn full_unet_trains_and_samples_through_public_api() -> MlResult<()> {
     let ctx = ExecutionContext::new();
     let unet = Unet::new(&ctx, 1, 2, &[1, 2], 1, &[0, 1])?;
-    let mut model = Diffusion::new(&ctx, unet, DiffusionScheduler::linear(2, 0.001, 0.02)?, 7)?;
+    let scheduler = DiffusionScheduler::linear(2, 0.001, 0.02)?;
+    let mut model = Diffusion::new(&ctx, unet, scheduler, 7)?;
     let image = ctx.input((0..16).map(|i| i as f32 / 16.0).collect(), &[1, 1, 4, 4])?;
     let noise = ctx.tensor(vec![0.1; 16], &[1, 1, 4, 4])?;
     let (prediction, loss) = model.forward_loss_with_noise(&image, &noise, 1)?;

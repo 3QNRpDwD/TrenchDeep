@@ -31,6 +31,10 @@ impl ExecutionContext {
         compute(&views)
     }
     pub fn execute(&self, operation: &Operation, inputs: &[&Tensor]) -> MlResult<Vec<Tensor>> {
+        self.reject_prepared_extension()?;
+        if self.is_preparing() {
+            return self.record_operation(operation, inputs);
+        }
         #[cfg(feature="debugging")]
         let _trace=tracing::debug_span!("tensor_operation",context=?self.id(),operation=operation.name(),inputs=inputs.len()).entered();
         if inputs.is_empty() || operation.input_count().is_some_and(|n| n != inputs.len()) {
@@ -74,6 +78,8 @@ impl ExecutionContext {
         self.commit(operation.name(), inputs, result, tracked)
     }
     pub fn apply_custom(&self, op: &dyn CustomOp, inputs: &[&Tensor]) -> MlResult<Tensor> {
+        self.reject_prepared_extension()?;
+        self.deny_preparation("custom callback")?;
         #[cfg(feature = "legacyBenchmark")]
         if self.route() == ExecutionRoute::Legacy {
             return Err(MlError::UnsupportedCapability {

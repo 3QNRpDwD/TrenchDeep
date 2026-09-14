@@ -17,6 +17,7 @@ impl ExecutionContext {
     }
 
     pub(crate) fn begin_training_scope(&self) -> MlResult<TrainingScope> {
+        self.deny_preparation("training scope")?;
         self.collect()?;
         let mut state = self
             .inner

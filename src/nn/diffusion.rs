@@ -1,6 +1,9 @@
 //! Time-conditioned residual U-Net using only the public tensor API.
+#[path = "diffusion_feeds.rs"]
+mod feeds;
 #[path = "diffusion_parameters.rs"]
 mod named_parameters;
+
 use super::{Conv2D, GroupNorm, Layer, Linear};
 use crate::trainer::{TrainableModel, UnsupervisedModel};
 use crate::{ContextId, ExecutionContext, MlResult, Parameter, Tensor, TensorError, Variable};
@@ -132,7 +135,7 @@ impl Attention {
         let scale = input
             .tensor()
             .execution_context()?
-            .scalar(1.0 / (self.channels as f32).sqrt())?;
+            .constant_tensor(vec![1.0 / (self.channels as f32).sqrt()], &[])?;
         let scores = q.matmul(k.tensor())?.mul(&scale)?.softmax(2)?;
         let weighted = scores.matmul(v.tensor())?.reshape(&[n * h * w, c])?;
         let output = self
@@ -335,7 +338,7 @@ impl Unet {
         if timesteps.shape()? != vec![shape[0], 1] {
             return Err(invalid("timesteps must have shape [batch, 1]"));
         }
-        let frequencies = self.context.tensor(
+        let frequencies = self.context.constant_tensor(
             (0..self.dim / 2)
                 .map(|i| 10000f32.powf(-2.0 * i as f32 / self.dim as f32))
                 .collect(),
@@ -544,6 +547,7 @@ impl Diffusion {
         })
     }
     fn noise(&mut self, shape: &[usize]) -> MlResult<Tensor> {
+        self.context.deny_preparation("Diffusion RNG")?;
         let count = shape
             .iter()
             .try_fold(1usize, |n, d| n.checked_mul(*d))
@@ -562,21 +566,7 @@ impl Diffusion {
         noise: &Tensor,
         t: usize,
     ) -> MlResult<(Variable, Variable)> {
-        let noisy = self
-            .scheduler
-            .q_sample(image.tensor(), noise, t)?
-            .as_variable()?;
-        let shape = image.tensor().shape()?;
-        if shape.len() != 4 {
-            return Err(invalid("expected NCHW image"));
-        }
-        let times = self.context.tensor(
-            vec![t as f32 / self.scheduler.timesteps() as f32; shape[0]],
-            &[shape[0], 1],
-        )?;
-        let prediction = self.unet.forward(&noisy, &times)?;
-        let loss = prediction.mse_loss(noise, crate::Reduction::Mean)?;
-        Ok((prediction, loss))
+        self.forward_loss_with_feeds(image, &self.training_feeds(noise, t)?)
     }
     pub fn sample_with_noise(&self, initial: &Tensor, step_noise: &[Tensor]) -> MlResult<Tensor> {
         self.context.validate(initial)?;
@@ -590,14 +580,8 @@ impl Diffusion {
                 return Err(invalid("expected NCHW image"));
             }
             for t in (0..self.scheduler.timesteps()).rev() {
-                let times = self.context.tensor(
-                    vec![t as f32 / self.scheduler.timesteps() as f32; shape[0]],
-                    &[shape[0], 1],
-                )?;
-                let prediction = self.unet.predict(&image, &times)?;
-                image = self
-                    .scheduler
-                    .reverse_step(&image, &prediction, &step_noise[t], t)?;
+                image =
+                    self.reverse_step_with_feeds(&image, &self.step_feeds(&step_noise[t], t)?)?;
             }
             Ok(image)
         })
@@ -621,9 +605,8 @@ impl TrainableModel for Diffusion {
 }
 impl UnsupervisedModel for Diffusion {
     fn forward_loss(&mut self, image: &Variable) -> MlResult<(Variable, Variable)> {
-        let noise = self.noise(&image.tensor().shape()?)?;
-        let t = self.noise.random_range(0..self.scheduler.timesteps());
-        self.forward_loss_with_noise(image, &noise, t)
+        let feeds = self.draw_training_feeds(&image.tensor().shape()?)?;
+        self.forward_loss_with_feeds(image, &feeds)
     }
 }
 

@@ -4,7 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TrenchDeep · Execution Atlas</title>
   <link rel="stylesheet" href="style.css">
-  <script defer src="model.js"></script><script defer src="project-data.js"></script><script defer src="app.js"></script>
+  <script defer src="model.js"></script><script defer src="project-data.js"></script><script defer src="camera.js"></script><script defer src="experience.js"></script><script defer src="app.js"></script>
 </head>
 <body>
 <header class="masthead"><div><span class="eyebrow">TRENCHDEEP / CODE ATLAS</span><h1>실행을 따라, 구조를 읽다.</h1><p>Diffusion의 실행 단계와 파일 · API · 모델 · 데이터 경로를 함께 탐색합니다.</p></div><span class="mode">코드 분석 기반 재생 · 실측 아님</span></header>
@@ -14,11 +14,22 @@
     <label>시나리오<select id="scenario"></select></label>
     <div class="playback"><button id="previous" aria-label="이전 단계">← 이전</button><button id="play">재생</button><button id="next" aria-label="다음 단계">다음 →</button></div>
     <label>재생 속도<select id="speed"><option value="2600">느리게</option><option value="1400" selected>보통</option><option value="650">빠르게</option></select></label>
+    <label>재생 깊이<select id="playback-depth"><option value="detail">블록 상세</option><option value="summary">큰 단계</option></select></label>
+    <label class="follow-control"><input id="auto-follow" type="checkbox" checked>활성 노드 자동 따라가기</label><button id="focus-active">현재 노드로 이동</button>
   </section>
+  <section class="layout-controls" aria-label="화면 배치 설정">
+    <label>패널 배치<select id="panel-layout"><option value="stack">세로 · 한 줄씩</option><option value="row">가로 · 나란히</option><option value="grid2">2열 비교</option><option value="grid3">3열 한눈에</option></select></label>
+    <label>노드 방향<select id="node-layout"><option value="horizontal">가로 흐름</option><option value="vertical">세로 흐름</option></select></label>
+    <button id="fit-all">전체 구조 맞춤</button><span class="muted">배치는 선택할 때만 변경됩니다. 작은 화면에서는 열 수가 자동으로 줄어듭니다.</span>
+  </section>
+  <section class="layout-controls" aria-label="배치 저장과 프리셋"><label>프리셋<select id="layout-preset"><option value="overview">전체 개요</option><option value="model">모델 집중</option><option value="path">API · 경로 비교</option><option value="default">기본 배치</option></select></label><button id="apply-preset">적용</button><button id="save-layout">내 배치 저장</button><button id="load-layout">내 배치 불러오기</button><span id="layout-status" class="muted" role="status"></span></section>
+  <section class="search-box" aria-label="구조 검색"><label for="structure-search">노드 · API · 파일 검색</label><div class="search-input"><input id="structure-search" type="search" placeholder="예: dataset, backward, diffusion.rs" autocomplete="off"><button id="clear-search">초기화</button></div><span id="search-status" class="muted" role="status"></span><div id="search-results"></div></section>
   <section class="position"><div class="position-top"><span id="step-count"></span><strong id="step-title" aria-live="polite"></strong><span id="phase"></span></div><input id="timeline" type="range" min="0" value="0" aria-label="실행 단계"><p id="step-description"></p><p id="route-description" class="muted"></p></section>
   <div class="legend"><span><i class="active-key"></i>현재 단계 / 직접 호출</span><span><i class="related-key"></i>정적 의존 관계</span><span><i class="idle-key"></i>비활성 엣지 · 구조 유지</span><span>노드를 선택하면 코드 근거를 확인할 수 있습니다.</span></div>
-  <div class="workspace"><div id="diagrams" class="diagrams"></div><aside class="inspector" aria-label="선택 노드 상세"><span class="eyebrow">SOURCE INSPECTOR</span><h2 id="detail-title">노드 선택</h2><p id="detail-description"></p><div id="detail-status"></div><div id="detail-sources"></div><h3>연결 관계</h3><div id="detail-relations"></div><h3>추적 인터페이스 TODO</h3><p id="detail-todo"></p></aside></div>
-  <section class="inventory"><div class="section-heading"><div><span class="eyebrow">REPOSITORY INDEX</span><h2>프로젝트 파일 구조</h2></div><span id="inventory-count"></span></div><p class="muted">선택 단계가 바뀌어도 파일 목록은 유지됩니다. 관련 파일만 표시하며, 파일을 선택하면 코드가 열립니다. 모듈 연결과 디스크 위치는 다를 수 있습니다.</p><div id="file-tree"></div></section>
+  <nav id="diagram-nav" aria-label="다이어그램 바로 이동"></nav>
+  <div class="workspace"><div id="diagrams" class="diagrams" aria-label="세로 배치 다이어그램 · 내부 노드 가로 정렬"></div></div>
+  <dialog id="detail-dialog" aria-labelledby="detail-title"><div class="dialog-bar"><span class="eyebrow">SOURCE INSPECTOR</span><button id="close-detail" aria-label="상세 팝업 닫기">닫기 ×</button></div><div class="inspector"><h2 id="detail-title">노드 선택</h2><p id="detail-description"></p><div id="detail-status"></div><div id="detail-sources"></div><h3>연결 관계</h3><div id="detail-relations"></div><h3>추적 인터페이스 TODO</h3><p id="detail-todo"></p></div></dialog>
+  <section class="inventory"><div class="section-heading"><div><span class="eyebrow">REPOSITORY INDEX</span><h2>프로젝트 파일 구조</h2></div><span id="inventory-count"></span></div><p class="muted">단계가 바뀌어도 전체 목록은 유지되고 관련 파일만 강조됩니다. 파일을 클릭하면 코드 팝업이 열립니다. 모듈 연결과 디스크 위치는 다를 수 있습니다.</p><div id="file-tree"></div></section>
   <footer><span id="provenance"></span><a href="README.md">사용법과 구현 범위</a><a href="TRACE_INTERFACE_TODO.md">추가 계측 인터페이스 설계</a></footer>
 </main>
 <noscript>이 뷰어는 JavaScript가 필요합니다. 외부 서버 연결은 사용하지 않습니다.</noscript>

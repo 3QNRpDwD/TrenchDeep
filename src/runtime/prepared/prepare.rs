@@ -15,7 +15,11 @@ pub(super) fn numel(shape: &[usize]) -> MlResult<usize> {
         .ok_or_else(|| invalid("shape byte size overflow"))
 }
 pub(super) fn infer(operation: &Operation, shapes: &[&[usize]]) -> MlResult<Vec<usize>> {
-    if operation.input_count() != Some(shapes.len()) || shapes.is_empty() {
+    if operation
+        .input_count()
+        .is_some_and(|count| count != shapes.len())
+        || shapes.is_empty()
+    {
         return Err(invalid("unsupported operation or input arity"));
     }
     let x = shapes[0];
@@ -36,12 +40,90 @@ pub(super) fn infer(operation: &Operation, shapes: &[&[usize]]) -> MlResult<Vec<
         }
         Operation::Matmul => {
             let y = shapes[1];
-            if x.len() != 2 || y.len() != 2 || x[1] != y[0] {
+            if x.len() < 2 || y.len() < 2 || x[x.len() - 1] != y[y.len() - 2] {
                 return Err(invalid(
-                    "initial prepared Matmul requires compatible rank-2 matrices",
+                    "prepared Matmul requires compatible matrices of rank >= 2",
                 ));
             }
-            vec![x[0], y[1]]
+            let mut shape = infer(&Operation::Add, &[&x[..x.len() - 2], &y[..y.len() - 2]])?;
+            shape.extend_from_slice(&[x[x.len() - 2], y[y.len() - 1]]);
+            shape
+        }
+        Operation::Concat { axis } => {
+            if *axis >= x.len()
+                || shapes.iter().any(|s| {
+                    s.len() != x.len()
+                        || s.iter()
+                            .zip(x)
+                            .enumerate()
+                            .any(|(i, (a, b))| i != *axis && a != b)
+                })
+            {
+                return Err(invalid("invalid concat shapes or axis"));
+            }
+            let mut result = x.to_vec();
+            result[*axis] = shapes
+                .iter()
+                .try_fold(0usize, |sum, s| sum.checked_add(s[*axis]))
+                .ok_or_else(|| invalid("concat overflow"))?;
+            result
+        }
+        Operation::Softmax { axis } => {
+            if *axis >= x.len() {
+                return Err(invalid("invalid softmax axis"));
+            }
+            x.to_vec()
+        }
+        Operation::Conv2d { stride, padding } => {
+            let k = shapes[1];
+            if x.len() != 4
+                || k.len() != 4
+                || x[1] != k[1]
+                || shapes[2] != [k[0]]
+                || stride.0 == 0
+                || stride.1 == 0
+            {
+                return Err(invalid("invalid Conv2d shape/stride"));
+            }
+            let dimension = |input: usize, kernel: usize, stride: usize, pad: usize| {
+                pad.checked_mul(2)
+                    .and_then(|p| input.checked_add(p))
+                    .and_then(|n| n.checked_sub(kernel))
+                    .and_then(|n| (n / stride).checked_add(1))
+                    .ok_or_else(|| invalid("Conv2d spatial overflow or kernel too large"))
+            };
+            vec![
+                x[0],
+                k[0],
+                dimension(x[2], k[2], stride.0, padding.0)?,
+                dimension(x[3], k[3], stride.1, padding.1)?,
+            ]
+        }
+        Operation::GroupNorm { groups, epsilon } => {
+            if x.len() != 4
+                || *groups == 0
+                || x[1] % groups != 0
+                || shapes[1] != [x[1]]
+                || shapes[2] != [x[1]]
+                || !epsilon.is_finite()
+                || *epsilon <= 0.0
+            {
+                return Err(invalid("invalid GroupNorm shape/attributes"));
+            }
+            x.to_vec()
+        }
+        Operation::NearestUpsample2d { scale } => {
+            if x.len() != 4 || scale.0 == 0 || scale.1 == 0 {
+                return Err(invalid("invalid upsample shape/scale"));
+            }
+            vec![
+                x[0],
+                x[1],
+                x[2].checked_mul(scale.0)
+                    .ok_or_else(|| invalid("upsample overflow"))?,
+                x[3].checked_mul(scale.1)
+                    .ok_or_else(|| invalid("upsample overflow"))?,
+            ]
         }
         Operation::Neg
         | Operation::Square
@@ -146,7 +228,18 @@ impl ExecutionContext {
                 return Err(invalid("parameter shape mismatch"));
             }
         }
+        let backward = std::rc::Rc::new(super::backward::compile(
+            program,
+            parameters,
+            outputs,
+            mode,
+            provider.as_ref(),
+        )?);
+        let buffers = super::buffers::compile(program, parameters, outputs, &backward)?;
         Ok(PreparedPlan {
+            input_signature: None,
+            backward,
+            buffers,
             context: self.id(),
             mode,
             program: program.clone(),

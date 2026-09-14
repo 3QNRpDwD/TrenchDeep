@@ -298,14 +298,38 @@ pub struct OperationOutput {
     pub backward: Option<Box<dyn BackwardOp>>,
 }
 pub trait OperationProvider: Debug {
+    /// Optional immutable VJP contract, prepared without tensor values.
+    fn prepare_backward(
+        &self,
+        _operation: &Operation,
+        _shapes: &[&[usize]],
+    ) -> MlResult<Option<PreparedBackward>> {
+        Ok(None)
+    }
     /// Opt in to shape-validated allocating replay of builtin descriptions.
     /// This is not an execute-into or fixed-buffer capability.
-    fn supports_prepared_replay(&self) -> bool { false }
+    fn supports_prepared_replay(&self) -> bool {
+        false
+    }
     fn execute(
         &self,
         operation: &Operation,
         inputs: &[TensorView<'_>],
     ) -> MlResult<OperationOutput>;
+}
+/// Numerical input dependency of a prepared VJP. Allocating compatibility
+/// kernels may still copy shape-only inputs; buffer elimination is separate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BackwardInput {
+    Shape,
+    Values,
+}
+#[derive(Debug, Clone)]
+pub struct PreparedBackward {
+    pub operation: Rc<dyn BackwardOp>,
+    pub inputs: Vec<BackwardInput>,
+    pub differentiable: Vec<bool>,
+    pub saved_shapes: Vec<Vec<usize>>,
 }
 pub trait CustomOp {
     fn name(&self) -> &'static str;

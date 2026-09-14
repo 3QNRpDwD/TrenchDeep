@@ -16,6 +16,7 @@ pub(super) enum Source {
     Feed { requires_grad: bool },
     Parameter,
     Node,
+    Constant(crate::TensorBuffer),
 }
 #[derive(Debug, Clone)]
 pub(super) struct Slot {
@@ -51,6 +52,10 @@ impl Default for PreparedProgram {
     }
 }
 impl PreparedProgram {
+    pub fn constant(&mut self, value: crate::TensorBuffer) -> MlResult<TensorSlotId> {
+        let shape = value.shape().to_vec();
+        self.slot(&shape, Source::Constant(value))
+    }
     pub fn new() -> Self {
         Self::default()
     }
@@ -104,9 +109,13 @@ impl PreparedProgram {
 }
 
 /// Reusable immutable topology and binding signature. Contains no Tensor,
-/// Variable, Parameter handle, context owner, RNG state, or data buffers.
+/// Variable, Parameter handle, context owner, or RNG state. Only explicitly
+/// declared immutable constants carry values; feeds are never captured.
 #[derive(Debug)]
 pub struct PreparedPlan {
+    pub(super) buffers: super::buffers::BufferPlan,
+    pub(super) input_signature: Option<(String, Vec<String>)>,
+    pub(super) backward: std::rc::Rc<super::backward::BackwardPlan>,
     pub(super) context: ContextId,
     pub(super) mode: PreparedMode,
     pub(super) program: PreparedProgram,
@@ -114,6 +123,12 @@ pub struct PreparedPlan {
     pub(super) parameter_ids: Vec<ParameterId>,
 }
 impl PreparedPlan {
+    pub fn buffer_plan(&self) -> &super::buffers::BufferPlan {
+        &self.buffers
+    }
+    pub fn backward_plan_stats(&self) -> super::backward::BackwardPlanStats {
+        self.backward.stats()
+    }
     pub fn mode(&self) -> PreparedMode {
         self.mode
     }
@@ -123,7 +138,7 @@ impl PreparedPlan {
     pub fn slot_count(&self) -> usize {
         self.program.slots.len()
     }
-    /// S0 explicitly retains dynamic graph construction and intermediate allocations.
+    /// Prepared kernels and gradients still allocate; no static arena is used.
     pub fn uses_static_buffers(&self) -> bool {
         false
     }

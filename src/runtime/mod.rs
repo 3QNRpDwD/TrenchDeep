@@ -153,6 +153,8 @@ impl ExecutionContextBuilder {
                 )),
                 operations: self.operations,
                 gc_pending: Cell::new(false),
+                preparation: RefCell::new(None),
+                prepared_run: RefCell::new(None),
                 no_grad: Cell::new(0),
                 training_active: Cell::new(false),
             }),
@@ -167,6 +169,8 @@ pub struct ExecutionContext {
 }
 #[derive(Debug)]
 struct Runtime {
+    prepared_run: RefCell<Option<prepared::backward::PreparedRun>>,
+    preparation: RefCell<Option<prepared::recording::Recording>>,
     route: Cell<ExecutionRoute>,
     initialization_rng: RefCell<rand::rngs::StdRng>,
     model_rng: RefCell<rand::rngs::StdRng>,
@@ -453,6 +457,7 @@ impl ExecutionContext {
         Ok(Variable { tensor })
     }
     pub fn parameter(&self, data: Vec<f32>, shape: &[usize]) -> MlResult<Parameter> {
+        self.deny_preparation("parameter creation")?;
         // Parameter data is also useful for inference without an autograd provider.
         let tensor = self.tensor(data, shape)?;
         let mut state = self
@@ -485,6 +490,14 @@ impl ExecutionContext {
         tensor: &Tensor,
         f: impl FnOnce(TensorView<'_>) -> T,
     ) -> MlResult<T> {
+        self.deny_preparation("host tensor data read")?;
+        self.with_tensor_metadata(tensor, f)
+    }
+    fn with_tensor_metadata<T>(
+        &self,
+        tensor: &Tensor,
+        f: impl FnOnce(TensorView<'_>) -> T,
+    ) -> MlResult<T> {
         self.validate(tensor)?;
         let state = self
             .inner
@@ -508,6 +521,7 @@ impl ExecutionContext {
         variable.grad()
     }
     pub fn clear_grad(&self, variable: &Variable) -> MlResult<()> {
+        self.deny_preparation("gradient mutation")?;
         self.validate(variable.tensor())?;
         self.inner
             .state
@@ -518,6 +532,7 @@ impl ExecutionContext {
         Ok(())
     }
     pub fn scale_grad(&self, variable: &Variable, factor: f32) -> MlResult<()> {
+        self.deny_preparation("gradient mutation")?;
         self.validate(variable.tensor())?;
         if !factor.is_finite() {
             return Err(TensorError::InvalidOperation {
@@ -541,6 +556,8 @@ impl ExecutionContext {
         Ok(())
     }
     pub fn replace_parameter(&self, variable: &Variable, buffer: TensorBuffer) -> MlResult<()> {
+        self.deny_preparation("parameter mutation")?;
+        self.guard_prepared_update()?;
         self.validate(variable.tensor())?;
         if variable.tensor.shape()? != buffer.shape {
             return Err(TensorError::InvalidShape {
@@ -578,6 +595,8 @@ impl ExecutionContext {
         self.update(v, d, -1.0)
     }
     pub fn clear_graph(&self) -> MlResult<()> {
+        self.deny_preparation("graph mutation")?;
+        self.reject_prepared_extension()?;
         self.collect()?;
         self.inner
             .state
@@ -651,6 +670,7 @@ impl Tensor {
     }
     pub fn snapshot(&self) -> MlResult<TensorBuffer> {
         let context = self.execution_context()?;
+        context.deny_preparation("host tensor snapshot")?;
         context.validate(self)?;
         context
             .inner
@@ -666,10 +686,12 @@ impl Tensor {
         self.execution_context()?.with_tensor(self, f)
     }
     pub fn shape(&self) -> MlResult<Vec<usize>> {
-        self.with_view(|v| v.shape().to_vec())
+        self.execution_context()?
+            .with_tensor_metadata(self, |v| v.shape().to_vec())
     }
     pub fn numel(&self) -> MlResult<usize> {
-        self.with_view(|v| v.len())
+        self.execution_context()?
+            .with_tensor_metadata(self, |v| v.len())
     }
     pub fn item(&self) -> MlResult<f32> {
         self.with_view(|v| {
@@ -728,6 +750,7 @@ impl Variable {
     }
     pub fn grad(&self) -> MlResult<Option<TensorBuffer>> {
         let ctx = self.tensor.execution_context()?;
+        ctx.deny_preparation("host gradient read")?;
         ctx.validate(&self.tensor)?;
         Ok(ctx
             .inner
@@ -837,9 +860,11 @@ impl ExecutionContext {
             .collect())
     }
     pub fn initialization_uniform(&self, count: usize, bound: f32) -> MlResult<Vec<f32>> {
+        self.deny_preparation("initialization RNG")?;
         Self::uniform(&self.inner.initialization_rng, count, bound)
     }
     pub fn model_uniform(&self, count: usize, bound: f32) -> MlResult<Vec<f32>> {
+        self.deny_preparation("model RNG")?;
         Self::uniform(&self.inner.model_rng, count, bound)
     }
 }

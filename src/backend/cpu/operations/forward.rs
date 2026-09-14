@@ -2,7 +2,16 @@ use super::*;
 
 use crate::backend::CpuBackend;
 impl OperationProvider for CpuBackend {
-    fn supports_prepared_replay(&self) -> bool { true }
+    fn prepare_backward(
+        &self,
+        operation: &Operation,
+        shapes: &[&[usize]],
+    ) -> MlResult<Option<PreparedBackward>> {
+        prepared_backward(operation, shapes)
+    }
+    fn supports_prepared_replay(&self) -> bool {
+        true
+    }
     fn execute(
         &self,
         operation: &Operation,

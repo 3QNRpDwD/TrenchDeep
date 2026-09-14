@@ -228,10 +228,8 @@ fn shared_parameter_binding_and_nonunit_seed_are_preserved() -> MlResult<()> {
     );
     plan.with_run(&ctx, &[&x], &[&w, &w], |out| {
         assert_eq!(out[0].item()?, 12.0);
-        ctx.execute(&Operation::Mul, &[&out[0], &seed])?
-            .remove(0)
-            .as_variable()?
-            .backward()?;
+        assert!(ctx.execute(&Operation::Mul, &[&out[0], &seed]).is_err());
+        out[0].as_variable()?.backward_with_grad(&seed)?;
         assert_eq!(w.grad()?.unwrap().data(), &[15.0]);
         Ok(())
     })?;
@@ -250,4 +248,120 @@ fn legacy_route_does_not_accept_prepared_policy() -> MlResult<()> {
     let y = p.operation(Operation::Square, &[x])?;
     assert!(ctx.prepare(&p, &[], &[y], PreparedMode::Inference).is_err());
     Ok(())
+}
+
+#[derive(Debug)]
+struct NoDynamicGraph;
+impl contracts::AutogradEngine for NoDynamicGraph {
+    fn record(&mut self, _: contracts::GradientRecord) -> MlResult<()> {
+        panic!("dynamic record")
+    }
+    fn get(&self, _: TensorId) -> Option<contracts::GradientRecord> {
+        panic!("dynamic get")
+    }
+    fn remove(&mut self, _: TensorId) -> MlResult<Option<contracts::GradientRecord>> {
+        panic!("dynamic remove")
+    }
+    fn nodes(&self) -> Vec<TensorId> {
+        Vec::new()
+    }
+    fn order(&self, _: TensorId) -> MlResult<Vec<TensorId>> {
+        panic!("dynamic order")
+    }
+}
+
+#[test]
+fn prepared_backward_never_registers_or_traverses_dynamic_graph() -> MlResult<()> {
+    let ctx = ExecutionContext::builder().autograd(NoDynamicGraph).build();
+    let w = ctx.parameter(vec![2.0], &[])?;
+    let mut p = PreparedProgram::new();
+    let leaf = p.parameter(&[])?;
+    let square = p.operation(Operation::Square, &[leaf])?;
+    let sum = p.operation(Operation::Add, &[square, square])?;
+    let plan = ctx.prepare(&p, &[&w], &[square, sum], PreparedMode::Training)?;
+    assert_eq!(plan.backward_plan_stats().maximum_fan_in, 2);
+    let seed = ctx.tensor(vec![2.5], &[])?;
+    let wrong = ctx.tensor(vec![1.0, 1.0], &[2])?;
+    for _ in 0..3 {
+        plan.with_run(&ctx, &[], &[&w], |out| {
+            assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+            assert!(
+                ctx.replace_parameter(w.variable(), TensorBuffer::from_vec(vec![9.0], &[])?)
+                    .is_err()
+            );
+            let retained = out[0].as_variable()?;
+            retained.retain_grad()?;
+            let root = out[1].as_variable()?;
+            assert!(root.backward_with_grad(&wrong).is_err());
+            root.backward_with_grad(&seed)?;
+            assert_eq!(w.grad()?.unwrap().data(), &[20.0]);
+            assert_eq!(retained.grad()?.unwrap().data(), &[5.0]);
+            assert!(root.backward().is_err());
+            assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+            Ok(())
+        })?;
+        assert!(w.grad()?.is_none());
+    }
+
+    Ok(())
+}
+
+#[derive(Debug)]
+struct ForwardOnly;
+impl contracts::OperationProvider for ForwardOnly {
+    fn supports_prepared_replay(&self) -> bool {
+        true
+    }
+    fn execute(
+        &self,
+        op: &Operation,
+        inputs: &[TensorView<'_>],
+    ) -> MlResult<contracts::OperationOutput> {
+        contracts::OperationProvider::execute(&backend::CpuBackend::default(), op, inputs)
+    }
+}
+#[test]
+fn training_requires_explicit_backward_capability() -> MlResult<()> {
+    let ctx = ExecutionContext::builder().operations(ForwardOnly).build();
+    let w = ctx.parameter(vec![2.0], &[])?;
+    let mut p = PreparedProgram::new();
+    let a = p.parameter(&[])?;
+    let b = p.operation(Operation::Square, &[a])?;
+    assert!(
+        ctx.prepare(&p, &[&w], &[b], PreparedMode::Training)
+            .is_err()
+    );
+    let plan = ctx.prepare(&p, &[&w], &[b], PreparedMode::Inference)?;
+    plan.with_run(&ctx, &[], &[&w], |out| {
+        assert_eq!(out[0].item()?, 4.0);
+        assert!(!out[0].as_variable()?.requires_grad()?);
+        Ok(())
+    })
+}
+
+#[test]
+fn prepared_panic_cleanup_allows_next_run() -> MlResult<()> {
+    let ctx = ExecutionContext::new();
+    let w = ctx.parameter(vec![2.0], &[])?;
+    let mut p = PreparedProgram::new();
+    let a = p.parameter(&[])?;
+    let b = p.operation(Operation::Square, &[a])?;
+    let plan = ctx.prepare(&p, &[&w], &[b], PreparedMode::Training)?;
+    let mut held = None;
+    assert!(
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _: MlResult<()> = plan.with_run(&ctx, &[], &[&w], |out| {
+                held = Some(out[0].clone());
+                panic!("callback panic");
+            });
+        }))
+        .is_err()
+    );
+    assert!(held.unwrap().as_variable()?.backward().is_err());
+    assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+    plan.with_run(&ctx, &[], &[&w], |out| {
+        out[0].as_variable()?.backward()?;
+        assert_eq!(w.grad()?.unwrap().data(), &[4.0]);
+        Ok(())
+    })
 }

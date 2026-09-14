@@ -13,6 +13,10 @@ impl ExecutionContext {
         options: BackwardOptions<'_>,
         observe: impl FnOnce(&State) -> MlResult<()>,
     ) -> MlResult<()> {
+        self.deny_preparation("backward")?;
+        if self.inner.prepared_run.borrow().is_some() {
+            return self.backward_prepared(output, options, observe);
+        }
         self.validate(output.tensor())?;
         #[cfg(feature = "legacyBenchmark")]
         if self.route() == ExecutionRoute::Legacy {
