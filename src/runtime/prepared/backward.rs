@@ -181,6 +181,7 @@ pub(super) fn compile(
 #[derive(Debug)]
 pub(crate) struct PreparedRun {
     pub(super) plan: Rc<BackwardPlan>,
+    pub(super) into: Option<Rc<std::cell::RefCell<super::into_executor::IntoStorage>>>,
     pub(super) values: Vec<TensorBuffer>,
     pub(super) saved: Vec<Vec<TensorBuffer>>,
     pub(super) ids: Vec<Option<TensorId>>,
@@ -263,6 +264,9 @@ impl ExecutionContext {
             }
             TensorBuffer::from_vec(vec![1.0], shape)?
         };
+        if run.into.is_some() {
+            return super::into_backward::execute(self, run, slot, seed, observe);
+        }
         run.consumed = true;
         let mut gradients: Vec<Option<TensorBuffer>> = vec![None; run.values.len()];
         let mut received = vec![0usize; gradients.len()];

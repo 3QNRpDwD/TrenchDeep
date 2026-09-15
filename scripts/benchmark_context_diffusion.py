@@ -104,6 +104,7 @@ def main():
     parser.add_argument("--output", type=Path, default=ROOT / "target/p1/context-baseline")
     parser.add_argument("--samples", type=int, default=30)
     parser.add_argument("--processes", type=int, default=3)
+    parser.add_argument("--prepared", action="store_true", help="also compare explicit static execution")
     parser.add_argument("--mode", choices=["timing", "memory", "both"], default="both")
     args = parser.parse_args()
     if args.samples < 1 or args.processes < 1:
@@ -132,7 +133,8 @@ def main():
         for process in range(args.processes):
             pair = {}
             # Alternate route order to reduce systematic thermal/order bias.
-            for route in (["p1", "legacy"] if process % 2 == 0 else ["legacy", "p1"]):
+            routes = ["p1", "legacy", "prepared"] if args.prepared else ["p1", "legacy"]
+            for route in (routes if process % 2 == 0 else routes[::-1]):
                 name = f"{'memory' if instrumented else 'timing'}-{route}-{process}"
                 print(f"Running {name}", flush=True)
                 with (out/f"{name}.log").open("w", encoding="utf-8") as log:
@@ -152,6 +154,9 @@ def main():
                 (out/f"{name}-summary.json").write_text(json.dumps(run, indent=2), encoding="utf-8")
             summary["equivalence"].append({"instrumented":instrumented, "process":process,
                                              "maximum_absolute_errors":compare(pair["p1"],pair["legacy"])})
+            if args.prepared:
+                summary["equivalence"].append({"instrumented":instrumented,"process":process,"comparison":"p1/prepared",
+                    "maximum_absolute_errors":compare(pair["p1"],pair["prepared"])})
             (out/"summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     if digest(paths) != source:
         raise RuntimeError("source changed during measurement; discard results")

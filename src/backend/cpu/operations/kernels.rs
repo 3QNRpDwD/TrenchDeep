@@ -586,6 +586,7 @@ pub(crate) fn conv2d_backward_data(
     ))
 }
 
+#[derive(Debug)]
 pub(super) struct MatmulSpec {
     pub(super) left_batch: Vec<usize>,
     pub(super) right_batch: Vec<usize>,

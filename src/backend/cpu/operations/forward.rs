@@ -2,6 +2,29 @@ use super::*;
 
 use crate::backend::CpuBackend;
 impl OperationProvider for CpuBackend {
+    fn prepare_into(
+        &self,
+        operation: &Operation,
+        shapes: &[&[usize]],
+        training: bool,
+    ) -> MlResult<Option<std::rc::Rc<dyn IntoKernel>>> {
+        if let Some(kernel) = into_norm::prepare(operation, shapes, training)? {
+            return Ok(Some(kernel));
+        }
+        if let Some(kernel) = into_aux::prepare(operation, shapes, training)? {
+            return Ok(Some(kernel));
+        }
+        if let Some(kernel) = into_conv::prepare(operation, shapes, training)? {
+            return Ok(Some(kernel));
+        }
+        if let Some(kernel) = into_matmul::prepare(operation, shapes, training)? {
+            return Ok(Some(kernel));
+        }
+        if let Some(kernel) = into_structural::prepare(operation, shapes, training)? {
+            return Ok(Some(kernel));
+        }
+        into::prepare(operation, shapes, training)
+    }
     fn prepare_backward(
         &self,
         operation: &Operation,

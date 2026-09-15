@@ -670,3 +670,31 @@ impl crate::trainer::CheckpointableModel for Diffusion {
         Ok(())
     }
 }
+
+impl crate::runtime::prepared::PreparedModel for Diffusion {
+    type Batch = crate::trainer::UnsupervisedBatch;
+    const PARADIGM: &'static str = "unsupervised";
+    fn execution_batch(
+        &mut self,
+        batch: &Self::Batch,
+    ) -> MlResult<crate::runtime::prepared::PreparedBatch> {
+        let shape = batch.samples.tensor().shape()?;
+        let inputs = self
+            .draw_training_feeds(&shape)?
+            .with("image", batch.samples.tensor().clone())?;
+        Ok(crate::runtime::prepared::PreparedBatch::new(
+            inputs, shape[0],
+        ))
+    }
+    fn forward_inputs(
+        &self,
+        inputs: &crate::runtime::prepared::ExecutionInputs,
+    ) -> MlResult<crate::runtime::prepared::ModelOutput> {
+        let (prediction, loss) =
+            self.forward_loss_with_feeds(&inputs.get("image")?.as_variable()?, inputs)?;
+        Ok(crate::runtime::prepared::ModelOutput::new(
+            loss,
+            Some(prediction),
+        ))
+    }
+}

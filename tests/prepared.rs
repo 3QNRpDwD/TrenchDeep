@@ -365,3 +365,180 @@ fn prepared_panic_cleanup_allows_next_run() -> MlResult<()> {
         Ok(())
     })
 }
+
+#[test]
+fn into_linear_reuses_arena_with_new_feeds_and_adam_values() -> MlResult<()> {
+    let ctx = ExecutionContext::new();
+    let eager = ExecutionContext::new();
+    let w = ctx.parameter(vec![0.4, 0.7], &[2, 1])?;
+    let b = ctx.parameter(vec![0.2], &[1])?;
+    let ew = eager.parameter(vec![0.4, 0.7], &[2, 1])?;
+    let eb = eager.parameter(vec![0.2], &[1])?;
+    let mut adam = Adam::new(&ctx, 0.001, 0.9, 0.999, 1e-8)?;
+    adam.register_all(&[&w, &b])?;
+    let mut other_adam = Adam::new(&eager, 0.001, 0.9, 0.999, 1e-8)?;
+    other_adam.register_all(&[&ew, &eb])?;
+    let (program, outputs) = program()?;
+    let baseline = ctx.graph_stats()?;
+    let mut plan = ctx
+        .prepare(&program, &[&w, &b], &outputs, PreparedMode::Training)?
+        .into_executor(&ctx)?;
+    assert_eq!(ctx.graph_stats()?, baseline);
+    assert_eq!(plan.plan().node_count(), 4);
+    assert!(plan.uses_static_buffers());
+    let mut held = None;
+    let mut held_values = Vec::new();
+    for step in 0..100 {
+        let values = vec![0.5 + step as f32 * 0.1, -0.1];
+        let x = ctx.tensor(values.clone(), &[1, 2])?;
+        let target = ctx.tensor(vec![0.3], &[1, 1])?;
+        let ex = eager.tensor(values, &[1, 2])?;
+        let et = eager.tensor(vec![0.3], &[1, 1])?;
+        let actual = plan.with_run(&[&x, &target], &[&w, &b], |out| {
+            out[1].as_variable()?.backward()?;
+            assert!(out[1].as_variable()?.backward().is_err());
+            let result = (
+                out[0].to_vec()?,
+                out[1].to_vec()?,
+                w.grad()?.unwrap(),
+                b.grad()?.unwrap(),
+            );
+            adam.step()?;
+            if held.is_none() {
+                held = Some(out[0].clone());
+                held_values = out[0].to_vec()?;
+            }
+            Ok(result)
+        })?;
+        let expected = eager.with_training_scope(|| {
+            let dot = eager
+                .execute(&Operation::Matmul, &[&ex, ew.tensor()])?
+                .remove(0);
+            let linear = eager
+                .execute(&Operation::Add, &[&dot, eb.tensor()])?
+                .remove(0);
+            let pred = eager.execute(&Operation::Relu, &[&linear])?.remove(0);
+            let loss = eager
+                .execute(
+                    &Operation::Loss {
+                        kind: LossKind::Mse,
+                        reduction: Reduction::Mean,
+                    },
+                    &[&pred, &et],
+                )?
+                .remove(0);
+            loss.as_variable()?.backward()?;
+            let result = (
+                pred.to_vec()?,
+                loss.to_vec()?,
+                ew.grad()?.unwrap(),
+                eb.grad()?.unwrap(),
+            );
+            other_adam.step()?;
+            Ok(result)
+        })?;
+        assert_eq!(actual, expected);
+        assert_eq!(w.tensor().to_vec()?, ew.tensor().to_vec()?);
+        assert_eq!(b.tensor().to_vec()?, eb.tensor().to_vec()?);
+        assert_eq!(held.as_ref().unwrap().to_vec()?, held_values);
+        assert!(w.grad()?.is_none());
+        assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+    }
+    drop(held);
+    assert_eq!(ctx.graph_stats()?, baseline);
+    Ok(())
+}
+#[test]
+fn into_shared_parameter_binding_and_nonunit_seed_are_preserved() -> MlResult<()> {
+    let ctx = ExecutionContext::new();
+    let w = ctx.parameter(vec![2.0], &[])?;
+    let other = ctx.parameter(vec![2.0], &[])?;
+    let x = ctx.tensor(vec![3.0], &[])?;
+    let seed = ctx.tensor(vec![2.5], &[])?;
+    let mut p = PreparedProgram::new();
+    let a = p.parameter(&[])?;
+    let b = p.parameter(&[])?;
+    let feed = p.input(&[], false)?;
+    let sum = p.operation(Operation::Add, &[a, b])?;
+    let product = p.operation(Operation::Mul, &[sum, feed])?;
+    let mut plan = ctx
+        .prepare(&p, &[&w, &w], &[product], PreparedMode::Training)?
+        .into_executor(&ctx)?;
+    assert!(plan.with_run(&[&x], &[&w, &other], |_| Ok(())).is_err());
+    plan.with_run(&[&x], &[&w, &w], |out| {
+        assert_eq!(out[0].item()?, 12.0);
+        assert!(ctx.execute(&Operation::Mul, &[&out[0], &seed]).is_err());
+        out[0].as_variable()?.backward_with_grad(&seed)?;
+        assert_eq!(w.grad()?.unwrap().data(), &[15.0]);
+        Ok(())
+    })?;
+    assert!(w.grad()?.is_none());
+    Ok(())
+}
+
+#[test]
+fn into_prepared_backward_never_registers_or_traverses_dynamic_graph() -> MlResult<()> {
+    let ctx = ExecutionContext::builder().autograd(NoDynamicGraph).build();
+    let w = ctx.parameter(vec![2.0], &[])?;
+    let mut p = PreparedProgram::new();
+    let leaf = p.parameter(&[])?;
+    let square = p.operation(Operation::Square, &[leaf])?;
+    let sum = p.operation(Operation::Add, &[square, square])?;
+    let mut plan = ctx
+        .prepare(&p, &[&w], &[square, sum], PreparedMode::Training)?
+        .into_executor(&ctx)?;
+    assert_eq!(plan.plan().backward_plan_stats().maximum_fan_in, 2);
+    let seed = ctx.tensor(vec![2.5], &[])?;
+    let wrong = ctx.tensor(vec![1.0, 1.0], &[2])?;
+    for _ in 0..3 {
+        plan.with_run(&[], &[&w], |out| {
+            assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+            assert!(
+                ctx.replace_parameter(w.variable(), TensorBuffer::from_vec(vec![9.0], &[])?)
+                    .is_err()
+            );
+            let retained = out[0].as_variable()?;
+            retained.retain_grad()?;
+            let root = out[1].as_variable()?;
+            assert!(root.backward_with_grad(&wrong).is_err());
+            root.backward_with_grad(&seed)?;
+            assert_eq!(w.grad()?.unwrap().data(), &[20.0]);
+            assert_eq!(retained.grad()?.unwrap().data(), &[5.0]);
+            assert!(root.backward().is_err());
+            assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+            Ok(())
+        })?;
+        assert!(w.grad()?.is_none());
+    }
+
+    Ok(())
+}
+
+#[test]
+fn into_panic_cleanup_allows_next_run() -> MlResult<()> {
+    let ctx = ExecutionContext::new();
+    let w = ctx.parameter(vec![2.0], &[])?;
+    let mut p = PreparedProgram::new();
+    let a = p.parameter(&[])?;
+    let b = p.operation(Operation::Square, &[a])?;
+    let mut plan = ctx
+        .prepare(&p, &[&w], &[b], PreparedMode::Training)?
+        .into_executor(&ctx)?;
+    let mut held = None;
+    assert!(
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _: MlResult<()> = plan.with_run(&[], &[&w], |out| {
+                held = Some(out[0].clone());
+                panic!("callback panic");
+            });
+        }))
+        .is_err()
+    );
+    assert!(held.unwrap().as_variable()?.backward().is_err());
+    assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
+    plan.with_run(&[], &[&w], |out| {
+        out[0].as_variable()?.backward()?;
+        assert_eq!(w.grad()?.unwrap().data(), &[4.0]);
+        Ok(())
+    })
+}

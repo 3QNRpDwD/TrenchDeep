@@ -21,7 +21,7 @@ pub(super) struct StepOutcome {
 
     pub snapshot: Option<crate::visualization::GraphSnapshot>,
 }
-pub(super) trait BatchInputs {
+pub trait BatchInputs {
     fn tensors(&self) -> Vec<&Tensor>;
 }
 impl BatchInputs for SupervisedBatch {
@@ -248,6 +248,44 @@ impl TrainingService {
         I::Batch: BatchInputs,
         F: FnMut(&mut M, I::Batch, usize) -> MlResult<StepData>,
     {
+        self.fit_steps(
+            model,
+            optimizer,
+            input,
+            schedule,
+            paradigm,
+            |model, batch, epoch, optimizer, context| {
+                let start = Instant::now();
+                let data = forward(model, batch, epoch)?;
+                self.finish_step(model, optimizer, data, context, start.elapsed())
+            },
+            save,
+            false,
+        )
+    }
+    pub(super) fn fit_steps<M, I, F>(
+        &self,
+        model: &mut M,
+        optimizer: &mut dyn Optimizer,
+        input: I,
+        schedule: EpochSchedule,
+        paradigm: &'static str,
+        mut step: F,
+        save: Option<fn(&M, &Path) -> MlResult<()>>,
+        step_owns_scope: bool,
+    ) -> MlResult<TrainResult>
+    where
+        M: TrainableModel,
+        I: IntoBatchLoader,
+        I::Batch: BatchInputs,
+        F: FnMut(
+            &mut M,
+            I::Batch,
+            usize,
+            &mut dyn Optimizer,
+            &BatchStartContext,
+        ) -> MlResult<StepOutcome>,
+    {
         validate_parameters(&self.context, model, optimizer)?;
         if self.core.config.checkpoint_dir.is_some() && save.is_none() {
             return Err(MlError::UnsupportedCapability {
@@ -303,19 +341,29 @@ impl TrainingService {
                         total_batches: loader.batch_count(),
                         episode: None,
                     };
-                    let batch = self.context.with_training_scope(|| {
+                    let mut load = || {
                         let Some(batch) = loader.next_batch()? else {
                             return Ok(None);
                         };
                         for tensor in batch.tensors() {
                             self.context.validate(tensor)?;
                         }
-                        let start = Instant::now();
-                        let data = forward(model, batch, epoch)?;
-                        self.finish_step(model, optimizer, data, &batch_context, start.elapsed())
-                            .map(Some)
-                    });
-                    let Some(outcome) = batch? else {
+                        Ok(Some(batch))
+                    };
+                    let outcome = if step_owns_scope {
+                        let batch = self.context.with_training_scope(&mut load)?;
+                        batch
+                            .map(|batch| step(model, batch, epoch, optimizer, &batch_context))
+                            .transpose()?
+                    } else {
+                        // Preserve the eager loader+forward graph lifetime exactly.
+                        self.context.with_training_scope(|| {
+                            load()?
+                                .map(|batch| step(model, batch, epoch, optimizer, &batch_context))
+                                .transpose()
+                        })?
+                    };
+                    let Some(outcome) = outcome else {
                         break;
                     };
 

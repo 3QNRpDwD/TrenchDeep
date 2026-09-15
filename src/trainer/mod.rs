@@ -7,6 +7,7 @@ pub mod api;
 pub mod checkpoint;
 pub mod core;
 pub mod data;
+mod prepared;
 pub(crate) mod progress;
 mod reinforcement;
 mod runners;
@@ -14,8 +15,10 @@ mod service;
 pub use api::*;
 pub use core::*;
 pub use data::*;
+pub use prepared::PreparedTrainer;
 pub use reinforcement::*;
 pub use runners::*;
+pub use service::BatchInputs;
 pub trait TrainableModel {
     fn context_id(&self) -> ContextId;
     fn parameters(&self) -> Vec<&Parameter>;

@@ -1,13 +1,9 @@
-//! Explicit P1 preparation, initially an **allocating replay** implementation.
-//!
-//! Preparation validates descriptions without executing kernels or consuming RNG.
-//! The common forward adapter uses temporary shape placeholders for the concrete Tensor
-//! API and retains only explicitly declared configuration constants in the plan.
-//! Training reuses compiled VJPs, backward order and accumulation slots without
-//! registering dynamic graph nodes. Kernels and cotangents still allocate.
-//! BufferPlan describes safe reuse and can allocate a fixed-capacity BufferArena.
-//! Allocating replay does not use that arena yet; into-kernel integration is S4.
-//! There is no implicit cache or default-mode change.
+//! Explicit P1 preparation with reusable forward and backward arenas.
+//! Shape recording does not execute kernels or consume RNG. Into execution uses
+//! compiled VJPs and fixed destinations; public outputs and published gradients
+//! cross ownership boundaries by copying. Allocating replay remains available.
+//! The model facade is shared with Trainer; unsupported capabilities are errors.
+//! The default eager route is retained until the performance gate passes.
 pub(crate) mod backward;
 mod buffers;
 pub use buffers::{
@@ -15,6 +11,11 @@ pub use buffers::{
     CopyRequirement, RootBufferPlan,
 };
 mod executor;
+mod into_backward;
+mod into_executor;
+pub use into_executor::PreparedExecutor;
+mod model;
+pub use model::{ModelOutput, PreparedBatch, PreparedModel, PreparedModelExecutor};
 mod inputs;
 pub use inputs::ExecutionInputs;
 mod plan;

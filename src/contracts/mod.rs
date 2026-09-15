@@ -5,7 +5,9 @@
 use std::fmt::Debug;
 use std::rc::Rc;
 mod errors;
+mod into;
 pub use errors::*;
+pub use into::{GradientWrite, IntoKernel, IntoKernelSpec};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TensorId(pub(crate) u64);
@@ -298,6 +300,16 @@ pub struct OperationOutput {
     pub backward: Option<Box<dyn BackwardOp>>,
 }
 pub trait OperationProvider: Debug {
+    /// Optional fixed-destination kernel capability. Unsupported operations
+    /// return None; callers must not silently replay allocating kernels.
+    fn prepare_into(
+        &self,
+        _operation: &Operation,
+        _shapes: &[&[usize]],
+        _training: bool,
+    ) -> MlResult<Option<Rc<dyn IntoKernel>>> {
+        Ok(None)
+    }
     /// Optional immutable VJP contract, prepared without tensor values.
     fn prepare_backward(
         &self,

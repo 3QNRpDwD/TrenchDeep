@@ -11,6 +11,7 @@ use std::{cell::RefCell, rc::Rc, time::Instant};
 use trench_deep::{
     nn::{Diffusion, DiffusionScheduler, Unet},
     optimizer::{Adam, Optimizer},
+    runtime::prepared::{PreparedMode, PreparedModelExecutor},
     trainer::*,
     *,
 };
@@ -79,8 +80,12 @@ struct Evidence {
     gradients: Vec<f32>,
     updated_weights: Vec<f32>,
 }
-fn stages(route: ExecutionRoute, evidence: bool) -> MlResult<(Vec<Measurement>, Option<Evidence>)> {
-    let mut measurements = Vec::with_capacity(6);
+fn stages(
+    route: ExecutionRoute,
+    evidence: bool,
+    prepared: bool,
+) -> MlResult<(Vec<Measurement>, Option<Evidence>)> {
+    let mut measurements = Vec::with_capacity(8);
     let (ctx, m) = measure("context_init", || context(route))?;
     measurements.push(m);
     let (model, m) = measure("model_init", || model(&ctx))?;
@@ -94,11 +99,34 @@ fn stages(route: ExecutionRoute, evidence: bool) -> MlResult<(Vec<Measurement>, 
     } else {
         Vec::new()
     };
-    let result = ctx.with_training_scope(|| {
-        let ((prediction, loss), m) = measure("forward", || {
-            model.forward_loss_with_noise(&image, &noise, 3)
-        })?;
+    let inputs = if prepared {
+        Some(
+            model
+                .training_feeds(&noise, 3)?
+                .with("image", image.tensor().clone())?,
+        )
+    } else {
+        None
+    };
+    let mut plan = if let Some(inputs) = &inputs {
+        let (plan, m) = measure("prepare_training", || ctx.prepare_model(&model, inputs))?;
         measurements.push(m);
+        Some(plan)
+    } else {
+        None
+    };
+    let before = allocation::begin();
+    let start = Instant::now();
+    let mut finish = |prediction: Variable, loss: Variable| -> MlResult<Option<Evidence>> {
+        let seconds = start.elapsed().as_secs_f64();
+        let memory = allocation::delta(before);
+        measurements.push(Measurement {
+            phase: "forward",
+            seconds,
+            memory,
+            start_live_bytes: before.live_bytes,
+            peak_extra_bytes: memory.peak_live_bytes.saturating_sub(before.live_bytes),
+        });
         let (_, m) = measure("backward", || loss.backward())?;
         measurements.push(m);
         let mut result = if evidence {
@@ -122,7 +150,17 @@ fn stages(route: ExecutionRoute, evidence: bool) -> MlResult<(Vec<Measurement>, 
             r.updated_weights = weights(&model)?;
         }
         Ok(result)
-    })?;
+    };
+    let result = if let Some(plan) = &mut plan {
+        plan.run(&model, inputs.as_ref().unwrap(), |out| {
+            finish(out.prediction.unwrap(), out.loss)
+        })?
+    } else {
+        ctx.with_training_scope(|| {
+            let (prediction, loss) = model.forward_loss_with_noise(&image, &noise, 3)?;
+            finish(prediction, loss)
+        })?
+    };
     assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
     Ok((measurements, result))
 }
@@ -132,7 +170,7 @@ impl TrainingObserver for LossObserver {
         self.0.borrow_mut().push(event.loss);
     }
 }
-fn training(route: ExecutionRoute) -> MlResult<(Measurement, Vec<f32>, Vec<f32>)> {
+fn training(route: ExecutionRoute, prepared: bool) -> MlResult<(Measurement, Vec<f32>, Vec<f32>)> {
     // Fresh initialization and empty Adam moments before each measured trajectory.
     let ctx = context(route)?;
     let mut model = model(&ctx)?;
@@ -153,11 +191,18 @@ fn training(route: ExecutionRoute) -> MlResult<(Measurement, Vec<f32>, Vec<f32>)
         .metrics(Metrics::none())
         .show_progress(false)
         .build()
-        .unsupervised(&ctx)
         .with_observer(Box::new(LossObserver(losses.clone())));
     let schedule = EpochSchedule::new(3)?.with_tolerance(1e-10);
     let (result, measurement) = measure("training_3_epochs", || {
-        trainer.fit(&mut model, &mut adam, &mut loader, schedule)
+        if prepared {
+            trainer
+                .prepared(&ctx)
+                .fit(&mut model, &mut adam, &mut loader, schedule)
+        } else {
+            trainer
+                .unsupervised(&ctx)
+                .fit(&mut model, &mut adam, &mut loader, schedule)
+        }
     })?;
     assert_eq!(result.units_completed, 3);
     let losses = losses.borrow().clone();
@@ -165,7 +210,7 @@ fn training(route: ExecutionRoute) -> MlResult<(Measurement, Vec<f32>, Vec<f32>)
     assert!(losses.iter().all(|v| v.is_finite()));
     Ok((measurement, losses, weights(&model)?))
 }
-fn sampling(route: ExecutionRoute) -> MlResult<(Measurement, Vec<f32>)> {
+fn sampling(route: ExecutionRoute, prepared: bool) -> MlResult<(Vec<Measurement>, Vec<f32>)> {
     let ctx = context(route)?;
     let model = model(&ctx)?;
     let initial = ctx.tensor(
@@ -175,11 +220,51 @@ fn sampling(route: ExecutionRoute) -> MlResult<(Measurement, Vec<f32>)> {
     let noises = (0..10)
         .map(|t| ctx.tensor(noise_values(t), &[2, 1, 8, 8]))
         .collect::<MlResult<Vec<_>>>()?;
+    let mut measurements = Vec::new();
+    let mut plans = if prepared {
+        let (plans, m) = measure("prepare_sampling", || {
+            [0, 1]
+                .iter()
+                .map(|&t| {
+                    let inputs = model
+                        .step_feeds(&noises[t], t)?
+                        .with("image", initial.clone())?;
+                    ctx.prepare_forward(
+                        &inputs,
+                        &model.parameters(),
+                        PreparedMode::Inference,
+                        |inputs| {
+                            Ok(vec![
+                                model.reverse_step_with_feeds(inputs.get("image")?, inputs)?,
+                            ])
+                        },
+                    )?
+                    .into_executor(&ctx)
+                })
+                .collect::<MlResult<Vec<_>>>()
+        })?;
+        measurements.push(m);
+        plans
+    } else {
+        Vec::new()
+    };
     let (output, measurement) = measure("sampling_10_steps", || {
-        model.sample_with_noise(&initial, &noises)
+        if !prepared {
+            return model.sample_with_noise(&initial, &noises);
+        }
+        let mut image = initial.clone();
+        for t in (0..10).rev() {
+            let inputs = model.step_feeds(&noises[t], t)?.with("image", image)?;
+            image =
+                plans[usize::from(t != 0)]
+                    .with_inputs(&inputs, &model.parameters(), |out| Ok(out[0].clone()))?;
+        }
+        Ok(image)
     })?;
-    Ok((measurement, output.to_vec()?))
+    measurements.push(measurement);
+    Ok((measurements, output.to_vec()?))
 }
+
 fn operation_cases(route: ExecutionRoute) -> MlResult<Vec<Measurement>> {
     use trench_deep::contracts::Operation;
     let ctx = context(route)?;
@@ -297,7 +382,7 @@ fn memory_point(
         saved_references: graph.saved_tensor_references,
     })
 }
-fn memory_lifecycle(route: ExecutionRoute) -> MlResult<serde_json::Value> {
+fn memory_lifecycle(route: ExecutionRoute, prepared: bool) -> MlResult<serde_json::Value> {
     // Preallocate report storage so report growth cannot look like model leakage.
     let mut points = Vec::with_capacity(110);
     let before = allocation::snapshot();
@@ -306,12 +391,32 @@ fn memory_lifecycle(route: ExecutionRoute) -> MlResult<serde_json::Value> {
     let mut adam = optimizer(&ctx, &model)?;
     let image = ctx.tensor(vec![0.5; 128], &[2, 1, 8, 8])?.as_variable()?;
     let noise = ctx.tensor(noise_values(3), &[2, 1, 8, 8])?;
+    let inputs = if prepared {
+        Some(
+            model
+                .training_feeds(&noise, 3)?
+                .with("image", image.tensor().clone())?,
+        )
+    } else {
+        None
+    };
+    let mut plan: Option<PreparedModelExecutor> = inputs
+        .as_ref()
+        .map(|inputs| ctx.prepare_model(&model, inputs))
+        .transpose()?;
+    let arena_bytes = plan
+        .as_ref()
+        .map(|p| p.executor().arena_bytes())
+        .unwrap_or(0);
+    let workspace_bytes = plan
+        .as_ref()
+        .map(|p| p.executor().workspace_bytes())
+        .unwrap_or(0);
     points.push(memory_point(&ctx, "initialized", 0)?);
     let resident_tensors = ctx.graph_stats()?.tensors;
     for iteration in 0..105 {
         allocation::begin();
-        ctx.with_training_scope(|| {
-            let (prediction, loss) = model.forward_loss_with_noise(&image, &noise, 3)?;
+        let mut finish = |prediction: Variable, loss: Variable| -> MlResult<()> {
             if iteration == 5 {
                 points.push(memory_point(&ctx, "after_forward", iteration)?);
             }
@@ -325,7 +430,17 @@ fn memory_lifecycle(route: ExecutionRoute) -> MlResult<serde_json::Value> {
             }
             std::hint::black_box(prediction);
             Ok(())
-        })?;
+        };
+        if let Some(plan) = &mut plan {
+            plan.run(&model, inputs.as_ref().unwrap(), |out| {
+                finish(out.prediction.unwrap(), out.loss)
+            })?;
+        } else {
+            ctx.with_training_scope(|| {
+                let (prediction, loss) = model.forward_loss_with_noise(&image, &noise, 3)?;
+                finish(prediction, loss)
+            })?;
+        }
         if iteration >= 5 {
             let point = memory_point(&ctx, "after_scope", iteration - 5)?;
             assert_eq!(point.tensors, resident_tensors);
@@ -334,13 +449,13 @@ fn memory_lifecycle(route: ExecutionRoute) -> MlResult<serde_json::Value> {
             points.push(point);
         }
     }
-    drop((noise, image, adam, model));
+    drop((plan, inputs, noise, image, adam, model));
     points.push(memory_point(&ctx, "after_model_drop", 100)?);
     drop(ctx);
     let after = allocation::snapshot();
     Ok(
         serde_json::json!({"before":before, "points":points, "after_context_drop":after,
-        "warmup":5, "batches":100, "report_storage_preallocated":true}),
+        "arena_bytes":arena_bytes,"workspace_bytes":workspace_bytes,"warmup":5, "batches":100, "report_storage_preallocated":true}),
     )
 }
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -352,10 +467,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let args: Vec<_> = std::env::args().collect();
     let route = match args.get(1).map(String::as_str) {
-        Some("p1") => ExecutionRoute::P1,
+        Some("p1" | "prepared") => ExecutionRoute::P1,
         Some("legacy") => ExecutionRoute::Legacy,
-        _ => return Err("expected p1|legacy output.json [samples]".into()),
+        _ => return Err("expected p1|prepared|legacy output.json [samples]".into()),
     };
+    let prepared = args[1] == "prepared";
     let output_path = args.get(2).ok_or("expected output path")?;
     let samples: usize = args.get(3).map(|s| s.parse()).transpose()?.unwrap_or(30);
     if samples == 0 {
@@ -364,20 +480,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let warmup = 5;
     let mut measurements = Vec::with_capacity(samples * 13);
     // Evidence pass is outside timing and memory statistics.
-    let (_, evidence) = stages(route, true)?;
+    let (_, evidence) = stages(route, true, prepared)?;
     let rng_feeds = verify_rng_feeds(route)?;
     let mut train_losses = Vec::new();
     let mut train_weights = Vec::new();
     let mut sample_output = Vec::new();
     for iteration in 0..warmup + samples {
-        let (stages, _) = stages(route, false)?;
-        let (train, losses, trained) = training(route)?;
-        let (sample, output) = sampling(route)?;
+        let (stages, _) = stages(route, false, prepared)?;
+        let (train, losses, trained) = training(route, prepared)?;
+        let (sample, output) = sampling(route, prepared)?;
         let operations = operation_cases(route)?;
         if iteration >= warmup {
             measurements.extend(stages);
             measurements.push(train);
-            measurements.push(sample);
+            measurements.extend(sample);
             measurements.extend(operations);
         }
         if iteration == 0 {
@@ -391,7 +507,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     let memory = if cfg!(feature = "benchmarkAlloc") {
-        Some(memory_lifecycle(route)?)
+        Some(memory_lifecycle(route, prepared)?)
     } else {
         None
     };
@@ -405,7 +521,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "notes":["stage restoration/setup excluded; fresh model and Adam per repetition",
         "training includes loader iteration, common Trainer, RNG, Adam, scope cleanup and loss observer",
         "sampling output conversion excluded; allocator requested bytes are not RSS",
-        "instrumented timing must not be used as ordinary performance"]});
+        "instrumented timing must not be used as ordinary performance", "operation microcases remain eager diagnostics on every route", "prepared forward includes scope entry and exported ownership copies; backward includes gradient publication", "prepared training_3_epochs includes first preparation; sampling preparation reported separately"]});
     std::fs::write(output_path, serde_json::to_vec(&result)?)?;
     Ok(())
 }

@@ -32,13 +32,13 @@ impl ExecutionInputs {
     pub fn variant(&self) -> &str {
         &self.variant
     }
-    fn signature(&self) -> (String, Vec<String>) {
+    pub(super) fn signature(&self) -> (String, Vec<String>) {
         (
             self.variant.clone(),
             self.tensors.iter().map(|(n, _)| n.clone()).collect(),
         )
     }
-    fn bindings(&self) -> Vec<&Tensor> {
+    pub(super) fn bindings(&self) -> Vec<&Tensor> {
         self.tensors.iter().map(|(_, t)| t).collect()
     }
 }
@@ -74,5 +74,14 @@ impl PreparedPlan {
             ));
         }
         self.run_bound(ctx, &inputs.bindings(), parameters, callback)
+    }
+}
+
+impl ExecutionInputs {
+    pub(crate) fn tensor_signature(&self) -> MlResult<Vec<(String, Vec<usize>, bool)>> {
+        self.tensors
+            .iter()
+            .map(|(name, t)| Ok((name.clone(), t.shape()?, t.as_variable()?.requires_grad()?)))
+            .collect()
     }
 }

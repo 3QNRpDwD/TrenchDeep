@@ -27,39 +27,7 @@ impl PreparedPlan {
         parameters: &[&Parameter],
         callback: impl FnOnce(&[Tensor]) -> MlResult<T>,
     ) -> MlResult<T> {
-        // Validate the complete binding before writing any tensor or graph state.
-        if ctx.id() != self.context {
-            return Err(crate::ContextError::Mismatch.into());
-        }
-        if feeds.len() != self.program.feeds.len() || parameters.len() != self.parameter_ids.len() {
-            return Err(invalid("binding count mismatch"));
-        }
-        for (feed, slot) in feeds.iter().zip(&self.program.feeds) {
-            ctx.validate(feed)?;
-            let spec = &self.program.slots[slot.0];
-            if feed.shape()? != spec.shape {
-                return Err(invalid("feed shape mismatch; prepare a separate plan"));
-            }
-            if let Source::Feed { requires_grad } = spec.source {
-                if feed.as_variable()?.requires_grad()? != requires_grad {
-                    return Err(invalid("feed gradient signature mismatch"));
-                }
-            }
-        }
-        for ((parameter, id), slot) in parameters
-            .iter()
-            .zip(&self.parameter_ids)
-            .zip(&self.program.parameters)
-        {
-            ctx.validate(parameter.tensor())?;
-            if parameter.id() != *id
-                || parameter.tensor().shape()? != self.program.slots[slot.0].shape
-            {
-                return Err(invalid(
-                    "parameter binding or shape changed; prepare a separate plan",
-                ));
-            }
-        }
+        self.validate_bindings(ctx, feeds, parameters)?;
         if self.mode == PreparedMode::Training {
             return ctx.with_training_scope(|| self.run_training(ctx, feeds, parameters, callback));
         }
@@ -98,6 +66,48 @@ impl PreparedPlan {
             callback(&outputs)
         };
         ctx.no_grad(execute)
+    }
+
+    pub(super) fn validate_bindings(
+        &self,
+        ctx: &ExecutionContext,
+        feeds: &[&Tensor],
+        parameters: &[&Parameter],
+    ) -> MlResult<()> {
+        // Validate the complete binding before writing any tensor or graph state.
+        if ctx.id() != self.context {
+            return Err(crate::ContextError::Mismatch.into());
+        }
+        if feeds.len() != self.program.feeds.len() || parameters.len() != self.parameter_ids.len() {
+            return Err(invalid("binding count mismatch"));
+        }
+        for (feed, slot) in feeds.iter().zip(&self.program.feeds) {
+            ctx.validate(feed)?;
+            let spec = &self.program.slots[slot.0];
+            if feed.shape()? != spec.shape {
+                return Err(invalid("feed shape mismatch; prepare a separate plan"));
+            }
+            if let Source::Feed { requires_grad } = spec.source {
+                if feed.as_variable()?.requires_grad()? != requires_grad {
+                    return Err(invalid("feed gradient signature mismatch"));
+                }
+            }
+        }
+        for ((parameter, id), slot) in parameters
+            .iter()
+            .zip(&self.parameter_ids)
+            .zip(&self.program.parameters)
+        {
+            ctx.validate(parameter.tensor())?;
+            if parameter.id() != *id
+                || parameter.tensor().shape()? != self.program.slots[slot.0].shape
+            {
+                return Err(invalid(
+                    "parameter binding or shape changed; prepare a separate plan",
+                ));
+            }
+        }
+        Ok(())
     }
 
     fn run_training<T>(
@@ -180,25 +190,27 @@ impl PreparedPlan {
             plan: self.backward.clone(),
             values: values.into_iter().map(Option::unwrap).collect(),
             saved,
+            into: None,
             ids,
             exports,
             consumed: false,
             completed: false,
         });
-        struct Cleanup<'a>(&'a ExecutionContext);
-        impl Drop for Cleanup<'_> {
-            fn drop(&mut self) {
-                if let Some(run) = self.0.inner.prepared_run.borrow_mut().take() {
-                    self.0.inner.state.borrow_mut().consumed.extend(
-                        run.exports
-                            .into_iter()
-                            .filter(|(_, s)| run.plan.tracked[*s])
-                            .map(|(id, _)| id),
-                    );
-                }
-            }
-        }
         let _cleanup = Cleanup(ctx);
         callback(&outputs)
+    }
+}
+
+pub(super) struct Cleanup<'a>(pub &'a ExecutionContext);
+impl Drop for Cleanup<'_> {
+    fn drop(&mut self) {
+        if let Some(run) = self.0.inner.prepared_run.borrow_mut().take() {
+            self.0.inner.state.borrow_mut().consumed.extend(
+                run.exports
+                    .into_iter()
+                    .filter(|(_, s)| run.plan.tracked[*s])
+                    .map(|(id, _)| id),
+            );
+        }
     }
 }

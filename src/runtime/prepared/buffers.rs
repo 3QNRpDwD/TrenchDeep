@@ -376,6 +376,74 @@ fn place(lifetimes: &mut [BufferLifetime]) -> MlResult<(Vec<BufferSlot>, usize, 
 pub struct BufferArena {
     buffers: Vec<Box<[f32]>>,
 }
+
+/// Prevalidated IO routing. Only referenced buffers are visited at execution;
+/// immutable aliases are repeated in `reads`, mutable aliases are rejected.
+#[derive(Debug)]
+pub(super) struct ArenaIo {
+    reads: usize,
+    writes: usize,
+    slots: Vec<(usize, Vec<usize>, Option<usize>)>,
+}
+impl ArenaIo {
+    pub(super) fn new(reads: &[usize], writes: &[usize], buffers: usize) -> MlResult<Self> {
+        if reads.iter().chain(writes).any(|&i| i >= buffers)
+            || writes
+                .iter()
+                .enumerate()
+                .any(|(i, w)| reads.contains(w) || writes[..i].contains(w))
+        {
+            return Err(invalid("invalid or aliased arena IO"));
+        }
+        let mut ids = reads.iter().chain(writes).copied().collect::<Vec<_>>();
+        ids.sort_unstable();
+        ids.dedup();
+        Ok(Self {
+            reads: reads.len(),
+            writes: writes.len(),
+            slots: ids
+                .into_iter()
+                .map(|id| {
+                    (
+                        id,
+                        reads
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(i, &r)| (r == id).then_some(i))
+                            .collect(),
+                        writes.iter().position(|&w| w == id),
+                    )
+                })
+                .collect(),
+        })
+    }
+    pub(super) fn run<T>(
+        &self,
+        arena: &mut BufferArena,
+        operation: impl FnOnce(&[&[f32]], &mut [&mut [f32]]) -> MlResult<T>,
+    ) -> MlResult<T> {
+        let mut inputs = vec![&[][..]; self.reads];
+        let mut outputs: Vec<Option<&mut [f32]>> = (0..self.writes).map(|_| None).collect();
+        let mut remaining = arena.buffers.as_mut_slice();
+        let mut cursor = 0;
+        for (id, reads, write) in &self.slots {
+            let (_, tail) = remaining.split_at_mut(id - cursor);
+            let (buffer, tail) = tail.split_first_mut().unwrap();
+            remaining = tail;
+            cursor = id + 1;
+            if let Some(position) = write {
+                outputs[*position] = Some(buffer.as_mut());
+            } else {
+                let view: &[f32] = buffer;
+                for &position in reads {
+                    inputs[position] = view;
+                }
+            }
+        }
+        let mut outputs = outputs.into_iter().map(Option::unwrap).collect::<Vec<_>>();
+        operation(&inputs, &mut outputs)
+    }
+}
 impl BufferPlan {
     pub fn allocate_arena(&self) -> MlResult<BufferArena> {
         self.validate()?;
