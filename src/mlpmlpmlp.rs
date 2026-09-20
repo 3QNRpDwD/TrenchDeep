@@ -14,11 +14,11 @@ impl MLP {
         ctx: &ExecutionContext,
     ) -> MlResult<Self> {
         let mut mlp = Sequential::new(&ctx, "MLP");
-        mlp.push(Box::new(Linear::new(&ctx, 100, 100, "l1")?))?;
+        mlp.push(Box::new(Linear::new(&ctx, 10, 10, "l1")?))?;
         mlp.push(Box::new(Activation::new(&ctx, ActivationKind::ReLU, "a1", )))?;
-        mlp.push(Box::new(Linear::new(&ctx, 100, 100, "l2")?))?;
+        mlp.push(Box::new(Linear::new(&ctx, 10, 10, "l2")?))?;
         mlp.push(Box::new(Activation::new(&ctx, ActivationKind::ReLU, "a2", )))?;
-        mlp.push(Box::new(Linear::new(&ctx, 100, 100, "l3")?))?;
+        mlp.push(Box::new(Linear::new(&ctx, 10, 10, "l3")?))?;
         mlp.push(Box::new(Activation::new(&ctx, ActivationKind::ReLU, "a3", )))?;
 
         Ok(Self { context: ctx.clone(), network: mlp, })
