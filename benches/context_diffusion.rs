@@ -109,7 +109,9 @@ fn stages(
         None
     };
     let mut plan = if let Some(inputs) = &inputs {
-        let (plan, m) = measure("prepare_training", || ctx.prepare_model(&model, inputs))?;
+        let (plan, m) = measure("prepare_training", || {
+            ctx.prepare_model_for_loss(&model, inputs)
+        })?;
         measurements.push(m);
         Some(plan)
     } else {
@@ -402,7 +404,7 @@ fn memory_lifecycle(route: ExecutionRoute, prepared: bool) -> MlResult<serde_jso
     };
     let mut plan: Option<PreparedModelExecutor> = inputs
         .as_ref()
-        .map(|inputs| ctx.prepare_model(&model, inputs))
+        .map(|inputs| ctx.prepare_model_for_loss(&model, inputs))
         .transpose()?;
     let arena_bytes = plan
         .as_ref()

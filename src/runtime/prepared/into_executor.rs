@@ -120,7 +120,7 @@ impl PreparedPlan {
             .try_reserve_exact(elements)
             .map_err(|_| invalid("workspace allocation failed"))?;
         workspace.resize(elements, 0.0);
-        let arena = self.buffers.allocate_arena()?;
+        let arena = self.buffers.allocate_validated_arena()?;
         let mut saved = kernels
             .iter()
             .map(|k| vec![usize::MAX; k.spec().saved.len()])

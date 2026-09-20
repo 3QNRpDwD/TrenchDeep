@@ -43,6 +43,26 @@ impl ExecutionInputs {
     }
 }
 impl ExecutionContext {
+    /// Select backward roots by index in the exported tensor list. Exported
+    /// values and retained gradients remain available independently of roots.
+    pub fn prepare_forward_with_roots(
+        &self,
+        inputs: &ExecutionInputs,
+        parameters: &[&Parameter],
+        mode: PreparedMode,
+        backward_outputs: &[usize],
+        describe: impl FnOnce(&ExecutionInputs) -> MlResult<Vec<Tensor>>,
+    ) -> MlResult<PreparedPlan> {
+        let mut plan = self.prepare_recorded_with_roots(
+            &inputs.bindings(),
+            parameters,
+            mode,
+            Some(backward_outputs),
+            || describe(inputs),
+        )?;
+        plan.input_signature = Some(inputs.signature());
+        Ok(plan)
+    }
     /// Describe any fixed-topology forward with named runtime inputs. Shape-only
     /// execution blocks tensor data reads and runtime mutations through this API.
     /// The caller must keep host branches/configuration fixed for the variant and

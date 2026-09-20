@@ -511,6 +511,7 @@ mod into;
 mod into_aux;
 mod into_conv;
 mod into_matmul;
+mod matmul_packed;
 mod into_norm;
 mod into_structural;
 mod prepared;

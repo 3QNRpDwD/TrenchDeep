@@ -38,6 +38,11 @@ debug = true
 opt-level = 3
 
 [[bench]]
+name = "prepared_mlp"
+harness = false
+required-features = ["enableBackward", "builtinStorage", "builtinKernels"]
+
+[[bench]]
 name = "p1_compare"
 harness = false
 required-features = ["legacyBenchmark", "builtinStorage", "builtinKernels"]

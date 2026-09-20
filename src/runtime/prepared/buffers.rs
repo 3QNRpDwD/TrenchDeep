@@ -20,7 +20,7 @@ pub enum BufferRole {
     Saved,
     Gradient,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CopyReason {
     InputOwnership,
     ParameterSnapshot,
@@ -91,11 +91,16 @@ impl BufferPlan {
         {
             return Err(invalid("invalid canonical alias"));
         }
+        let mut common = HashMap::with_capacity(self.layout.lifetimes.len());
+        for life in &self.layout.lifetimes {
+            if common.insert(life.value, life).is_some() {
+                return Err(invalid("duplicate common buffer value"));
+            }
+        }
         for root in &self.roots {
             for life in &root.lifetimes {
-                if !self.layout.lifetimes.iter().any(|common| {
-                    common.value == life.value
-                        && common.shape == life.shape
+                if !common.get(&life.value).is_some_and(|common| {
+                    common.shape == life.shape
                         && common.first <= life.first
                         && common.last >= life.last
                 }) {
@@ -104,17 +109,21 @@ impl BufferPlan {
             }
         }
         for root in self.roots.iter().chain(std::iter::once(&self.layout)) {
-            for (i, a) in root.lifetimes.iter().enumerate() {
+            let mut intervals = Vec::with_capacity(root.lifetimes.len());
+            for a in &root.lifetimes {
                 if a.first > a.last
                     || a.buffer >= root.buffers.len()
                     || numel(&a.shape)? > root.buffers[a.buffer].elements
                 {
                     return Err(invalid("invalid buffer placement"));
                 }
-                for b in &root.lifetimes[..i] {
-                    if a.buffer == b.buffer && a.first <= b.last && b.first <= a.last {
-                        return Err(invalid("overlapping buffer lifetimes"));
-                    }
+                intervals.push((a.buffer, a.first, a.last));
+            }
+            intervals.sort_unstable();
+            for pair in intervals.windows(2) {
+                // Inclusive endpoints: simultaneous reads/writes cannot reuse storage.
+                if pair[0].0 == pair[1].0 && pair[1].1 <= pair[0].2 {
+                    return Err(invalid("overlapping buffer lifetimes"));
                 }
             }
             if total(root.buffers.iter().map(|b| b.elements))? != root.arena_bytes {
@@ -292,18 +301,22 @@ pub(super) fn compile(
         });
     }
     let mut merged: Vec<BufferLifetime> = Vec::new();
+    let mut merged_indices = HashMap::new();
     let mut copies = Vec::new();
+    let mut copy_keys = std::collections::HashSet::new();
     for root in &roots {
         for life in &root.lifetimes {
-            if let Some(existing) = merged.iter_mut().find(|l| l.value == life.value) {
+            if let Some(&index) = merged_indices.get(&life.value) {
+                let existing: &mut BufferLifetime = &mut merged[index];
                 existing.first = existing.first.min(life.first);
                 existing.last = existing.last.max(life.last);
             } else {
+                merged_indices.insert(life.value, merged.len());
                 merged.push(life.clone());
             }
         }
         for copy in &root.copies {
-            if !copies.contains(copy) {
+            if copy_keys.insert((copy.value, copy.reason, copy.bytes)) {
                 copies.push(copy.clone());
             }
         }
@@ -447,6 +460,11 @@ impl ArenaIo {
 impl BufferPlan {
     pub fn allocate_arena(&self) -> MlResult<BufferArena> {
         self.validate()?;
+        self.allocate_validated_arena()
+    }
+    // Only the immutable PreparedPlan compiled and validated in this module may
+    // bypass revalidation. Public, mutable BufferPlan allocations still validate.
+    pub(super) fn allocate_validated_arena(&self) -> MlResult<BufferArena> {
         let mut buffers = Vec::new();
         buffers
             .try_reserve_exact(self.capacity_elements.len())

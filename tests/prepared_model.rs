@@ -72,6 +72,36 @@ fn make() -> MlResult<(ExecutionContext, Linear, Adam)> {
     Ok((ctx, model, adam))
 }
 #[test]
+fn loss_only_model_keeps_prediction_and_matches_default_gradients() -> MlResult<()> {
+    let (ctx, mut model, _) = make()?;
+    let batch = SupervisedBatch {
+        inputs: ctx.tensor(vec![1.0, 2.0], &[1, 2])?.as_variable()?,
+        targets: ctx.tensor(vec![0.0], &[1, 1])?,
+    };
+    let batch = model.execution_batch(&batch)?;
+    let mut full = ctx.prepare_model(&model, &batch.inputs)?;
+    let mut selected = ctx.prepare_model_for_loss(&model, &batch.inputs)?;
+    assert_eq!(full.executor().plan().backward_plan_stats().roots, 2);
+    assert_eq!(selected.executor().plan().backward_plan_stats().roots, 1);
+    let read = |output: ModelOutput| {
+        let prediction = output.prediction.unwrap();
+        prediction.retain_grad()?;
+        let values = prediction.tensor().to_vec()?;
+        output.loss.backward()?;
+        Ok((
+            values,
+            model.weight.grad()?.unwrap(),
+            prediction.grad()?.unwrap(),
+        ))
+    };
+    let a = full.run(&model, &batch.inputs, read)?;
+    let b = selected.run(&model, &batch.inputs, read)?;
+    assert_eq!(a.0, b.0);
+    assert_eq!(a.1.data(), b.1.data());
+    assert_eq!(a.2.data(), b.2.data());
+    Ok(())
+}
+#[test]
 fn common_model_api_reuses_plan_and_recovers_from_callback_errors() -> MlResult<()> {
     let (ctx, mut model, mut adam) = make()?;
     let batch = SupervisedBatch {

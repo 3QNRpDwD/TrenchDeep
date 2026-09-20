@@ -182,6 +182,28 @@ impl ExecutionContext {
         outputs: &[TensorSlotId],
         mode: PreparedMode,
     ) -> MlResult<PreparedPlan> {
+        let mut roots = Vec::new();
+        if mode == PreparedMode::Training {
+            for &output in outputs {
+                if !roots.contains(&output) {
+                    roots.push(output);
+                }
+            }
+        }
+        self.prepare_with_roots(program, parameters, outputs, &roots, mode)
+    }
+
+    /// Export all `outputs`, but allow backward only from the selected output
+    /// slots. Other exported intermediates can still retain gradients reached
+    /// from a selected root. The original `prepare` selects all training outputs.
+    pub fn prepare_with_roots(
+        &self,
+        program: &PreparedProgram,
+        parameters: &[&Parameter],
+        outputs: &[TensorSlotId],
+        backward_roots: &[TensorSlotId],
+        mode: PreparedMode,
+    ) -> MlResult<PreparedPlan> {
         if self.route() != ExecutionRoute::P1 {
             return Err(invalid("preparation requires the P1 route"));
         }
@@ -222,6 +244,16 @@ impl ExecutionContext {
         if parameters.len() != program.parameters.len() {
             return Err(invalid("parameter count mismatch"));
         }
+        if (mode == PreparedMode::Inference && !backward_roots.is_empty())
+            || backward_roots
+                .iter()
+                .enumerate()
+                .any(|(i, root)| !outputs.contains(root) || backward_roots[..i].contains(root))
+        {
+            return Err(invalid(
+                "backward roots must be distinct exported training outputs",
+            ));
+        }
         for (parameter, slot) in parameters.iter().zip(&program.parameters) {
             self.validate(parameter.tensor())?;
             if parameter.tensor().shape()? != program.slots[slot.0].shape {
@@ -231,7 +263,7 @@ impl ExecutionContext {
         let backward = std::rc::Rc::new(super::backward::compile(
             program,
             parameters,
-            outputs,
+            backward_roots,
             mode,
             provider.as_ref(),
         )?);

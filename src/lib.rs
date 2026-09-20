@@ -25,3 +25,6 @@ pub mod optimizer;
 pub mod trainer;
 
 pub mod visualization;
+
+pub mod mlpmlpmlp;
+

@@ -56,6 +56,167 @@ fn equal(a: &[f32], b: &[f32]) {
 }
 
 #[test]
+fn convolution_rows_and_tiles_match_independent_scalar_order() -> MlResult<()> {
+    let provider = backend::CpuBackend::default();
+    let same = |a: &[f32], b: &[f32]| {
+        assert_eq!(a.len(), b.len());
+        for (i, (&a, &b)) in a.iter().zip(b).enumerate() {
+            assert!(
+                a.to_bits() == b.to_bits() || (a.is_nan() && b.is_nan()),
+                "element {i}: {a:?} != {b:?}"
+            );
+        }
+    };
+    for (xs, ws, stride, padding) in [
+        ([2, 3, 5, 7], [4, 3, 3, 2], (1, 1), (1, 2)),
+        ([2, 3, 7, 8], [4, 3, 2, 3], (2, 3), (2, 1)),
+        ([1, 2, 2, 2], [3, 2, 1, 1], (1, 2), (3, 1)),
+        ([1, 2, 1, 1], [3, 2, 3, 3], (1, 1), (4, 4)),
+        ([0, 2, 4, 5], [3, 2, 3, 3], (1, 1), (1, 1)),
+        ([1, 0, 3, 4], [2, 0, 3, 3], (1, 1), (1, 1)),
+        ([1, 2, 0, 3], [3, 2, 3, 3], (1, 1), (2, 1)),
+        ([1, 2, 3, 3], [0, 2, 1, 1], (1, 1), (0, 0)),
+        ([1, 1, 2, 3], [2, 1, 0, 2], (1, 1), (1, 1)),
+    ] {
+        let [n, ci, h, w] = xs;
+        let [co, _, kh, kw] = ws;
+        let oh = (h + 2 * padding.0 - kh) / stride.0 + 1;
+        let ow = (w + 2 * padding.1 - kw) / stride.1 + 1;
+        let shape = [n, co, oh, ow];
+        let bs = [co];
+        for exceptional in [false, true] {
+            let make = |len, shift| {
+                (0..len)
+                    .map(|i| {
+                        if exceptional {
+                            [
+                                f32::INFINITY,
+                                f32::NEG_INFINITY,
+                                f32::NAN,
+                                -0.0,
+                                0.0,
+                                0.75,
+                                -2.0,
+                            ][(i + shift) % 7]
+                        } else {
+                            ((i + shift) as f32 * 0.17).sin()
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            };
+            let x = make(n * ci * h * w, 0);
+            let weight = make(co * ci * kh * kw, 3);
+            let bias = vec![-0.0; co];
+            let g = make(n * co * oh * ow, 5);
+            let mut reference = vec![0.0; g.len()];
+            let mut dx = vec![0.0; x.len()];
+            let mut dw = vec![0.0; weight.len()];
+            let mut db = vec![0.0; co];
+            // Independent original output-major scalar definition. Do not call
+            // either shared CPU kernel here: eager now uses the optimized core.
+            for b in 0..n {
+                for oc in 0..co {
+                    for oy in 0..oh {
+                        for ox in 0..ow {
+                            let out = ((b * co + oc) * oh + oy) * ow + ox;
+                            reference[out] = bias[oc];
+                            db[oc] += g[out];
+                            for ic in 0..ci {
+                                for ky in 0..kh {
+                                    for kx in 0..kw {
+                                        let py = oy * stride.0 + ky;
+                                        let px = ox * stride.1 + kx;
+                                        if py >= padding.0
+                                            && px >= padding.1
+                                            && py - padding.0 < h
+                                            && px - padding.1 < w
+                                        {
+                                            let xi = ((b * ci + ic) * h + py - padding.0) * w + px
+                                                - padding.1;
+                                            let wi = ((oc * ci + ic) * kh + ky) * kw + kx;
+                                            reference[out] += x[xi] * weight[wi];
+                                            dx[xi] += g[out] * weight[wi];
+                                            dw[wi] += g[out] * x[xi];
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            let inputs = [
+                TensorView::new(&x, &xs)?,
+                TensorView::new(&weight, &ws)?,
+                TensorView::new(&bias, &bs)?,
+            ];
+            let op = Operation::Conv2d { stride, padding };
+            let eager = provider.execute(&op, &inputs)?;
+            same(eager.outputs[0].data(), &reference);
+            let seed = TensorView::new(&g, &shape)?;
+            let eager_grad = eager.backward.unwrap().backward(&inputs, &[], seed)?;
+            for (actual, expected) in eager_grad.iter().zip([&dx, &dw, &db]) {
+                same(actual.as_ref().unwrap().data(), expected);
+            }
+            if xs.contains(&0) || ws.contains(&0) {
+                assert!(provider.prepare_into(&op, &[&xs, &ws, &bs], true).is_err());
+                continue;
+            }
+            let kernel = provider.prepare_into(&op, &[&xs, &ws, &bs], true)?.unwrap();
+            let mut workspace = vec![f32::NAN; kernel.spec().workspace_elements];
+            let mut output = vec![1.0; g.len()];
+            no_alloc(|| kernel.execute_into(&inputs, &mut output, &mut [], &mut workspace))?;
+            same(&output, &reference);
+            for mask in 0..8 {
+                let expected = [&dx, &dw, &db];
+                let mut data = expected.map(|v| vec![9.0; v.len() + 2]);
+                let mut destinations = data
+                    .iter_mut()
+                    .enumerate()
+                    .map(|(i, v)| {
+                        let n = v.len();
+                        (mask & (1 << i) != 0).then_some(&mut v[1..n - 1])
+                    })
+                    .collect::<Vec<_>>();
+                no_alloc(|| {
+                    kernel.backward_many_into(
+                        &[Some(inputs[0]), Some(inputs[1]), None],
+                        &[],
+                        seed,
+                        &mut destinations,
+                        &[
+                            GradientWrite::Assign,
+                            GradientWrite::Add,
+                            GradientWrite::Assign,
+                        ],
+                        &mut workspace,
+                    )
+                })?;
+                drop(destinations);
+                for i in 0..3 {
+                    assert_eq!(data[i][0], 9.0);
+                    assert_eq!(data[i][data[i].len() - 1], 9.0);
+                    let expected = expected[i]
+                        .iter()
+                        .map(|&v| {
+                            if mask & (1 << i) == 0 {
+                                9.0
+                            } else if i == 1 {
+                                9.0 + v
+                            } else {
+                                v
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    same(&data[i][1..data[i].len() - 1], &expected);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn fused_vjps_preserve_exact_reductions_masks_and_zero_allocations() -> MlResult<()> {
     let provider = backend::CpuBackend::default();
     let cases = [
@@ -67,6 +228,7 @@ fn fused_vjps_preserve_exact_reductions_masks_and_zero_allocations() -> MlResult
             vec![vec![2, 2, 5, 4], vec![3, 2, 3, 3], vec![3]],
         ),
         (Operation::Matmul, vec![vec![2, 1, 3, 5], vec![1, 4, 5, 2]]),
+        (Operation::Matmul, vec![vec![2, 1, 17, 131], vec![1, 2, 131, 33]]),
         (
             Operation::GroupNorm {
                 groups: 2,
@@ -787,6 +949,8 @@ fn matmul_into_broadcast_vjp_matches_eager_without_allocating() -> MlResult<()> 
         (vec![3, 5], vec![2, 4, 5, 2]),
         (vec![2, 4, 3, 5], vec![5, 2]),
         (vec![33, 35], vec![35, 34]),
+        (vec![17, 131], vec![131, 137]),
+        (vec![2, 1, 17, 131], vec![1, 2, 131, 33]),
     ] {
         let a = (0..left.iter().product())
             .map(|i| (i as f32 * 0.17).sin())

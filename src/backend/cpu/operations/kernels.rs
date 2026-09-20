@@ -482,44 +482,7 @@ pub(crate) fn conv2d_forward_data(
     stride: (usize, usize),
     padding: (usize, usize),
 ) -> MlResult<TensorBuffer> {
-    let (oh, ow) = conv2d_spec(&input.shape, &weight.shape, &bias.shape, stride, padding)?;
-    let (n, ci, h, w, co, kh, kw) = (
-        input.shape[0],
-        input.shape[1],
-        input.shape[2],
-        input.shape[3],
-        weight.shape[0],
-        weight.shape[2],
-        weight.shape[3],
-    );
-    let mut output = vec![0.0; n * co * oh * ow];
-    for b in 0..n {
-        for oc in 0..co {
-            for y in 0..oh {
-                for x in 0..ow {
-                    let mut sum = bias.data[oc];
-                    for ic in 0..ci {
-                        for ky in 0..kh {
-                            for kx in 0..kw {
-                                let iy = y * stride.0 + ky;
-                                let ix = x * stride.1 + kx;
-                                if iy >= padding.0 && ix >= padding.1 {
-                                    let sy = iy - padding.0;
-                                    let sx = ix - padding.1;
-                                    if sy < h && sx < w {
-                                        sum += input.data[((b * ci + ic) * h + sy) * w + sx]
-                                            * weight.data[((oc * ci + ic) * kh + ky) * kw + kx];
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    output[((b * co + oc) * oh + y) * ow + x] = sum;
-                }
-            }
-        }
-    }
-    TensorBuffer::from_vec(output, &[n, co, oh, ow])
+    super::into_conv::forward_data(input, weight, bias, stride, padding)
 }
 
 pub(crate) fn conv2d_backward_data(
@@ -529,61 +492,7 @@ pub(crate) fn conv2d_backward_data(
     stride: (usize, usize),
     padding: (usize, usize),
 ) -> MlResult<(TensorBuffer, TensorBuffer, TensorBuffer)> {
-    let bias_shape = [weight.shape[0]];
-    let (oh, ow) = conv2d_spec(&input.shape, &weight.shape, &bias_shape, stride, padding)?;
-    let expected = vec![input.shape[0], weight.shape[0], oh, ow];
-    if grad.shape != expected {
-        return Err(AutogradError::GradientShapeMismatch {
-            expected,
-            got: grad.shape.clone(),
-        }
-        .into());
-    }
-    let (n, ci, h, w, co, kh, kw) = (
-        input.shape[0],
-        input.shape[1],
-        input.shape[2],
-        input.shape[3],
-        weight.shape[0],
-        weight.shape[2],
-        weight.shape[3],
-    );
-    let mut dx = vec![0.0; input.data.len()];
-    let mut dw = vec![0.0; weight.data.len()];
-    let mut db = vec![0.0; co];
-    for b in 0..n {
-        for oc in 0..co {
-            for y in 0..oh {
-                for x in 0..ow {
-                    let upstream = grad.data[((b * co + oc) * oh + y) * ow + x];
-                    db[oc] += upstream;
-                    for ic in 0..ci {
-                        for ky in 0..kh {
-                            for kx in 0..kw {
-                                let iy = y * stride.0 + ky;
-                                let ix = x * stride.1 + kx;
-                                if iy >= padding.0 && ix >= padding.1 {
-                                    let sy = iy - padding.0;
-                                    let sx = ix - padding.1;
-                                    if sy < h && sx < w {
-                                        let input_index = ((b * ci + ic) * h + sy) * w + sx;
-                                        let weight_index = ((oc * ci + ic) * kh + ky) * kw + kx;
-                                        dx[input_index] += upstream * weight.data[weight_index];
-                                        dw[weight_index] += upstream * input.data[input_index];
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    Ok((
-        TensorBuffer::from_vec(dx, &input.shape)?,
-        TensorBuffer::from_vec(dw, &weight.shape)?,
-        TensorBuffer::from_vec(db, &bias_shape)?,
-    ))
+    super::into_conv::backward_data(input, weight, grad, stride, padding)
 }
 
 #[derive(Debug)]

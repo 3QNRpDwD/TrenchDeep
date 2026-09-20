@@ -102,7 +102,10 @@ impl PreparedTrainer {
                 {
                     index
                 } else {
-                    let prepared = self.service.context.prepare_model(model, &batch.inputs)?;
+                    let prepared = self
+                        .service
+                        .context
+                        .prepare_model_for_loss(model, &batch.inputs)?;
                     plans.push((signature, variant, prepared));
                     plans.len() - 1
                 };

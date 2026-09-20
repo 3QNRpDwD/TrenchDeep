@@ -49,24 +49,52 @@ impl ExecutionContext {
         model: &M,
         inputs: &ExecutionInputs,
     ) -> MlResult<PreparedModelExecutor> {
+        self.prepare_model_impl(model, inputs, false)
+    }
+    /// Keep prediction exports, but prepare backward only from the model loss.
+    /// Use `prepare_model` when a caller also needs prediction-root backward.
+    pub fn prepare_model_for_loss<M: PreparedModel>(
+        &self,
+        model: &M,
+        inputs: &ExecutionInputs,
+    ) -> MlResult<PreparedModelExecutor> {
+        self.prepare_model_impl(model, inputs, true)
+    }
+    fn prepare_model_impl<M: PreparedModel>(
+        &self,
+        model: &M,
+        inputs: &ExecutionInputs,
+        loss_only: bool,
+    ) -> MlResult<PreparedModelExecutor> {
         if model.context_id() != self.id() {
             return Err(ContextError::Mismatch.into());
         }
         let mut prediction = false;
-        let plan = self.prepare_forward(
-            inputs,
-            &model.parameters(),
-            PreparedMode::Training,
-            |inputs| {
-                let output = model.forward_inputs(inputs)?;
-                let mut tensors = vec![output.loss.tensor().clone()];
-                if let Some(value) = output.prediction {
-                    prediction = true;
-                    tensors.push(value.tensor().clone());
-                }
-                Ok(tensors)
-            },
-        )?;
+        let describe = |inputs: &ExecutionInputs| {
+            let output = model.forward_inputs(inputs)?;
+            let mut tensors = vec![output.loss.tensor().clone()];
+            if let Some(value) = output.prediction {
+                prediction = true;
+                tensors.push(value.tensor().clone());
+            }
+            Ok(tensors)
+        };
+        let plan = if loss_only {
+            self.prepare_forward_with_roots(
+                inputs,
+                &model.parameters(),
+                PreparedMode::Training,
+                &[0],
+                describe,
+            )?
+        } else {
+            self.prepare_forward(
+                inputs,
+                &model.parameters(),
+                PreparedMode::Training,
+                describe,
+            )?
+        };
         Ok(PreparedModelExecutor {
             executor: plan.into_executor(self)?,
             prediction,

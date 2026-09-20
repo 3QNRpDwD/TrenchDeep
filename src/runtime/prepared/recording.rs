@@ -203,6 +203,16 @@ impl ExecutionContext {
         mode: PreparedMode,
         describe: impl FnOnce() -> MlResult<Vec<Tensor>>,
     ) -> MlResult<PreparedPlan> {
+        self.prepare_recorded_with_roots(feeds, parameters, mode, None, describe)
+    }
+    pub(crate) fn prepare_recorded_with_roots(
+        &self,
+        feeds: &[&Tensor],
+        parameters: &[&Parameter],
+        mode: PreparedMode,
+        backward_outputs: Option<&[usize]>,
+        describe: impl FnOnce() -> MlResult<Vec<Tensor>>,
+    ) -> MlResult<PreparedPlan> {
         if self.is_preparing() {
             return Err(invalid("nested preparation"));
         }
@@ -288,6 +298,19 @@ impl ExecutionContext {
                 .collect::<MlResult<Vec<_>>>()?;
             Ok((recording, outputs))
         })()?;
-        self.prepare(&recording.program, parameters, &outputs, mode)
+        if let Some(indices) = backward_outputs {
+            let roots = indices
+                .iter()
+                .map(|&i| {
+                    outputs
+                        .get(i)
+                        .copied()
+                        .ok_or_else(|| invalid("unknown backward output index"))
+                })
+                .collect::<MlResult<Vec<_>>>()?;
+            self.prepare_with_roots(&recording.program, parameters, &outputs, &roots, mode)
+        } else {
+            self.prepare(&recording.program, parameters, &outputs, mode)
+        }
     }
 }
