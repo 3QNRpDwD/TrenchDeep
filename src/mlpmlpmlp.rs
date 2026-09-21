@@ -27,6 +27,7 @@ impl MLP {
 }
 
 #[test]
+#[cfg(all(feature = "builtinKernels", feature = "builtinStorage", feature = "builtinOptimizers"))]
 pub fn three_layer_model() -> MlResult<()> {
     let ctx = ExecutionContext::new();
 
@@ -84,6 +85,7 @@ impl crate::runtime::prepared::PreparedModel for MLP {
 }
 
 #[test]
+#[cfg(all(feature = "builtinKernels", feature = "builtinStorage", feature = "builtinOptimizers"))]
 pub fn three_layer_model_prepare() -> MlResult<()> {
     use crate::runtime::prepared::PreparedModel;
     use crate::trainer::{SupervisedBatch, TrainableModel};
