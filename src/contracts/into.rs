@@ -17,6 +17,12 @@ pub enum GradientWrite {
 }
 pub trait IntoKernel: Debug {
     fn spec(&self) -> &IntoKernelSpec;
+    /// Opt in to a metadata-only forward: output has exactly the selected
+    /// input's contiguous elements, with no saved values or forward side effects.
+    /// The executor may skip execute_into. Gradients remain independent.
+    fn forward_alias(&self) -> Option<usize> {
+        None
+    }
     /// Fully overwrite output and saved destinations. Validate all lengths
     /// before writing. Successful numerical calls allocate no tensor data.
     fn execute_into(

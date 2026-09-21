@@ -11,7 +11,7 @@ pub struct PreparedExecutor {
     storage: Rc<RefCell<IntoStorage>>,
     placements: Vec<usize>,
     sizes: Vec<usize>,
-    forward_io: Vec<ArenaIo>,
+    forward_io: Vec<Option<ArenaIo>>,
 }
 #[derive(Debug)]
 pub(super) struct IntoStorage {
@@ -37,7 +37,7 @@ pub(super) struct GradientGroup {
 impl PreparedPlan {
     /// Compile the optional into capability and allocate reusable storage.
     /// Unsupported operations fail explicitly.
-    pub fn into_executor(self, ctx: &ExecutionContext) -> MlResult<PreparedExecutor> {
+    pub fn into_executor(mut self, ctx: &ExecutionContext) -> MlResult<PreparedExecutor> {
         ctx.deny_preparation("into executor preparation")?;
         ctx.reject_prepared_extension()?;
         if ctx.id() != self.context {
@@ -89,6 +89,31 @@ impl PreparedPlan {
             }
             kernels.push(kernel);
         }
+        let mut tensor_aliases = self.buffers.aliases.clone();
+        let mut views = vec![false; kernels.len()];
+        for (index, (node, kernel)) in self.program.instructions.iter().zip(&kernels).enumerate() {
+            if let Some(input) = kernel.forward_alias() {
+                let spec = kernel.spec();
+                if input >= node.inputs.len()
+                    || !spec.saved.is_empty()
+                    || super::prepare::numel(&spec.output)?
+                        != super::prepare::numel(&spec.inputs[input])?
+                {
+                    return Err(invalid("invalid forward alias capability"));
+                }
+                tensor_aliases[node.output.0] = tensor_aliases[node.inputs[input].0];
+                views[index] = true;
+            }
+        }
+        if views.iter().any(|&v| v) {
+            self.buffers = super::buffers::compile_views(
+                &self.program,
+                &self.outputs,
+                &self.backward,
+                &self.buffers.aliases,
+                &tensor_aliases,
+            )?;
+        }
         let sizes = self
             .program
             .slots
@@ -102,7 +127,7 @@ impl PreparedPlan {
             }
         }
         for slot in 0..placements.len() {
-            placements[slot] = placements[self.buffers.aliases[slot]];
+            placements[slot] = placements[self.buffers.tensor_aliases[slot]];
         }
         let reads: Vec<Vec<usize>> = self
             .program
@@ -143,9 +168,12 @@ impl PreparedPlan {
             .iter()
             .enumerate()
             .map(|(i, node)| {
+                if views[i] {
+                    return Ok(None);
+                }
                 let mut writes = vec![placements[node.output.0]];
                 writes.extend(&saved[i]);
-                ArenaIo::new(&reads[i], &writes, buffer_count)
+                ArenaIo::new(&reads[i], &writes, buffer_count).map(Some)
             })
             .collect::<MlResult<Vec<_>>>()?;
         let backward_io = self
@@ -329,8 +357,11 @@ impl PreparedExecutor {
             }
         }
         for (index, node) in self.plan.program.instructions.iter().enumerate() {
+            let Some(io) = &self.forward_io[index] else {
+                continue;
+            };
             let kernel = &self.kernels[index];
-            self.forward_io[index].run(arena, |values, destinations| {
+            io.run(arena, |values, destinations| {
                 let (destination, saved) = destinations.split_first_mut().unwrap();
                 let mut saved = saved
                     .iter_mut()

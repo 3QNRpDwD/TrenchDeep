@@ -1,5 +1,4 @@
 use crate::nn::Parameter;
-use crate::tensor::TensorBuffer;
 use crate::{ContextError, ContextId, ExecutionContext, MlResult};
 
 use super::OptimError;
@@ -107,7 +106,7 @@ impl OptimizerCore {
         {
             return Err(OptimError::DuplicateParameter(parameter.id()).into());
         }
-        let size = parameter.tensor().to_vec()?.len();
+        let size = parameter.tensor().numel()?;
         self.parameters.push(ParameterState {
             parameter: parameter.clone(),
             first: vec![0.0; size],
@@ -116,102 +115,90 @@ impl OptimizerCore {
         Ok(())
     }
 
-    fn gradients(&self) -> MlResult<Vec<Option<TensorBuffer>>> {
-        self.parameters
-            .iter()
-            .map(|entry| {
-                if entry.parameter.context_id() != self.context.id() {
-                    return Err(ContextError::Mismatch.into());
-                }
-                let shape = entry.parameter.tensor().shape()?;
-                let gradient = self.context.grad(entry.parameter.variable())?;
-                if let Some(ref gradient) = gradient {
-                    if gradient.shape() != shape {
-                        return Err(OptimError::GradientError(format!(
-                            "parameter {:?} expected gradient shape {:?}, got {:?}",
-                            entry.parameter.id(),
-                            shape,
-                            gradient.shape()
-                        ))
-                        .into());
-                    }
-                }
-                Ok(gradient)
-            })
-            .collect()
-    }
-
     fn step(&mut self) -> MlResult<()> {
-        let gradients = self.gradients()?;
+        self.context.deny_preparation("optimizer step")?;
+        self.context.guard_prepared_update()?;
+        // Validate every gradient before modifying any moment, counter or weight.
+        for entry in &self.parameters {
+            self.context
+                .with_gradient(entry.parameter.variable(), |gradient| {
+                    entry
+                        .parameter
+                        .tensor()
+                        .with_view(|weights| -> MlResult<()> {
+                            if weights.len() != entry.first.len()
+                                || weights.len() != entry.second.len()
+                                || gradient.is_some_and(|g| g.shape() != weights.shape())
+                            {
+                                return Err(OptimError::GradientError(
+                                    "parameter/gradient/state shape mismatch".into(),
+                                )
+                                .into());
+                            }
+                            Ok(())
+                        })?
+                })?;
+        }
         if matches!(self.algorithm, Algorithm::Adam { .. }) {
             self.step = self.step.checked_add(1).ok_or_else(|| {
                 OptimError::GradientError("optimizer step counter overflow".into())
             })?;
         }
-        for (entry, gradient) in self.parameters.iter_mut().zip(gradients) {
-            let Some(gradient) = gradient else { continue };
-            let mut delta = vec![0.0; gradient.data().len()];
-            match self.algorithm {
-                Algorithm::Sgd => {
-                    for (output, &g) in delta.iter_mut().zip(gradient.data()) {
-                        *output = self.learning_rate * g;
-                    }
-                }
-                Algorithm::Momentum { momentum } => {
-                    for ((velocity, output), &g) in
-                        entry.first.iter_mut().zip(&mut delta).zip(gradient.data())
-                    {
-                        *velocity = momentum * *velocity + g;
-                        *output = self.learning_rate * *velocity;
-                    }
-                }
-                Algorithm::AdaGrad { epsilon } => {
-                    for ((accumulator, output), &g) in
-                        entry.first.iter_mut().zip(&mut delta).zip(gradient.data())
-                    {
-                        *accumulator += g * g;
-                        *output = self.learning_rate * g / (*accumulator + epsilon).sqrt();
-                    }
-                }
-                Algorithm::RmsProp { rho, epsilon } => {
-                    for ((average, output), &g) in
-                        entry.first.iter_mut().zip(&mut delta).zip(gradient.data())
-                    {
-                        *average = rho * *average + (1.0 - rho) * g * g;
-                        *output = self.learning_rate * g / (*average + epsilon).sqrt();
-                    }
-                }
-                Algorithm::Adam {
-                    beta1,
-                    beta2,
-                    epsilon,
-                    weight_decay,
-                } => {
-                    let correction1 = 1.0 - beta1.powi(self.step as i32);
-                    let correction2 = 1.0 - beta2.powi(self.step as i32);
-                    let weights = if weight_decay == 0.0 {
-                        None
-                    } else {
-                        Some(entry.parameter.tensor().to_vec()?)
+        let algorithm = self.algorithm;
+        let lr = self.learning_rate;
+        let step = self.step;
+        for entry in &mut self.parameters {
+            let ParameterState {
+                parameter,
+                first,
+                second,
+            } = entry;
+            self.context
+                .with_parameter_gradient(parameter, |weights, gradient| {
+                    let (correction1, correction2) = match algorithm {
+                        Algorithm::Adam { beta1, beta2, .. } => {
+                            (1.0 - beta1.powi(step as i32), 1.0 - beta2.powi(step as i32))
+                        }
+                        _ => (1.0, 1.0),
                     };
-                    for index in 0..gradient.data().len() {
-                        let g = gradient.data()[index];
-                        entry.first[index] = beta1 * entry.first[index] + (1.0 - beta1) * g;
-                        entry.second[index] = beta2 * entry.second[index] + (1.0 - beta2) * g * g;
-                        let adaptive = (entry.first[index] / correction1)
-                            / ((entry.second[index] / correction2).sqrt() + epsilon);
-                        delta[index] = self.learning_rate
-                            * (adaptive
-                                + weights
-                                    .as_ref()
-                                    .map_or(0.0, |values| weight_decay * values[index]));
+                    for i in 0..gradient.len() {
+                        let g = gradient[i];
+                        let delta = match algorithm {
+                            Algorithm::Sgd => lr * g,
+                            Algorithm::Momentum { momentum } => {
+                                first[i] = momentum * first[i] + g;
+                                lr * first[i]
+                            }
+                            Algorithm::AdaGrad { epsilon } => {
+                                first[i] += g * g;
+                                lr * g / (first[i] + epsilon).sqrt()
+                            }
+                            Algorithm::RmsProp { rho, epsilon } => {
+                                first[i] = rho * first[i] + (1.0 - rho) * g * g;
+                                lr * g / (first[i] + epsilon).sqrt()
+                            }
+                            Algorithm::Adam {
+                                beta1,
+                                beta2,
+                                epsilon,
+                                weight_decay,
+                            } => {
+                                first[i] = beta1 * first[i] + (1.0 - beta1) * g;
+                                second[i] = beta2 * second[i] + (1.0 - beta2) * g * g;
+                                let adaptive = (first[i] / correction1)
+                                    / ((second[i] / correction2).sqrt() + epsilon);
+                                let decay = if weight_decay == 0.0 {
+                                    0.0
+                                } else {
+                                    weight_decay * weights[i]
+                                };
+                                lr * (adaptive + decay)
+                            }
+                        };
+                        // Preserve update() arithmetic, including signed zero behavior.
+                        weights[i] += -1.0 * delta;
                     }
-                }
-            }
-            self.context.sub_assign(
-                entry.parameter.variable(),
-                &TensorBuffer::from_vec(delta, gradient.shape())?,
-            )?;
+                })?;
         }
         Ok(())
     }
@@ -377,13 +364,16 @@ pub fn clip_context_grad_norm(
         if parameter.context_id() != context.id() {
             return Err(ContextError::Mismatch.into());
         }
-        if let Some(gradient) = context.grad(parameter.variable())? {
-            squared_norm += gradient
-                .data()
-                .iter()
-                .map(|value| value * value)
-                .sum::<f32>();
-        }
+        context.with_gradient(parameter.variable(), |gradient| {
+            if let Some(gradient) = gradient {
+                squared_norm += gradient
+                    .data()
+                    .iter()
+                    .map(|value| value * value)
+                    .sum::<f32>();
+            }
+            Ok(())
+        })?;
     }
     let norm = squared_norm.sqrt();
     if norm > max_norm {

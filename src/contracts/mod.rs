@@ -107,6 +107,17 @@ pub trait TensorStore: Debug {
         visitor: &mut dyn FnMut(TensorView<'_>) -> MlResult<()>,
     ) -> MlResult<()>;
     fn replace(&mut self, id: TensorId, buffer: TensorBuffer) -> MlResult<()>;
+    /// Optional fixed-shape update. Return false without invoking the visitor
+    /// when unsupported. On success invoke it exactly once; errors must occur
+    /// before invocation. The visitor cannot resize storage or retain a borrow.
+    /// Aliases must observe the update. Panics are not transactional.
+    fn with_values_mut(
+        &mut self,
+        _id: TensorId,
+        _visitor: &mut dyn FnMut(&mut [f32]),
+    ) -> MlResult<bool> {
+        Ok(false)
+    }
     fn remove(&mut self, id: TensorId) -> MlResult<()>;
 }
 

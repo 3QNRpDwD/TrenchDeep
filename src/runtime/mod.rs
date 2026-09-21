@@ -520,6 +520,67 @@ impl ExecutionContext {
         self.validate(variable.tensor())?;
         variable.grad()
     }
+    /// Internal scoped gradient read; public grad() remains an owned snapshot.
+    pub(crate) fn with_gradient<T>(
+        &self,
+        variable: &Variable,
+        f: impl FnOnce(Option<&TensorBuffer>) -> MlResult<T>,
+    ) -> MlResult<T> {
+        self.deny_preparation("host gradient read")?;
+        self.validate(variable.tensor())?;
+        let state = self
+            .inner
+            .state
+            .try_borrow()
+            .map_err(|_| ContextError::BorrowConflict)?;
+        f(state.gradients.get(&variable.tensor.id()))
+    }
+    pub(crate) fn with_parameter_gradient(
+        &self,
+        parameter: &Parameter,
+        mut f: impl FnMut(&mut [f32], &[f32]),
+    ) -> MlResult<()> {
+        self.deny_preparation("parameter mutation")?;
+        self.guard_prepared_update()?;
+        self.validate(parameter.tensor())?;
+        let mut state = self
+            .inner
+            .state
+            .try_borrow_mut()
+            .map_err(|_| ContextError::BorrowConflict)?;
+        let State {
+            storage, gradients, ..
+        } = &mut *state;
+        let Some(gradient) = gradients.get(&parameter.tensor().id()) else {
+            return Ok(());
+        };
+        let store = storage
+            .as_deref_mut()
+            .ok_or(MlError::UnsupportedCapability {
+                module: "runtime",
+                capability: "storage",
+                operation: "parameter update",
+            })?;
+        store.with_view(parameter.tensor().id(), &mut |view| {
+            if view.shape() != gradient.shape() {
+                return Err(TensorError::InvalidShape {
+                    expected: view.shape().to_vec(),
+                    got: gradient.shape().to_vec(),
+                }
+                .into());
+            }
+            Ok(())
+        })?;
+        if !store.with_values_mut(parameter.tensor().id(), &mut |weights| {
+            f(weights, gradient.data())
+        })? {
+            // Existing external stores retain their snapshot/atomic replace contract.
+            let mut weights = snapshot(store, parameter.tensor().id())?;
+            f(&mut weights.data, gradient.data());
+            store.replace(parameter.tensor().id(), weights)?;
+        }
+        Ok(())
+    }
     pub fn clear_grad(&self, variable: &Variable) -> MlResult<()> {
         self.deny_preparation("gradient mutation")?;
         self.validate(variable.tensor())?;

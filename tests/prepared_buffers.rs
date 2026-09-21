@@ -6,6 +6,90 @@
 use trench_deep::{contracts::Operation, runtime::prepared::*, *};
 
 #[test]
+fn reshape_views_share_forward_storage_but_not_gradients() -> MlResult<()> {
+    let ctx = ExecutionContext::new();
+    let w = ctx.parameter(vec![1., 2., 3., 4., 5., 6.], &[2, 3])?;
+    let mut p = PreparedProgram::new();
+    let weight = p.parameter(&[2, 3])?;
+    let square = p.operation(Operation::Square, &[weight])?;
+    let view = p.operation(Operation::Reshape(vec![3, 2]), &[square])?;
+    let flat = p.operation(Operation::Reshape(vec![6]), &[view])?;
+    let left = p.operation(Operation::Sum, &[square])?;
+    let right = p.operation(Operation::Sum, &[flat])?;
+    let loss = p.operation(Operation::Add, &[left, right])?;
+    let plan = ctx.prepare(
+        &p,
+        &[&w],
+        &[loss, square, view, flat],
+        PreparedMode::Training,
+    )?;
+    let before = plan.buffer_plan().layout.unreused_bytes;
+    let mut executor = plan.into_executor(&ctx)?;
+    let buffers = executor.plan().buffer_plan();
+    buffers.validate()?;
+    assert_eq!(buffers.tensor_aliases[2], 1);
+    assert_eq!(buffers.tensor_aliases[3], 1);
+    assert_eq!(buffers.aliases[2], 2);
+    assert_eq!(buffers.aliases[3], 3);
+    assert_eq!(before - buffers.layout.unreused_bytes, 2 * 6 * 4);
+    let held = executor.with_run(&[], &[&w], |out| {
+        let a = out[1].as_variable()?;
+        let b = out[2].as_variable()?;
+        a.retain_grad()?;
+        b.retain_grad()?;
+        out[0].as_variable()?.backward()?;
+        assert_eq!(a.grad()?.unwrap().data(), &[2.; 6]);
+        assert_eq!(b.grad()?.unwrap().data(), &[1.; 6]);
+        assert_eq!(w.grad()?.unwrap().data(), &[4., 8., 12., 16., 20., 24.]);
+        assert_eq!(out[2].shape()?, vec![3, 2]);
+        Ok(out[2].clone())
+    })?;
+    assert!(
+        executor
+            .with_run(&[], &[&w], |_| -> MlResult<()> {
+                Err(MlError::StringError("callback failure".into()))
+            })
+            .is_err()
+    );
+    ctx.replace_parameter(w.variable(), TensorBuffer::from_vec(vec![2.; 6], &[2, 3])?)?;
+    for _ in 0..100 {
+        executor.with_run(&[], &[&w], |out| {
+            let seed = ctx.tensor(vec![3.; 6], &[3, 2])?;
+            out[2].as_variable()?.backward_with_grad(&seed)?;
+            assert_eq!(w.grad()?.unwrap().data(), &[12.; 6]);
+            assert_eq!(out[3].to_vec()?, vec![4.; 6]);
+            Ok(())
+        })?;
+        assert_eq!(held.to_vec()?, vec![1., 4., 9., 16., 25., 36.]);
+        assert!(w.grad()?.is_none());
+    }
+    Ok(())
+}
+
+#[test]
+fn reshape_feed_views_preserve_values_until_late_consumers() -> MlResult<()> {
+    let ctx = ExecutionContext::new();
+    let mut p = PreparedProgram::new();
+    let x = p.input(&[2, 3], false)?;
+    let v = p.operation(Operation::Reshape(vec![6]), &[x])?;
+    let neg = p.operation(Operation::Neg, &[x])?;
+    let square = p.operation(Operation::Square, &[neg])?;
+    let summed = p.operation(Operation::Sum, &[square])?;
+    let mut e = ctx
+        .prepare(&p, &[], &[v, summed], PreparedMode::Inference)?
+        .into_executor(&ctx)?;
+    for value in [2., 3.] {
+        let x = ctx.tensor(vec![value; 6], &[2, 3])?;
+        e.with_run(&[&x], &[], |out| {
+            assert_eq!(out[0].to_vec()?, vec![value; 6]);
+            assert_eq!(out[1].item()?, 6. * value * value);
+            Ok(())
+        })?;
+    }
+    Ok(())
+}
+
+#[test]
 fn named_forward_is_shared_by_linear_model_and_checks_signature() -> MlResult<()> {
     use trench_deep::{nn::LinearRegression, trainer::TrainableModel};
     let ctx = ExecutionContext::new();

@@ -46,11 +46,7 @@ fn main() -> MlResult<()> {
     let mut net = Sequential::new(&ctx, "mlp");
     for i in 0..3 {
         net.push(Box::new(Linear::new(&ctx, width, width, format!("l{i}"))?))?;
-        net.push(Box::new(Activation::new(
-            &ctx,
-            ActivationKind::ReLU,
-            format!("a{i}"),
-        )))?;
+        net.push(Box::new(Activation::new(&ctx, ActivationKind::ReLU, format!("a{i}"))))?;
     }
     let model = Model {
         ctx: ctx.clone(),

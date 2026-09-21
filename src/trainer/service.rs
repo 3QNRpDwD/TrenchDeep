@@ -154,16 +154,21 @@ impl TrainingService {
         for p in parameters.iter().filter(|_| {
             check || self.core.config.metrics.grad_norm || self.core.config.metrics.update_ratio
         }) {
-            if let Some(g) = p.grad()? {
-                if check && g.data().iter().any(|x| !x.is_finite()) {
-                    return Err(crate::TensorError::InvalidOperation {
-                        op: "training",
-                        reason: "non-finite gradient".into(),
+            self.context.with_gradient(p.variable(), |gradient| {
+                if let Some(g) = gradient {
+                    if check && g.data().iter().any(|x| !x.is_finite()) {
+                        return Err(crate::TensorError::InvalidOperation {
+                            op: "training",
+                            reason: "non-finite gradient".into(),
+                        }
+                        .into());
                     }
-                    .into());
+                    if self.core.config.metrics.grad_norm || self.core.config.metrics.update_ratio {
+                        squared += g.data().iter().map(|x| x * x).sum::<f32>();
+                    }
                 }
-                squared += g.data().iter().map(|x| x * x).sum::<f32>();
-            }
+                Ok(())
+            })?;
             if self.core.config.metrics.update_ratio {
                 weights += p
                     .tensor()

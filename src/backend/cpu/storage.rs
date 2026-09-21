@@ -70,4 +70,19 @@ impl TensorStore for CpuTensorStore {
         self.buffers.remove(&id);
         Ok(())
     }
+    fn with_values_mut(
+        &mut self,
+        id: TensorId,
+        visitor: &mut dyn FnMut(&mut [f32]),
+    ) -> MlResult<bool> {
+        let buffer = self
+            .buffers
+            .get(&id)
+            .ok_or(ContextError::UnknownTensor(id))?;
+        let mut buffer = buffer
+            .try_borrow_mut()
+            .map_err(|_| ContextError::BorrowConflict)?;
+        visitor(&mut buffer.data);
+        Ok(true)
+    }
 }

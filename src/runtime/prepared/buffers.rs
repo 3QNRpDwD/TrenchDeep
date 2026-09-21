@@ -63,6 +63,9 @@ pub struct BufferPlan {
     pub layout: RootBufferPlan,
     /// Parameter slots sharing a ParameterId have the same canonical value.
     pub aliases: Vec<usize>,
+    /// Canonical forward storage, including metadata-only views. Unlike
+    /// parameter aliases these do not merge gradient identities.
+    pub tensor_aliases: Vec<usize>,
     /// Forward-only and each supported backward root have independent layouts.
     pub roots: Vec<RootBufferPlan>,
     /// Capacity envelope for an arena reusable across any root layout.
@@ -90,6 +93,14 @@ impl BufferPlan {
             .any(|&a| a >= self.aliases.len() || self.aliases[a] != a)
         {
             return Err(invalid("invalid canonical alias"));
+        }
+        if self.tensor_aliases.len() != self.aliases.len()
+            || self
+                .tensor_aliases
+                .iter()
+                .any(|&a| a >= self.tensor_aliases.len() || self.tensor_aliases[a] != a)
+        {
+            return Err(invalid("invalid tensor storage alias"));
         }
         let mut common = HashMap::with_capacity(self.layout.lifetimes.len());
         for life in &self.layout.lifetimes {
@@ -154,6 +165,15 @@ pub(super) fn compile(
     for (slot, p) in program.parameters.iter().zip(parameters) {
         aliases[slot.0] = *parameter_aliases.entry(p.id()).or_insert(slot.0);
     }
+    compile_views(program, outputs, backward, &aliases, &aliases)
+}
+pub(super) fn compile_views(
+    program: &PreparedProgram,
+    outputs: &[TensorSlotId],
+    backward: &BackwardPlan,
+    aliases: &[usize],
+    tensor_aliases: &[usize],
+) -> MlResult<BufferPlan> {
     let mut roots = Vec::new();
     // Include a no-backward run even for a training plan.
     for root in std::iter::once(None).chain(backward.roots.iter().map(Some)) {
@@ -166,7 +186,7 @@ pub(super) fn compile(
         let mut lifetimes = Vec::new();
         let mut copies = Vec::new();
         for (slot, spec) in program.slots.iter().enumerate() {
-            if aliases[slot] != slot {
+            if tensor_aliases[slot] != slot {
                 continue;
             }
             let role = match spec.source {
@@ -204,11 +224,13 @@ pub(super) fn compile(
             }
         }
         for slot in 0..positions.len() {
-            positions[slot] = positions[aliases[slot]];
+            positions[slot] = positions[tensor_aliases[slot]];
         }
         for (i, node) in program.instructions.iter().enumerate() {
             let event = i + 1;
-            lifetimes[positions[node.output.0]].first = event;
+            if tensor_aliases[node.output.0] == node.output.0 {
+                lifetimes[positions[node.output.0]].first = event;
+            }
             lifetimes[positions[node.output.0]].last = event;
             for input in &node.inputs {
                 lifetimes[positions[input.0]].last = event;
@@ -346,7 +368,8 @@ pub(super) fn compile(
     }
     let plan = BufferPlan {
         layout,
-        aliases,
+        aliases: aliases.to_vec(),
+        tensor_aliases: tensor_aliases.to_vec(),
         roots,
         capacity_bytes: total(capacity_elements.iter().copied())?,
         capacity_elements,

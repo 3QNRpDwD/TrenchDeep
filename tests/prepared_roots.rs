@@ -134,6 +134,7 @@ fn sorted_lifetime_validation_matches_pairwise_reference_and_rechecks_public_mut
             .collect();
         BufferPlan {
             aliases: vec![],
+            tensor_aliases: vec![],
             roots: vec![],
             capacity_elements: vec![1; 3],
             capacity_bytes: 12,

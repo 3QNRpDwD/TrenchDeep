@@ -122,6 +122,9 @@ impl StructuralInto {
     }
 }
 impl IntoKernel for StructuralInto {
+    fn forward_alias(&self) -> Option<usize> {
+        matches!(self.op, Operation::Reshape(_)).then_some(0)
+    }
     fn spec(&self) -> &IntoKernelSpec {
         &self.spec
     }

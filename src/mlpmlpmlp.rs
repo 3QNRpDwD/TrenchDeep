@@ -3,6 +3,7 @@ use std::time::Instant;
 use crate::{MlResult, ExecutionContext, Reduction};
 use crate::nn::{Activation, ActivationKind, Layer, Linear, Sequential};
 use crate::optimizer::{Adam, Optimizer};
+use crate::trainer::PreparedTrainer;
 
 pub struct MLP {
     context: ExecutionContext,
@@ -87,6 +88,7 @@ pub fn three_layer_model_prepare() -> MlResult<()> {
     use crate::runtime::prepared::PreparedModel;
     use crate::trainer::{SupervisedBatch, TrainableModel};
 
+
     let ctx = ExecutionContext::new();
     let lr = 0.01;
     let data = ctx.input((0..100).map(|_| rand::random::<f32>()).collect(), &[10, 10])?;
@@ -99,15 +101,17 @@ pub fn three_layer_model_prepare() -> MlResult<()> {
 
     let prepare_start = Instant::now();
     let mut prepared = ctx.prepare_model(&mlp, &batch.inputs)?;
+    let prepared_trainer = crate::trainer::Trainer::builder().build().prepared(&ctx);
     println!("prepare: {:?}", prepare_start.elapsed());
 
     println!("train start");
     let start = Instant::now();
-    prepared.run(&mlp, &batch.inputs, |output| {
-        assert!(output.loss.tensor().item()?.is_finite());
-        output.loss.backward()?;
-        optimizer.step()
-    })?;
+    // prepared.run(&mlp, &batch.inputs, |output| {
+    //     assert!(output.loss.tensor().item()?.is_finite());
+    //     output.loss.backward()?;
+    //     optimizer.step()
+    // })?;
+    // prepared_trainer.fit(&mut mlp, &mut optimizer, &[batch], 1)?;
     println!("train: {:?}", start.elapsed());
     println!("train end");
 

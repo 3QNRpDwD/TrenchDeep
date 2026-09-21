@@ -43,6 +43,37 @@ fn no_alloc(f: impl FnOnce() -> MlResult<()>) -> MlResult<()> {
     assert_eq!(allocations, 0, "kernel allocated during execution");
     result
 }
+
+#[test]
+fn builtin_optimizer_steps_borrow_gradients_and_update_without_allocating() -> MlResult<()> {
+    use trench_deep::optimizer::*;
+    for kind in 0..6 {
+        let ctx = ExecutionContext::new();
+        let w = ctx.parameter(vec![0.5,-1.0,2.0], &[3])?;
+        let alias = w.variable().detach()?;
+        let mut optimizer: Box<dyn Optimizer> = match kind {
+            0 => Box::new(SGD::new(&ctx,0.01)?),
+            1 => Box::new(Momentum::new(&ctx,0.01,0.9)?),
+            2 => Box::new(AdaGrad::new(&ctx,0.01,1e-8)?),
+            3 => Box::new(RMSProp::new(&ctx,0.01,0.9,1e-8)?),
+            4 => Box::new(Adam::new(&ctx,0.01,0.9,0.999,1e-8)?),
+            _ => Box::new(AdamW::new(&ctx,0.01,0.9,0.999,1e-8,0.1)?),
+        };
+        optimizer.register(&w)?;
+        for _ in 0..5 {
+            ctx.with_training_scope(|| {
+                w.variable().square()?.sum()?.backward()?;
+                let snapshot = w.grad()?.unwrap();
+                no_alloc(|| optimizer.step())?;
+                assert_eq!(w.grad()?.unwrap(),snapshot);
+                assert_eq!(alias.tensor().to_vec()?,w.tensor().to_vec()?);
+                Ok(())
+            })?;
+        }
+        no_alloc(|| optimizer.step())?; // Missing gradient is a no-op for weights.
+    }
+    Ok(())
+}
 fn equal(a: &[f32], b: &[f32]) {
     assert_eq!(a.len(), b.len());
     for (&x, &y) in a.iter().zip(b) {
