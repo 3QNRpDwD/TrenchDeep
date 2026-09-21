@@ -45,19 +45,73 @@ fn no_alloc(f: impl FnOnce() -> MlResult<()>) -> MlResult<()> {
 }
 
 #[test]
+fn prepared_metadata_allocations_do_not_grow_with_node_count() -> MlResult<()> {
+    let mut counts = Vec::new();
+    for depth in [2, 128] {
+        let ctx = ExecutionContext::new();
+        let w = ctx.parameter(vec![2.; 4], &[4])?;
+        let mut p = PreparedProgram::new();
+        let mut value = p.parameter(&[4])?;
+        for _ in 0..depth {
+            value = p.operation(Operation::Neg, &[value])?;
+        }
+        let loss = p.operation(Operation::Sum, &[value])?;
+        let mut e = ctx
+            .prepare(&p, &[&w], &[loss], PreparedMode::Training)?
+            .into_executor(&ctx)?;
+        for iteration in 0..3 {
+            COUNT.with(|c| c.set(Some(0)));
+            let result = e.with_run(&[], &[&w], |out| out[0].as_variable()?.backward());
+            let count = COUNT.with(|c| c.replace(None).unwrap());
+            result?;
+            if iteration == 2 {
+                counts.push(count);
+            }
+        }
+    }
+    assert_eq!(
+        counts[0], counts[1],
+        "per-node metadata allocated: {counts:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn metadata_supports_large_arity_and_repeated_shared_destinations() -> MlResult<()> {
+    let ctx = ExecutionContext::new();
+    let w = ctx.parameter(vec![2., 3.], &[2])?;
+    let mut p = PreparedProgram::new();
+    let x = p.parameter(&[2])?;
+    let y = p.operation(Operation::Concat { axis: 0 }, &vec![x; 129])?;
+    let loss = p.operation(Operation::Sum, &[y])?;
+    let mut e = ctx
+        .prepare(&p, &[&w], &[loss], PreparedMode::Training)?
+        .into_executor(&ctx)?;
+    for _ in 0..3 {
+        e.with_run(&[], &[&w], |out| {
+            assert_eq!(out[0].item()?, 645.);
+            out[0].as_variable()?.backward()?;
+            assert_eq!(w.grad()?.unwrap().data(), &[129., 129.]);
+            Ok(())
+        })?;
+    }
+    Ok(())
+}
+
+#[test]
 fn builtin_optimizer_steps_borrow_gradients_and_update_without_allocating() -> MlResult<()> {
     use trench_deep::optimizer::*;
     for kind in 0..6 {
         let ctx = ExecutionContext::new();
-        let w = ctx.parameter(vec![0.5,-1.0,2.0], &[3])?;
+        let w = ctx.parameter(vec![0.5, -1.0, 2.0], &[3])?;
         let alias = w.variable().detach()?;
         let mut optimizer: Box<dyn Optimizer> = match kind {
-            0 => Box::new(SGD::new(&ctx,0.01)?),
-            1 => Box::new(Momentum::new(&ctx,0.01,0.9)?),
-            2 => Box::new(AdaGrad::new(&ctx,0.01,1e-8)?),
-            3 => Box::new(RMSProp::new(&ctx,0.01,0.9,1e-8)?),
-            4 => Box::new(Adam::new(&ctx,0.01,0.9,0.999,1e-8)?),
-            _ => Box::new(AdamW::new(&ctx,0.01,0.9,0.999,1e-8,0.1)?),
+            0 => Box::new(SGD::new(&ctx, 0.01)?),
+            1 => Box::new(Momentum::new(&ctx, 0.01, 0.9)?),
+            2 => Box::new(AdaGrad::new(&ctx, 0.01, 1e-8)?),
+            3 => Box::new(RMSProp::new(&ctx, 0.01, 0.9, 1e-8)?),
+            4 => Box::new(Adam::new(&ctx, 0.01, 0.9, 0.999, 1e-8)?),
+            _ => Box::new(AdamW::new(&ctx, 0.01, 0.9, 0.999, 1e-8, 0.1)?),
         };
         optimizer.register(&w)?;
         for _ in 0..5 {
@@ -65,8 +119,8 @@ fn builtin_optimizer_steps_borrow_gradients_and_update_without_allocating() -> M
                 w.variable().square()?.sum()?.backward()?;
                 let snapshot = w.grad()?.unwrap();
                 no_alloc(|| optimizer.step())?;
-                assert_eq!(w.grad()?.unwrap(),snapshot);
-                assert_eq!(alias.tensor().to_vec()?,w.tensor().to_vec()?);
+                assert_eq!(w.grad()?.unwrap(), snapshot);
+                assert_eq!(alias.tensor().to_vec()?, w.tensor().to_vec()?);
                 Ok(())
             })?;
         }
@@ -259,7 +313,10 @@ fn fused_vjps_preserve_exact_reductions_masks_and_zero_allocations() -> MlResult
             vec![vec![2, 2, 5, 4], vec![3, 2, 3, 3], vec![3]],
         ),
         (Operation::Matmul, vec![vec![2, 1, 3, 5], vec![1, 4, 5, 2]]),
-        (Operation::Matmul, vec![vec![2, 1, 17, 131], vec![1, 2, 131, 33]]),
+        (
+            Operation::Matmul,
+            vec![vec![2, 1, 17, 131], vec![1, 2, 131, 33]],
+        ),
         (
             Operation::GroupNorm {
                 groups: 2,

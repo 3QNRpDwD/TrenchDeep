@@ -15,6 +15,7 @@ pub struct PreparedExecutor {
 }
 #[derive(Debug)]
 pub(super) struct IntoStorage {
+    pub metadata: super::metadata::Metadata,
     pub arena: BufferArena,
     pub workspace: Vec<f32>,
     pub kernels: Vec<Rc<dyn IntoKernel>>,
@@ -256,6 +257,18 @@ impl PreparedPlan {
             })
             .collect::<MlResult<Vec<_>>>()?;
         let storage = Rc::new(RefCell::new(IntoStorage {
+            metadata: super::metadata::Metadata::new(
+                kernels
+                    .iter()
+                    .map(|k| k.spec().inputs.len())
+                    .max()
+                    .unwrap_or(0),
+                kernels
+                    .iter()
+                    .map(|k| k.spec().saved.len())
+                    .max()
+                    .unwrap_or(0),
+            )?,
             arena,
             workspace,
             kernels: kernels.clone(),
@@ -337,7 +350,10 @@ impl PreparedExecutor {
     ) -> MlResult<T> {
         let mut storage = self.storage.borrow_mut();
         let IntoStorage {
-            arena, workspace, ..
+            arena,
+            workspace,
+            metadata,
+            ..
         } = &mut *storage;
         // All external values are recopied every run: scratch may reuse their
         // slots after last use, and parameters may have changed since last run.
@@ -361,28 +377,40 @@ impl PreparedExecutor {
                 continue;
             };
             let kernel = &self.kernels[index];
-            io.run(arena, |values, destinations| {
-                let (destination, saved) = destinations.split_first_mut().unwrap();
-                let mut saved = saved
-                    .iter_mut()
-                    .zip(&kernel.spec().saved)
-                    .map(|(data, shape)| Ok(&mut data[..super::prepare::numel(shape)?]))
-                    .collect::<MlResult<Vec<_>>>()?;
-                let views = values
-                    .iter()
-                    .zip(&kernel.spec().inputs)
-                    .map(|(data, shape)| {
-                        let size = super::prepare::numel(shape)?;
-                        TensorView::new(&data[..size], shape)
-                    })
-                    .collect::<MlResult<Vec<_>>>()?;
-                kernel.execute_into(
-                    &views,
-                    &mut destination[..self.sizes[node.output.0]],
-                    &mut saved,
-                    workspace,
-                )
-            })?;
+            io.run(
+                arena,
+                &mut metadata.io_inputs,
+                &mut metadata.io_outputs,
+                |values, destinations| {
+                    let (destination, saved) = destinations.split_first_mut().unwrap();
+                    let mut saved_iter = saved.iter_mut().zip(&kernel.spec().saved);
+                    metadata.outputs.with(
+                        kernel.spec().saved.len(),
+                        |_| {
+                            let (data, shape) = saved_iter.next().unwrap();
+                            Ok(&mut data[..super::prepare::numel(shape)?])
+                        },
+                        |saved| {
+                            metadata.inputs.with(
+                                values.len(),
+                                |i| {
+                                    let (data, shape) = (&values[i], &kernel.spec().inputs[i]);
+                                    let size = super::prepare::numel(shape)?;
+                                    TensorView::new(&data[..size], shape)
+                                },
+                                |views| {
+                                    kernel.execute_into(
+                                        views,
+                                        &mut destination[..self.sizes[node.output.0]],
+                                        saved,
+                                        workspace,
+                                    )
+                                },
+                            )
+                        },
+                    )
+                },
+            )?;
         }
         // Public outputs are independent copies and excluded from the no-
         // intermediate-data-allocation claim. Repeated exports share a handle.

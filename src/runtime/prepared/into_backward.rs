@@ -22,6 +22,7 @@ pub(super) fn execute(
         backward_io,
         gradients,
         received,
+        metadata,
         ..
     } = &mut *storage;
     received.fill(0);
@@ -40,53 +41,76 @@ pub(super) fn execute(
             .as_ref()
             .ok_or_else(|| invalid("missing backward IO plan"))?;
         for group in &io.groups {
-            let mut writes = vec![GradientWrite::Assign; node.inputs.len()];
-            for (&input, &target) in group.inputs.iter().zip(&group.targets) {
-                if received[target] != 0 {
-                    writes[input] = GradientWrite::Add;
-                }
-            }
-            group.io.run(arena, |values, destinations| {
-                let inputs = io
-                    .input_positions
-                    .iter()
-                    .zip(&kernel.spec().inputs)
-                    .map(|(position, shape)| {
-                        position
-                            .map(|p| TensorView::new(&values[p][..numel(shape)?], shape))
-                            .transpose()
-                    })
-                    .collect::<MlResult<Vec<_>>>()?;
-                let saved = kernel
-                    .spec()
-                    .saved
-                    .iter()
-                    .enumerate()
-                    .map(|(i, shape)| {
-                        TensorView::new(&values[io.saved_start + i][..numel(shape)?], shape)
-                    })
-                    .collect::<MlResult<Vec<_>>>()?;
-                let shape = &run.plan.shapes[node.output];
-                let gradient = TensorView::new(&values[values.len() - 1][..numel(shape)?], shape)?;
-                let mut outputs: Vec<Option<&mut [f32]>> =
-                    (0..node.inputs.len()).map(|_| None).collect();
-                for ((&input, &target), destination) in group
-                    .inputs
-                    .iter()
-                    .zip(&group.targets)
-                    .zip(destinations.iter_mut())
-                {
-                    outputs[input] = Some(&mut destination[..numel(&run.plan.shapes[target])?]);
-                }
-                kernel.backward_many_into(
-                    &inputs,
-                    &saved,
-                    gradient,
-                    &mut outputs,
-                    &writes,
-                    workspace,
-                )
-            })?;
+            metadata.writes.with(
+                node.inputs.len(),
+                |_| Ok(GradientWrite::Assign),
+                |writes| {
+                    for (&input, &target) in group.inputs.iter().zip(&group.targets) {
+                        if received[target] != 0 {
+                            writes[input] = GradientWrite::Add;
+                        }
+                    }
+                    group.io.run(
+                        arena,
+                        &mut metadata.io_inputs,
+                        &mut metadata.io_outputs,
+                        |values, destinations| {
+                            metadata.inputs.with(
+                                io.input_positions.len(),
+                                |i| {
+                                    let shape = &kernel.spec().inputs[i];
+                                    io.input_positions[i]
+                                        .map(|p| {
+                                            TensorView::new(&values[p][..numel(shape)?], shape)
+                                        })
+                                        .transpose()
+                                },
+                                |inputs| {
+                                    metadata.saved.with(
+                                        kernel.spec().saved.len(),
+                                        |i| {
+                                            let shape = &kernel.spec().saved[i];
+                                            TensorView::new(
+                                                &values[io.saved_start + i][..numel(shape)?],
+                                                shape,
+                                            )
+                                        },
+                                        |saved| {
+                                            let shape = &run.plan.shapes[node.output];
+                                            let gradient = TensorView::new(
+                                                &values[values.len() - 1][..numel(shape)?],
+                                                shape,
+                                            )?;
+                                            metadata.outputs.with(
+                                                node.inputs.len(),
+                                                |_| Ok(None),
+                                                |outputs| {
+                                                    for ((&input, &target), destination) in group
+                                                        .inputs
+                                                        .iter()
+                                                        .zip(&group.targets)
+                                                        .zip(destinations.iter_mut())
+                                                    {
+                                                        outputs[input] = Some(
+                                                            &mut destination[..numel(
+                                                                &run.plan.shapes[target],
+                                                            )?],
+                                                        );
+                                                    }
+                                                    kernel.backward_many_into(
+                                                        inputs, saved, gradient, outputs, writes,
+                                                        workspace,
+                                                    )
+                                                },
+                                            )
+                                        },
+                                    )
+                                },
+                            )
+                        },
+                    )
+                },
+            )?;
             for &target in &group.targets {
                 received[target] += 1;
             }

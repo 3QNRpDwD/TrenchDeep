@@ -456,28 +456,39 @@ impl ArenaIo {
     pub(super) fn run<T>(
         &self,
         arena: &mut BufferArena,
+        input_scratch: &mut super::metadata::Scratch,
+        output_scratch: &mut super::metadata::Scratch,
         operation: impl FnOnce(&[&[f32]], &mut [&mut [f32]]) -> MlResult<T>,
     ) -> MlResult<T> {
-        let mut inputs = vec![&[][..]; self.reads];
-        let mut outputs: Vec<Option<&mut [f32]>> = (0..self.writes).map(|_| None).collect();
-        let mut remaining = arena.buffers.as_mut_slice();
-        let mut cursor = 0;
-        for (id, reads, write) in &self.slots {
-            let (_, tail) = remaining.split_at_mut(id - cursor);
-            let (buffer, tail) = tail.split_first_mut().unwrap();
-            remaining = tail;
-            cursor = id + 1;
-            if let Some(position) = write {
-                outputs[*position] = Some(buffer.as_mut());
-            } else {
-                let view: &[f32] = buffer;
-                for &position in reads {
-                    inputs[position] = view;
-                }
-            }
-        }
-        let mut outputs = outputs.into_iter().map(Option::unwrap).collect::<Vec<_>>();
-        operation(&inputs, &mut outputs)
+        input_scratch.with(
+            self.reads,
+            |_| Ok(&[][..]),
+            |inputs| {
+                output_scratch.with(
+                    self.writes,
+                    |_| Ok(&mut [][..]),
+                    |outputs| {
+                        let mut remaining = arena.buffers.as_mut_slice();
+                        let mut cursor = 0;
+                        for (id, reads, write) in &self.slots {
+                            let (_, tail) = remaining.split_at_mut(id - cursor);
+                            let (buffer, tail) = tail.split_first_mut().unwrap();
+                            remaining = tail;
+                            cursor = id + 1;
+                            if let Some(position) = write {
+                                outputs[*position] = buffer.as_mut();
+                            } else {
+                                let view: &[f32] = buffer;
+                                for &position in reads {
+                                    inputs[position] = view;
+                                }
+                            }
+                        }
+                        operation(inputs, outputs)
+                    },
+                )
+            },
+        )
     }
 }
 impl BufferPlan {

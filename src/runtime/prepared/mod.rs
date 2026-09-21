@@ -13,6 +13,7 @@ pub use buffers::{
 mod executor;
 mod into_backward;
 mod into_executor;
+mod metadata;
 pub use into_executor::PreparedExecutor;
 mod model;
 pub use model::{ModelOutput, PreparedBatch, PreparedModel, PreparedModelExecutor};
