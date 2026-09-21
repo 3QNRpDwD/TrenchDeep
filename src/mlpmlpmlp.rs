@@ -15,11 +15,11 @@ impl MLP {
         ctx: &ExecutionContext,
     ) -> MlResult<Self> {
         let mut mlp = Sequential::new(&ctx, "MLP");
-        mlp.push(Box::new(Linear::new(&ctx, 10, 10, "l1")?))?;
+        mlp.push(Box::new(Linear::new(&ctx, 100, 100, "l1")?))?;
         mlp.push(Box::new(Activation::new(&ctx, ActivationKind::ReLU, "a1", )))?;
-        mlp.push(Box::new(Linear::new(&ctx, 10, 10, "l2")?))?;
+        mlp.push(Box::new(Linear::new(&ctx, 100, 100, "l2")?))?;
         mlp.push(Box::new(Activation::new(&ctx, ActivationKind::ReLU, "a2", )))?;
-        mlp.push(Box::new(Linear::new(&ctx, 10, 10, "l3")?))?;
+        mlp.push(Box::new(Linear::new(&ctx, 100, 100, "l3")?))?;
         mlp.push(Box::new(Activation::new(&ctx, ActivationKind::ReLU, "a3", )))?;
 
         Ok(Self { context: ctx.clone(), network: mlp, })
@@ -31,8 +31,8 @@ pub fn three_layer_model() -> MlResult<()> {
     let ctx = ExecutionContext::new();
 
     let lr = 0.01;
-    let data = ctx.input((0..100).map(|_| rand::random::<f32>()).collect(), &[10, 10])?;
-    let target = ctx.tensor((0..100).map(|_| rand::random::<f32>()).collect(), &[10, 10])?;
+    let data = ctx.input((0..10000).map(|_| rand::random::<f32>()).collect(), &[100, 100])?;
+    let target = ctx.tensor((0..10000).map(|_| rand::random::<f32>()).collect(), &[100, 100])?;
     let mut mlp = MLP::new(&ctx)?;
 
     let mut optimizer = Adam::new(&ctx, lr, 0.9, 0.999, 1e-8)?;
@@ -91,8 +91,8 @@ pub fn three_layer_model_prepare() -> MlResult<()> {
 
     let ctx = ExecutionContext::new();
     let lr = 0.01;
-    let data = ctx.input((0..100).map(|_| rand::random::<f32>()).collect(), &[10, 10])?;
-    let target = ctx.tensor((0..100).map(|_| rand::random::<f32>()).collect(), &[10, 10])?;
+    let data = ctx.input((0..10000).map(|_| rand::random::<f32>()).collect(), &[100, 100])?;
+    let target = ctx.tensor((0..10000).map(|_| rand::random::<f32>()).collect(), &[100, 100])?;
     let mut mlp = MLP::new(&ctx)?;
 
     let mut optimizer = Adam::new(&ctx, lr, 0.9, 0.999, 1e-8)?;
@@ -101,17 +101,16 @@ pub fn three_layer_model_prepare() -> MlResult<()> {
 
     let prepare_start = Instant::now();
     let mut prepared = ctx.prepare_model(&mlp, &batch.inputs)?;
-    let prepared_trainer = crate::trainer::Trainer::builder().build().prepared(&ctx);
     println!("prepare: {:?}", prepare_start.elapsed());
+
 
     println!("train start");
     let start = Instant::now();
-    // prepared.run(&mlp, &batch.inputs, |output| {
-    //     assert!(output.loss.tensor().item()?.is_finite());
-    //     output.loss.backward()?;
-    //     optimizer.step()
-    // })?;
-    // prepared_trainer.fit(&mut mlp, &mut optimizer, &[batch], 1)?;
+    prepared.run(&mlp, &batch.inputs, |output| {
+        assert!(output.loss.tensor().item()?.is_finite());
+        output.loss.backward()?;
+        optimizer.step()
+    })?;
     println!("train: {:?}", start.elapsed());
     println!("train end");
 
