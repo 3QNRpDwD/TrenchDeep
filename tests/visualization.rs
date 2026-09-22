@@ -78,7 +78,7 @@ fn capture_is_published_after_cleanup_and_suppressed_when_hook_fails() -> MlResu
         if fail {
             trainer = trainer.with_hook(Box::new(FailHook));
         }
-        let result = trainer.fit(&mut model, &mut optimizer, &dataset, EpochSchedule::new(1)?);
+        let result = trainer.fit(&mut model, &objective(), &mut optimizer, &dataset, EpochSchedule::new(1)?);
         if fail {
             assert!(matches!(
                 result,
@@ -151,4 +151,8 @@ fn independent_contexts_capture_without_shared_sessions() -> MlResult<()> {
     assert_eq!(b.graph_stats()?.graph_nodes, 1);
     y.backward()?;
     Ok(())
+}
+
+fn objective() -> trench_deep::trainer::Supervised<trench_deep::loss::MseLoss> {
+    trench_deep::trainer::Supervised::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
 }

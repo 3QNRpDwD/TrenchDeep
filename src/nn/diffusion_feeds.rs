@@ -40,27 +40,7 @@ impl Diffusion {
         let t = self.noise.random_range(0..self.scheduler.timesteps());
         self.training_feeds(&noise, t)
     }
-    pub fn forward_loss_with_feeds(
-        &self,
-        image: &Variable,
-        feeds: &ExecutionInputs,
-    ) -> MlResult<(Variable, Variable)> {
-        if feeds.variant() != "training" {
-            return Err(invalid("expected training inputs"));
-        }
-        let noise = feeds.get("noise")?;
-        if image.tensor().shape()? != noise.shape()? {
-            return Err(invalid("noise shape differs from image"));
-        }
-        let noisy = image
-            .tensor()
-            .mul(feeds.get("image_scale")?)?
-            .add(&noise.mul(feeds.get("noise_scale")?)?)?
-            .as_variable()?;
-        let prediction = self.unet.forward(&noisy, feeds.get("timesteps")?)?;
-        let loss = prediction.mse_loss(noise, crate::Reduction::Mean)?;
-        Ok((prediction, loss))
-    }
+
     pub fn step_feeds(&self, noise: &Tensor, t: usize) -> MlResult<ExecutionInputs> {
         self.context.deny_preparation("scheduler feed selection")?;
         self.context.validate(noise)?;

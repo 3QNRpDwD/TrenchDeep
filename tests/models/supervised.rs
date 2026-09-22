@@ -21,7 +21,7 @@ fn mlp_pilot_trains_end_to_end_and_predicts_probabilities() -> MlResult<()> {
     optimizer.register_all(&model.parameters())?;
 
     let result = Trainer::new(&context).fit(
-        &mut model,
+        &mut model, &objective(),
         &mut optimizer,
         &dataset,
         EpochSchedule::new(20)?,
@@ -33,4 +33,8 @@ fn mlp_pilot_trains_end_to_end_and_predicts_probabilities() -> MlResult<()> {
     let probabilities = model.predict(inputs[0].tensor())?.to_vec()?;
     assert!((probabilities.iter().sum::<f32>() - 1.0).abs() < 1e-5);
     Ok(())
+}
+
+fn objective() -> trench_deep::trainer::Supervised<trench_deep::loss::SoftmaxCrossEntropyLoss> {
+    trench_deep::trainer::Supervised::new(trench_deep::loss::SoftmaxCrossEntropyLoss::new(trench_deep::Reduction::Mean))
 }

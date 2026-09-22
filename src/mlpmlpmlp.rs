@@ -72,30 +72,7 @@ impl crate::trainer::TrainableModel for MLP {
     }
 }
 
-impl crate::runtime::prepared::PreparedModel for MLP {
-    fn execution_batch(
-        &mut self,
-        batch: &Self::Batch,
-        _step: &crate::trainer::TrainingStepContext,
-    ) -> MlResult<crate::runtime::prepared::PreparedBatch> {
-        use crate::runtime::prepared::{ExecutionInputs, PreparedBatch};
-        let inputs = ExecutionInputs::new("three_layer_mlp")
-            .with("data", batch.inputs.tensor().clone())?
-            .with("target", batch.targets.clone())?;
-        let mut prepared = PreparedBatch::new(inputs, batch.inputs.tensor().shape()?[0]);
-        prepared.target = Some(batch.targets.clone());
-        Ok(prepared)
-    }
 
-    fn forward_inputs(
-        &self,
-        inputs: &crate::runtime::prepared::ExecutionInputs,
-    ) -> MlResult<crate::runtime::prepared::ModelOutput> {
-        let y = self.network.apply(&inputs.get("data")?.as_variable()?)?;
-        let loss = y.mse_loss(inputs.get("target")?, Reduction::Mean)?;
-        Ok(crate::runtime::prepared::ModelOutput::new(loss, Some(y)))
-    }
-}
 
 #[test]
 #[cfg(all(
@@ -104,7 +81,7 @@ impl crate::runtime::prepared::PreparedModel for MLP {
     feature = "enableBackward",
 ))]
 pub fn three_layer_model_prepare() -> MlResult<()> {
-    use crate::runtime::prepared::PreparedModel;
+    use crate::trainer::PreparedObjective;
     use crate::trainer::{SupervisedBatch, TrainableModel};
 
     let ctx = ExecutionContext::new();
@@ -121,7 +98,7 @@ pub fn three_layer_model_prepare() -> MlResult<()> {
 
     let mut optimizer = Adam::new(&ctx, lr, 0.9, 0.999, 1e-8)?;
     optimizer.register_all(&mlp.parameters())?;
-    let batch = mlp.execution_batch(
+    let batch = objective().execution_batch(&mut mlp, 
         &SupervisedBatch {
             inputs: data,
             targets: target,
@@ -130,7 +107,7 @@ pub fn three_layer_model_prepare() -> MlResult<()> {
     )?;
 
     let prepare_start = Instant::now();
-    let mut prepared = ctx.prepare_model(&mlp, &batch.inputs)?;
+    let mut prepared = ctx.prepare_objective(&mut mlp, &objective(), &batch.inputs)?;
     println!("prepare: {:?}", prepare_start.elapsed());
 
     println!("train start");
@@ -146,24 +123,15 @@ pub fn three_layer_model_prepare() -> MlResult<()> {
     Ok(())
 }
 
-impl crate::trainer::TrainingModel for MLP {
-    type Batch = crate::trainer::SupervisedBatch;
-    const PARADIGM: &'static str = "supervised";
-    fn forward_batch(
-        &mut self,
-        batch: &Self::Batch,
-        step: &crate::trainer::TrainingStepContext,
-    ) -> MlResult<crate::trainer::TrainingOutput> {
-        use crate::runtime::prepared::PreparedModel;
-        let prepared = self.execution_batch(batch, step)?;
-        let output = self.forward_inputs(&prepared.inputs)?;
-        Ok(crate::trainer::TrainingOutput {
-            loss: output.loss,
-            prediction: output.prediction,
-            target: prepared.target,
-            weight: prepared.weight,
-            tokens: prepared.tokens,
-            lambda: prepared.lambda,
-        })
+
+
+impl crate::trainer::ForwardModel for MLP {
+    fn forward(&self, input: &crate::Variable) -> MlResult<crate::Variable> {
+        
+        self.network.apply(input)
     }
+}
+
+fn objective() -> crate::trainer::Supervised<crate::loss::MseLoss> {
+    crate::trainer::Supervised::new(crate::loss::MseLoss::new(crate::Reduction::Mean))
 }

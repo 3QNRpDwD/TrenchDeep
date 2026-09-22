@@ -110,16 +110,16 @@ pub(crate) use crate::legacy::tensor::TensorBase;
 ///
 /// # 프리셋 (권장 진입점)
 /// ```no_run
-/// use trench_deep::trainer::{SupervisedTrainer, Trainer};
+/// use trench_deep::trainer::{Trainer};
 /// let ctx = trench_deep::ExecutionContext::new();
-/// let t: SupervisedTrainer = Trainer::default().supervised(&ctx);
+/// let t: Trainer = Trainer::default(/* &ExecutionContext */)
 /// ```
 ///
 /// # 커스텀 빌더
 /// ```no_run
 /// let ctx = trench_deep::ExecutionContext::new();
-/// let trainer: trench_deep::trainer::SupervisedTrainer =
-///     trench_deep::trainer::Trainer::builder()
+/// let trainer: trench_deep::trainer::TrainerBuilder =
+///     trench_deep::trainer::Trainer::builder(/* &ExecutionContext */)
 ///         .log_every_n_batches(50)
 ///         .metrics(trench_deep::trainer::Metrics::none().grad_norm().accuracy())
 ///         .show_progress(true)

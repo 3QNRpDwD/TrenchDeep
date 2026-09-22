@@ -5,9 +5,7 @@ mod feeds;
 mod named_parameters;
 
 use super::{Conv2D, GroupNorm, Layer, Linear};
-use crate::trainer::{
-    TrainableModel, TrainingModel, TrainingOutput, TrainingStepContext, UnsupervisedBatch,
-};
+use crate::trainer::TrainableModel;
 use crate::{ContextId, ExecutionContext, MlResult, Parameter, Tensor, TensorError, Variable};
 use rand::{Rng, SeedableRng, rngs::StdRng};
 
@@ -562,14 +560,7 @@ impl Diffusion {
             .collect();
         self.context.tensor(data, shape)
     }
-    pub fn forward_loss_with_noise(
-        &self,
-        image: &Variable,
-        noise: &Tensor,
-        t: usize,
-    ) -> MlResult<(Variable, Variable)> {
-        self.forward_loss_with_feeds(image, &self.training_feeds(noise, t)?)
-    }
+
     pub fn sample_with_noise(&self, initial: &Tensor, step_noise: &[Tensor]) -> MlResult<Tensor> {
         self.context.validate(initial)?;
         if step_noise.len() != self.scheduler.timesteps() {
@@ -605,33 +596,8 @@ impl TrainableModel for Diffusion {
         self.unet.parameters()
     }
 }
-impl Diffusion {
-    pub fn forward_loss(&mut self, image: &Variable) -> MlResult<(Variable, Variable)> {
-        let feeds = self.draw_training_feeds(&image.tensor().shape()?)?;
-        self.forward_loss_with_feeds(image, &feeds)
-    }
-}
-impl TrainingModel for Diffusion {
-    type Batch = UnsupervisedBatch;
-    const PARADIGM: &'static str = "unsupervised";
-    fn forward_batch(
-        &mut self,
-        batch: &Self::Batch,
-        _step: &TrainingStepContext,
-    ) -> MlResult<TrainingOutput> {
-        let shape = batch.samples.tensor().shape()?;
-        let weight = if shape.len() > 1 { shape[0] } else { 1 };
-        let (prediction, loss) = self.forward_loss(&batch.samples)?;
-        Ok(TrainingOutput {
-            loss,
-            prediction: Some(prediction),
-            target: None,
-            weight,
-            tokens: None,
-            lambda: None,
-        })
-    }
-}
+
+
 
 impl crate::trainer::CheckpointableModel for Diffusion {
     fn save_checkpoint(&self, path: &std::path::Path) -> MlResult<()> {
@@ -694,29 +660,4 @@ impl crate::trainer::CheckpointableModel for Diffusion {
     }
 }
 
-impl crate::runtime::prepared::PreparedModel for Diffusion {
-    fn execution_batch(
-        &mut self,
-        batch: &Self::Batch,
-        _step: &crate::trainer::TrainingStepContext,
-    ) -> MlResult<crate::runtime::prepared::PreparedBatch> {
-        let shape = batch.samples.tensor().shape()?;
-        let inputs = self
-            .draw_training_feeds(&shape)?
-            .with("image", batch.samples.tensor().clone())?;
-        Ok(crate::runtime::prepared::PreparedBatch::new(
-            inputs, shape[0],
-        ))
-    }
-    fn forward_inputs(
-        &self,
-        inputs: &crate::runtime::prepared::ExecutionInputs,
-    ) -> MlResult<crate::runtime::prepared::ModelOutput> {
-        let (prediction, loss) =
-            self.forward_loss_with_feeds(&inputs.get("image")?.as_variable()?, inputs)?;
-        Ok(crate::runtime::prepared::ModelOutput::new(
-            loss,
-            Some(prediction),
-        ))
-    }
-}
+

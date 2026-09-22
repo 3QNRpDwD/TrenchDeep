@@ -122,24 +122,23 @@ fn same_public_trainer_runs_both_routes() -> MlResult<()> {
             vec![&self.weight]
         }
     }
-    impl Model {
-        pub fn forward_loss(&mut self, input: &Variable) -> MlResult<(Variable, Variable)> {
-            let prediction = input.mul(self.weight.tensor())?;
-            let loss = prediction.mul(prediction.tensor())?;
-            Ok((prediction, loss))
-        }
+    impl ForwardModel for Model {
+        fn forward(&self, input: &Variable) -> MlResult<Variable> { input.mul(self.weight.tensor()) }
     }
-    impl TrainingModel for Model {
+    struct Squared;
+
+    impl Objective<Model> for Squared {
         type Batch = UnsupervisedBatch;
         const PARADIGM: &'static str = "unsupervised";
         fn forward_batch(
-            &mut self,
+            &self, model: &mut Model,
             batch: &Self::Batch,
             _step: &TrainingStepContext,
         ) -> MlResult<TrainingOutput> {
             let shape = batch.samples.tensor().shape()?;
             let weight = if shape.len() > 1 { shape[0] } else { 1 };
-            let (prediction, loss) = self.forward_loss(&batch.samples)?;
+            let prediction = model.forward(&batch.samples)?;
+            let loss = prediction.mul(prediction.tensor())?;
             Ok(TrainingOutput {
                 loss,
                 prediction: Some(prediction),
@@ -163,7 +162,7 @@ fn same_public_trainer_runs_both_routes() -> MlResult<()> {
         let baseline = ctx.graph_stats()?.tensors;
         let mut optimizer = SGD::new(&ctx, 0.1)?;
         optimizer.register_all(&model.parameters())?;
-        Trainer::silent(&ctx).fit(&mut model, &mut optimizer, &dataset, EpochSchedule::new(3)?)?;
+        Trainer::silent(&ctx).fit(&mut model, &Squared, &mut optimizer, &dataset, EpochSchedule::new(3)?)?;
         assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
         assert_eq!(ctx.graph_stats()?.tensors, baseline);
         assert!(model.weight.grad()?.is_none());

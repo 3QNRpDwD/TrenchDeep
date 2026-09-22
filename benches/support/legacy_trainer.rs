@@ -83,7 +83,7 @@ pub fn run_case(iterations: usize) -> Result<serde_json::Value, Box<dyn std::err
     for i in 0..=iterations {
         let start = Instant::now();
         let actual = trainer.fit(
-            &mut model,
+            &mut model, &objective(),
             &mut optimizer,
             &mut loader,
             EpochSchedule::new(1)?,
@@ -119,4 +119,8 @@ pub fn run_case(iterations: usize) -> Result<serde_json::Value, Box<dyn std::err
     Ok(
         serde_json::json!({"legacy_storage_handles":legacy_storage_handles,"legacy_graph_nodes":legacy_graph_nodes,"case":"linear_trainer_loader_to_optimizer","iterations":iterations,"initialization_ms":initialization_ms,"public_model_initialization_ms":public_model_initialization_ms,"legacy_model_initialization_ms":legacy_model_initialization_ms,"public":summary(public),"legacy":summary(legacy),"parity":"passed","batches_per_iteration":4,"public_graph_nodes":ctx.graph_stats()?.graph_nodes,"public_storage_handles":ctx.graph_stats()?.tensors}),
     )
+}
+
+fn objective() -> trench_deep::trainer::Supervised<trench_deep::loss::MseLoss> {
+    trench_deep::trainer::Supervised::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
 }

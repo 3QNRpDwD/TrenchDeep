@@ -223,7 +223,7 @@ fn common_preparation_trains_linear_with_changing_inputs_and_adam() -> MlResult<
     use trench_deep::{
         nn::LinearRegression,
         optimizer::{Adam, Optimizer},
-        trainer::TrainableModel,
+        trainer::{TrainableModel, ForwardModel},
     };
     let ctx = ExecutionContext::builder().initialization_seed(7).build();
     let eager = ExecutionContext::builder().initialization_seed(7).build();
@@ -241,8 +241,8 @@ fn common_preparation_trains_linear_with_changing_inputs_and_adam() -> MlResult<
         &parameters,
         PreparedMode::Training,
         |inputs| {
-            let (prediction, loss) =
-                model.forward_loss(&inputs.get("image")?.as_variable()?, inputs.get("target")?)?;
+            let prediction = model.forward(&inputs.get("image")?.as_variable()?)?;
+            let loss = prediction.mse_loss(inputs.get("target")?, Reduction::Mean)?;
             Ok(vec![prediction.tensor().clone(), loss.tensor().clone()])
         },
     )?;
@@ -266,8 +266,8 @@ fn common_preparation_trains_linear_with_changing_inputs_and_adam() -> MlResult<
         })?;
         let inputs = make(&eager, value)?;
         let expected = eager.with_training_scope(|| {
-            let (prediction, loss) =
-                other.forward_loss(&inputs.get("image")?.as_variable()?, inputs.get("target")?)?;
+            let prediction = other.forward(&inputs.get("image")?.as_variable()?)?;
+            let loss = prediction.mse_loss(inputs.get("target")?, Reduction::Mean)?;
             loss.backward()?;
             let result = (
                 prediction.tensor().to_vec()?,

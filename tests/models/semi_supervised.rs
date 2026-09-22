@@ -5,14 +5,14 @@ use trench_deep::{ExecutionContext, MlResult, Variable, nn::*, trainer::Trainabl
 #[test]
 fn supplied_views_reject_broadcasting_and_empty_batches_before_recording() -> MlResult<()> {
     let context = ExecutionContext::new();
-    let model = PiClassifier::new(&context, 2, 2, 0.1)?;
+    let model = PiClassifier::new(&context, 2, 2)?;
     let input = context.input(vec![1.0, 2.0], &[1, 2])?;
     let target = context.tensor(vec![1.0, 0.0], &[1, 2])?;
     let other = context.input(vec![1.0; 4], &[2, 2])?;
     let empty = context.input(vec![], &[0, 2])?;
     for (first, second) in [(&input, &other), (&empty, &empty)] {
         assert!(matches!(
-            model.forward_loss_with_augmentations(&input, &target, first, second, 0.4),
+            objective().forward_loss_with_augmentations(&model, &input, &target, first, second, 0.4),
             Err(trench_deep::MlError::TensorError(
                 trench_deep::TensorError::InvalidOperation { op: "pi_model", .. }
             ))
@@ -25,7 +25,7 @@ fn supplied_views_reject_broadcasting_and_empty_batches_before_recording() -> Ml
 #[test]
 fn pi_model_pilot_trains_end_to_end() -> MlResult<()> {
     let context = ExecutionContext::new();
-    let mut model = PiClassifier::new(&context, 2, 2, 0.1)?;
+    let mut model = PiClassifier::new(&context, 2, 2)?;
     let labeled = [
         context.input(vec![1.0, 1.0], &[1, 2])?,
         context.input(vec![-1.0, -1.0], &[1, 2])?,
@@ -51,7 +51,7 @@ fn pi_model_pilot_trains_end_to_end() -> MlResult<()> {
             ramp_epochs: 2,
         })
         .fit(
-            &mut model,
+            &mut model, &objective(),
             &mut optimizer,
             &dataset,
             EpochSchedule::new(3)?.with_tolerance(0.0),
@@ -59,4 +59,8 @@ fn pi_model_pilot_trains_end_to_end() -> MlResult<()> {
     assert!(result.final_loss.is_finite());
     assert_eq!(context.graph_stats()?.graph_nodes, 0);
     Ok(())
+}
+
+fn objective() -> trench_deep::trainer::SemiSupervised<trench_deep::loss::SoftmaxCrossEntropyLoss> {
+    trench_deep::trainer::SemiSupervised::new(trench_deep::loss::SoftmaxCrossEntropyLoss::new(trench_deep::Reduction::Mean), 0.1).expect("valid noise scale")
 }

@@ -102,7 +102,8 @@ pub type TrainerConfig = LogConfig;
 /// ```no_run
 /// use trench_deep::trainer::{Metrics, Trainer};
 ///
-/// let trainer = Trainer::builder()
+///
+/// let trainer = Trainer::builder(/* &ExecutionContext */)
 ///     .log_every_n_batches(50)
 ///     .nan_check(true)
 ///     .metrics(Metrics::none().grad_norm().accuracy())
@@ -168,7 +169,7 @@ impl TrainerBuilder {
     ///
     /// ```no_run
     /// use trench_deep::trainer::{Metrics, Trainer};
-    /// let trainer = Trainer::builder()
+    /// let trainer = Trainer::builder(/* &ExecutionContext */)
     ///     .metrics(Metrics::none().grad_norm().accuracy())
     ///     .build();
     /// ```
@@ -190,7 +191,7 @@ impl TrainerBuilder {
     ///
     /// ```no_run
     /// use trench_deep::trainer::Trainer;
-    /// let trainer = Trainer::builder()
+    /// let trainer = Trainer::builder(/* &ExecutionContext */)
     ///     .checkpoint_dir("checkpoints/my_model")
     ///     .build();
     /// ```

@@ -54,7 +54,7 @@ fn train(ctx: &ExecutionContext) -> MlResult<Vec<f32>> {
     let data = SupervisedDataset::new(ctx, &x, &y)?;
     let mut optimizer = SGD::new(ctx, 0.05)?;
     optimizer.register_all(&model.parameters())?;
-    Trainer::silent(ctx).fit(&mut model, &mut optimizer, &data, EpochSchedule::new(3)?)?;
+    Trainer::silent(ctx).fit(&mut model, &objective(), &mut optimizer, &data, EpochSchedule::new(3)?)?;
     assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
     model
         .parameters()
@@ -191,7 +191,7 @@ fn failed_epoch_initialization_cleans_graph_and_allows_the_next_fit() -> MlResul
         parameter: model.parameters()[0].clone(),
     };
     let error =
-        Trainer::silent(&ctx).fit(&mut model, &mut optimizer, loader, EpochSchedule::new(1)?);
+        Trainer::silent(&ctx).fit(&mut model, &objective(), &mut optimizer, loader, EpochSchedule::new(1)?);
     assert!(matches!(
         error,
         Err(MlError::UnsupportedCapability {
@@ -287,4 +287,8 @@ fn capture_api_reports_missing_feature_without_consuming_graph() -> MlResult<()>
     assert_eq!(ctx.graph_stats()?.graph_nodes, 1);
     loss.backward()?;
     Ok(())
+}
+
+fn objective() -> trench_deep::trainer::Supervised<trench_deep::loss::MseLoss> {
+    trench_deep::trainer::Supervised::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
 }

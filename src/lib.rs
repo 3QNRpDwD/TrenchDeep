@@ -15,9 +15,8 @@ pub use runtime::{
 pub mod tensor {
     pub use crate::{Tensor, TensorBuffer, TensorView};
 }
-pub mod loss {
-    pub use crate::{LossError, Reduction};
-}
+#[path = "loss/api.rs"]
+pub mod loss;
 #[cfg(feature = "legacyBenchmark")]
 pub mod legacy;
 pub mod nn;

@@ -9,40 +9,16 @@ use crate::{
 };
 use std::time::Instant;
 impl Trainer<Prepared> {
-    pub fn fit<M, I>(
-        &self,
-        model: &mut M,
-        optimizer: &mut dyn Optimizer,
-        input: I,
-        schedule: EpochSchedule,
-    ) -> MlResult<TrainResult>
-    where
-        M: PreparedModel,
-        I: IntoBatchLoader<Batch = M::Batch>,
-        M::Batch: BatchInputs,
-    {
-        self.fit_impl(model, optimizer, input, schedule, None)
+    pub fn fit<M, O, I>(&self, model: &mut M, objective: &O, optimizer: &mut dyn Optimizer, input: I, schedule: EpochSchedule) -> MlResult<TrainResult>
+    where M: TrainableModel, O: PreparedObjective<M>, I: IntoBatchLoader<Batch = O::Batch> {
+        let mut bound = objective::BoundObjective { model, objective };
+        self.fit_impl(&mut bound, optimizer, input, schedule, None)
     }
-    pub fn fit_checkpointed<M, I>(
-        &self,
-        model: &mut M,
-        optimizer: &mut dyn Optimizer,
-        input: I,
-        schedule: EpochSchedule,
-    ) -> MlResult<TrainResult>
-    where
-        M: PreparedModel + CheckpointableModel,
-        I: IntoBatchLoader<Batch = M::Batch>,
-        M::Batch: BatchInputs,
-    {
+    pub fn fit_checkpointed<M, O, I>(&self, model: &mut M, objective: &O, optimizer: &mut dyn Optimizer, input: I, schedule: EpochSchedule) -> MlResult<TrainResult>
+    where M: TrainableModel + CheckpointableModel, O: PreparedObjective<M>, I: IntoBatchLoader<Batch = O::Batch> {
         checkpoint::install_interrupt_handler()?;
-        self.fit_impl(
-            model,
-            optimizer,
-            input,
-            schedule,
-            Some(|m, p| m.save_checkpoint(p)),
-        )
+        let mut bound = objective::BoundObjective { model, objective };
+        self.fit_impl(&mut bound, optimizer, input, schedule, Some(|m, p| m.save_checkpoint(p)))
     }
     fn fit_impl<M, I>(
         &self,

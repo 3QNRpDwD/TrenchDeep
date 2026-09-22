@@ -157,37 +157,14 @@ impl TrainableModel for BrokenModel {
         vec![&self.p]
     }
 }
-impl BrokenModel {
-    pub fn forward_loss(&mut self, _: &Variable, _: &Tensor) -> MlResult<(Variable, Variable)> {
+impl ForwardModel for BrokenModel {
+    fn forward(&self, _: &Variable) -> MlResult<Variable> {
         let _graph = self.p.square()?;
-        Err(MlError::UnsupportedCapability {
-            module: "broken model",
-            capability: "forward",
-            operation: "forward_loss",
-        })
+        Err(MlError::UnsupportedCapability { module: "broken model", capability: "forward", operation: "forward" })
     }
 }
-impl TrainingModel for BrokenModel {
-    type Batch = SupervisedBatch;
-    const PARADIGM: &'static str = "supervised";
-    fn forward_batch(
-        &mut self,
-        batch: &Self::Batch,
-        _step: &TrainingStepContext,
-    ) -> MlResult<TrainingOutput> {
-        let shape = batch.inputs.tensor().shape()?;
-        let weight = if shape.len() > 1 { shape[0] } else { 1 };
-        let (prediction, loss) = self.forward_loss(&batch.inputs, &batch.targets)?;
-        Ok(TrainingOutput {
-            loss,
-            prediction: Some(prediction),
-            target: Some(batch.targets.clone()),
-            weight,
-            tokens: None,
-            lambda: None,
-        })
-    }
-}
+
+
 
 #[test]
 fn primary_and_cleanup_errors_are_both_preserved() -> MlResult<()> {
@@ -208,7 +185,7 @@ fn primary_and_cleanup_errors_are_both_preserved() -> MlResult<()> {
     let ys = [&y];
     let data = SupervisedDataset::new(&ctx, &xs, &ys)?;
     let error =
-        Trainer::silent(&ctx).fit(&mut model, &mut optimizer, &data, EpochSchedule::new(1)?);
+        Trainer::silent(&ctx).fit(&mut model, &objective(), &mut optimizer, &data, EpochSchedule::new(1)?);
     match error {
         Err(MlError::CleanupError { primary, cleanup }) => {
             assert!(matches!(
@@ -255,4 +232,8 @@ fn a_dataset_that_cannot_supply_its_sample_returns_an_error() -> MlResult<()> {
         Err(MlError::DataError(DataError::MissingSample { index: 0 }))
     ));
     Ok(())
+}
+
+fn objective() -> trench_deep::trainer::Supervised<trench_deep::loss::MseLoss> {
+    trench_deep::trainer::Supervised::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
 }

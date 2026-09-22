@@ -97,14 +97,14 @@ fn run_training_route(
         .with_observer(Box::new(observer));
     let result = if prepared {
         trainer.prepared().fit(
-            &mut model,
+            &mut model, &objective(),
             &mut optimizer,
             &mut loader,
             EpochSchedule::new(3)?.with_tolerance(1e-10),
         )?
     } else {
         trainer.fit(
-            &mut model,
+            &mut model, &objective(),
             &mut optimizer,
             &mut loader,
             EpochSchedule::new(3)?.with_tolerance(1e-10),
@@ -208,7 +208,7 @@ fn prepared_diffusion_feeds_reuse_plan_and_match_eager_updates() -> MlResult<()>
             trench_deep::runtime::prepared::PreparedMode::Training,
             |inputs| {
                 let (prediction, loss) =
-                    model.forward_loss_with_feeds(&inputs.get("image")?.as_variable()?, inputs)?;
+                    objective().forward_loss_with_feeds(&model, &inputs.get("image")?.as_variable()?, inputs)?;
                 Ok(vec![prediction.tensor().clone(), loss.tensor().clone()])
             },
         )?
@@ -265,7 +265,7 @@ fn prepared_diffusion_feeds_reuse_plan_and_match_eager_updates() -> MlResult<()>
             Ok(result)
         })?;
         let expected = eager.with_training_scope(|| {
-            let (prediction, loss) = other.forward_loss_with_feeds(&eimage, &efeeds)?;
+            let (prediction, loss) = objective().forward_loss_with_feeds(&other, &eimage, &efeeds)?;
             loss.backward()?;
             let result = (
                 prediction.tensor().to_vec()?,
@@ -563,7 +563,7 @@ fn into_diffusion_training_matches_eager_updates() -> MlResult<()> {
             trench_deep::runtime::prepared::PreparedMode::Training,
             |inputs| {
                 let (prediction, loss) =
-                    model.forward_loss_with_feeds(&inputs.get("image")?.as_variable()?, inputs)?;
+                    objective().forward_loss_with_feeds(&model, &inputs.get("image")?.as_variable()?, inputs)?;
                 Ok(vec![prediction.tensor().clone(), loss.tensor().clone()])
             },
         )?
@@ -621,7 +621,7 @@ fn into_diffusion_training_matches_eager_updates() -> MlResult<()> {
             Ok(result)
         })?;
         let expected = eager.with_training_scope(|| {
-            let (prediction, loss) = other.forward_loss_with_feeds(&eimage, &efeeds)?;
+            let (prediction, loss) = objective().forward_loss_with_feeds(&other, &eimage, &efeeds)?;
             loss.backward()?;
             let result = (
                 prediction.tensor().to_vec()?,
@@ -659,4 +659,8 @@ fn common_prepared_trainer_matches_eager_rng_metrics_and_adam() -> MlResult<()> 
     assert_eq!(eager.losses, prepared.losses);
     assert_eq!(eager.weights, prepared.weights);
     Ok(())
+}
+
+fn objective() -> trench_deep::trainer::DiffusionObjective<trench_deep::loss::MseLoss> {
+    trench_deep::trainer::DiffusionObjective::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
 }

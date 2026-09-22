@@ -35,16 +35,17 @@ impl TrainableModel for Scheduled {
         vec![&self.weight]
     }
 }
-impl TrainingModel for Scheduled {
+struct ScheduledObjective;
+impl Objective<Scheduled> for ScheduledObjective {
     type Batch = SemiSupervisedBatch;
     const PARADIGM: &'static str = "semi_supervised";
     fn forward_batch(
-        &mut self,
+        &self, model: &mut Scheduled,
         batch: &Self::Batch,
         step: &TrainingStepContext,
     ) -> MlResult<TrainingOutput> {
-        let batch = self.execution_batch(batch, step)?;
-        let output = self.forward_inputs(&batch.inputs)?;
+        let batch = self.execution_batch(model, batch, step)?;
+        let output = self.forward_inputs(model, &batch.inputs)?;
         Ok(TrainingOutput {
             loss: output.loss,
             prediction: output.prediction,
@@ -55,19 +56,19 @@ impl TrainingModel for Scheduled {
         })
     }
 }
-impl PreparedModel for Scheduled {
+impl PreparedObjective<Scheduled> for ScheduledObjective {
     fn execution_batch(
-        &mut self,
+        &self, model: &mut Scheduled,
         batch: &Self::Batch,
         step: &TrainingStepContext,
     ) -> MlResult<PreparedBatch> {
-        if self.fail_input {
-            let _partial_graph = self.weight.square()?;
+        if model.fail_input {
+            let _partial_graph = model.weight.square()?;
             return Err(MlError::StringError("input preparation failed".into()));
         }
         let lambda = step.lambda.expect("semi-supervised lambda");
-        self.steps.push((step.epoch, step.batch, lambda));
-        let variant = if self.variants && step.epoch % 2 == 1 {
+        model.steps.push((step.epoch, step.batch, lambda));
+        let variant = if model.variants && step.epoch % 2 == 1 {
             "alternate"
         } else {
             "base"
@@ -75,15 +76,15 @@ impl PreparedModel for Scheduled {
         let inputs = ExecutionInputs::new(variant)
             .with("x", batch.labeled_inputs.tensor().clone())?
             .with("target", batch.labeled_targets.clone())?
-            .with("lambda", self.ctx.tensor(vec![lambda], &[])?)?;
+            .with("lambda", model.ctx.tensor(vec![lambda], &[])?)?;
         let mut result = PreparedBatch::new(inputs, batch.labeled_inputs.tensor().shape()?[0]);
         result.target = Some(batch.labeled_targets.clone());
         result.lambda = Some(lambda);
         Ok(result)
     }
-    fn forward_inputs(&self, inputs: &ExecutionInputs) -> MlResult<ModelOutput> {
-        self.captures.set(self.captures.get() + 1);
-        let prediction = inputs.get("x")?.as_variable()?.mul(self.weight.tensor())?;
+    fn forward_inputs(&self, model: &Scheduled, inputs: &ExecutionInputs) -> MlResult<ModelOutput> {
+        model.captures.set(model.captures.get() + 1);
+        let prediction = inputs.get("x")?.as_variable()?.mul(model.weight.tensor())?;
         let loss = prediction.mse_loss(inputs.get("target")?, Reduction::Mean)?;
         let loss = loss.mul(inputs.get("lambda")?)?;
         Ok(ModelOutput::new(loss, Some(prediction)))
@@ -241,9 +242,9 @@ fn modes_preserve_configuration_hooks_observers_and_scheduled_gradients() -> MlR
         let result = if prepared {
             trainer
                 .prepared()
-                .fit(&mut model, &mut optimizer, &mut data, schedule)?
+                .fit(&mut model, &ScheduledObjective, &mut optimizer, &mut data, schedule)?
         } else {
-            trainer.fit(&mut model, &mut optimizer, &mut data, schedule)?
+            trainer.fit(&mut model, &ScheduledObjective, &mut optimizer, &mut data, schedule)?
         };
         assert_eq!(
             model.steps,
@@ -296,7 +297,7 @@ fn prepared_variants_are_cached_within_fit_and_errors_release_scope() -> MlResul
     let before = ctx.graph_stats()?;
     for expected in [2, 4] {
         trainer.fit(
-            &mut model,
+            &mut model, &ScheduledObjective,
             &mut optimizer,
             &mut data,
             EpochSchedule::new(3)?,
@@ -309,7 +310,7 @@ fn prepared_variants_are_cached_within_fit_and_errors_release_scope() -> MlResul
     assert!(
         trainer
             .fit(
-                &mut model,
+                &mut model, &ScheduledObjective,
                 &mut optimizer,
                 &mut data,
                 EpochSchedule::new(1)?
@@ -321,7 +322,7 @@ fn prepared_variants_are_cached_within_fit_and_errors_release_scope() -> MlResul
     assert!(model.weight.grad()?.is_none());
     model.fail_input = false;
     trainer.fit(
-        &mut model,
+        &mut model, &ScheduledObjective,
         &mut optimizer,
         &mut data,
         EpochSchedule::new(1)?,
@@ -330,7 +331,7 @@ fn prepared_variants_are_cached_within_fit_and_errors_release_scope() -> MlResul
     let other = ExecutionContext::new();
     assert!(matches!(
         Trainer::silent(&other).prepared().fit(
-            &mut model,
+            &mut model, &ScheduledObjective,
             &mut optimizer,
             &mut data,
             EpochSchedule::new(1)?
@@ -340,7 +341,7 @@ fn prepared_variants_are_cached_within_fit_and_errors_release_scope() -> MlResul
     let mut empty_optimizer = SGD::new(&ctx, 0.1)?;
     assert!(matches!(
         trainer.fit(
-            &mut model,
+            &mut model, &ScheduledObjective,
             &mut empty_optimizer,
             &mut data,
             EpochSchedule::new(1)?
@@ -387,16 +388,16 @@ fn both_modes_require_checkpointed_fit_and_save_after_cleanup()
         let result = if prepared {
             let trainer = trainer.prepared();
             assert!(matches!(
-                trainer.fit(&mut model, &mut optimizer, &mut data, schedule),
+                trainer.fit(&mut model, &ScheduledObjective, &mut optimizer, &mut data, schedule),
                 Err(MlError::UnsupportedCapability { .. })
             ));
-            trainer.fit_checkpointed(&mut model, &mut optimizer, &mut data, schedule)?
+            trainer.fit_checkpointed(&mut model, &ScheduledObjective, &mut optimizer, &mut data, schedule)?
         } else {
             assert!(matches!(
-                trainer.fit(&mut model, &mut optimizer, &mut data, schedule),
+                trainer.fit(&mut model, &ScheduledObjective, &mut optimizer, &mut data, schedule),
                 Err(MlError::UnsupportedCapability { .. })
             ));
-            trainer.fit_checkpointed(&mut model, &mut optimizer, &mut data, schedule)?
+            trainer.fit_checkpointed(&mut model, &ScheduledObjective, &mut optimizer, &mut data, schedule)?
         };
         assert_eq!(result.stop_reason, StopReason::Interrupted);
         assert_eq!(model.steps.len(), 1);

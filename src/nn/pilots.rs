@@ -8,10 +8,7 @@ pub use autoregressive::BigramLm;
 pub use reinforcement::{LinearPolicy, TwoArmedBandit};
 pub use semi_supervised::PiClassifier;
 
-use crate::loss::Reduction;
-use crate::trainer::{
-    SupervisedBatch, TrainableModel, TrainingModel, TrainingOutput, TrainingStepContext,
-};
+use crate::trainer::{ForwardModel, TrainableModel};
 use crate::{ContextId, ExecutionContext, MlResult, Tensor, Variable};
 
 use super::{Activation, ActivationKind, Layer, Linear, Parameter, Sequential};
@@ -48,38 +45,10 @@ impl TrainableModel for LinearRegression {
     }
 }
 
-impl LinearRegression {
-    pub fn forward_loss(
-        &mut self,
-        input: &Variable,
-        target: &Tensor,
-    ) -> MlResult<(Variable, Variable)> {
-        let prediction = self.layer.apply(input)?;
-        let loss = prediction.mse_loss(target, Reduction::Mean)?;
-        Ok((prediction, loss))
-    }
+impl ForwardModel for LinearRegression {
+    fn forward(&self, input: &Variable) -> MlResult<Variable> { self.layer.apply(input) }
 }
-impl TrainingModel for LinearRegression {
-    type Batch = SupervisedBatch;
-    const PARADIGM: &'static str = "supervised";
-    fn forward_batch(
-        &mut self,
-        batch: &Self::Batch,
-        _step: &TrainingStepContext,
-    ) -> MlResult<TrainingOutput> {
-        let shape = batch.inputs.tensor().shape()?;
-        let weight = if shape.len() > 1 { shape[0] } else { 1 };
-        let (prediction, loss) = self.forward_loss(&batch.inputs, &batch.targets)?;
-        Ok(TrainingOutput {
-            loss,
-            prediction: Some(prediction),
-            target: Some(batch.targets.clone()),
-            weight,
-            tokens: None,
-            lambda: None,
-        })
-    }
-}
+
 
 #[derive(Debug)]
 pub struct Mlp {
@@ -137,35 +106,7 @@ impl TrainableModel for Mlp {
     }
 }
 
-impl Mlp {
-    pub fn forward_loss(
-        &mut self,
-        input: &Variable,
-        target: &Tensor,
-    ) -> MlResult<(Variable, Variable)> {
-        let logits = self.network.apply(input)?;
-        let loss = logits.softmax_cross_entropy(target, Reduction::Mean)?;
-        Ok((logits, loss))
-    }
+impl ForwardModel for Mlp {
+    fn forward(&self, input: &Variable) -> MlResult<Variable> { self.network.apply(input) }
 }
-impl TrainingModel for Mlp {
-    type Batch = SupervisedBatch;
-    const PARADIGM: &'static str = "supervised";
-    fn forward_batch(
-        &mut self,
-        batch: &Self::Batch,
-        _step: &TrainingStepContext,
-    ) -> MlResult<TrainingOutput> {
-        let shape = batch.inputs.tensor().shape()?;
-        let weight = if shape.len() > 1 { shape[0] } else { 1 };
-        let (prediction, loss) = self.forward_loss(&batch.inputs, &batch.targets)?;
-        Ok(TrainingOutput {
-            loss,
-            prediction: Some(prediction),
-            target: Some(batch.targets.clone()),
-            weight,
-            tokens: None,
-            lambda: None,
-        })
-    }
-}
+

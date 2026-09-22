@@ -25,25 +25,7 @@ impl TrainableModel for Model {
         self.net.parameters()
     }
 }
-impl PreparedModel for Model {
-    fn execution_batch(
-        &mut self,
-        batch: &SupervisedBatch,
-        _step: &TrainingStepContext,
-    ) -> MlResult<PreparedBatch> {
-        let inputs = ExecutionInputs::new("mlp")
-            .with("x", batch.inputs.tensor().clone())?
-            .with("target", batch.targets.clone())?;
-        let mut prepared = PreparedBatch::new(inputs, batch.inputs.tensor().shape()?[0]);
-        prepared.target = Some(batch.targets.clone());
-        Ok(prepared)
-    }
-    fn forward_inputs(&self, inputs: &ExecutionInputs) -> MlResult<ModelOutput> {
-        let y = self.net.apply(&inputs.get("x")?.as_variable()?)?;
-        let loss = y.mse_loss(inputs.get("target")?, Reduction::Mean)?;
-        Ok(ModelOutput::new(loss, Some(y)))
-    }
-}
+
 fn main() -> MlResult<()> {
     let args: Vec<_> = std::env::args().collect();
     let batch: usize = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(100);
@@ -59,7 +41,7 @@ fn main() -> MlResult<()> {
             format!("a{i}"),
         )))?;
     }
-    let model = Model {
+    let mut model = Model {
         ctx: ctx.clone(),
         net,
     };
@@ -76,7 +58,7 @@ fn main() -> MlResult<()> {
     let mut optimizer = Adam::new(&ctx, 0.001, 0.9, 0.999, 1e-8)?;
     optimizer.register_all(&model.parameters())?;
     let start = Instant::now();
-    let mut prepared = ctx.prepare_model(&model, &inputs)?;
+    let mut prepared = ctx.prepare_objective(&mut model, &objective(), &inputs)?;
     println!("prepare_ms={}", start.elapsed().as_secs_f64() * 1000.0);
     for step in 0..steps {
         let memory = allocation::begin();
@@ -123,24 +105,15 @@ fn main() -> MlResult<()> {
     Ok(())
 }
 
-impl trench_deep::trainer::TrainingModel for Model {
-    type Batch = trench_deep::trainer::SupervisedBatch;
-    const PARADIGM: &'static str = "supervised";
-    fn forward_batch(
-        &mut self,
-        batch: &Self::Batch,
-        step: &trench_deep::trainer::TrainingStepContext,
-    ) -> MlResult<trench_deep::trainer::TrainingOutput> {
-        use trench_deep::runtime::prepared::PreparedModel;
-        let prepared = self.execution_batch(batch, step)?;
-        let output = self.forward_inputs(&prepared.inputs)?;
-        Ok(trench_deep::trainer::TrainingOutput {
-            loss: output.loss,
-            prediction: output.prediction,
-            target: prepared.target,
-            weight: prepared.weight,
-            tokens: prepared.tokens,
-            lambda: prepared.lambda,
-        })
+
+
+impl trench_deep::trainer::ForwardModel for Model {
+    fn forward(&self, input: &trench_deep::Variable) -> MlResult<trench_deep::Variable> {
+        
+        self.net.apply(input)
     }
+}
+
+fn objective() -> trench_deep::trainer::Supervised<trench_deep::loss::MseLoss> {
+    trench_deep::trainer::Supervised::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
 }

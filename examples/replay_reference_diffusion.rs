@@ -142,7 +142,7 @@ pub fn replay(fixture: &Fixture) -> Result<(), Box<dyn std::error::Error>> {
     optimizer.register_all(&parameters)?;
     for (i, step) in fixture.steps.iter().enumerate() {
         let noise = ctx.tensor(step.noise.clone(), &[2, 1, 8, 8])?;
-        let (prediction, loss) = model.forward_loss_with_noise(&image, &noise, step.timestep)?;
+        let (prediction, loss) = objective().forward_loss_with_noise(&model, &image, &noise, step.timestep)?;
         close(
             &prediction.tensor().to_vec()?,
             &step.prediction,
@@ -194,4 +194,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Reference DDPM replay passed: predictions, losses, all gradients and Adam weights over 3 steps."
     );
     Ok(())
+}
+
+fn objective() -> trench_deep::trainer::DiffusionObjective<trench_deep::loss::MseLoss> {
+    trench_deep::trainer::DiffusionObjective::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
 }

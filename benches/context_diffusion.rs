@@ -88,7 +88,7 @@ fn stages(
     let mut measurements = Vec::with_capacity(8);
     let (ctx, m) = measure("context_init", || context(route))?;
     measurements.push(m);
-    let (model, m) = measure("model_init", || model(&ctx))?;
+    let (mut model, m) = measure("model_init", || model(&ctx))?;
     measurements.push(m);
     let (mut adam, m) = measure("optimizer_init_register", || optimizer(&ctx, &model))?;
     measurements.push(m);
@@ -110,7 +110,7 @@ fn stages(
     };
     let mut plan = if let Some(inputs) = &inputs {
         let (plan, m) = measure("prepare_training", || {
-            ctx.prepare_model_for_loss(&model, inputs)
+            ctx.prepare_objective_for_loss(&mut model, &objective(), inputs)
         })?;
         measurements.push(m);
         Some(plan)
@@ -159,7 +159,7 @@ fn stages(
         })?
     } else {
         ctx.with_training_scope(|| {
-            let (prediction, loss) = model.forward_loss_with_noise(&image, &noise, 3)?;
+            let (prediction, loss) = objective().forward_loss_with_noise(&model, &image, &noise, 3)?;
             finish(prediction, loss)
         })?
     };
@@ -199,9 +199,9 @@ fn training(route: ExecutionRoute, prepared: bool) -> MlResult<(Measurement, Vec
         if prepared {
             trainer
                 .prepared()
-                .fit(&mut model, &mut adam, &mut loader, schedule)
+                .fit(&mut model, &objective(), &mut adam, &mut loader, schedule)
         } else {
-            trainer.fit(&mut model, &mut adam, &mut loader, schedule)
+            trainer.fit(&mut model, &objective(), &mut adam, &mut loader, schedule)
         }
     })?;
     assert_eq!(result.units_completed, 3);
@@ -212,7 +212,7 @@ fn training(route: ExecutionRoute, prepared: bool) -> MlResult<(Measurement, Vec
 }
 fn sampling(route: ExecutionRoute, prepared: bool) -> MlResult<(Vec<Measurement>, Vec<f32>)> {
     let ctx = context(route)?;
-    let model = model(&ctx)?;
+    let mut model = model(&ctx)?;
     let initial = ctx.tensor(
         (0..128).map(|i| (i as f32 * 0.17).sin()).collect(),
         &[2, 1, 8, 8],
@@ -341,11 +341,11 @@ fn verify_rng_feeds(route: ExecutionRoute) -> MlResult<serde_json::Value> {
         let t = rng.random_range(0..10);
         let noise = ctx.tensor(values.clone(), &[2, 1, 8, 8])?;
         let actual = ctx.with_training_scope(|| {
-            let (p, l) = model.forward_loss(&image)?;
+            let (p, l) = objective().forward_loss(&mut model, &image)?;
             Ok((p.tensor().to_vec()?, l.tensor().to_vec()?))
         })?;
         let expected = ctx.with_training_scope(|| {
-            let (p, l) = model.forward_loss_with_noise(&image, &noise, t)?;
+            let (p, l) = objective().forward_loss_with_noise(&model, &image, &noise, t)?;
             Ok((p.tensor().to_vec()?, l.tensor().to_vec()?))
         })?;
         assert_eq!(actual, expected);
@@ -387,7 +387,7 @@ fn memory_lifecycle(route: ExecutionRoute, prepared: bool) -> MlResult<serde_jso
     let mut points = Vec::with_capacity(110);
     let before = allocation::snapshot();
     let ctx = context(route)?;
-    let model = model(&ctx)?;
+    let mut model = model(&ctx)?;
     let mut adam = optimizer(&ctx, &model)?;
     let image = ctx.tensor(vec![0.5; 128], &[2, 1, 8, 8])?.as_variable()?;
     let noise = ctx.tensor(noise_values(3), &[2, 1, 8, 8])?;
@@ -402,7 +402,7 @@ fn memory_lifecycle(route: ExecutionRoute, prepared: bool) -> MlResult<serde_jso
     };
     let mut plan: Option<PreparedModelExecutor> = inputs
         .as_ref()
-        .map(|inputs| ctx.prepare_model_for_loss(&model, inputs))
+        .map(|inputs| ctx.prepare_objective_for_loss(&mut model, &objective(), inputs))
         .transpose()?;
     let arena_bytes = plan
         .as_ref()
@@ -437,7 +437,7 @@ fn memory_lifecycle(route: ExecutionRoute, prepared: bool) -> MlResult<serde_jso
             })?;
         } else {
             ctx.with_training_scope(|| {
-                let (prediction, loss) = model.forward_loss_with_noise(&image, &noise, 3)?;
+                let (prediction, loss) = objective().forward_loss_with_noise(&model, &image, &noise, 3)?;
                 finish(prediction, loss)
             })?;
         }
@@ -524,4 +524,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "instrumented timing must not be used as ordinary performance", "operation microcases remain eager diagnostics on every route", "prepared forward includes scope entry and exported ownership copies; backward includes gradient publication", "prepared training_3_epochs includes first preparation; sampling preparation reported separately"]});
     std::fs::write(output_path, serde_json::to_vec(&result)?)?;
     Ok(())
+}
+
+fn objective() -> trench_deep::trainer::DiffusionObjective<trench_deep::loss::MseLoss> {
+    trench_deep::trainer::DiffusionObjective::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
 }

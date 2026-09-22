@@ -1,7 +1,7 @@
 //! Model-level training facade shared by direct callers and the Trainer.
 use super::{ExecutionInputs, PreparedExecutor, PreparedMode, invalid};
 use crate::{
-    trainer::{TrainingModel, TrainingStepContext},
+    trainer::{TrainingModel, TrainingStepContext, TrainableModel, PreparedObjective, objective::BoundObjective},
     *,
 };
 /// Host work (random inputs, scheduling and batch metadata) is kept outside capture.
@@ -50,6 +50,19 @@ pub struct PreparedModelExecutor {
     prediction: bool,
 }
 impl ExecutionContext {
+    /// Capture model prediction and the supplied objective together.
+    pub fn prepare_objective<M: TrainableModel, O: PreparedObjective<M>>(
+        &self, model: &mut M, objective: &O, inputs: &ExecutionInputs,
+    ) -> MlResult<PreparedModelExecutor> {
+        self.prepare_model(&BoundObjective { model, objective }, inputs)
+    }
+    /// Capture only the objective loss as a backward root, retaining prediction exports.
+    pub fn prepare_objective_for_loss<M: TrainableModel, O: PreparedObjective<M>>(
+        &self, model: &mut M, objective: &O, inputs: &ExecutionInputs,
+    ) -> MlResult<PreparedModelExecutor> {
+        self.prepare_model_for_loss(&BoundObjective { model, objective }, inputs)
+    }
+
     /// Prepare from already-created example inputs; this does not generate noise.
     pub fn prepare_model<M: PreparedModel>(
         &self,
@@ -112,7 +125,7 @@ impl PreparedModelExecutor {
     pub fn executor(&self) -> &PreparedExecutor {
         &self.executor
     }
-    pub fn run<M: PreparedModel, T>(
+    pub fn run<M: TrainableModel, T>(
         &mut self,
         model: &M,
         inputs: &ExecutionInputs,

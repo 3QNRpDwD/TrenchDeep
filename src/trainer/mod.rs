@@ -8,6 +8,8 @@ pub mod checkpoint;
 pub mod core;
 pub mod data;
 mod prepared;
+pub(crate) mod objective;
+pub use objective::{Objective, PreparedObjective, ForwardModel, Supervised, Autoregressive, DiffusionObjective, SemiSupervised};
 pub(crate) mod progress;
 mod reinforcement;
 mod runners;
@@ -21,26 +23,7 @@ pub trait TrainableModel {
     fn context_id(&self) -> ContextId;
     fn parameters(&self) -> Vec<&Parameter>;
 }
-/// Common model contract for epoch-based training.
-///
-/// Eager-only models can use the default trainer:
-/// ```no_run
-/// use trench_deep::{MlResult, trainer::*, optimizer::Optimizer};
-/// fn train<M: TrainingModel, I: IntoBatchLoader<Batch = M::Batch>>(
-///     trainer: Trainer, model: &mut M, optimizer: &mut dyn Optimizer, input: I,
-/// ) -> MlResult<TrainResult> {
-///     trainer.fit(model, optimizer, input, EpochSchedule::new(1)?)
-/// }
-/// ```
-/// Prepared execution additionally requires `PreparedModel`:
-/// ```compile_fail,E0277
-/// use trench_deep::{MlResult, trainer::*, optimizer::Optimizer};
-/// fn train<M: TrainingModel, I: IntoBatchLoader<Batch = M::Batch>>(
-///     trainer: Trainer, model: &mut M, optimizer: &mut dyn Optimizer, input: I,
-/// ) -> MlResult<TrainResult> {
-///     trainer.prepared().fit(model, optimizer, input, EpochSchedule::new(1)?)
-/// }
-/// ```
+/// Low-level execution contract used by the internal model/objective adapter.
 pub trait TrainingModel: TrainableModel {
     type Batch: BatchInputs;
     const PARADIGM: &'static str;

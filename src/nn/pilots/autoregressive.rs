@@ -1,10 +1,7 @@
 //! Explicit-context bigram language-model pilot.
 
-use crate::loss::Reduction;
 use crate::nn::Parameter;
-use crate::trainer::{
-    AutoregressiveBatch, TrainableModel, TrainingModel, TrainingOutput, TrainingStepContext,
-};
+use crate::trainer::{ForwardModel, TrainableModel};
 use crate::{ContextId, ExecutionContext, MlError, MlResult, Variable};
 
 #[derive(Debug)]
@@ -46,63 +43,7 @@ impl TrainableModel for BigramLm {
     }
 }
 
-impl BigramLm {
-    pub fn forward_loss(&mut self, sequence: &Variable) -> MlResult<(Variable, Variable, usize)> {
-        let shape = sequence.tensor().shape()?;
-        let (batch, length) = match shape.as_slice() {
-            [length, vocab] if *vocab == self.vocab => (1, *length),
-            [batch, length, vocab] if *vocab == self.vocab => (*batch, *length),
-            _ => {
-                return Err(MlError::StringError(
-                    "bigram input must have shape [sequence, vocab] or [batch, sequence, vocab]"
-                        .into(),
-                ));
-            }
-        };
-        if batch == 0 || length < 2 {
-            return Err(MlError::StringError(
-                "bigram input requires a non-empty batch and sequence length >= 2".into(),
-            ));
-        }
-        let data = sequence.tensor().to_vec()?;
-        let positions = length - 1;
-        let tokens = batch * positions;
-        let mut inputs = Vec::with_capacity(tokens * self.vocab);
-        let mut targets = Vec::with_capacity(tokens * self.vocab);
-        for batch_index in 0..batch {
-            let sequence_start = batch_index * length * self.vocab;
-            for position in 0..positions {
-                let input_start = sequence_start + position * self.vocab;
-                let target_start = input_start + self.vocab;
-                inputs.extend_from_slice(&data[input_start..input_start + self.vocab]);
-                targets.extend_from_slice(&data[target_start..target_start + self.vocab]);
-            }
-        }
-        let input = self.context.input(inputs, &[tokens, self.vocab])?;
-        let target = self.context.tensor(targets, &[tokens, self.vocab])?;
-        let logits = input.matmul(self.weight.tensor())?;
-        let loss = logits.softmax_cross_entropy(&target, Reduction::Mean)?;
-        Ok((logits, loss, tokens))
-    }
-}
-impl TrainingModel for BigramLm {
-    type Batch = AutoregressiveBatch;
-    const PARADIGM: &'static str = "autoregressive";
-    fn forward_batch(
-        &mut self,
-        batch: &Self::Batch,
-        _step: &TrainingStepContext,
-    ) -> MlResult<TrainingOutput> {
-        let (prediction, loss, tokens) = self.forward_loss(&batch.sequences)?;
-        let weight = tokens;
-
-        Ok(TrainingOutput {
-            loss,
-            prediction: Some(prediction),
-            target: None,
-            weight,
-            tokens: Some(tokens),
-            lambda: None,
-        })
-    }
+impl BigramLm { pub fn vocab(&self) -> usize { self.vocab } }
+impl ForwardModel for BigramLm {
+    fn forward(&self, input: &Variable) -> MlResult<Variable> { input.matmul(self.weight.tensor()) }
 }
