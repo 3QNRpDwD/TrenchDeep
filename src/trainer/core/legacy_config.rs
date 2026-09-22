@@ -103,12 +103,13 @@ pub type TrainerConfig = LogConfig;
 /// use trench_deep::trainer::{Metrics, Trainer};
 ///
 ///
-/// let trainer = Trainer::builder(/* &ExecutionContext */)
+/// let ctx = trench_deep::ExecutionContext::new();
+/// let trainer = Trainer::supervised(&ctx)
 ///     .log_every_n_batches(50)
 ///     .nan_check(true)
 ///     .metrics(Metrics::none().grad_norm().accuracy())
-///     .show_progress(true)
-///     .build();
+///     .show_progress(true);
+///  
 /// ```
 pub struct TrainerBuilder {
     batch_log_interval: usize,
@@ -164,15 +165,7 @@ impl TrainerBuilder {
         self.nan_check_interval = if enabled { 1 } else { usize::MAX };
         self
     }
-
-    /// 활성화할 메트릭 집합을 설정.
-    ///
-    /// ```no_run
-    /// use trench_deep::trainer::{Metrics, Trainer};
-    /// let trainer = Trainer::builder(/* &ExecutionContext */)
-    ///     .metrics(Metrics::none().grad_norm().accuracy())
-    ///     .build();
-    /// ```
+    
     pub fn metrics(mut self, m: Metrics) -> Self {
         self.metrics = m;
         self
@@ -189,12 +182,6 @@ impl TrainerBuilder {
     /// 설정하면 학습 중 Ctrl+C 인터럽트 시 모델 가중치와 학습 상태를
     /// 이 디렉토리에 저장한다. `resume()`으로 중단 지점부터 재개 가능.
     ///
-    /// ```no_run
-    /// use trench_deep::trainer::Trainer;
-    /// let trainer = Trainer::builder(/* &ExecutionContext */)
-    ///     .checkpoint_dir("checkpoints/my_model")
-    ///     .build();
-    /// ```
     pub fn checkpoint_dir(mut self, dir: &str) -> Self {
         self.checkpoint_dir = Some(dir.to_string());
         self

@@ -112,19 +112,18 @@ pub(crate) use crate::legacy::tensor::TensorBase;
 /// ```no_run
 /// use trench_deep::trainer::{Trainer};
 /// let ctx = trench_deep::ExecutionContext::new();
-/// let t: Trainer = Trainer::default(/* &ExecutionContext */)
+/// let t: Trainer = Trainer::supervised(&ctx).default();
 /// ```
 ///
 /// # 커스텀 빌더
 /// ```no_run
+/// use trench_deep::trainer::Trainer;
 /// let ctx = trench_deep::ExecutionContext::new();
-/// let trainer: trench_deep::trainer::TrainerBuilder =
-///     trench_deep::trainer::Trainer::builder(/* &ExecutionContext */)
+/// let trainer: Trainer =
+///     trench_deep::trainer::Trainer::supervised(&ctx)
 ///         .log_every_n_batches(50)
 ///         .metrics(trench_deep::trainer::Metrics::none().grad_norm().accuracy())
-///         .show_progress(true)
-///         .build()
-///         .supervised(&ctx);
+///         .show_progress(true);
 /// ```
 pub struct Trainer {
     pub(crate) core: TrainerCore,
