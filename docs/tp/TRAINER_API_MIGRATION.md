@@ -114,17 +114,3 @@ Prediction도 backward root로 사용할 경우 `prepare_training`을 사용한�
 `fit_checkpointed`는 모델의 `CheckpointableModel` 구현이 필요하다. checkpoint 경로를 지정한 일반 `fit`은 오류를 반환한다. interrupt 시 모델과 메타데이터를 저장하며 optimizer·RNG·loader를 포함한 완전 재개는 제공하지 않는다.
 
 RL 환경·에피소드 API와 legacy 구현은 유지한다. RL에 공통 로그 설정을 전달할 때는 `RLTrainer::from_trainer(&ctx, Trainer::supervised(&ctx).minimal())`을 사용할 수 있다.
-
-## 검증 인계
-
-이번 변경에서는 테스트·벤치마크를 실행하지 않는다. 아래는 사용자가 실행할 검증 명령이다.
-
-```powershell
-cargo test --features enableBackward --lib trainer::preset_tests
-cargo test --features enableBackward --test loss_objectives --test unified_trainer --test prepared_model --test diffusion_routes
-cargo test --all-features
-```
-
-프리셋 값과 설정·RNG 보존, six-loss 연산/gradient/오류 동등성, loss 교체·setter·scalar 제약, 양쪽 consistency gradient, epoch별 lambda, token 집계, eager/prepared 동등성, 캐시·오류 정리, hook·observer·clipping·checkpoint를 검증하는 코드를 전환·추가했다. 그래프 노드·slot·backward root·arena 비교도 포함한다.
-
-성능 비교는 같은 모델·loss·입력·seed를 사용하고 준비 시간과 반복 실행 시간을 분리한다. 프리셋별 메트릭 비용이 섞이지 않도록 비교 양쪽의 설정을 맞춘다. 실행 시간 개선이나 무손실 성능은 측정 전에는 확정하지 않는다.
