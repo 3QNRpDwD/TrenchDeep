@@ -157,8 +157,8 @@ impl TrainableModel for BrokenModel {
         vec![&self.p]
     }
 }
-impl SupervisedModel for BrokenModel {
-    fn forward_loss(&mut self, _: &Variable, _: &Tensor) -> MlResult<(Variable, Variable)> {
+impl BrokenModel {
+    pub fn forward_loss(&mut self, _: &Variable, _: &Tensor) -> MlResult<(Variable, Variable)> {
         let _graph = self.p.square()?;
         Err(MlError::UnsupportedCapability {
             module: "broken model",
@@ -167,6 +167,28 @@ impl SupervisedModel for BrokenModel {
         })
     }
 }
+impl TrainingModel for BrokenModel {
+    type Batch = SupervisedBatch;
+    const PARADIGM: &'static str = "supervised";
+    fn forward_batch(
+        &mut self,
+        batch: &Self::Batch,
+        _step: &TrainingStepContext,
+    ) -> MlResult<TrainingOutput> {
+        let shape = batch.inputs.tensor().shape()?;
+        let weight = if shape.len() > 1 { shape[0] } else { 1 };
+        let (prediction, loss) = self.forward_loss(&batch.inputs, &batch.targets)?;
+        Ok(TrainingOutput {
+            loss,
+            prediction: Some(prediction),
+            target: Some(batch.targets.clone()),
+            weight,
+            tokens: None,
+            lambda: None,
+        })
+    }
+}
+
 #[test]
 fn primary_and_cleanup_errors_are_both_preserved() -> MlResult<()> {
     let ctx = ExecutionContextBuilder::empty()
@@ -185,12 +207,8 @@ fn primary_and_cleanup_errors_are_both_preserved() -> MlResult<()> {
     let xs = [&x];
     let ys = [&y];
     let data = SupervisedDataset::new(&ctx, &xs, &ys)?;
-    let error = SupervisedTrainer::silent(&ctx).fit(
-        &mut model,
-        &mut optimizer,
-        &data,
-        EpochSchedule::new(1)?,
-    );
+    let error =
+        Trainer::silent(&ctx).fit(&mut model, &mut optimizer, &data, EpochSchedule::new(1)?);
     match error {
         Err(MlError::CleanupError { primary, cleanup }) => {
             assert!(matches!(

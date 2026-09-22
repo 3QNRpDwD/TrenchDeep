@@ -2,7 +2,9 @@
 
 use crate::loss::Reduction;
 use crate::nn::{Layer, Linear, Parameter};
-use crate::trainer::{SemiSupervisedModel, TrainableModel};
+use crate::trainer::{
+    SemiSupervisedBatch, TrainableModel, TrainingModel, TrainingOutput, TrainingStepContext,
+};
 use crate::{ContextId, ExecutionContext, MlResult, Tensor, Variable};
 
 #[derive(Debug)]
@@ -56,8 +58,8 @@ impl TrainableModel for PiClassifier {
     }
 }
 
-impl SemiSupervisedModel for PiClassifier {
-    fn forward_loss(
+impl PiClassifier {
+    pub fn forward_loss(
         &mut self,
         labeled_input: &Variable,
         labeled_target: &Tensor,
@@ -67,6 +69,35 @@ impl SemiSupervisedModel for PiClassifier {
         let first = self.noisy(unlabeled_input)?;
         let second = self.noisy(unlabeled_input)?;
         self.forward_loss_with_augmentations(labeled_input, labeled_target, &first, &second, lambda)
+    }
+}
+impl TrainingModel for PiClassifier {
+    type Batch = SemiSupervisedBatch;
+    const PARADIGM: &'static str = "semi_supervised";
+    fn forward_batch(
+        &mut self,
+        batch: &Self::Batch,
+        step: &TrainingStepContext,
+    ) -> MlResult<TrainingOutput> {
+        let shape = batch.labeled_inputs.tensor().shape()?;
+        let weight = if shape.len() > 1 { shape[0] } else { 1 };
+        let lambda = step.lambda.ok_or_else(|| {
+            crate::MlError::StringError("semi-supervised step requires lambda".into())
+        })?;
+        let (prediction, loss) = self.forward_loss(
+            &batch.labeled_inputs,
+            &batch.labeled_targets,
+            &batch.unlabeled_inputs,
+            lambda,
+        )?;
+        Ok(TrainingOutput {
+            loss,
+            prediction: Some(prediction),
+            target: Some(batch.labeled_targets.clone()),
+            weight,
+            tokens: None,
+            lambda: Some(lambda),
+        })
     }
 }
 

@@ -1,6 +1,6 @@
 //! Prepared training uses the same model executor as user-owned loops.
 use super::{
-    service::{BatchInputs, StepData, TrainingService},
+    service::{BatchInputs, StepData},
     *,
 };
 use crate::{
@@ -8,27 +8,7 @@ use crate::{
     runtime::prepared::{PreparedModel, PreparedModelExecutor},
 };
 use std::time::Instant;
-pub struct PreparedTrainer {
-    service: TrainingService,
-}
-impl Trainer {
-    /// Explicit static execution; unsupported models/providers never fall back.
-    pub fn prepared(self, context: &ExecutionContext) -> PreparedTrainer {
-        PreparedTrainer {
-            service: TrainingService::new(context, self),
-        }
-    }
-}
-impl PreparedTrainer {
-    pub fn with_max_grad_norm(mut self, max: f32) -> MlResult<Self> {
-        if !max.is_finite() || max <= 0.0 {
-            return Err(MlError::StringError(
-                "max_grad_norm must be finite and positive".into(),
-            ));
-        }
-        self.service.max_grad_norm = Some(max);
-        Ok(self)
-    }
+impl Trainer<Prepared> {
     pub fn fit<M, I>(
         &self,
         model: &mut M,
@@ -88,12 +68,13 @@ impl PreparedTrainer {
             input,
             schedule,
             M::PARADIGM,
-            |model, batch, _, optimizer, context| {
+            |model, batch, epoch, optimizer, context| {
+                let step = self.step_context::<M>(epoch, context.batch - 1);
                 // Host input creation is cleaned up on errors and does not run during capture.
                 let batch = self
                     .service
                     .context
-                    .with_training_scope(|| model.execution_batch(&batch))?;
+                    .with_training_scope(|| model.execution_batch(&batch, &step))?;
                 let signature = batch.inputs.tensor_signature()?;
                 let variant = batch.inputs.variant().to_owned();
                 let index = if let Some(index) = plans

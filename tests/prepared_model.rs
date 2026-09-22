@@ -25,9 +25,11 @@ impl TrainableModel for Linear {
     }
 }
 impl PreparedModel for Linear {
-    type Batch = SupervisedBatch;
-    const PARADIGM: &'static str = "supervised";
-    fn execution_batch(&mut self, batch: &Self::Batch) -> MlResult<PreparedBatch> {
+    fn execution_batch(
+        &mut self,
+        batch: &Self::Batch,
+        _step: &TrainingStepContext,
+    ) -> MlResult<PreparedBatch> {
         let inputs = ExecutionInputs::new("linear")
             .with("x", batch.inputs.tensor().clone())?
             .with("target", batch.targets.clone())?;
@@ -78,7 +80,7 @@ fn loss_only_model_keeps_prediction_and_matches_default_gradients() -> MlResult<
         inputs: ctx.tensor(vec![1.0, 2.0], &[1, 2])?.as_variable()?,
         targets: ctx.tensor(vec![0.0], &[1, 1])?,
     };
-    let batch = model.execution_batch(&batch)?;
+    let batch = model.execution_batch(&batch, &TrainingStepContext::default())?;
     let mut full = ctx.prepare_model(&model, &batch.inputs)?;
     let mut selected = ctx.prepare_model_for_loss(&model, &batch.inputs)?;
     assert_eq!(full.executor().plan().backward_plan_stats().roots, 2);
@@ -108,7 +110,7 @@ fn common_model_api_reuses_plan_and_recovers_from_callback_errors() -> MlResult<
         inputs: ctx.tensor(vec![1.0, 2.0], &[1, 2])?.as_variable()?,
         targets: ctx.tensor(vec![0.0], &[1, 1])?,
     };
-    let batch = model.execution_batch(&batch)?;
+    let batch = model.execution_batch(&batch, &TrainingStepContext::default())?;
     let before = ctx.graph_stats()?;
     let mut prepared = ctx.prepare_model(&model, &batch.inputs)?;
     assert_eq!(model.descriptions.get(), 1);
@@ -144,7 +146,7 @@ fn common_trainer_prepares_once_per_shape_and_reuses_across_epochs() -> MlResult
     let targets = [&t, &u];
     let dataset = SupervisedDataset::new(&ctx, &inputs, &targets)?;
     let before = ctx.graph_stats()?;
-    let result = Trainer::silent().prepared(&ctx).fit(
+    let result = Trainer::silent(&ctx).prepared().fit(
         &mut model,
         &mut adam,
         &dataset,
@@ -157,8 +159,8 @@ fn common_trainer_prepares_once_per_shape_and_reuses_across_epochs() -> MlResult
     Ok(())
 }
 
-impl SupervisedModel for Linear {
-    fn forward_loss(
+impl Linear {
+    pub fn forward_loss(
         &mut self,
         input: &Variable,
         target: &Tensor,
@@ -170,6 +172,28 @@ impl SupervisedModel for Linear {
         Ok((output.prediction.unwrap(), output.loss))
     }
 }
+impl TrainingModel for Linear {
+    type Batch = SupervisedBatch;
+    const PARADIGM: &'static str = "supervised";
+    fn forward_batch(
+        &mut self,
+        batch: &Self::Batch,
+        _step: &TrainingStepContext,
+    ) -> MlResult<TrainingOutput> {
+        let shape = batch.inputs.tensor().shape()?;
+        let weight = if shape.len() > 1 { shape[0] } else { 1 };
+        let (prediction, loss) = self.forward_loss(&batch.inputs, &batch.targets)?;
+        Ok(TrainingOutput {
+            loss,
+            prediction: Some(prediction),
+            target: Some(batch.targets.clone()),
+            weight,
+            tokens: None,
+            lambda: None,
+        })
+    }
+}
+
 #[test]
 fn eager_loader_operations_remain_in_the_batch_graph() -> MlResult<()> {
     struct Loader {
@@ -210,12 +234,7 @@ fn eager_loader_operations_remain_in_the_batch_graph() -> MlResult<()> {
         weight: model.weight.clone(),
         emitted: false,
     };
-    Trainer::silent().supervised(&ctx).fit(
-        &mut model,
-        &mut optimizer,
-        loader,
-        EpochSchedule::new(1)?,
-    )?;
+    Trainer::silent(&ctx).fit(&mut model, &mut optimizer, loader, EpochSchedule::new(1)?)?;
     let values = model.weight.tensor().to_vec()?;
     assert!((values[0] - 0.296).abs() < 1e-6 && (values[1] - 0.518).abs() < 1e-6);
     Ok(())

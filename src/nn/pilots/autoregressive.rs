@@ -2,7 +2,9 @@
 
 use crate::loss::Reduction;
 use crate::nn::Parameter;
-use crate::trainer::{AutoregressiveModel, TrainableModel};
+use crate::trainer::{
+    AutoregressiveBatch, TrainableModel, TrainingModel, TrainingOutput, TrainingStepContext,
+};
 use crate::{ContextId, ExecutionContext, MlError, MlResult, Variable};
 
 #[derive(Debug)]
@@ -44,8 +46,8 @@ impl TrainableModel for BigramLm {
     }
 }
 
-impl AutoregressiveModel for BigramLm {
-    fn forward_loss(&mut self, sequence: &Variable) -> MlResult<(Variable, Variable, usize)> {
+impl BigramLm {
+    pub fn forward_loss(&mut self, sequence: &Variable) -> MlResult<(Variable, Variable, usize)> {
         let shape = sequence.tensor().shape()?;
         let (batch, length) = match shape.as_slice() {
             [length, vocab] if *vocab == self.vocab => (1, *length),
@@ -81,5 +83,26 @@ impl AutoregressiveModel for BigramLm {
         let logits = input.matmul(self.weight.tensor())?;
         let loss = logits.softmax_cross_entropy(&target, Reduction::Mean)?;
         Ok((logits, loss, tokens))
+    }
+}
+impl TrainingModel for BigramLm {
+    type Batch = AutoregressiveBatch;
+    const PARADIGM: &'static str = "autoregressive";
+    fn forward_batch(
+        &mut self,
+        batch: &Self::Batch,
+        _step: &TrainingStepContext,
+    ) -> MlResult<TrainingOutput> {
+        let (prediction, loss, tokens) = self.forward_loss(&batch.sequences)?;
+        let weight = tokens;
+
+        Ok(TrainingOutput {
+            loss,
+            prediction: Some(prediction),
+            target: None,
+            weight,
+            tokens: Some(tokens),
+            lambda: None,
+        })
     }
 }

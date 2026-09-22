@@ -70,7 +70,7 @@ fn capture_is_published_after_cleanup_and_suppressed_when_hook_fails() -> MlResu
         let targets = [&target];
         let dataset = SupervisedDataset::new(&ctx, &inputs, &targets)?;
         let events = Rc::new(RefCell::new(Vec::new()));
-        let mut trainer = SupervisedTrainer::silent(&ctx).with_observer(Box::new(CaptureOrder {
+        let mut trainer = Trainer::silent(&ctx).with_observer(Box::new(CaptureOrder {
             ctx: ctx.clone(),
             parameters: model.parameters().into_iter().cloned().collect(),
             events: events.clone(),

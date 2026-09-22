@@ -12,17 +12,17 @@ jobs:
       matrix:
         include:
           - name: default
-            args: ""
+            args: "--release"
           - name: no-features
-            args: "--no-default-features"
+            args: "--release --no-default-features"
           - name: backward
-            args: "--features enableBackward"
+            args: "--release --features enableBackward"
           - name: visualization
-            args: "--features enableVisualization"
+            args: "--release --features enableVisualization"
           - name: legacy
-            args: "--features legacyBenchmark"
+            args: "--release --features legacyBenchmark"
           - name: all-features
-            args: "--all-features"
+            args: "--release --all-features"
     name: test (${{ matrix.name }})
     steps:
       - uses: actions/checkout@v4

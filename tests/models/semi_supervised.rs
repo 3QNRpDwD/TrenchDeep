@@ -1,8 +1,6 @@
-use trench_deep::{nn::*, trainer::TrainableModel, ExecutionContext, MlResult, Variable};
 use trench_deep::optimizer::{Adam, Optimizer};
-use trench_deep::trainer::{
-    ConsistencyRamp, EpochSchedule, SemiSupervisedDataset, SemiSupervisedTrainer,
-};
+use trench_deep::trainer::{ConsistencyRamp, EpochSchedule, SemiSupervisedDataset, Trainer};
+use trench_deep::{ExecutionContext, MlResult, Variable, nn::*, trainer::TrainableModel};
 
 #[test]
 fn supplied_views_reject_broadcasting_and_empty_batches_before_recording() -> MlResult<()> {
@@ -47,7 +45,7 @@ fn pi_model_pilot_trains_end_to_end() -> MlResult<()> {
         SemiSupervisedDataset::new(&context, &labeled_refs, &target_refs, &unlabeled_refs)?;
     let mut optimizer = Adam::new(&context, 0.02, 0.9, 0.999, 1e-8)?;
     optimizer.register_all(&model.parameters())?;
-    let result = SemiSupervisedTrainer::silent(&context)
+    let result = Trainer::silent(&context)
         .with_ramp(ConsistencyRamp::Sigmoid {
             max_weight: 1.0,
             ramp_epochs: 2,

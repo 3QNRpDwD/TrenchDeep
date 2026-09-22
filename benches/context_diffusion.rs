@@ -189,7 +189,7 @@ fn training(route: ExecutionRoute, prepared: bool) -> MlResult<(Measurement, Vec
         .shuffle(false)
         .build()?;
     let losses = Rc::new(RefCell::new(Vec::with_capacity(3)));
-    let trainer = Trainer::builder()
+    let trainer = Trainer::builder(&ctx)
         .metrics(Metrics::none())
         .show_progress(false)
         .build()
@@ -198,12 +198,10 @@ fn training(route: ExecutionRoute, prepared: bool) -> MlResult<(Measurement, Vec
     let (result, measurement) = measure("training_3_epochs", || {
         if prepared {
             trainer
-                .prepared(&ctx)
+                .prepared()
                 .fit(&mut model, &mut adam, &mut loader, schedule)
         } else {
-            trainer
-                .unsupervised(&ctx)
-                .fit(&mut model, &mut adam, &mut loader, schedule)
+            trainer.fit(&mut model, &mut adam, &mut loader, schedule)
         }
     })?;
     assert_eq!(result.units_completed, 3);

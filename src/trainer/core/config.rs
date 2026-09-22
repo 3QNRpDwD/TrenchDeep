@@ -1,4 +1,4 @@
-use super::*;
+use crate::ExecutionContext;
 
 /// 학습 루프에서 활성화할 메트릭 집합.
 ///
@@ -144,7 +144,8 @@ pub type TrainerConfig = LogConfig;
 /// ```no_run
 /// use trench_deep::trainer::{Metrics, Trainer};
 ///
-/// let trainer = Trainer::builder()
+/// let ctx = trench_deep::ExecutionContext::new();
+/// let trainer = Trainer::builder(&ctx)
 ///     .log_every_n_batches(50)
 ///     .nan_check(true)
 ///     .metrics(Metrics::none().grad_norm().accuracy())
@@ -152,6 +153,7 @@ pub type TrainerConfig = LogConfig;
 ///     .build();
 /// ```
 pub struct TrainerBuilder {
+    context: ExecutionContext,
     batch_log_interval: usize,
     batch_summary_interval: usize,
     epoch_log_interval: usize,
@@ -163,8 +165,9 @@ pub struct TrainerBuilder {
 }
 
 impl TrainerBuilder {
-    pub fn new() -> Self {
+    pub fn new(context: &ExecutionContext) -> Self {
         Self {
+            context: context.clone(),
             batch_log_interval: 1,
             batch_summary_interval: usize::MAX,
             epoch_log_interval: 1,
@@ -210,7 +213,8 @@ impl TrainerBuilder {
     ///
     /// ```no_run
     /// use trench_deep::trainer::{Metrics, Trainer};
-    /// let trainer = Trainer::builder()
+    /// let ctx = trench_deep::ExecutionContext::new();
+    /// let trainer = Trainer::builder(&ctx)
     ///     .metrics(Metrics::none().grad_norm().accuracy())
     ///     .build();
     /// ```
@@ -228,11 +232,12 @@ impl TrainerBuilder {
     /// 체크포인트 저장 디렉토리를 설정한다.
     ///
     /// 설정하면 학습 중 Ctrl+C 인터럽트 시 모델 가중치와 학습 상태를
-    /// 이 디렉토리에 저장한다. `resume()`으로 중단 지점부터 재개 가능.
+    /// 이 디렉토리에 저장한다. 완전한 학습 상태 재개는 아직 지원하지 않는다.
     ///
     /// ```no_run
     /// use trench_deep::trainer::Trainer;
-    /// let trainer = Trainer::builder()
+    /// let ctx = trench_deep::ExecutionContext::new();
+    /// let trainer = Trainer::builder(&ctx)
     ///     .checkpoint_dir("checkpoints/my_model")
     ///     .build();
     /// ```
@@ -264,13 +269,12 @@ impl TrainerBuilder {
             seed: self.seed,
         };
         crate::trainer::Trainer {
-            core: super::TrainerCore::new(config),
+            service: crate::trainer::service::TrainingService::new(
+                &self.context,
+                super::TrainerCore::new(config),
+            ),
+            ramp: crate::trainer::ConsistencyRamp::default(),
+            mode: std::marker::PhantomData,
         }
-    }
-}
-
-impl Default for TrainerBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }

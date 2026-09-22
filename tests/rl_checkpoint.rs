@@ -43,7 +43,7 @@ fn rl_interrupt_saves_completed_episode_after_scope_cleanup()
     optimizer.register_all(&model.parameters())?;
     let trainer = RLTrainer::from_trainer(
         &ctx,
-        Trainer::builder()
+        Trainer::builder(&ctx)
             .show_progress(false)
             .checkpoint_dir(directory.to_str().ok_or("path")?)
             .build(),

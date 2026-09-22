@@ -1,9 +1,9 @@
-use trench_deep::{nn::*, trainer::TrainableModel, ExecutionContext, MlResult, Variable};
 use trench_deep::optimizer::{Adam, Optimizer};
 use trench_deep::trainer::{
-    AutoregressiveDataset, AutoregressiveSample, AutoregressiveStackCollator,
-    AutoregressiveTrainer, DataLoader, EpochSchedule, InMemoryDataset,
+    AutoregressiveDataset, AutoregressiveSample, AutoregressiveStackCollator, DataLoader,
+    EpochSchedule, InMemoryDataset, Trainer,
 };
+use trench_deep::{ExecutionContext, MlResult, Variable, nn::*, trainer::TrainableModel};
 
 fn sequence(context: &ExecutionContext, tokens: &[usize], vocab: usize) -> MlResult<Variable> {
     let mut data = vec![0.0; tokens.len() * vocab];
@@ -25,7 +25,7 @@ fn bigram_pilot_trains_end_to_end() -> MlResult<()> {
     let dataset = AutoregressiveDataset::new(&context, &refs)?;
     let mut optimizer = Adam::new(&context, 0.05, 0.9, 0.999, 1e-8)?;
     optimizer.register_all(&model.parameters())?;
-    let result = AutoregressiveTrainer::silent(&context).fit(
+    let result = Trainer::silent(&context).fit(
         &mut model,
         &mut optimizer,
         &dataset,
@@ -59,7 +59,7 @@ fn bigram_pilot_accepts_stacked_loader_batches() -> MlResult<()> {
     .build()?;
     let mut optimizer = Adam::new(&context, 0.02, 0.9, 0.999, 1e-8)?;
     optimizer.register_all(&model.parameters())?;
-    let result = AutoregressiveTrainer::silent(&context).fit_loader(
+    let result = Trainer::silent(&context).fit(
         &mut model,
         &mut optimizer,
         &mut loader,
@@ -80,7 +80,7 @@ fn autoregressive_padding_is_rejected_until_it_has_loss_semantics() -> MlResult<
     let mut optimizer = Adam::new(&context, 0.02, 0.9, 0.999, 1e-8)?;
     optimizer.register_all(&model.parameters())?;
     assert!(
-        AutoregressiveTrainer::silent(&context)
+        Trainer::silent(&context)
             .fit(&mut model, &mut optimizer, &dataset, EpochSchedule::new(1)?)
             .is_err()
     );

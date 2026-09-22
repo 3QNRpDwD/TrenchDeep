@@ -1,6 +1,6 @@
-use trench_deep::{nn::*, trainer::TrainableModel, ExecutionContext, MlResult, Variable};
 use trench_deep::optimizer::{Adam, Optimizer};
-use trench_deep::trainer::{EpochSchedule, SupervisedDataset, SupervisedTrainer};
+use trench_deep::trainer::{EpochSchedule, SupervisedDataset, Trainer};
+use trench_deep::{ExecutionContext, MlResult, Variable, nn::*, trainer::TrainableModel};
 
 #[test]
 fn mlp_pilot_trains_end_to_end_and_predicts_probabilities() -> MlResult<()> {
@@ -20,7 +20,7 @@ fn mlp_pilot_trains_end_to_end_and_predicts_probabilities() -> MlResult<()> {
     let mut optimizer = Adam::new(&context, 0.05, 0.9, 0.999, 1e-8)?;
     optimizer.register_all(&model.parameters())?;
 
-    let result = SupervisedTrainer::new(&context).fit(
+    let result = Trainer::new(&context).fit(
         &mut model,
         &mut optimizer,
         &dataset,

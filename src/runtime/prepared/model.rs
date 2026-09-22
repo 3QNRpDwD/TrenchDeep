@@ -1,12 +1,19 @@
 //! Model-level training facade shared by direct callers and the Trainer.
 use super::{ExecutionInputs, PreparedExecutor, PreparedMode, invalid};
-use crate::{trainer::TrainableModel, *};
+use crate::{
+    trainer::{TrainingModel, TrainingStepContext},
+    *,
+};
 /// Host work (random inputs, scheduling and batch metadata) is kept outside capture.
 /// A topology variant must change whenever configuration changes the numeric graph.
-pub trait PreparedModel: TrainableModel {
-    type Batch;
-    const PARADIGM: &'static str = "prepared";
-    fn execution_batch(&mut self, batch: &Self::Batch) -> MlResult<PreparedBatch>;
+/// Epoch-dependent values such as `step.lambda` must be supplied as input tensors,
+/// not captured as host constants. Random sampling belongs in `execution_batch`.
+pub trait PreparedModel: TrainingModel {
+    fn execution_batch(
+        &mut self,
+        batch: &Self::Batch,
+        step: &TrainingStepContext,
+    ) -> MlResult<PreparedBatch>;
     /// Numeric operations only; called once per prepared input signature.
     fn forward_inputs(&self, inputs: &ExecutionInputs) -> MlResult<ModelOutput>;
 }

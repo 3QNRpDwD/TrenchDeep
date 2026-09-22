@@ -15,48 +15,82 @@ mod service;
 pub use api::*;
 pub use core::*;
 pub use data::*;
-pub use prepared::PreparedTrainer;
 pub use reinforcement::*;
-pub use runners::*;
 pub use service::BatchInputs;
 pub trait TrainableModel {
     fn context_id(&self) -> ContextId;
     fn parameters(&self) -> Vec<&Parameter>;
 }
-pub trait SupervisedModel: TrainableModel {
-    fn forward_loss(&mut self, input: &Variable, target: &Tensor)
-    -> MlResult<(Variable, Variable)>;
-}
-pub trait UnsupervisedModel: TrainableModel {
-    fn forward_loss(&mut self, input: &Variable) -> MlResult<(Variable, Variable)>;
-}
-pub trait SemiSupervisedModel: TrainableModel {
-    fn forward_loss(
+/// Common model contract for epoch-based training.
+///
+/// Eager-only models can use the default trainer:
+/// ```no_run
+/// use trench_deep::{MlResult, trainer::*, optimizer::Optimizer};
+/// fn train<M: TrainingModel, I: IntoBatchLoader<Batch = M::Batch>>(
+///     trainer: Trainer, model: &mut M, optimizer: &mut dyn Optimizer, input: I,
+/// ) -> MlResult<TrainResult> {
+///     trainer.fit(model, optimizer, input, EpochSchedule::new(1)?)
+/// }
+/// ```
+/// Prepared execution additionally requires `PreparedModel`:
+/// ```compile_fail,E0277
+/// use trench_deep::{MlResult, trainer::*, optimizer::Optimizer};
+/// fn train<M: TrainingModel, I: IntoBatchLoader<Batch = M::Batch>>(
+///     trainer: Trainer, model: &mut M, optimizer: &mut dyn Optimizer, input: I,
+/// ) -> MlResult<TrainResult> {
+///     trainer.prepared().fit(model, optimizer, input, EpochSchedule::new(1)?)
+/// }
+/// ```
+pub trait TrainingModel: TrainableModel {
+    type Batch: BatchInputs;
+    const PARADIGM: &'static str;
+    fn forward_batch(
         &mut self,
-        labeled_input: &Variable,
-        labeled_target: &Tensor,
-        unlabeled_input: &Variable,
-        lambda: f32,
-    ) -> MlResult<(Variable, Variable)>;
+        batch: &Self::Batch,
+        step: &TrainingStepContext,
+    ) -> MlResult<TrainingOutput>;
 }
-pub trait AutoregressiveModel: TrainableModel {
-    fn forward_loss(&mut self, input: &Variable) -> MlResult<(Variable, Variable, usize)>;
+/// Zero-based model-side indices. Observer indices remain one-based.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct TrainingStepContext {
+    pub epoch: usize,
+    pub batch: usize,
+    pub lambda: Option<f32>,
 }
-pub struct Trainer {
-    pub(crate) core: TrainerCore,
+/// Loss and metadata consumed by the common optimizer/metrics pipeline.
+pub struct TrainingOutput {
+    pub loss: Variable,
+    pub prediction: Option<Variable>,
+    pub target: Option<Tensor>,
+    pub weight: usize,
+    pub tokens: Option<usize>,
+    pub lambda: Option<f32>,
 }
-
-impl Trainer {
-    /// 커스텀 빌더를 반환.
-    pub fn builder() -> TrainerBuilder {
-        TrainerBuilder::new()
+#[derive(Debug)]
+pub struct Eager;
+#[derive(Debug)]
+pub struct Prepared;
+/// Context-bound training with an explicit execution mode.
+pub struct Trainer<Mode = Eager> {
+    pub(crate) service: service::TrainingService,
+    ramp: ConsistencyRamp,
+    mode: std::marker::PhantomData<Mode>,
+}
+impl Trainer<Eager> {
+    pub fn builder(context: &ExecutionContext) -> TrainerBuilder {
+        TrainerBuilder::new(context)
     }
-
-    pub fn with_observer(self, observer: Box<dyn TrainingObserver>) -> Self {
-        self.core.add_observer(observer);
-        self
+    pub fn new(context: &ExecutionContext) -> Self {
+        Self::silent(context)
     }
-
+    /// Static execution; unsupported models/providers never fall back.
+    pub fn prepared(self) -> Trainer<Prepared> {
+        Trainer {
+            service: self.service,
+            ramp: self.ramp,
+            mode: std::marker::PhantomData,
+        }
+    }
     // ── 프리셋 ────────────────────────────────────────────────────────────
 
     /// 최대 성능 모드. 모든 로그·NaN 검사가 비활성화.
@@ -64,8 +98,8 @@ impl Trainer {
     /// # 주의
     /// NaN 검사가 꺼져 있으므로 발산이 발생해도 감지되지 않음.
     /// 완전히 검증된 모델과 학습률 조합에서만 사용.
-    pub fn silent() -> Self {
-        Self::builder()
+    pub fn silent(context: &ExecutionContext) -> Self {
+        Self::builder(context)
             .log_every_n_batches(0)
             .summarize_every_n_batches(0)
             .log_every_n_epochs(0)
@@ -76,8 +110,8 @@ impl Trainer {
     }
 
     /// 핵심 메트릭 모드. progress bar에 배치 손실을 표시하고 NaN 검사를 유지한다.
-    pub fn minimal() -> Self {
-        Self::builder()
+    pub fn minimal(context: &ExecutionContext) -> Self {
+        Self::builder(context)
             .log_every_n_batches(1)
             .summarize_every_n_batches(0)
             .log_every_n_epochs(10)
@@ -88,8 +122,8 @@ impl Trainer {
     }
 
     /// 기본 모드. 핵심 메트릭과 패러다임 대표 메트릭을 표시한다.
-    pub fn default() -> Self {
-        Self::builder()
+    pub fn default(context: &ExecutionContext) -> Self {
+        Self::builder(context)
             .log_every_n_batches(1)
             .summarize_every_n_batches(0)
             .log_every_n_epochs(10)
@@ -101,8 +135,8 @@ impl Trainer {
 
     /// 상세 진단 모드. 모든 메트릭을 활성화하고 완료 후 배치 요약을
     /// 100배치 간격으로 발행한다.
-    pub fn verbose() -> Self {
-        Self::builder()
+    pub fn verbose(context: &ExecutionContext) -> Self {
+        Self::builder(context)
             .log_every_n_batches(1)
             .summarize_every_n_batches(100)
             .log_every_n_epochs(1)
@@ -112,20 +146,48 @@ impl Trainer {
             .build()
     }
 
-    pub fn supervised(self, context: &ExecutionContext) -> SupervisedTrainer {
-        SupervisedTrainer::from_trainer(context, self)
-    }
-    pub fn unsupervised(self, context: &ExecutionContext) -> UnsupervisedTrainer {
-        UnsupervisedTrainer::from_trainer(context, self)
-    }
-    pub fn semi_supervised(self, context: &ExecutionContext) -> SemiSupervisedTrainer {
-        SemiSupervisedTrainer::from_trainer(context, self)
-    }
-    pub fn autoregressive(self, context: &ExecutionContext) -> AutoregressiveTrainer {
-        AutoregressiveTrainer::from_trainer(context, self)
-    }
     pub fn reinforcement(self, context: &ExecutionContext) -> RLTrainer {
         RLTrainer::from_trainer(context, self)
+    }
+}
+impl<Mode> Trainer<Mode> {
+    pub fn with_seed(mut self, seed: u64) -> Self {
+        self.service.core.config.seed = seed;
+        self.service.core.runtime.reseed(seed);
+        self
+    }
+    pub fn with_hook(self, hook: Box<dyn MetricHook>) -> Self {
+        self.service.core.add_hook(hook);
+        self
+    }
+    pub fn with_observer(self, observer: Box<dyn TrainingObserver>) -> Self {
+        self.service.core.add_observer(observer);
+        self
+    }
+    pub fn check_finite_gradients(mut self, enabled: bool) -> Self {
+        self.service.core.config.nan_check_interval = if enabled { 1 } else { usize::MAX };
+        self
+    }
+    pub fn with_max_grad_norm(mut self, max: f32) -> MlResult<Self> {
+        if !max.is_finite() || max <= 0.0 {
+            return Err(MlError::StringError(
+                "max_grad_norm must be finite and positive".into(),
+            ));
+        }
+        self.service.max_grad_norm = Some(max);
+        Ok(self)
+    }
+    /// Applied only to models whose PARADIGM is "semi_supervised".
+    pub fn with_ramp(mut self, ramp: ConsistencyRamp) -> Self {
+        self.ramp = ramp;
+        self
+    }
+    fn step_context<M: TrainingModel>(&self, epoch: usize, batch: usize) -> TrainingStepContext {
+        TrainingStepContext {
+            epoch,
+            batch,
+            lambda: (M::PARADIGM == "semi_supervised").then(|| self.ramp.value(epoch)),
+        }
     }
 }
 

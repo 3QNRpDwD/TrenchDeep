@@ -122,13 +122,35 @@ fn same_public_trainer_runs_both_routes() -> MlResult<()> {
             vec![&self.weight]
         }
     }
-    impl UnsupervisedModel for Model {
-        fn forward_loss(&mut self, input: &Variable) -> MlResult<(Variable, Variable)> {
+    impl Model {
+        pub fn forward_loss(&mut self, input: &Variable) -> MlResult<(Variable, Variable)> {
             let prediction = input.mul(self.weight.tensor())?;
             let loss = prediction.mul(prediction.tensor())?;
             Ok((prediction, loss))
         }
     }
+    impl TrainingModel for Model {
+        type Batch = UnsupervisedBatch;
+        const PARADIGM: &'static str = "unsupervised";
+        fn forward_batch(
+            &mut self,
+            batch: &Self::Batch,
+            _step: &TrainingStepContext,
+        ) -> MlResult<TrainingOutput> {
+            let shape = batch.samples.tensor().shape()?;
+            let weight = if shape.len() > 1 { shape[0] } else { 1 };
+            let (prediction, loss) = self.forward_loss(&batch.samples)?;
+            Ok(TrainingOutput {
+                loss,
+                prediction: Some(prediction),
+                target: None,
+                weight,
+                tokens: None,
+                lambda: None,
+            })
+        }
+    }
+
     fn run(route: ExecutionRoute) -> MlResult<Vec<f32>> {
         let ctx = ExecutionContext::builder().route(route).build()?;
         let mut model = Model {
@@ -141,12 +163,7 @@ fn same_public_trainer_runs_both_routes() -> MlResult<()> {
         let baseline = ctx.graph_stats()?.tensors;
         let mut optimizer = SGD::new(&ctx, 0.1)?;
         optimizer.register_all(&model.parameters())?;
-        UnsupervisedTrainer::silent(&ctx).fit(
-            &mut model,
-            &mut optimizer,
-            &dataset,
-            EpochSchedule::new(3)?,
-        )?;
+        Trainer::silent(&ctx).fit(&mut model, &mut optimizer, &dataset, EpochSchedule::new(3)?)?;
         assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
         assert_eq!(ctx.graph_stats()?.tensors, baseline);
         assert!(model.weight.grad()?.is_none());

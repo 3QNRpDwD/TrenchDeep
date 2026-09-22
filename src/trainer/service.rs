@@ -6,14 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub(super) struct StepData {
-    pub loss: Variable,
-    pub prediction: Option<Variable>,
-    pub target: Option<Tensor>,
-    pub weight: usize,
-    pub tokens: Option<usize>,
-    pub lambda: Option<f32>,
-}
+pub(super) type StepData = TrainingOutput;
 pub(super) struct StepOutcome {
     pub loss: f32,
     pub weight: usize,
@@ -73,21 +66,16 @@ pub(super) fn validate_parameters<M: TrainableModel + ?Sized>(
     }
     Ok(())
 }
-pub(super) fn sample_count(input: &Tensor) -> MlResult<usize> {
-    let shape = input.shape()?;
-    Ok(if shape.len() > 1 { shape[0] } else { 1 })
-}
-
 pub(super) struct TrainingService {
     pub context: ExecutionContext,
     pub core: TrainerCore,
     pub max_grad_norm: Option<f32>,
 }
 impl TrainingService {
-    pub fn new(context: &ExecutionContext, trainer: Trainer) -> Self {
+    pub fn new(context: &ExecutionContext, core: TrainerCore) -> Self {
         Self {
             context: context.clone(),
-            core: trainer.core,
+            core,
             max_grad_norm: None,
         }
     }
@@ -236,37 +224,6 @@ impl TrainingService {
 
             snapshot,
         })
-    }
-    pub fn fit<M, I, F>(
-        &self,
-        model: &mut M,
-        optimizer: &mut dyn Optimizer,
-        input: I,
-        schedule: EpochSchedule,
-        paradigm: &'static str,
-        mut forward: F,
-        save: Option<fn(&M, &Path) -> MlResult<()>>,
-    ) -> MlResult<TrainResult>
-    where
-        M: TrainableModel,
-        I: IntoBatchLoader,
-        I::Batch: BatchInputs,
-        F: FnMut(&mut M, I::Batch, usize) -> MlResult<StepData>,
-    {
-        self.fit_steps(
-            model,
-            optimizer,
-            input,
-            schedule,
-            paradigm,
-            |model, batch, epoch, optimizer, context| {
-                let start = Instant::now();
-                let data = forward(model, batch, epoch)?;
-                self.finish_step(model, optimizer, data, context, start.elapsed())
-            },
-            save,
-            false,
-        )
     }
     pub(super) fn fit_steps<M, I, F>(
         &self,

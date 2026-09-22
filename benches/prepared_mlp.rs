@@ -26,10 +26,17 @@ impl TrainableModel for Model {
     }
 }
 impl PreparedModel for Model {
-    type Batch = SupervisedBatch;
-    const PARADIGM: &'static str = "supervised";
-    fn execution_batch(&mut self, _: &SupervisedBatch) -> MlResult<PreparedBatch> {
-        unreachable!()
+    fn execution_batch(
+        &mut self,
+        batch: &SupervisedBatch,
+        _step: &TrainingStepContext,
+    ) -> MlResult<PreparedBatch> {
+        let inputs = ExecutionInputs::new("mlp")
+            .with("x", batch.inputs.tensor().clone())?
+            .with("target", batch.targets.clone())?;
+        let mut prepared = PreparedBatch::new(inputs, batch.inputs.tensor().shape()?[0]);
+        prepared.target = Some(batch.targets.clone());
+        Ok(prepared)
     }
     fn forward_inputs(&self, inputs: &ExecutionInputs) -> MlResult<ModelOutput> {
         let y = self.net.apply(&inputs.get("x")?.as_variable()?)?;
@@ -46,7 +53,11 @@ fn main() -> MlResult<()> {
     let mut net = Sequential::new(&ctx, "mlp");
     for i in 0..3 {
         net.push(Box::new(Linear::new(&ctx, width, width, format!("l{i}"))?))?;
-        net.push(Box::new(Activation::new(&ctx, ActivationKind::ReLU, format!("a{i}"))))?;
+        net.push(Box::new(Activation::new(
+            &ctx,
+            ActivationKind::ReLU,
+            format!("a{i}"),
+        )))?;
     }
     let model = Model {
         ctx: ctx.clone(),
@@ -110,4 +121,26 @@ fn main() -> MlResult<()> {
     }
     println!("weights_fnv64={hash:016x}");
     Ok(())
+}
+
+impl trench_deep::trainer::TrainingModel for Model {
+    type Batch = trench_deep::trainer::SupervisedBatch;
+    const PARADIGM: &'static str = "supervised";
+    fn forward_batch(
+        &mut self,
+        batch: &Self::Batch,
+        step: &trench_deep::trainer::TrainingStepContext,
+    ) -> MlResult<trench_deep::trainer::TrainingOutput> {
+        use trench_deep::runtime::prepared::PreparedModel;
+        let prepared = self.execution_batch(batch, step)?;
+        let output = self.forward_inputs(&prepared.inputs)?;
+        Ok(trench_deep::trainer::TrainingOutput {
+            loss: output.loss,
+            prediction: output.prediction,
+            target: prepared.target,
+            weight: prepared.weight,
+            tokens: prepared.tokens,
+            lambda: prepared.lambda,
+        })
+    }
 }

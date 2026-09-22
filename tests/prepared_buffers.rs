@@ -223,7 +223,7 @@ fn common_preparation_trains_linear_with_changing_inputs_and_adam() -> MlResult<
     use trench_deep::{
         nn::LinearRegression,
         optimizer::{Adam, Optimizer},
-        trainer::{SupervisedModel, TrainableModel},
+        trainer::TrainableModel,
     };
     let ctx = ExecutionContext::builder().initialization_seed(7).build();
     let eager = ExecutionContext::builder().initialization_seed(7).build();

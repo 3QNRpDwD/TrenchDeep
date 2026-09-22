@@ -32,12 +32,7 @@ fn full_unet_trains_and_samples_through_public_api() -> MlResult<()> {
     optimizer.register_all(&model.parameters())?;
     let images = [&image];
     let dataset = UnsupervisedDataset::new(&ctx, &images)?;
-    UnsupervisedTrainer::silent(&ctx).fit(
-        &mut model,
-        &mut optimizer,
-        &dataset,
-        EpochSchedule::new(1)?,
-    )?;
+    Trainer::silent(&ctx).fit(&mut model, &mut optimizer, &dataset, EpochSchedule::new(1)?)?;
     assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
     let sample = model.sample(&[1, 1, 4, 4])?;
     assert_eq!(sample.shape()?, vec![1, 1, 4, 4]);

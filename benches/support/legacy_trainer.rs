@@ -75,7 +75,7 @@ pub fn run_case(iterations: usize) -> Result<serde_json::Value, Box<dyn std::err
     for p in baseline.params() {
         old_optimizer.register(p);
     }
-    let trainer = SupervisedTrainer::silent(&ctx);
+    let trainer = Trainer::silent(&ctx);
     let old_trainer = old::trainer::SupervisedTrainer::silent();
     let initialization_ms = initialization.elapsed().as_secs_f64() * 1000.0;
     let mut public = Vec::new();

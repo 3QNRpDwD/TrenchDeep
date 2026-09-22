@@ -41,22 +41,25 @@ impl RLTrainer {
     }
     pub fn from_trainer(ctx: &ExecutionContext, trainer: Trainer) -> Self {
         Self {
-            service: TrainingService::new(ctx, trainer),
+            service: TrainingService {
+                context: ctx.clone(),
+                ..trainer.service
+            },
             gamma: 0.99,
             use_baseline: true,
         }
     }
     pub fn silent(ctx: &ExecutionContext) -> Self {
-        Self::from_trainer(ctx, Trainer::silent())
+        Self::from_trainer(ctx, Trainer::silent(ctx))
     }
     pub fn minimal(ctx: &ExecutionContext) -> Self {
-        Self::from_trainer(ctx, Trainer::minimal())
+        Self::from_trainer(ctx, Trainer::minimal(ctx))
     }
     pub fn default(ctx: &ExecutionContext) -> Self {
-        Self::from_trainer(ctx, Trainer::default())
+        Self::from_trainer(ctx, Trainer::default(ctx))
     }
     pub fn verbose(ctx: &ExecutionContext) -> Self {
-        Self::from_trainer(ctx, Trainer::verbose())
+        Self::from_trainer(ctx, Trainer::verbose(ctx))
     }
     pub fn with_gamma(mut self, gamma: f32) -> MlResult<Self> {
         if !gamma.is_finite() || !(0.0..=1.0).contains(&gamma) {

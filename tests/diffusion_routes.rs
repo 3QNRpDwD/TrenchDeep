@@ -90,20 +90,20 @@ fn run_training_route(
     };
     // The exact same concrete Diffusion and Adam are passed to the public Trainer
     // on both routes. Diffusion::forward_loss owns timestep/noise generation.
-    let trainer = Trainer::builder()
+    let trainer = Trainer::builder(&ctx)
         .metrics(Metrics::all())
         .show_progress(false)
         .build()
         .with_observer(Box::new(observer));
     let result = if prepared {
-        trainer.prepared(&ctx).fit(
+        trainer.prepared().fit(
             &mut model,
             &mut optimizer,
             &mut loader,
             EpochSchedule::new(3)?.with_tolerance(1e-10),
         )?
     } else {
-        trainer.unsupervised(&ctx).fit(
+        trainer.fit(
             &mut model,
             &mut optimizer,
             &mut loader,

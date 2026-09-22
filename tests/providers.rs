@@ -18,17 +18,23 @@ fn reference() -> ExecutionContext {
 
 #[test]
 fn prepared_replay_requires_provider_opt_in() -> MlResult<()> {
-    use trench_deep::runtime::prepared::{PreparedMode,PreparedProgram};
+    use trench_deep::runtime::prepared::{PreparedMode, PreparedProgram};
     let ctx = reference();
     let mut program = PreparedProgram::new();
-    let x = program.input(&[1],false)?;
-    let y = program.operation(Operation::Square,&[x])?;
+    let x = program.input(&[1], false)?;
+    let y = program.operation(Operation::Square, &[x])?;
     let baseline = ctx.graph_stats()?;
-    assert!(matches!(ctx.prepare(&program,&[],&[y],PreparedMode::Inference),
-        Err(MlError::UnsupportedCapability { .. })));
-    assert_eq!(ctx.graph_stats()?,baseline);
+    assert!(matches!(
+        ctx.prepare(&program, &[], &[y], PreparedMode::Inference),
+        Err(MlError::UnsupportedCapability { .. })
+    ));
+    assert_eq!(ctx.graph_stats()?, baseline);
     let empty = ExecutionContextBuilder::empty().build();
-    assert!(empty.prepare(&program,&[],&[y],PreparedMode::Inference).is_err());
+    assert!(
+        empty
+            .prepare(&program, &[], &[y], PreparedMode::Inference)
+            .is_err()
+    );
     Ok(())
 }
 fn train(ctx: &ExecutionContext) -> MlResult<Vec<f32>> {
@@ -48,12 +54,7 @@ fn train(ctx: &ExecutionContext) -> MlResult<Vec<f32>> {
     let data = SupervisedDataset::new(ctx, &x, &y)?;
     let mut optimizer = SGD::new(ctx, 0.05)?;
     optimizer.register_all(&model.parameters())?;
-    SupervisedTrainer::silent(ctx).fit(
-        &mut model,
-        &mut optimizer,
-        &data,
-        EpochSchedule::new(3)?,
-    )?;
+    Trainer::silent(ctx).fit(&mut model, &mut optimizer, &data, EpochSchedule::new(3)?)?;
     assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
     model
         .parameters()
@@ -189,12 +190,8 @@ fn failed_epoch_initialization_cleans_graph_and_allows_the_next_fit() -> MlResul
     let loader = FailingEpochLoader {
         parameter: model.parameters()[0].clone(),
     };
-    let error = SupervisedTrainer::silent(&ctx).fit(
-        &mut model,
-        &mut optimizer,
-        loader,
-        EpochSchedule::new(1)?,
-    );
+    let error =
+        Trainer::silent(&ctx).fit(&mut model, &mut optimizer, loader, EpochSchedule::new(1)?);
     assert!(matches!(
         error,
         Err(MlError::UnsupportedCapability {
@@ -263,7 +260,7 @@ fn model_noise_and_trainer_seed_do_not_change_initialization() -> MlResult<()> {
         assert_eq!(p.tensor().to_vec()?, q.tensor().to_vec()?);
     }
     let before = left.parameters()[0].tensor().to_vec()?;
-    let _trainer = SupervisedTrainer::silent(&a).with_seed(999);
+    let _trainer = Trainer::silent(&a).with_seed(999);
     assert_eq!(left.parameters()[0].tensor().to_vec()?, before);
     Ok(())
 }

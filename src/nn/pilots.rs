@@ -9,7 +9,9 @@ pub use reinforcement::{LinearPolicy, TwoArmedBandit};
 pub use semi_supervised::PiClassifier;
 
 use crate::loss::Reduction;
-use crate::trainer::{SupervisedModel, TrainableModel};
+use crate::trainer::{
+    SupervisedBatch, TrainableModel, TrainingModel, TrainingOutput, TrainingStepContext,
+};
 use crate::{ContextId, ExecutionContext, MlResult, Tensor, Variable};
 
 use super::{Activation, ActivationKind, Layer, Linear, Parameter, Sequential};
@@ -46,8 +48,8 @@ impl TrainableModel for LinearRegression {
     }
 }
 
-impl SupervisedModel for LinearRegression {
-    fn forward_loss(
+impl LinearRegression {
+    pub fn forward_loss(
         &mut self,
         input: &Variable,
         target: &Tensor,
@@ -55,6 +57,27 @@ impl SupervisedModel for LinearRegression {
         let prediction = self.layer.apply(input)?;
         let loss = prediction.mse_loss(target, Reduction::Mean)?;
         Ok((prediction, loss))
+    }
+}
+impl TrainingModel for LinearRegression {
+    type Batch = SupervisedBatch;
+    const PARADIGM: &'static str = "supervised";
+    fn forward_batch(
+        &mut self,
+        batch: &Self::Batch,
+        _step: &TrainingStepContext,
+    ) -> MlResult<TrainingOutput> {
+        let shape = batch.inputs.tensor().shape()?;
+        let weight = if shape.len() > 1 { shape[0] } else { 1 };
+        let (prediction, loss) = self.forward_loss(&batch.inputs, &batch.targets)?;
+        Ok(TrainingOutput {
+            loss,
+            prediction: Some(prediction),
+            target: Some(batch.targets.clone()),
+            weight,
+            tokens: None,
+            lambda: None,
+        })
     }
 }
 
@@ -114,8 +137,8 @@ impl TrainableModel for Mlp {
     }
 }
 
-impl SupervisedModel for Mlp {
-    fn forward_loss(
+impl Mlp {
+    pub fn forward_loss(
         &mut self,
         input: &Variable,
         target: &Tensor,
@@ -123,5 +146,26 @@ impl SupervisedModel for Mlp {
         let logits = self.network.apply(input)?;
         let loss = logits.softmax_cross_entropy(target, Reduction::Mean)?;
         Ok((logits, loss))
+    }
+}
+impl TrainingModel for Mlp {
+    type Batch = SupervisedBatch;
+    const PARADIGM: &'static str = "supervised";
+    fn forward_batch(
+        &mut self,
+        batch: &Self::Batch,
+        _step: &TrainingStepContext,
+    ) -> MlResult<TrainingOutput> {
+        let shape = batch.inputs.tensor().shape()?;
+        let weight = if shape.len() > 1 { shape[0] } else { 1 };
+        let (prediction, loss) = self.forward_loss(&batch.inputs, &batch.targets)?;
+        Ok(TrainingOutput {
+            loss,
+            prediction: Some(prediction),
+            target: Some(batch.targets.clone()),
+            weight,
+            tokens: None,
+            lambda: None,
+        })
     }
 }
