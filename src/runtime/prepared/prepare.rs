@@ -152,14 +152,27 @@ pub(super) fn infer(operation: &Operation, shapes: &[&[usize]]) -> MlResult<Vec<
             axes.iter().map(|&axis| x[axis]).collect()
         }
         Operation::Sum => vec![],
-        Operation::Loss {
-            kind: LossKind::Mse | LossKind::Mae | LossKind::BinaryCrossEntropy,
-            reduction: Reduction::Mean,
-        } => {
+        Operation::Loss { kind, reduction } => {
             if x != shapes[1] {
                 return Err(invalid("loss shape mismatch"));
             }
-            vec![]
+            if matches!(kind, LossKind::Huber { delta } if !delta.is_finite() || *delta <= 0.0) {
+                return Err(crate::LossError::InvalidOperation {
+                    op: "huber_loss",
+                    reason: "delta must be finite and positive".into(),
+                }
+                .into());
+            }
+            let categorical =
+                matches!(kind, LossKind::CrossEntropy | LossKind::SoftmaxCrossEntropy);
+            if categorical && x.is_empty() {
+                return Err(invalid("categorical loss requires a class axis"));
+            }
+            match reduction {
+                Reduction::Mean | Reduction::Sum => vec![],
+                Reduction::None if categorical => x[..x.len() - 1].to_vec(),
+                Reduction::None => x.to_vec(),
+            }
         }
         _ => {
             return Err(crate::MlError::UnsupportedCapability {

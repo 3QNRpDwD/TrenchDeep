@@ -77,8 +77,8 @@ impl SemiSupervised {
         let difference = first.sub(second.tensor())?;
         let squared = difference.square()?;
         let sum = squared.sum()?;
-        let mean_scale = ctx.input(vec![1.0 / squared.tensor().numel()? as f32], &[])?;
-        let consistency = sum.mul(mean_scale.tensor())?;
+        let mean_scale = ctx.constant_tensor(vec![1.0 / squared.tensor().numel()? as f32], &[])?;
+        let consistency = sum.mul(&mean_scale)?;
         let weighted = consistency.mul(lambda)?;
         Ok((prediction, supervised.add(weighted.tensor())?))
     }

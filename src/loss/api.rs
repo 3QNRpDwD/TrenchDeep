@@ -5,6 +5,8 @@ pub use crate::{LossError, Reduction};
 /// Numeric loss computation. Targets follow the context operation's gradient rules.
 /// Keep host sampling outside this method so it can also be captured for prepared execution.
 /// Structural configuration must stay fixed while a prepared fit is running.
+/// Use `ctx.constant_tensor(...)` for configuration-only constants during capture;
+/// ordinary `ctx.tensor`/`ctx.scalar` values are not implicitly captured.
 pub trait Loss {
     fn compute(
         &self,

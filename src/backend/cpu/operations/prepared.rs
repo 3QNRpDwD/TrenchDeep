@@ -73,6 +73,9 @@ pub(super) fn prepared_backward(
         }
         Operation::Loss { kind, reduction } => {
             differentiable[1] = false;
+            if matches!(kind, LossKind::SoftmaxCrossEntropy) {
+                saved_shapes.push(shapes[0].to_vec());
+            }
             BuiltinBackward::Loss {
                 kind: *kind,
                 reduction: *reduction,

@@ -1,4 +1,4 @@
-//! Softmax, nearest upsample, and the currently prepared mean loss contracts.
+//! Softmax, nearest upsample, and loss contracts.
 use super::into::{invalid_into, size};
 use super::*;
 use std::rc::Rc;
@@ -19,12 +19,7 @@ pub(super) fn prepare(
 ) -> MlResult<Option<Rc<dyn IntoKernel>>> {
     if !matches!(
         op,
-        Operation::Softmax { .. }
-            | Operation::NearestUpsample2d { .. }
-            | Operation::Loss {
-                kind: LossKind::Mse | LossKind::Mae | LossKind::BinaryCrossEntropy,
-                reduction: Reduction::Mean
-            }
+        Operation::Softmax { .. } | Operation::NearestUpsample2d { .. } | Operation::Loss { .. }
     ) {
         return Ok(None);
     }
@@ -52,17 +47,37 @@ pub(super) fn prepare(
             let (oh, ow) = nearest_upsample2d_spec(shapes[0], *scale)?;
             vec![shapes[0][0], shapes[0][1], oh, ow]
         }
-        Operation::Loss { .. } => {
+        Operation::Loss { kind, reduction } => {
             if shapes[0] != shapes[1] {
                 return Err(invalid_into());
             }
-            vec![]
+            if matches!(kind, LossKind::Huber { delta } if !delta.is_finite() || *delta <= 0.0) {
+                return Err(invalid_into());
+            }
+            let categorical =
+                matches!(kind, LossKind::CrossEntropy | LossKind::SoftmaxCrossEntropy);
+            if categorical {
+                width = *shapes[0].last().ok_or_else(invalid_into)?;
+            }
+            match reduction {
+                Reduction::Mean | Reduction::Sum => vec![],
+                Reduction::None if categorical => shapes[0][..shapes[0].len() - 1].to_vec(),
+                Reduction::None => shapes[0].to_vec(),
+            }
         }
         _ => unreachable!(),
     };
     let output_size = size(&output)?;
-    let saved = if training && matches!(op, Operation::Softmax { .. }) {
-        vec![output.clone()]
+    let saved = if training
+        && matches!(
+            op,
+            Operation::Softmax { .. }
+                | Operation::Loss {
+                    kind: LossKind::SoftmaxCrossEntropy,
+                    ..
+                }
+        ) {
+        vec![shapes[0].to_vec()]
     } else {
         vec![]
     };
@@ -121,7 +136,10 @@ impl IntoKernel for AuxInto {
                 .any(|(v, s)| v.shape() != s)
             || out.len() != self.output_size
             || saved.len() != self.spec.saved.len()
-            || saved.iter().any(|s| s.len() != self.output_size)
+            || saved
+                .iter()
+                .zip(&self.spec.saved)
+                .any(|(s, shape)| s.len() != shape.iter().product::<usize>())
             || work.len() < self.spec.workspace_elements
         {
             return Err(invalid_into());
@@ -152,22 +170,62 @@ impl IntoKernel for AuxInto {
                     *v = x[self.source(i)];
                 }
             }
-            Operation::Loss { kind, .. } => {
+            Operation::Loss { kind, reduction } => {
                 validate_loss_pair(kind, inputs[0], inputs[1])?;
-                let loss: f32 = x
-                    .iter()
-                    .zip(inputs[1].data())
-                    .map(|(&p, &t)| match kind {
+                let target = inputs[1].data();
+                let count = self.input_size / self.width;
+                let mut total = 0.0;
+                for row in 0..count {
+                    let start = row * self.width;
+                    let p = x[start];
+                    let t = target[start];
+                    let value = match kind {
                         LossKind::Mse => (p - t).powi(2),
                         LossKind::Mae => (p - t).abs(),
+                        LossKind::Huber { delta } => {
+                            let d = (p - t).abs();
+                            if d <= delta {
+                                0.5 * d * d
+                            } else {
+                                delta * (d - 0.5 * delta)
+                            }
+                        }
                         LossKind::BinaryCrossEntropy => {
                             let p = p.clamp(1e-7, 1.0 - 1e-7);
                             -(t * p.ln() + (1.0 - t) * (1.0 - p).ln())
                         }
-                        _ => unreachable!(),
-                    })
-                    .sum();
-                out[0] = loss / self.input_size as f32;
+                        LossKind::CrossEntropy => -x[start..start + self.width]
+                            .iter()
+                            .zip(&target[start..start + self.width])
+                            .map(|(p, t)| t * p.max(1e-7).ln())
+                            .sum::<f32>(),
+                        LossKind::SoftmaxCrossEntropy => {
+                            let xs = &x[start..start + self.width];
+                            let max = xs.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+                            let denominator = xs.iter().map(|p| (p - max).exp()).sum::<f32>();
+                            if let Some(values) = saved.first_mut() {
+                                for (i, p) in xs.iter().enumerate() {
+                                    values[start + i] = (p - max).exp() / denominator;
+                                }
+                            }
+                            max + denominator.ln()
+                                - xs.iter()
+                                    .zip(&target[start..start + self.width])
+                                    .map(|(p, t)| p * t)
+                                    .sum::<f32>()
+                        }
+                    };
+                    if reduction == Reduction::None {
+                        out[row] = value;
+                    } else {
+                        total += value;
+                    }
+                }
+                match reduction {
+                    Reduction::Mean => out[0] = total / count as f32,
+                    Reduction::Sum => out[0] = total,
+                    Reduction::None => {}
+                }
             }
             _ => unreachable!(),
         }
@@ -235,24 +293,40 @@ impl IntoKernel for AuxInto {
                     tmp[self.source(i)] += g;
                 }
             }
-            Operation::Loss { kind, .. } => {
-                let scale = g[0] / self.input_size as f32;
-                for ((v, &p), &t) in tmp
+            Operation::Loss { kind, reduction } => {
+                let count = self.input_size / self.width;
+                for (i, ((v, &p), &t)) in tmp
                     .iter_mut()
                     .zip(inputs[0].unwrap().data())
                     .zip(inputs[1].unwrap().data())
+                    .enumerate()
                 {
+                    let scale = match reduction {
+                        Reduction::Mean => g[0] / count as f32,
+                        Reduction::Sum => g[0],
+                        Reduction::None => g[i / self.width],
+                    };
                     *v = match kind {
                         LossKind::Mse => scale * 2.0 * (p - t),
                         LossKind::Mae => {
                             let d = p - t;
                             scale * if d == 0.0 { 0.0 } else { d.signum() }
                         }
+                        LossKind::Huber { delta } => {
+                            let d = p - t;
+                            scale
+                                * if d.abs() <= delta {
+                                    d
+                                } else {
+                                    delta * d.signum()
+                                }
+                        }
                         LossKind::BinaryCrossEntropy => {
                             let p = p.clamp(1e-7, 1.0 - 1e-7);
                             scale * (p - t) / (p * (1.0 - p))
                         }
-                        _ => unreachable!(),
+                        LossKind::CrossEntropy => scale * -t / p.max(1e-7),
+                        LossKind::SoftmaxCrossEntropy => scale * (saved[0].data()[i] - t),
                     };
                 }
             }

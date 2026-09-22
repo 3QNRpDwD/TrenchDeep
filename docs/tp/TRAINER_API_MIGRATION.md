@@ -114,3 +114,9 @@ Prediction도 backward root로 사용할 경우 `prepare_training`을 사용한�
 `fit_checkpointed`는 모델의 `CheckpointableModel` 구현이 필요하다. checkpoint 경로를 지정한 일반 `fit`은 오류를 반환한다. interrupt 시 모델과 메타데이터를 저장하며 optimizer·RNG·loader를 포함한 완전 재개는 제공하지 않는다.
 
 RL 환경·에피소드 API와 legacy 구현은 유지한다. RL에 공통 로그 설정을 전달할 때는 `RLTrainer::from_trainer(&ctx, Trainer::supervised(&ctx).minimal())`을 사용할 수 있다.
+
+### 사용자 정의 loss의 상수
+
+Prepared에서도 사용할 loss의 고정 계수는 `ctx.constant_tensor(vec![2.0], &[])?`처럼 명시적으로 선언한다. 일반 `ctx.scalar`·`ctx.tensor`로 만든 값은 자동 캡처하지 않는다. 배치마다 바뀌는 값은 전략의 입력 텐서로 전달한다.
+
+이름이 다른 입력에 동일한 텐서를 전달할 수 있다. 캡처 시 이름별 입력 슬롯을 분리하며, 다음 배치에서 서로 다른 텐서를 전달해도 각 이름의 값을 사용한다. 여섯 내장 loss는 prepared에서 Mean·Sum·None을 지원하지만 Trainer의 최종 scalar loss 제약은 유지한다.

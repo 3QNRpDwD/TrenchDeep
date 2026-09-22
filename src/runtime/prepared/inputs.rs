@@ -38,6 +38,29 @@ impl ExecutionInputs {
             self.tensors.iter().map(|(n, _)| n.clone()).collect(),
         )
     }
+    // Names are independent feed slots even when the example tensors alias.
+    // Only preparation needs unique handles; replay binds the original tensors.
+    fn recording_inputs(&self, ctx: &ExecutionContext) -> MlResult<Self> {
+        let mut seen = std::collections::HashSet::new();
+        let mut result = Self::new(self.variant.clone());
+        for (name, tensor) in &self.tensors {
+            ctx.validate(tensor)?;
+            let tensor = if seen.insert(tensor.id()) {
+                tensor.clone()
+            } else {
+                let requires_grad = if tensor.as_variable()?.requires_grad()? {
+                    crate::RequiresGrad::Yes
+                } else {
+                    crate::RequiresGrad::No
+                };
+                ctx.variable(vec![0.0; tensor.numel()?], &tensor.shape()?, requires_grad)?
+                    .tensor()
+                    .clone()
+            };
+            result.tensors.push((name.clone(), tensor));
+        }
+        Ok(result)
+    }
     pub(super) fn bindings(&self) -> Vec<&Tensor> {
         self.tensors.iter().map(|(_, t)| t).collect()
     }
@@ -53,12 +76,13 @@ impl ExecutionContext {
         backward_outputs: &[usize],
         describe: impl FnOnce(&ExecutionInputs) -> MlResult<Vec<Tensor>>,
     ) -> MlResult<PreparedPlan> {
+        let recording = inputs.recording_inputs(self)?;
         let mut plan = self.prepare_recorded_with_roots(
-            &inputs.bindings(),
+            &recording.bindings(),
             parameters,
             mode,
             Some(backward_outputs),
-            || describe(inputs),
+            || describe(&recording),
         )?;
         plan.input_signature = Some(inputs.signature());
         Ok(plan)
@@ -74,8 +98,10 @@ impl ExecutionContext {
         mode: PreparedMode,
         describe: impl FnOnce(&ExecutionInputs) -> MlResult<Vec<Tensor>>,
     ) -> MlResult<PreparedPlan> {
-        let mut plan =
-            self.prepare_recorded(&inputs.bindings(), parameters, mode, || describe(inputs))?;
+        let recording = inputs.recording_inputs(self)?;
+        let mut plan = self.prepare_recorded(&recording.bindings(), parameters, mode, || {
+            describe(&recording)
+        })?;
         plan.input_signature = Some(inputs.signature());
         Ok(plan)
     }

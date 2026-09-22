@@ -145,7 +145,9 @@ fn linear(ctx: &ExecutionContext) -> MlResult<Linear> {
 struct DoubleMse;
 impl Loss for DoubleMse {
     fn compute(&self, ctx: &ExecutionContext, p: &Variable, t: &Tensor) -> MlResult<Variable> {
-        MseLoss::new().compute(ctx, p, t)?.mul(&ctx.scalar(2.0)?)
+        MseLoss::new()
+            .compute(ctx, p, t)?
+            .mul(&ctx.constant_tensor(vec![2.0], &[])?)
     }
 }
 fn train_loss<L: Loss>(model: &mut Linear, loss: L, prepared: bool) -> MlResult<f32> {
@@ -417,5 +419,95 @@ fn loss_setter_changes_are_observed_by_the_next_fit() -> MlResult<()> {
         }
         assert_eq!(model.calls.get(), 2);
     }
+    Ok(())
+}
+
+#[test]
+fn six_losses_replay_all_reductions_with_matching_gradients() -> MlResult<()> {
+    for kind in kinds() {
+        for reduction in [Reduction::Mean, Reduction::Sum, Reduction::None] {
+            let reference = evaluate(kind, reduction, false)?;
+            let ctx = ExecutionContext::new();
+            let prediction = ctx.parameter(vec![0.25, 0.75, 0.6, 0.4], &[2, 2])?;
+            let target = ctx.parameter(vec![1.0, 0.0, 0.0, 1.0], &[2, 2])?;
+            let inputs = ExecutionInputs::new("loss").with("target", target.tensor().clone())?;
+            let loss = wrapper(kind, reduction);
+            let plan = ctx.prepare_forward_with_roots(
+                &inputs,
+                &[&prediction],
+                PreparedMode::Training,
+                &[0],
+                |inputs| {
+                    let value = loss.compute(&ctx, prediction.variable(), inputs.get("target")?)?;
+                    let root = if reduction == Reduction::None {
+                        value.sum()?
+                    } else {
+                        value.clone()
+                    };
+                    Ok(vec![root.tensor().clone(), value.tensor().clone()])
+                },
+            )?;
+            let verify = |outputs: &[Tensor]| -> MlResult<()> {
+                outputs[0].as_variable()?.backward()?;
+                let actual = (
+                    outputs[1].to_vec()?,
+                    prediction.grad()?.unwrap().data().to_vec(),
+                );
+                for (a, b) in actual
+                    .0
+                    .iter()
+                    .chain(&actual.1)
+                    .zip(reference.0.iter().chain(&reference.1))
+                {
+                    assert!((a - b).abs() < 1e-6, "{kind:?} {reduction:?}: {a} != {b}");
+                }
+                assert_eq!(actual.0.len(), reference.0.len());
+                assert_eq!(actual.1.len(), reference.1.len());
+                assert!(target.grad()?.is_none());
+                Ok(())
+            };
+            plan.with_inputs(&ctx, &inputs, &[&prediction], verify)?;
+            let mut executor = plan.into_executor(&ctx)?;
+            executor.with_inputs(&inputs, &[&prediction], verify)?;
+            executor.with_inputs(&inputs, &[&prediction], verify)?;
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn named_feeds_can_alias_then_diverge_without_recapture() -> MlResult<()> {
+    let ctx = ExecutionContext::new();
+    let x = ctx.variable(vec![2.0], &[], RequiresGrad::Yes)?;
+    let y = ctx.variable(vec![3.0], &[], RequiresGrad::Yes)?;
+    let inputs = ExecutionInputs::new("alias")
+        .with("left", x.tensor().clone())?
+        .with("right", x.tensor().clone())?;
+    let plan = ctx.prepare_forward(&inputs, &[], PreparedMode::Training, |inputs| {
+        Ok(vec![
+            inputs.get("left")?.square()?.add(inputs.get("right")?)?,
+        ])
+    })?;
+    let split = ExecutionInputs::new("alias")
+        .with("left", x.tensor().clone())?
+        .with("right", y.tensor().clone())?;
+    let check = |out: &[Tensor], aliased: bool| -> MlResult<()> {
+        assert_eq!(out[0].item()?, if aliased { 6.0 } else { 7.0 });
+        out[0].as_variable()?.backward()?;
+        assert_eq!(
+            x.grad()?.unwrap().data(),
+            &[if aliased { 5.0 } else { 4.0 }]
+        );
+        if !aliased {
+            assert_eq!(y.grad()?.unwrap().data(), &[1.0]);
+        }
+        Ok(())
+    };
+    plan.with_inputs(&ctx, &inputs, &[], |out| check(out, true))?;
+    plan.with_inputs(&ctx, &split, &[], |out| check(out, false))?;
+    let mut executor = plan.into_executor(&ctx)?;
+    executor.with_inputs(&inputs, &[], |out| check(out, true))?;
+    executor.with_inputs(&split, &[], |out| check(out, false))?;
+    executor.with_inputs(&inputs, &[], |out| check(out, true))?;
     Ok(())
 }
