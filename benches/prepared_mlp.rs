@@ -58,7 +58,12 @@ fn main() -> MlResult<()> {
     let mut optimizer = Adam::new(&ctx, 0.001, 0.9, 0.999, 1e-8)?;
     optimizer.register_all(&model.parameters())?;
     let start = Instant::now();
-    let mut prepared = ctx.prepare_objective(&mut model, &objective(), &inputs)?;
+    let mut prepared = ctx.prepare_training(
+        &mut model,
+        &trench_deep::trainer::Supervised,
+        &loss(),
+        &inputs,
+    )?;
     println!("prepare_ms={}", start.elapsed().as_secs_f64() * 1000.0);
     for step in 0..steps {
         let memory = allocation::begin();
@@ -105,15 +110,12 @@ fn main() -> MlResult<()> {
     Ok(())
 }
 
-
-
 impl trench_deep::trainer::ForwardModel for Model {
     fn forward(&self, input: &trench_deep::Variable) -> MlResult<trench_deep::Variable> {
-        
         self.net.apply(input)
     }
 }
 
-fn objective() -> trench_deep::trainer::Supervised<trench_deep::loss::MseLoss> {
-    trench_deep::trainer::Supervised::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
+fn loss() -> trench_deep::loss::MseLoss {
+    trench_deep::loss::MseLoss::new()
 }

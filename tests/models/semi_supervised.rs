@@ -12,7 +12,17 @@ fn supplied_views_reject_broadcasting_and_empty_batches_before_recording() -> Ml
     let empty = context.input(vec![], &[0, 2])?;
     for (first, second) in [(&input, &other), (&empty, &empty)] {
         assert!(matches!(
-            objective().forward_loss_with_augmentations(&model, &input, &target, first, second, 0.4),
+            trench_deep::trainer::SemiSupervised::new(0.1)
+                .expect("valid noise scale")
+                .forward_loss_with_augmentations(
+                    &loss(),
+                    &model,
+                    &input,
+                    &target,
+                    first,
+                    second,
+                    0.4
+                ),
             Err(trench_deep::MlError::TensorError(
                 trench_deep::TensorError::InvalidOperation { op: "pi_model", .. }
             ))
@@ -45,13 +55,15 @@ fn pi_model_pilot_trains_end_to_end() -> MlResult<()> {
         SemiSupervisedDataset::new(&context, &labeled_refs, &target_refs, &unlabeled_refs)?;
     let mut optimizer = Adam::new(&context, 0.02, 0.9, 0.999, 1e-8)?;
     optimizer.register_all(&model.parameters())?;
-    let result = Trainer::silent(&context)
+    let result = Trainer::semi_supervised(&context)
+        .silent()
         .with_ramp(ConsistencyRamp::Sigmoid {
             max_weight: 1.0,
             ramp_epochs: 2,
         })
         .fit(
-            &mut model, &objective(),
+            &mut model,
+            &loss(),
             &mut optimizer,
             &dataset,
             EpochSchedule::new(3)?.with_tolerance(0.0),
@@ -61,6 +73,6 @@ fn pi_model_pilot_trains_end_to_end() -> MlResult<()> {
     Ok(())
 }
 
-fn objective() -> trench_deep::trainer::SemiSupervised<trench_deep::loss::SoftmaxCrossEntropyLoss> {
-    trench_deep::trainer::SemiSupervised::new(trench_deep::loss::SoftmaxCrossEntropyLoss::new(trench_deep::Reduction::Mean), 0.1).expect("valid noise scale")
+fn loss() -> trench_deep::loss::SoftmaxCrossEntropyLoss {
+    trench_deep::loss::SoftmaxCrossEntropyLoss::new()
 }

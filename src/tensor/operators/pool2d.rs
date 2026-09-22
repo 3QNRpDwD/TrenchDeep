@@ -110,7 +110,7 @@ impl Function for MaxPool2d {
         let dy_data   = grad.data();
         let mask_data = mask.data();
 
-        for (out_idx, (&dy, &mask_idx)) in dy_data.iter().zip(mask_data.iter()).enumerate() {
+        for (_out_idx, (&dy, &mask_idx)) in dy_data.iter().zip(mask_data.iter()).enumerate() {
             dx[mask_idx as usize] += dy;
         }
 

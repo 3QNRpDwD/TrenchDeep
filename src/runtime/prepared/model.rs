@@ -1,7 +1,10 @@
 //! Model-level training facade shared by direct callers and the Trainer.
 use super::{ExecutionInputs, PreparedExecutor, PreparedMode, invalid};
 use crate::{
-    trainer::{TrainingModel, TrainingStepContext, TrainableModel, PreparedObjective, objective::BoundObjective},
+    trainer::{
+        PreparedTrainingStrategy, TrainableModel, TrainingModel, TrainingStepContext,
+        strategy::BoundTraining,
+    },
     *,
 };
 /// Host work (random inputs, scheduling and batch metadata) is kept outside capture.
@@ -50,17 +53,47 @@ pub struct PreparedModelExecutor {
     prediction: bool,
 }
 impl ExecutionContext {
-    /// Capture model prediction and the supplied objective together.
-    pub fn prepare_objective<M: TrainableModel, O: PreparedObjective<M>>(
-        &self, model: &mut M, objective: &O, inputs: &ExecutionInputs,
+    /// Capture model prediction and the supplied strategy and loss together.
+    pub fn prepare_training<
+        M: TrainableModel,
+        O: PreparedTrainingStrategy<M>,
+        L: crate::loss::Loss + ?Sized,
+    >(
+        &self,
+        model: &mut M,
+        strategy: &O,
+        loss: &L,
+        inputs: &ExecutionInputs,
     ) -> MlResult<PreparedModelExecutor> {
-        self.prepare_model(&BoundObjective { model, objective }, inputs)
+        self.prepare_model(
+            &BoundTraining {
+                model,
+                strategy,
+                loss,
+            },
+            inputs,
+        )
     }
-    /// Capture only the objective loss as a backward root, retaining prediction exports.
-    pub fn prepare_objective_for_loss<M: TrainableModel, O: PreparedObjective<M>>(
-        &self, model: &mut M, objective: &O, inputs: &ExecutionInputs,
+    /// Capture only the loss as a backward root, retaining prediction exports.
+    pub fn prepare_training_for_loss<
+        M: TrainableModel,
+        O: PreparedTrainingStrategy<M>,
+        L: crate::loss::Loss + ?Sized,
+    >(
+        &self,
+        model: &mut M,
+        strategy: &O,
+        loss: &L,
+        inputs: &ExecutionInputs,
     ) -> MlResult<PreparedModelExecutor> {
-        self.prepare_model_for_loss(&BoundObjective { model, objective }, inputs)
+        self.prepare_model_for_loss(
+            &BoundTraining {
+                model,
+                strategy,
+                loss,
+            },
+            inputs,
+        )
     }
 
     /// Prepare from already-created example inputs; this does not generate noise.

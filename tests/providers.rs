@@ -54,7 +54,13 @@ fn train(ctx: &ExecutionContext) -> MlResult<Vec<f32>> {
     let data = SupervisedDataset::new(ctx, &x, &y)?;
     let mut optimizer = SGD::new(ctx, 0.05)?;
     optimizer.register_all(&model.parameters())?;
-    Trainer::silent(ctx).fit(&mut model, &objective(), &mut optimizer, &data, EpochSchedule::new(3)?)?;
+    Trainer::supervised(ctx).silent().fit(
+        &mut model,
+        &loss(),
+        &mut optimizer,
+        &data,
+        EpochSchedule::new(3)?,
+    )?;
     assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
     model
         .parameters()
@@ -190,8 +196,13 @@ fn failed_epoch_initialization_cleans_graph_and_allows_the_next_fit() -> MlResul
     let loader = FailingEpochLoader {
         parameter: model.parameters()[0].clone(),
     };
-    let error =
-        Trainer::silent(&ctx).fit(&mut model, &objective(), &mut optimizer, loader, EpochSchedule::new(1)?);
+    let error = Trainer::supervised(&ctx).silent().fit(
+        &mut model,
+        &loss(),
+        &mut optimizer,
+        loader,
+        EpochSchedule::new(1)?,
+    );
     assert!(matches!(
         error,
         Err(MlError::UnsupportedCapability {
@@ -260,7 +271,7 @@ fn model_noise_and_trainer_seed_do_not_change_initialization() -> MlResult<()> {
         assert_eq!(p.tensor().to_vec()?, q.tensor().to_vec()?);
     }
     let before = left.parameters()[0].tensor().to_vec()?;
-    let _trainer = Trainer::silent(&a).with_seed(999);
+    let _trainer = Trainer::supervised(&a).silent().with_seed(999);
     assert_eq!(left.parameters()[0].tensor().to_vec()?, before);
     Ok(())
 }
@@ -289,6 +300,6 @@ fn capture_api_reports_missing_feature_without_consuming_graph() -> MlResult<()>
     Ok(())
 }
 
-fn objective() -> trench_deep::trainer::Supervised<trench_deep::loss::MseLoss> {
-    trench_deep::trainer::Supervised::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
+fn loss() -> trench_deep::loss::MseLoss {
+    trench_deep::loss::MseLoss::new()
 }

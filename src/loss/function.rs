@@ -224,7 +224,7 @@ impl Function for BinaryCrossEntropyLoss {
             grad_val * ((p_clipped - t) / (p_clipped * (1.0 - p_clipped))) / n
         }).collect();
 
-        let grad_target_data: Vec<f32> = pred.data().iter().zip(target.data().iter()).map(|(&p, &t)| {
+        let grad_target_data: Vec<f32> = pred.data().iter().zip(target.data().iter()).map(|(&p, &_t)| {
             let p_clipped = p.max(EPSILON).min(1.0 - EPSILON);
             grad_val * -((1.0 - p_clipped).ln() - p_clipped.ln()) / n
         }).collect();

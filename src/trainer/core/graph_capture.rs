@@ -23,14 +23,14 @@ impl TrainerCore {
             .map(|profile| {
                 let capture_context = if let Some(episode) = context.episode {
                     CaptureContext {
-                        paradigm: Some(context.paradigm.to_owned()),
+                        paradigm: Some(context.paradigm.to_string()),
                         epoch: None,
                         batch: None,
                         episode: Some(episode),
                     }
                 } else {
                     CaptureContext {
-                        paradigm: Some(context.paradigm.to_owned()),
+                        paradigm: Some(context.paradigm.to_string()),
                         epoch: Some(context.epoch),
                         batch: Some(context.batch),
                         episode: None,

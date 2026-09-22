@@ -43,10 +43,9 @@ fn rl_interrupt_saves_completed_episode_after_scope_cleanup()
     optimizer.register_all(&model.parameters())?;
     let trainer = RLTrainer::from_trainer(
         &ctx,
-        Trainer::builder(&ctx)
+        Trainer::supervised(&ctx)
             .show_progress(false)
-            .checkpoint_dir(directory.to_str().ok_or("path")?)
-            .build(),
+            .checkpoint_dir(directory.to_str().ok_or("path")?),
     )
     .with_observer(Box::new(StopAfterStep { ctx: ctx.clone() }));
     let result = trainer.fit_checkpointed(

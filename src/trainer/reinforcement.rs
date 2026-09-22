@@ -39,7 +39,7 @@ impl RLTrainer {
     pub fn new(ctx: &ExecutionContext) -> Self {
         Self::silent(ctx)
     }
-    pub fn from_trainer(ctx: &ExecutionContext, trainer: Trainer) -> Self {
+    pub fn from_trainer<S>(ctx: &ExecutionContext, trainer: Trainer<Eager, S>) -> Self {
         Self {
             service: TrainingService {
                 context: ctx.clone(),
@@ -50,16 +50,16 @@ impl RLTrainer {
         }
     }
     pub fn silent(ctx: &ExecutionContext) -> Self {
-        Self::from_trainer(ctx, Trainer::silent(ctx))
+        Self::from_trainer(ctx, Trainer::supervised(ctx).silent())
     }
     pub fn minimal(ctx: &ExecutionContext) -> Self {
-        Self::from_trainer(ctx, Trainer::minimal(ctx))
+        Self::from_trainer(ctx, Trainer::supervised(ctx).minimal())
     }
     pub fn default(ctx: &ExecutionContext) -> Self {
-        Self::from_trainer(ctx, Trainer::default(ctx))
+        Self::from_trainer(ctx, Trainer::supervised(ctx).default())
     }
     pub fn verbose(ctx: &ExecutionContext) -> Self {
-        Self::from_trainer(ctx, Trainer::verbose(ctx))
+        Self::from_trainer(ctx, Trainer::supervised(ctx).verbose())
     }
     pub fn with_gamma(mut self, gamma: f32) -> MlResult<Self> {
         if !gamma.is_finite() || !(0.0..=1.0).contains(&gamma) {
@@ -162,7 +162,7 @@ impl RLTrainer {
         let progress =
             progress::EpochProgress::new(schedule.episodes, self.service.core.config.show_progress);
         self.service.core.notify_train_start(&TrainStartContext {
-            paradigm: "reinforcement",
+            paradigm: ParadigmTag::Reinforcement,
             total_units: schedule.episodes,
         });
         for episode in 0..schedule.episodes {
@@ -171,14 +171,14 @@ impl RLTrainer {
                 hook.reset()?;
             }
             let epoch = EpochContext {
-                paradigm: "reinforcement",
+                paradigm: ParadigmTag::Reinforcement,
                 epoch: episode + 1,
                 total_epochs: schedule.episodes,
                 total_batches: Some(1),
             };
             self.service.core.notify_epoch_start(&epoch);
             let batch = BatchStartContext {
-                paradigm: "reinforcement",
+                paradigm: ParadigmTag::Reinforcement,
                 epoch: episode + 1,
                 batch: 1,
                 total_epochs: schedule.episodes,
@@ -318,7 +318,7 @@ impl RLTrainer {
             {
                 result.checkpoint = Some(checkpoint::save_model(
                     directory,
-                    "reinforcement",
+                    ParadigmTag::Reinforcement,
                     completed,
                     EpochSchedule::new(schedule.episodes)?,
                     final_loss,
@@ -332,7 +332,7 @@ impl RLTrainer {
             progress.finish_completed();
         }
         self.service.core.notify_train_end(&TrainEndContext {
-            paradigm: "reinforcement",
+            paradigm: ParadigmTag::Reinforcement,
             units_completed: completed,
             interrupted,
         });

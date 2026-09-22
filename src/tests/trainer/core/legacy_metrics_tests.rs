@@ -33,7 +33,7 @@ fn classification_accuracy_hook_matches_direct() {
             lambda:    None,
             lr:        1e-3,
         };
-        <ClassificationAccuracy as MetricHook>::update(&mut hook, &ctx);
+        let _ = <ClassificationAccuracy as MetricHook>::update(&mut hook, &ctx);
     }
 
     assert!((direct.compute() - MetricHook::compute(&hook)).abs() < 1e-6);
@@ -55,7 +55,7 @@ fn perplexity_hook_weighted_by_tokens() {
             lambda:    None,
             lr:        1e-3,
         };
-        <Perplexity as MetricHook>::update(&mut hook, &ctx);
+        let _ = <Perplexity as MetricHook>::update(&mut hook, &ctx);
     }
     let expected = (50.0_f32 / 30.0).exp();
     let actual   = MetricHook::compute(&hook);
@@ -76,6 +76,6 @@ fn classification_accuracy_hook_skips_when_target_missing() {
         lambda:    None,
         lr:        1e-3,
     };
-    <ClassificationAccuracy as MetricHook>::update(&mut hook, &ctx);
+    let _ = <ClassificationAccuracy as MetricHook>::update(&mut hook, &ctx);
     assert_eq!(MetricHook::compute(&hook), 0.0);
 }

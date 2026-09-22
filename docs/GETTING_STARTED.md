@@ -21,7 +21,7 @@ trench-deep = { path = "../TrenchDeep", features = ["enableBackward"] }
 | --- | --- |
 | `ExecutionContext` | 텐서·연산·자동 미분을 관리하는 실행 환경 |
 | `Tensor` / `Variable` | 수치 데이터와 자동 미분 연산에 사용하는 값 |
-| `Model` | 입력으로부터 예측과 학습을 수행 |
+| `Model` | 입력으로부터 예측을 계산 |
 | `Loss` | 모델이 예측한 값과 타겟 데이터 사이의 loss 를 계산 |
 | `Optimizer` | 등록된 모델 파라미터를 gradient로 갱신 |
 | `Trainer` | 데이터 반복, 역전파, 파라미터 갱신과 학습 결과 집계를 수행 |
@@ -35,6 +35,7 @@ trench-deep = { path = "../TrenchDeep", features = ["enableBackward"] }
 ```rust
 use trench_deep::{ExecutionContext, MlResult};
 use trench_deep::nn::Mlp;
+use trench_deep::loss::SoftmaxCrossEntropyLoss;
 use trench_deep::optimizer::{Adam, Optimizer};
 use trench_deep::trainer::{
     EpochSchedule, SupervisedDataset, TrainableModel, Trainer,
@@ -44,7 +45,6 @@ fn main() -> MlResult<()> {
     // 1. 실행 환경과 모델: 입력 2개 → 은닉 노드 4개 → 클래스 2개
     let ctx = ExecutionContext::new();
     let mut model = Mlp::new(&ctx, 2, 4, 2)?;
-    // 모델이 
 
     // 2. 학습 데이터: 각 항목의 shape는 [배치 크기, 특성/클래스 수]
     let inputs = [
@@ -64,8 +64,10 @@ fn main() -> MlResult<()> {
     optimizer.register_all(&model.parameters())?;
 
     // 4. 학습: 데이터 전체를 20번 반복
-    let result = Trainer::minimal(&ctx).fit(
+    let loss = SoftmaxCrossEntropyLoss::new();
+    let result = Trainer::supervised(&ctx).minimal().fit(
         &mut model,
+        &loss,
         &mut optimizer,
         &dataset,
         EpochSchedule::new(20)?,
@@ -81,15 +83,15 @@ fn main() -> MlResult<()> {
 }
 ```
 
-`ctx.input(...)`은 모델에 넣을 `Variable`을, `ctx.tensor(...)`는 정답 등의 `Tensor`를 만든다. 예제의 정답은 해당 클래스 위치만 1인 one-hot 형식이다. 이 MLP는 내부에서 분류 loss를 계산하고 `predict`에서 클래스별 확률을 반환한다.
+`ctx.input(...)`은 모델에 넣을 `Variable`을, `ctx.tensor(...)`는 정답 등의 `Tensor`를 만든다. 예제의 정답은 해당 클래스 위치만 1인 one-hot 형식이다. 모델의 `forward`는 logits를 반환하고, 외부 `SoftmaxCrossEntropyLoss`가 loss를 계산한다. `predict`는 클래스별 확률을 반환한다. Loss를 교체할 때 모델을 수정할 필요가 없다.
 
 `SupervisedDataset`은 이미 배치로 구성된 입력·정답을 빌려 사용한다. 위 예제에서는 항목 하나가 sample 하나인 배치다. sample들을 모아 배치를 만들거나 섞어서 학습하려면 `DataLoader`를 사용한다.
 
 ## 다음 단계
 
-- **학습 설정:** `Trainer::builder(&ctx)`로 seed·메트릭·로그 등을 설정한다. `minimal`은 간단한 진행 표시를, `silent`는 로그와 gradient 유한성 검사를 끈 설정을 제공한다.
-- **모델 직접 작성:** `TrainableModel`로 context와 파라미터를 제공하고, `TrainingModel`로 배치별 loss와 학습 메타데이터를 반환한다.
-- **Prepared 실행:** 이를 지원하는 모델은 `.prepared()`로 실행 방식을 선택할 수 있다. 모델에 `PreparedModel` 구현이 추가로 필요하며, 모든 모델에 자동 적용되는 옵션은 아니다.
+- **학습 설정:** `Trainer::supervised(&ctx).minimal()`처럼 학습 방식과 프리셋을 선택한다. `.silent()`, `.default()`, `.verbose()`도 제공하며, 이후 `.with_seed(42)`나 `.metrics(...)` 등으로 설정을 덮어쓸 수 있다.
+- **모델 직접 작성:** `TrainableModel`로 context와 파라미터를 제공하고, `ForwardModel`로 예측 연산을 제공한다. 일반 지도학습의 입력 준비와 loss 계산은 Trainer가 담당한다.
+- **Prepared 실행:** `.prepared()`로 forward와 loss 그래프를 준비해 재사용한다. 일반 지도학습은 `ForwardModel`을 그대로 사용하며, 연산·provider가 prepared 실행을 지원해야 한다. 사용자 정의 학습 방식은 `PreparedTrainingStrategy`가 필요하다.
 - **학습 결과:** `TrainResult`에서 마지막 loss, 완료한 epoch 수, 종료 사유와 활성화된 메트릭을 확인한다.
 
 ### 기능별 문서
@@ -101,7 +103,7 @@ fn main() -> MlResult<()> {
 | 텐서와 자동 미분 | shape, 연산, gradient, context 수명 | 작성 예정 |
 | 데이터 입력 | Dataset, DataLoader, batching, shuffle, 파일 읽기 | 작성 예정 |
 | 모델과 레이어 | 내장 레이어, 모델 구성, 사용자 정의 모델 | 작성 예정 |
-| 학습과 optimizer | 학습 패러다임, optimizer, seed, clipping | 작성 예정 |
+| 학습과 optimizer | 학습 방식, loss, 프리셋, seed, clipping | [API 안내](tp/TRAINER_API_MIGRATION.md) |
 | Prepared 실행 | 입력 준비, 그래프 재사용, 지원 조건 | 작성 예정 |
 | 메트릭과 시각화 | hook, observer, 학습 상태와 그래프 확인 | 작성 예정 |
 | 저장과 체크포인트 | 모델 저장, interrupt 처리, 재개 지원 범위 | 작성 예정 |

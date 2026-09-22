@@ -75,7 +75,7 @@ pub fn run_case(iterations: usize) -> Result<serde_json::Value, Box<dyn std::err
     for p in baseline.params() {
         old_optimizer.register(p);
     }
-    let trainer = Trainer::silent(&ctx);
+    let trainer = Trainer::supervised(&ctx).silent();
     let old_trainer = old::trainer::SupervisedTrainer::silent();
     let initialization_ms = initialization.elapsed().as_secs_f64() * 1000.0;
     let mut public = Vec::new();
@@ -83,7 +83,8 @@ pub fn run_case(iterations: usize) -> Result<serde_json::Value, Box<dyn std::err
     for i in 0..=iterations {
         let start = Instant::now();
         let actual = trainer.fit(
-            &mut model, &objective(),
+            &mut model,
+            &loss(),
             &mut optimizer,
             &mut loader,
             EpochSchedule::new(1)?,
@@ -121,6 +122,6 @@ pub fn run_case(iterations: usize) -> Result<serde_json::Value, Box<dyn std::err
     )
 }
 
-fn objective() -> trench_deep::trainer::Supervised<trench_deep::loss::MseLoss> {
-    trench_deep::trainer::Supervised::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
+fn loss() -> trench_deep::loss::MseLoss {
+    trench_deep::loss::MseLoss::new()
 }

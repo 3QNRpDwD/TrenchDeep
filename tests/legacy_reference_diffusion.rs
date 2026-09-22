@@ -126,7 +126,9 @@ fn original_reference_ddpm_draws_replay_through_context_and_adam()
     }
     let mut fixture = replay::Fixture {
         version: 2,
-        corrections: serde_json::from_str(include_str!("../src/native_provenance/CORRECTIONS.json"))?,
+        corrections: serde_json::from_str(include_str!(
+            "../src/native_provenance/CORRECTIONS.json"
+        ))?,
         initial: old_descriptors
             .into_iter()
             .map(|descriptor| replay::Weight {
@@ -168,7 +170,13 @@ fn original_reference_ddpm_draws_replay_through_context_and_adam()
         )?;
         let recorded_noise = noise.data().to_vec();
         let noise = ctx.tensor(noise.data().to_vec(), noise.shape())?;
-        let (actual, loss) = trench_deep::trainer::DiffusionObjective::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean)).forward_loss_with_noise(&model, &image, &noise, t)?;
+        let (actual, loss) = trench_deep::trainer::DiffusionTraining.forward_loss_with_noise(
+            &trench_deep::loss::MseLoss::new(),
+            &model,
+            &image,
+            &noise,
+            t,
+        )?;
         close(
             &actual.tensor().to_vec()?,
             expected.tensor().data(),

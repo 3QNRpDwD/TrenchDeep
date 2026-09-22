@@ -43,9 +43,23 @@ fn loss_only_model_keeps_prediction_and_matches_default_gradients() -> MlResult<
         inputs: ctx.tensor(vec![1.0, 2.0], &[1, 2])?.as_variable()?,
         targets: ctx.tensor(vec![0.0], &[1, 1])?,
     };
-    let batch = objective().execution_batch(&mut model, &batch, &TrainingStepContext::default())?;
-    let mut full = ctx.prepare_objective(&mut model, &objective(), &batch.inputs)?;
-    let mut selected = ctx.prepare_objective_for_loss(&mut model, &objective(), &batch.inputs)?;
+    let batch = trench_deep::trainer::Supervised.execution_batch(
+        &mut model,
+        &batch,
+        &TrainingStepContext::default(),
+    )?;
+    let mut full = ctx.prepare_training(
+        &mut model,
+        &trench_deep::trainer::Supervised,
+        &loss(),
+        &batch.inputs,
+    )?;
+    let mut selected = ctx.prepare_training_for_loss(
+        &mut model,
+        &trench_deep::trainer::Supervised,
+        &loss(),
+        &batch.inputs,
+    )?;
     assert_eq!(full.executor().plan().backward_plan_stats().roots, 2);
     assert_eq!(selected.executor().plan().backward_plan_stats().roots, 1);
     let read = |output: ModelOutput| {
@@ -73,9 +87,18 @@ fn common_model_api_reuses_plan_and_recovers_from_callback_errors() -> MlResult<
         inputs: ctx.tensor(vec![1.0, 2.0], &[1, 2])?.as_variable()?,
         targets: ctx.tensor(vec![0.0], &[1, 1])?,
     };
-    let batch = objective().execution_batch(&mut model, &batch, &TrainingStepContext::default())?;
+    let batch = trench_deep::trainer::Supervised.execution_batch(
+        &mut model,
+        &batch,
+        &TrainingStepContext::default(),
+    )?;
     let before = ctx.graph_stats()?;
-    let mut prepared = ctx.prepare_objective(&mut model, &objective(), &batch.inputs)?;
+    let mut prepared = ctx.prepare_training(
+        &mut model,
+        &trench_deep::trainer::Supervised,
+        &loss(),
+        &batch.inputs,
+    )?;
     assert_eq!(model.descriptions.get(), 1);
     let bytes = prepared.executor().arena_bytes();
     let failed: MlResult<()> = prepared.run(&model, &batch.inputs, |output| {
@@ -109,8 +132,9 @@ fn common_trainer_prepares_once_per_shape_and_reuses_across_epochs() -> MlResult
     let targets = [&t, &u];
     let dataset = SupervisedDataset::new(&ctx, &inputs, &targets)?;
     let before = ctx.graph_stats()?;
-    let result = Trainer::silent(&ctx).prepared().fit(
-        &mut model, &objective(),
+    let result = Trainer::supervised(&ctx).silent().prepared().fit(
+        &mut model,
+        &loss(),
         &mut adam,
         &dataset,
         EpochSchedule::new(3)?.with_tolerance(0.0),
@@ -121,9 +145,6 @@ fn common_trainer_prepares_once_per_shape_and_reuses_across_epochs() -> MlResult
     assert!(model.weight.grad()?.is_none());
     Ok(())
 }
-
-
-
 
 #[test]
 fn eager_loader_operations_remain_in_the_batch_graph() -> MlResult<()> {
@@ -165,7 +186,13 @@ fn eager_loader_operations_remain_in_the_batch_graph() -> MlResult<()> {
         weight: model.weight.clone(),
         emitted: false,
     };
-    Trainer::silent(&ctx).fit(&mut model, &objective(), &mut optimizer, loader, EpochSchedule::new(1)?)?;
+    Trainer::supervised(&ctx).silent().fit(
+        &mut model,
+        &loss(),
+        &mut optimizer,
+        loader,
+        EpochSchedule::new(1)?,
+    )?;
     let values = model.weight.tensor().to_vec()?;
     assert!((values[0] - 0.296).abs() < 1e-6 && (values[1] - 0.518).abs() < 1e-6);
     Ok(())
@@ -178,6 +205,6 @@ impl trench_deep::trainer::ForwardModel for Linear {
     }
 }
 
-fn objective() -> trench_deep::trainer::Supervised<trench_deep::loss::MseLoss> {
-    trench_deep::trainer::Supervised::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
+fn loss() -> trench_deep::loss::MseLoss {
+    trench_deep::loss::MseLoss::new()
 }

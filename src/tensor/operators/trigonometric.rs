@@ -88,7 +88,7 @@ impl Function for ApproxSin {
 
     #[cfg(all(feature = "enableBackward"))]
     fn backward(&self, targets: &[&dyn TensorBase], grad: &dyn TensorBase) -> MlResult<Vec<GlobalTensor<f32>>> {
-        let mut cos = ApproxCos {
+        let cos = ApproxCos {
             backend: Arc::clone(&self.backend),
             threshold: self.threshold,
             node_id: NODE_ID_GEN.next()

@@ -1,182 +1,130 @@
-# Trainer API 통합 및 전환 안내
+# Trainer API 전환 안내
 
-작성일: 2026-09-22
+학습 방식은 Trainer에서 선택하고, 모델은 예측을, loss는 수치 손실 계산을 담당한다. 기존 Objective 인자와 `TrainerBuilder`를 사용하는 호출부는 아래 방식으로 전환한다.
 
-## 적용 범위
-
-배치 학습의 공개 진입점을 `Trainer<Mode = Eager>`로 통합했다. 지도·비지도·준지도·자기회귀 학습은 모델의 `TrainingModel` 구현으로 구분하고, eager/prepared 실행 방식은 타입으로 선택한다.
-
-기존 API와의 호환 어댑터는 제공하지 않는 breaking change다. RL의 환경·에피소드 학습 구조와 완전한 checkpoint resume 구현은 이번 변경 범위에 포함하지 않는다.
-
-## 호출부 전환
-
-| 이전 API | 새 API |
-| --- | --- |
-| `Trainer::builder()` | `Trainer::builder(&ctx)` |
-| `TrainerBuilder::new()` | `TrainerBuilder::new(&ctx)` |
-| `Trainer::silent().supervised(&ctx)` | `Trainer::silent(&ctx)` |
-| `.unsupervised(&ctx)`, `.semi_supervised(&ctx)`, `.autoregressive(&ctx)` | 제거. 모델의 `TrainingModel` 구현으로 구분 |
-| `SupervisedTrainer::new(&ctx)` 등 개별 Trainer 생성 | `Trainer::new(&ctx)` |
-| `Trainer::silent().prepared(&ctx)` | `Trainer::silent(&ctx).prepared()` |
-| `PreparedTrainer` 타입 표기 | `Trainer<Prepared>` |
-| `fit_loader(...)` | `fit(...)` |
-| 배치 Trainer의 미구현 `resume(...)` | 제거. 재개 기능은 별도 작업 |
-
-`new(&ctx)`는 silent 프리셋을 사용한다. `silent`, `minimal`, `default`, `verbose`는 모두 context를 인자로 받으며 기존 프리셋 설정값을 유지한다. `TrainerBuilder`의 인자 없는 `Default` 구현은 제거했다.
-
-다음은 이미 준비된 model·optimizer·input을 사용하는 호출 예시다.
+## 기본 호출
 
 ```rust
+use trench_deep::loss::MseLoss;
 use trench_deep::trainer::{EpochSchedule, Trainer};
 
-let trainer = Trainer::builder(&ctx)
-    .seed(42)
+let loss = MseLoss::new();
+let trainer = Trainer::supervised(&ctx).minimal().with_seed(42);
+let result = trainer.fit(&mut model, &loss, &mut optimizer, input, EpochSchedule::new(10)?)?;
+```
+
+Optimizer에 모델 파라미터를 등록하는 책임은 호출부에 유지한다. `fit_checkpointed`에도 모델 다음에 `&loss`를 전달한다.
+
+| 학습 방식 | 생성 API | 현재 지원 모델 |
+| --- | --- | --- |
+| 지도 | `Trainer::supervised(&ctx)` | `ForwardModel` 구현 모델 |
+| 자기회귀 | `Trainer::autoregressive(&ctx)` | `BigramLm` |
+| diffusion | `Trainer::diffusion(&ctx)` | `Diffusion` |
+| 준지도 | `Trainer::semi_supervised(&ctx)` | `PiClassifier` |
+
+모델 타입에 학습 방식을 고정하지 않는다. 예를 들어 `PiClassifier`는 일반 지도학습에도 사용할 수 있다. 잘못된 모델·배치 조합은 trait 제약으로 거부한다. 내부 학습 방식 판별과 observer·checkpoint 메타데이터는 `ParadigmTag` enum을 사용한다. diffusion의 checkpoint 태그는 기존 `Unsupervised`를 유지한다.
+
+## 프리셋과 개별 설정
+
+```rust
+let trainer = Trainer::supervised(&ctx)
+    .verbose()
+    .metrics(Metrics::none().grad_norm())
     .show_progress(false)
-    .build(); // Trainer<Eager>
-
-let result = trainer.fit(
-    &mut model,
-    &mut optimizer,
-    input,
-    EpochSchedule::new(10)?,
-)?;
-```
-
-prepared 실행은 생성한 eager Trainer를 소비하여 선택한다. 설정·hook·observer·gradient clipping·준지도 ramp는 전환 후에도 유지된다.
-
-```rust
-let trainer = Trainer::minimal(&ctx)
     .with_max_grad_norm(1.0)?
-    .prepared(); // Trainer<Prepared>
-
-let result = trainer.fit(
-    &mut model,
-    &mut optimizer,
-    input,
-    EpochSchedule::new(10)?,
-)?;
+    .prepared();
 ```
 
-두 타입 모두 `with_seed`, `with_hook`, `with_observer`, `check_finite_gradients`, `with_max_grad_norm`, `with_ramp`를 제공한다. 이 메서드들은 `.prepared()` 전후 모두 호출할 수 있다.
+| 메서드 | 배치 진행 갱신 | 완료 후 배치 요약 | epoch 로그 | 유한 gradient 검사 | 내장 메트릭 | 진행 표시 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `.silent()` | 끔 | 끔 | 끔 | 끔 | 없음 | 끔 |
+| `.minimal()` | 매 배치 | 끔 | 10 epoch | 매 배치 | 없음 | 켬 |
+| `.default()` | 매 배치 | 끔 | 10 epoch | 매 배치 | 학습 방식 대표 메트릭 | 켬 |
+| `.verbose()` | 매 배치 | 100배치 | 매 epoch | 매 배치 | 모두 | 켬 |
 
-`fit`의 인자 순서와 `TrainResult`는 동일하다. eager는 `M: TrainingModel`, prepared는 `M: PreparedModel`을 요구하며 입력에는 `IntoBatchLoader<Batch = M::Batch>` 제약을 적용한다. prepared trait을 구현하지 않은 모델은 컴파일 단계에서 거부한다. provider나 연산의 prepared 지원 부족은 실행 중 오류로 반환하며 eager로 자동 전환하지 않는다.
+모든 생성자는 default 설정으로 시작한다. 네 프리셋과 개별 설정은 `.prepared()` 전후 모두 사용할 수 있다. 마지막 호출이 해당 설정을 덮어쓴다. 예를 들어 `.metrics(...).minimal()`은 추가 메트릭을 끄고, `.minimal().metrics(...)`는 지정한 메트릭을 켠다.
 
-## 모델 구현 전환
+프리셋은 로그·내장 메트릭·gradient 검사·진행 표시만 바꾼다. context, seed와 현재 RNG 진행 상태, hook, observer, checkpoint 경로, clipping, noise scale, ramp는 보존한다. `silent`에서도 사용자 hook과 observer는 실행된다.
 
-`TrainableModel`의 context·parameter 계약은 유지한다. 기존 `SupervisedModel`, `UnsupervisedModel`, `SemiSupervisedModel`, `AutoregressiveModel` 대신 다음 계약을 구현한다.
+기존 `Trainer::minimal(&ctx)`는 `Trainer::supervised(&ctx).minimal()`로, `Trainer::builder(&ctx)...build()`는 `Trainer::supervised(&ctx)...`로 바꾼다. `Trainer<Prepared>`는 지도학습의 기본 타입 표기이며 다른 방식은 두 번째 타입 인자에 전략 타입을 가진다.
+
+## Loss와 모델
+
+`MseLoss`, `MaeLoss`, `BinaryCrossEntropyLoss`, `CrossEntropyLoss`, `SoftmaxCrossEntropyLoss`는 `new()`로 만든다. Huber는 `HuberLoss::new(delta)`로 만든다. 기존 ctx 연산에 위임하며 입력 검증, 안정성, target gradient 차단 의미를 유지한다.
+
+Reduction의 최종 API는 후속 논의 대상이다. 현재 `new()`는 기존 예제와 같은 `Mean`을 사용한다. 명시적 비교·검증에는 `.with_reduction(Reduction::Sum)` 또는 `set_reduction(...)`을 사용할 수 있다. 최종 학습 loss는 scalar여야 하며 `None` 결과를 자동 mean으로 바꾸지 않는다.
 
 ```rust
-pub trait TrainingModel: TrainableModel {
-    type Batch: BatchInputs;
-    const PARADIGM: &'static str;
+let mut loss = HuberLoss::new(1.0);
+trainer.fit(&mut model, &loss, &mut optimizer, input, schedule)?;
+loss.set_delta(0.5);
+// 다음 fit은 바뀐 설정으로 새 그래프를 준비한다.
+trainer.fit(&mut model, &loss, &mut optimizer, input, schedule)?;
+```
 
-    fn forward_batch(
-        &mut self,
-        batch: &Self::Batch,
-        step: &TrainingStepContext,
-    ) -> MlResult<TrainingOutput>;
+`fit`은 `&loss`를 받는다. 상태 변경은 fit 사이에 명시적 메서드로 수행한다. 한 fit 도중 loss 종류·reduction·delta를 바꾸거나 loss 내부에서 난수를 생성하지 않는다.
+
+사용자 정의 loss는 다음 계약을 구현한다.
+
+```rust
+pub trait Loss {
+    fn compute(&self, ctx: &ExecutionContext, prediction: &Variable, target: &Tensor)
+        -> MlResult<Variable>;
 }
 ```
 
-기존 모델의 `forward_loss` 수식은 모델의 일반 메서드로 유지할 수 있다. `forward_batch`는 이를 호출하고 학습 결과의 메타데이터를 구성한다. 저장소의 기존 pilot 모델은 이 방식으로 전환했다.
+일반 단일 입력 모델은 `TrainableModel`과 `ForwardModel`을 구현한다. `ForwardModel::forward(&self, input: &Variable)`에는 미분 가능한 예측 연산만 둔다. 분류 모델의 forward는 logits를 반환하며 기존 predict의 확률 반환 의미는 유지한다.
 
-| 패러다임 | `Batch` | `PARADIGM` | 집계·메트릭 규칙 |
-| --- | --- | --- | --- |
-| 지도 | `SupervisedBatch` | `"supervised"` | sample 수를 weight로 사용하고 target을 전달 |
-| 비지도 | `UnsupervisedBatch` | `"unsupervised"` | sample 수를 weight로 사용 |
-| 준지도 | `SemiSupervisedBatch` | `"semi_supervised"` | labeled sample 수, labeled target, 현재 lambda 전달 |
-| 자기회귀 | `AutoregressiveBatch` | `"autoregressive"` | 유효 token 수를 weight와 tokens에 전달 |
-
-현재 문자열 값은 준지도 ramp와 패러다임 메트릭 선택에 사용되므로 위 표기와 일치시켜야 한다.
-
-`TrainingOutput`은 다음 정보를 담는다.
-
-| 필드 | 의미 |
-| --- | --- |
-| `loss: Variable` | 역전파할 scalar loss |
-| `prediction: Option<Variable>` | accuracy·hook 등에 제공할 예측 |
-| `target: Option<Tensor>` | 예측과 비교할 정답 |
-| `weight: usize` | epoch loss의 가중 평균에 사용할 양수 개수 |
-| `tokens: Option<usize>` | 자기회귀 학습의 유효 token 수 |
-| `lambda: Option<f32>` | 준지도 학습 메트릭·hook에 전달할 현재 가중치 |
-
-`TrainingStepContext`의 `epoch`, `batch`는 **0부터 시작**한다. 기존 observer의 epoch·batch 번호는 **1부터 시작**하는 규칙을 유지한다. `lambda`는 `PARADIGM == "semi_supervised"`일 때만 `Some(ramp.value(epoch))`이며 나머지는 `None`이다. 모델은 이를 실제 loss 계산에 사용하고 결과 메타데이터에도 전달해야 한다.
-
-## PreparedModel 전환과 실행 수명
-
-`PreparedModel`은 이제 `TrainingModel`을 상속한다. `Batch`와 `PARADIGM` 선언은 `TrainingModel` 구현으로 옮기고, `execution_batch`에 step 인자를 추가한다.
+준지도 설정은 다음처럼 지정한다. `PiClassifier::new(&ctx, inputs, outputs)`에는 noise scale을 넣지 않는다.
 
 ```rust
-pub trait PreparedModel: TrainingModel {
-    fn execution_batch(
-        &mut self,
-        batch: &Self::Batch,
-        step: &TrainingStepContext,
-    ) -> MlResult<PreparedBatch>;
-
-    fn forward_inputs(&self, inputs: &ExecutionInputs) -> MlResult<ModelOutput>;
-}
+let trainer = Trainer::semi_supervised(&ctx)
+    .minimal()
+    .with_noise_scale(0.1)?
+    .with_ramp(ConsistencyRamp::Constant(0.4));
 ```
 
-- `execution_batch`는 매 배치 호출된다. 난수 생성·입력 준비·스케줄 값 처리는 이 단계에서 수행한다.
-- `forward_inputs`에는 캡처할 수치 연산을 둔다. 입력 signature와 topology variant가 같으면 기존 executor를 재사용한다.
-- epoch마다 바뀌는 lambda는 `ExecutionInputs`의 텐서로 전달한다. Rust의 scalar 값을 캡처된 수식에 고정하면 이후 epoch의 lambda 변경이 반영되지 않는다.
-- 수치 연산 구조가 달라지면 variant를 변경한다. 동일 구조에서 입력 값만 바뀌는 경우에는 variant를 변경할 필요가 없다.
-- 캐시는 한 번의 `fit` 안에서 epoch를 넘어 재사용하며, `fit`이 끝나면 폐기한다. 다른 shape나 variant는 별도 executor를 사용한다.
-- eager는 loader가 만든 계산 그래프를 backward까지 유지한다. prepared는 loader·입력 준비와 executor 실행 scope를 분리한다. loader 내부의 미분 가능한 연산이 자동으로 prepared 그래프에 편입되는 것은 아니다.
+기본 noise scale은 0.1, ramp는 30 epoch 동안 0에서 1로 증가하는 기존 sigmoid 설정이다. 준지도 consistency는 기존 차이·제곱·합산 수식을 유지해 두 예측 분기의 gradient를 보존한다. 외부 loss는 지도 항에 적용한다. Diffusion의 feed helper·scheduler·RNG와 자기회귀 시퀀스 이동·유효 token 집계도 유지한다.
 
-`prepare_model`, `prepare_model_for_loss`, `PreparedModelExecutor::run`을 사용하는 직접 실행 경로는 유지한다. 직접 `execution_batch`를 호출하는 코드는 step을 명시해야 한다.
+## 사용자 정의 학습과 prepared
+
+`TrainingStrategy<M>`는 배치 타입·enum 태그를 선언하고, `forward_batch`에서 loss 참조를 받아 입력 준비·모델 호출·loss·메타데이터를 구성한다. `Trainer::from_strategy(&ctx, strategy)`로 주입한다. Prepared는 추가로 `PreparedTrainingStrategy<M>`가 필요하며 자동 eager fallback은 없다.
+
+- `execution_batch`는 캡처 밖에서 난수·입력·메타데이터를 준비한다.
+- `forward_inputs`는 loss 참조를 받아 모델 forward와 loss 수치 연산을 캡처한다.
+- epoch별 lambda는 입력 텐서로 전달한다. 수식 구조가 달라지면 variant를 바꾼다.
+- shape·variant 캐시는 한 fit 동안 유지되고 다음 fit에서 다시 생성된다.
+- Trainer는 loss만 backward root로 사용하면서 prediction을 메트릭에 제공한다.
+- eager loader의 그래프 수명과 prepared의 입력 준비/실행 scope 구분을 유지한다.
+
+직접 실행은 같은 내부 adapter를 사용하는 진입점을 이용한다.
 
 ```rust
-let step = TrainingStepContext {
-    epoch: 0,
-    batch: 0,
-    lambda: None,
-};
-let batch = model.execution_batch(&batch, &step)?;
-let mut executor = ctx.prepare_model_for_loss(&model, &batch.inputs)?;
+let strategy = Supervised;
+let batch = strategy.execution_batch(&mut model, &batch, &TrainingStepContext::default())?;
+let mut executor = ctx.prepare_training_for_loss(&mut model, &strategy, &loss, &batch.inputs)?;
 ```
 
-준지도 모델에서는 위 예시의 `lambda`를 현재 ramp 값으로 지정한다. `TrainingStepContext::default()`의 lambda는 `None`이다.
+Prediction도 backward root로 사용할 경우 `prepare_training`을 사용한다. 직접 소유한 executor의 loss 설정은 캡처 시점에 고정되므로 loss 설정 변경 후 재준비해야 한다. `TrainingModel`·`PreparedModel`·`prepare_model*`은 하위 실행 계약으로 남으며 일반 모델이 구현할 필요는 없다.
 
-기존 `Diffusion`과 prepared MLP 예제·벤치마크의 계약을 전환했다. 이번 통합이 모든 기존 모델에 prepared 지원을 자동으로 추가하는 것은 아니다. eager 전용 모델은 계속 `TrainingModel`만 구현할 수 있다.
+`TrainingOutput`의 loss·prediction·target·weight·tokens·lambda 형식은 유지한다. `TrainingStepContext`의 epoch/batch는 0부터, observer 번호는 1부터 시작한다. Lambda는 `ParadigmTag::SemiSupervised`일 때만 Trainer ramp에서 공급한다.
 
-## 체크포인트와 RL
+## Checkpoint와 RL
 
-`fit_checkpointed`는 해당 실행 모드의 모델 계약에 더해 `CheckpointableModel`을 요구한다. checkpoint 디렉터리를 설정한 채 일반 `fit`을 호출하면 명시적 오류를 반환한다. 저장은 기존과 같이 interrupt 처리 시 수행하며, 모델 가중치와 메타데이터 저장을 optimizer·RNG·loader까지 포함한 완전 재개로 해석하면 안 된다.
+`fit_checkpointed`는 모델의 `CheckpointableModel` 구현이 필요하다. checkpoint 경로를 지정한 일반 `fit`은 오류를 반환한다. interrupt 시 모델과 메타데이터를 저장하며 optimizer·RNG·loader를 포함한 완전 재개는 제공하지 않는다.
 
-`RLTrainer`의 `fit`·환경·에피소드 API는 유지한다. custom Trainer를 전달하는 코드는 context를 생성 시에도 지정한다.
-
-```rust
-let trainer = RLTrainer::from_trainer(
-    &ctx,
-    Trainer::builder(&ctx).seed(42).build(),
-);
-```
-
-legacy benchmark 전용 Trainer 구현은 유지했다. legacy와 현재 API를 함께 비교하는 벤치마크에서는 현재 API 호출부만 새 이름으로 전환했다.
+RL 환경·에피소드 API와 legacy 구현은 유지한다. RL에 공통 로그 설정을 전달할 때는 `RLTrainer::from_trainer(&ctx, Trainer::supervised(&ctx).minimal())`을 사용할 수 있다.
 
 ## 검증 인계
 
-사용자 요청 이후 테스트를 추가 실행하지 않는다. 아래 명령과 확인 항목은 직접 검사를 위한 안내다.
+이번 변경에서는 테스트·벤치마크를 실행하지 않는다. 아래는 사용자가 실행할 검증 명령이다.
 
 ```powershell
-cargo test --features enableBackward --test unified_trainer --test prepared_model
-cargo test --features enableBackward
-cargo check --all-targets --all-features
+cargo test --features enableBackward --lib trainer::preset_tests
+cargo test --features enableBackward --test loss_objectives --test unified_trainer --test prepared_model --test diffusion_routes
+cargo test --all-features
 ```
 
-`tests/unified_trainer.rs`에는 다음 검증을 추가했다.
+프리셋 값과 설정·RNG 보존, six-loss 연산/gradient/오류 동등성, loss 교체·setter·scalar 제약, 양쪽 consistency gradient, epoch별 lambda, token 집계, eager/prepared 동등성, 캐시·오류 정리, hook·observer·clipping·checkpoint를 검증하는 코드를 전환·추가했다. 그래프 노드·slot·backward root·arena 비교도 포함한다.
 
-- eager/prepared의 가중치·loss·gradient norm·observer 이벤트 일치
-- 설정·hook·clipping 보존과 epoch별 lambda가 실제 gradient에 반영되는지 확인
-- variant별 캐시 재사용, 별도 fit 호출 간 캐시 분리
-- 입력 준비 실패 후 graph·gradient 정리와 다음 학습 복구
-- context 불일치와 optimizer parameter 불일치 거부
-- checkpointed fit 요구와 정리 이후 checkpoint 저장
-
-기존 `tests/prepared_model.rs`는 shape별 캐시와 eager loader 그래프의 gradient 연결을 검증한다. `TrainingModel` 문서에는 eager의 정상 컴파일 예시와 prepared trait 부족 시 compile-fail 예시를 추가했다.
-
-요청 전 실행한 집중 테스트는 7개가 통과했다. 중단 요청 전에 시작한 전체 테스트와 모든 타깃 컴파일 검사는 이후 로그 확인 시 이미 종료되어 있었다. 기록된 전체 테스트 결과에는 실패가 없고, 컴파일 로그에는 완료가 기록되어 있다. 이는 모든 feature 조합의 런타임 테스트를 수행했다는 의미는 아니다. 기존 경고는 남아 있다.
-
-기존 실행 로그는 `target/trainer-focused.log`, `target/trainer-test.log`, `target/trainer-check.log`에 있다. `target` 아래 로그는 로컬 산출물이므로 저장소 배포 문서의 일부가 아니다.
+성능 비교는 같은 모델·loss·입력·seed를 사용하고 준비 시간과 반복 실행 시간을 분리한다. 프리셋별 메트릭 비용이 섞이지 않도록 비교 양쪽의 설정을 맞춘다. 실행 시간 개선이나 무손실 성능은 측정 전에는 확정하지 않는다.

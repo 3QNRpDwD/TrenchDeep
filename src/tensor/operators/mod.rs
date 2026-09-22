@@ -377,8 +377,8 @@ mod tests {
 
     #[test]
     fn phase_test() -> MlResult<()>{
-        let mut square = Square::new()?;
-        let mut exp = Exp::new()?;
+        let square = Square::new()?;
+        let exp = Exp::new()?;
 
         let x = scalar!(0.5);
         let a = square.forward(&[ &x ])?.remove(0); // a = A(x)

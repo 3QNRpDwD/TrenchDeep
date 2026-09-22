@@ -1,5 +1,3 @@
-use crate::ExecutionContext;
-
 /// 학습 루프에서 활성화할 메트릭 집합.
 ///
 /// 모든 메서드가 `const fn`이므로 `const` 변수로 컴파일 타임에 확정 가능.
@@ -97,11 +95,11 @@ impl Default for Metrics {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// 내부 최종 설정 구조체 (TrainerBuilder → Trainer 변환 결과)
+// 내부 최종 설정 구조체 (Trainer configuration 변환 결과)
 // ────────────────────────────────────────────────────────────────────────────
 
 /// Trainer 내부에서 사용하는 확정된 로그·메트릭 설정.
-/// `TrainerBuilder::build()`가 생성.
+/// Created by the typed Trainer constructors.
 pub struct LogConfig {
     /// 몇 배치마다 메트릭 계산 및 배치 progress bar 를 갱신할지 여부.
     /// `usize::MAX` = 배치 레벨 로그 완전 비활성.
@@ -134,147 +132,17 @@ pub struct LogConfig {
 
 pub type TrainerConfig = LogConfig;
 
-// ────────────────────────────────────────────────────────────────────────────
-// Builder
-// ────────────────────────────────────────────────────────────────────────────
-
-/// `Trainer`를 구성하는 빌더.
-///
-/// # 예시
-/// ```no_run
-/// use trench_deep::trainer::{Metrics, Trainer};
-///
-/// let ctx = trench_deep::ExecutionContext::new();
-/// let trainer = Trainer::builder(&ctx)
-///     .log_every_n_batches(50)
-///     .nan_check(true)
-///     .metrics(Metrics::none().grad_norm().accuracy())
-///     .show_progress(true)
-///     .build();
-/// ```
-pub struct TrainerBuilder {
-    context: ExecutionContext,
-    batch_log_interval: usize,
-    batch_summary_interval: usize,
-    epoch_log_interval: usize,
-    nan_check_interval: usize,
-    metrics: Metrics,
-    show_progress: bool,
-    checkpoint_dir: Option<String>,
-    seed: u64,
-}
-
-impl TrainerBuilder {
-    pub fn new(context: &ExecutionContext) -> Self {
+impl Default for LogConfig {
+    fn default() -> Self {
         Self {
-            context: context.clone(),
             batch_log_interval: 1,
             batch_summary_interval: usize::MAX,
-            epoch_log_interval: 1,
+            epoch_log_interval: 10,
             nan_check_interval: 1,
             metrics: Metrics::default(),
             show_progress: true,
             checkpoint_dir: None,
             seed: 0,
-        }
-    }
-
-    /// 몇 배치마다 메트릭을 계산하고 progress bar 메시지를 갱신할지 설정.
-    ///
-    /// `0`을 입력하면 배치 레벨 메시지가 완전히 비활성화.
-    /// 예: `50` → 50배치마다 grad_norm 계산 + progress bar 갱신.
-    pub fn log_every_n_batches(mut self, n: usize) -> Self {
-        self.batch_log_interval = if n == 0 { usize::MAX } else { n };
-        self
-    }
-
-    /// Progress 종료 후 발행할 배치 요약 간격. `0`이면 비활성화한다.
-    pub fn summarize_every_n_batches(mut self, n: usize) -> Self {
-        self.batch_summary_interval = if n == 0 { usize::MAX } else { n };
-        self
-    }
-
-    /// 몇 에폭마다 에폭 요약 로그를 출력할지 설정.
-    pub fn log_every_n_epochs(mut self, n: usize) -> Self {
-        self.epoch_log_interval = if n == 0 { usize::MAX } else { n };
-        self
-    }
-
-    /// NaN/Inf 그래디언트 검사 활성화 여부.
-    ///
-    /// `false`로 설정하면 성능이 향상되지만 발산 감지가 불가능.
-    /// 완전히 검증된 모델·학습률 조합에서만 비활성화를 권장.
-    pub fn nan_check(mut self, enabled: bool) -> Self {
-        self.nan_check_interval = if enabled { 1 } else { usize::MAX };
-        self
-    }
-
-    /// 활성화할 메트릭 집합을 설정.
-    ///
-    /// ```no_run
-    /// use trench_deep::trainer::{Metrics, Trainer};
-    /// let ctx = trench_deep::ExecutionContext::new();
-    /// let trainer = Trainer::builder(&ctx)
-    ///     .metrics(Metrics::none().grad_norm().accuracy())
-    ///     .build();
-    /// ```
-    pub fn metrics(mut self, m: Metrics) -> Self {
-        self.metrics = m;
-        self
-    }
-
-    /// 터미널 progress bar 출력 여부.
-    pub fn show_progress(mut self, show: bool) -> Self {
-        self.show_progress = show;
-        self
-    }
-
-    /// 체크포인트 저장 디렉토리를 설정한다.
-    ///
-    /// 설정하면 학습 중 Ctrl+C 인터럽트 시 모델 가중치와 학습 상태를
-    /// 이 디렉토리에 저장한다. 완전한 학습 상태 재개는 아직 지원하지 않는다.
-    ///
-    /// ```no_run
-    /// use trench_deep::trainer::Trainer;
-    /// let ctx = trench_deep::ExecutionContext::new();
-    /// let trainer = Trainer::builder(&ctx)
-    ///     .checkpoint_dir("checkpoints/my_model")
-    ///     .build();
-    /// ```
-    pub fn checkpoint_dir(mut self, dir: &str) -> Self {
-        self.checkpoint_dir = Some(dir.to_string());
-        self
-    }
-
-    pub fn checkpoint(self, dir: &str) -> Self {
-        self.checkpoint_dir(dir)
-    }
-
-    /// Sets the deterministic training RNG seed.
-    pub fn seed(mut self, seed: u64) -> Self {
-        self.seed = seed;
-        self
-    }
-
-    /// 설정을 확정하고 `Trainer`를 생성.
-    pub fn build(self) -> crate::trainer::Trainer {
-        let config = LogConfig {
-            batch_log_interval: self.batch_log_interval,
-            batch_summary_interval: self.batch_summary_interval,
-            epoch_log_interval: self.epoch_log_interval,
-            nan_check_interval: self.nan_check_interval,
-            metrics: self.metrics,
-            show_progress: self.show_progress,
-            checkpoint_dir: self.checkpoint_dir,
-            seed: self.seed,
-        };
-        crate::trainer::Trainer {
-            service: crate::trainer::service::TrainingService::new(
-                &self.context,
-                super::TrainerCore::new(config),
-            ),
-            ramp: crate::trainer::ConsistencyRamp::default(),
-            mode: std::marker::PhantomData,
         }
     }
 }

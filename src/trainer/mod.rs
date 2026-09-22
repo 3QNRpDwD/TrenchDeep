@@ -5,11 +5,15 @@ use crate::{
 };
 pub mod api;
 pub mod checkpoint;
+pub use checkpoint::ParadigmTag;
 pub mod core;
 pub mod data;
 mod prepared;
-pub(crate) mod objective;
-pub use objective::{Objective, PreparedObjective, ForwardModel, Supervised, Autoregressive, DiffusionObjective, SemiSupervised};
+pub(crate) mod strategy;
+pub use strategy::{
+    Autoregressive, DiffusionTraining, ForwardModel, PreparedTrainingStrategy, SemiSupervised,
+    Supervised, TrainingStrategy,
+};
 pub(crate) mod progress;
 mod reinforcement;
 mod runners;
@@ -23,10 +27,10 @@ pub trait TrainableModel {
     fn context_id(&self) -> ContextId;
     fn parameters(&self) -> Vec<&Parameter>;
 }
-/// Low-level execution contract used by the internal model/objective adapter.
+/// Low-level execution contract used by the internal model/strategy/loss adapter.
 pub trait TrainingModel: TrainableModel {
     type Batch: BatchInputs;
-    const PARADIGM: &'static str;
+    const PARADIGM: ParadigmTag;
     fn forward_batch(
         &mut self,
         batch: &Self::Batch,
@@ -53,87 +57,175 @@ pub struct TrainingOutput {
 pub struct Eager;
 #[derive(Debug)]
 pub struct Prepared;
-/// Context-bound training with an explicit execution mode.
-pub struct Trainer<Mode = Eager> {
+/// Context-bound training with a typed strategy and execution mode.
+///
+/// ```no_run
+/// use trench_deep::{ExecutionContext, trainer::Trainer};
+/// let ctx = ExecutionContext::new();
+/// let trainer = Trainer::supervised(&ctx).minimal().prepared().verbose();
+/// ```
+///
+/// Strategies reject incompatible models at compile time:
+/// ```compile_fail
+/// use trench_deep::{nn::Mlp, trainer::{Autoregressive, TrainingStrategy}};
+/// fn requires_strategy<S: TrainingStrategy<Mlp>>() {}
+/// requires_strategy::<Autoregressive>();
+/// ```
+pub struct Trainer<Mode = Eager, Strategy = Supervised> {
     pub(crate) service: service::TrainingService,
+    strategy: Strategy,
     ramp: ConsistencyRamp,
     mode: std::marker::PhantomData<Mode>,
 }
-impl Trainer<Eager> {
-    pub fn builder(context: &ExecutionContext) -> TrainerBuilder {
-        TrainerBuilder::new(context)
+impl Trainer<Eager, Supervised> {
+    pub fn supervised(context: &ExecutionContext) -> Self {
+        Self::from_strategy(context, Supervised)
     }
-    pub fn new(context: &ExecutionContext) -> Self {
-        Self::silent(context)
+    pub fn autoregressive(context: &ExecutionContext) -> Trainer<Eager, Autoregressive> {
+        Self::from_strategy(context, Autoregressive)
     }
-    /// Static execution; unsupported models/providers never fall back.
-    pub fn prepared(self) -> Trainer<Prepared> {
+    pub fn diffusion(context: &ExecutionContext) -> Trainer<Eager, DiffusionTraining> {
+        Self::from_strategy(context, DiffusionTraining)
+    }
+    pub fn semi_supervised(context: &ExecutionContext) -> Trainer<Eager, SemiSupervised> {
+        Self::from_strategy(context, SemiSupervised { noise_scale: 0.1 })
+    }
+    /// Extension point for custom batch preparation and numeric training operations.
+    pub fn from_strategy<S>(context: &ExecutionContext, strategy: S) -> Trainer<Eager, S> {
+        Trainer {
+            service: service::TrainingService::new(context, TrainerCore::new(LogConfig::default())),
+            strategy,
+            ramp: ConsistencyRamp::default(),
+            mode: std::marker::PhantomData,
+        }
+    }
+}
+impl<S> Trainer<Eager, S> {
+    /// Static execution; unsupported strategies/providers never fall back.
+    pub fn prepared(self) -> Trainer<Prepared, S> {
         Trainer {
             service: self.service,
+            strategy: self.strategy,
             ramp: self.ramp,
             mode: std::marker::PhantomData,
         }
     }
-    // ── 프리셋 ────────────────────────────────────────────────────────────
-
-    /// 최대 성능 모드. 모든 로그·NaN 검사가 비활성화.
-    ///
-    /// # 주의
-    /// NaN 검사가 꺼져 있으므로 발산이 발생해도 감지되지 않음.
-    /// 완전히 검증된 모델과 학습률 조합에서만 사용.
-    pub fn silent(context: &ExecutionContext) -> Self {
-        Self::builder(context)
-            .log_every_n_batches(0)
+    pub fn reinforcement(self, context: &ExecutionContext) -> RLTrainer {
+        RLTrainer::from_trainer(context, self)
+    }
+}
+impl<Mode> Trainer<Mode, SemiSupervised> {
+    pub fn with_noise_scale(mut self, noise_scale: f32) -> MlResult<Self> {
+        self.strategy = SemiSupervised::new(noise_scale)?;
+        Ok(self)
+    }
+}
+impl<Mode, S> Trainer<Mode, S> {
+    /// Disable metric logging, progress and finite-gradient checks.
+    pub fn silent(self) -> Self {
+        self.log_every_n_batches(0)
             .summarize_every_n_batches(0)
             .log_every_n_epochs(0)
             .nan_check(false)
             .metrics(Metrics::none())
             .show_progress(false)
-            .build()
     }
-
-    /// 핵심 메트릭 모드. progress bar에 배치 손실을 표시하고 NaN 검사를 유지한다.
-    pub fn minimal(context: &ExecutionContext) -> Self {
-        Self::builder(context)
-            .log_every_n_batches(1)
+    /// Loss progress and finite-gradient checks, without additional metrics.
+    pub fn minimal(self) -> Self {
+        self.log_every_n_batches(1)
             .summarize_every_n_batches(0)
             .log_every_n_epochs(10)
             .nan_check(true)
             .metrics(Metrics::none())
             .show_progress(true)
-            .build()
     }
-
-    /// 기본 모드. 핵심 메트릭과 패러다임 대표 메트릭을 표시한다.
-    pub fn default(context: &ExecutionContext) -> Self {
-        Self::builder(context)
-            .log_every_n_batches(1)
-            .summarize_every_n_batches(0)
-            .log_every_n_epochs(10)
-            .nan_check(true)
-            .metrics(Metrics::default())
-            .show_progress(true)
-            .build()
+    /// Standard logging plus the strategy's representative metrics.
+    pub fn default(self) -> Self {
+        self.minimal().metrics(Metrics::default())
     }
-
-    /// 상세 진단 모드. 모든 메트릭을 활성화하고 완료 후 배치 요약을
-    /// 100배치 간격으로 발행한다.
-    pub fn verbose(context: &ExecutionContext) -> Self {
-        Self::builder(context)
-            .log_every_n_batches(1)
+    /// All metrics and detailed epoch/batch summaries.
+    pub fn verbose(self) -> Self {
+        self.log_every_n_batches(1)
             .summarize_every_n_batches(100)
             .log_every_n_epochs(1)
             .nan_check(true)
             .metrics(Metrics::all())
             .show_progress(true)
-            .build()
+    }
+    /// 몇 배치마다 메트릭을 계산하고 progress bar 메시지를 갱신할지 설정.
+    ///
+    /// `0`을 입력하면 배치 레벨 메시지가 완전히 비활성화.
+    /// 예: `50` → 50배치마다 grad_norm 계산 + progress bar 갱신.
+    pub fn log_every_n_batches(mut self, n: usize) -> Self {
+        self.service.core.config.batch_log_interval = if n == 0 { usize::MAX } else { n };
+        self
     }
 
-    pub fn reinforcement(self, context: &ExecutionContext) -> RLTrainer {
-        RLTrainer::from_trainer(context, self)
+    /// Progress 종료 후 발행할 배치 요약 간격. `0`이면 비활성화한다.
+    pub fn summarize_every_n_batches(mut self, n: usize) -> Self {
+        self.service.core.config.batch_summary_interval = if n == 0 { usize::MAX } else { n };
+        self
     }
-}
-impl<Mode> Trainer<Mode> {
+
+    /// 몇 에폭마다 에폭 요약 로그를 출력할지 설정.
+    pub fn log_every_n_epochs(mut self, n: usize) -> Self {
+        self.service.core.config.epoch_log_interval = if n == 0 { usize::MAX } else { n };
+        self
+    }
+
+    /// NaN/Inf 그래디언트 검사 활성화 여부.
+    ///
+    /// `false`로 설정하면 성능이 향상되지만 발산 감지가 불가능.
+    /// 완전히 검증된 모델·학습률 조합에서만 비활성화를 권장.
+    pub fn nan_check(mut self, enabled: bool) -> Self {
+        self.service.core.config.nan_check_interval = if enabled { 1 } else { usize::MAX };
+        self
+    }
+
+    /// 활성화할 메트릭 집합을 설정.
+    ///
+    /// ```no_run
+    /// use trench_deep::trainer::{Metrics, Trainer};
+    /// let ctx = trench_deep::ExecutionContext::new();
+    /// let trainer = Trainer::supervised(&ctx)
+    ///     .metrics(Metrics::none().grad_norm().accuracy());
+    /// ```
+    pub fn metrics(mut self, m: Metrics) -> Self {
+        self.service.core.config.metrics = m;
+        self
+    }
+
+    /// 터미널 progress bar 출력 여부.
+    pub fn show_progress(mut self, show: bool) -> Self {
+        self.service.core.config.show_progress = show;
+        self
+    }
+
+    /// 체크포인트 저장 디렉토리를 설정한다.
+    ///
+    /// 설정하면 학습 중 Ctrl+C 인터럽트 시 모델 가중치와 학습 상태를
+    /// 이 디렉토리에 저장한다. 완전한 학습 상태 재개는 아직 지원하지 않는다.
+    ///
+    /// ```no_run
+    /// use trench_deep::trainer::Trainer;
+    /// let ctx = trench_deep::ExecutionContext::new();
+    /// let trainer = Trainer::supervised(&ctx)
+    ///     .checkpoint_dir("checkpoints/my_model");
+    /// ```
+    pub fn checkpoint_dir(mut self, dir: &str) -> Self {
+        self.service.core.config.checkpoint_dir = Some(dir.to_string());
+        self
+    }
+
+    pub fn checkpoint(self, dir: &str) -> Self {
+        self.checkpoint_dir(dir)
+    }
+
+    /// Sets the deterministic training RNG seed.
+    pub fn seed(self, seed: u64) -> Self {
+        self.with_seed(seed)
+    }
+
     pub fn with_seed(mut self, seed: u64) -> Self {
         self.service.core.config.seed = seed;
         self.service.core.runtime.reseed(seed);
@@ -160,7 +252,7 @@ impl<Mode> Trainer<Mode> {
         self.service.max_grad_norm = Some(max);
         Ok(self)
     }
-    /// Applied only to models whose PARADIGM is "semi_supervised".
+    /// Applied to strategies tagged `ParadigmTag::SemiSupervised`.
     pub fn with_ramp(mut self, ramp: ConsistencyRamp) -> Self {
         self.ramp = ramp;
         self
@@ -169,7 +261,7 @@ impl<Mode> Trainer<Mode> {
         TrainingStepContext {
             epoch,
             batch,
-            lambda: (M::PARADIGM == "semi_supervised").then(|| self.ramp.value(epoch)),
+            lambda: (M::PARADIGM == ParadigmTag::SemiSupervised).then(|| self.ramp.value(epoch)),
         }
     }
 }
@@ -214,3 +306,7 @@ impl Default for ConsistencyRamp {
         }
     }
 }
+
+#[cfg(all(test, feature = "builtinStorage", feature = "builtinKernels"))]
+#[path = "../tests/trainer/preset_tests.rs"]
+mod preset_tests;

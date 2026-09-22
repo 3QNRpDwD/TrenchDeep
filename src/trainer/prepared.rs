@@ -8,17 +8,53 @@ use crate::{
     runtime::prepared::{PreparedModel, PreparedModelExecutor},
 };
 use std::time::Instant;
-impl Trainer<Prepared> {
-    pub fn fit<M, O, I>(&self, model: &mut M, objective: &O, optimizer: &mut dyn Optimizer, input: I, schedule: EpochSchedule) -> MlResult<TrainResult>
-    where M: TrainableModel, O: PreparedObjective<M>, I: IntoBatchLoader<Batch = O::Batch> {
-        let mut bound = objective::BoundObjective { model, objective };
+impl<S> Trainer<Prepared, S> {
+    pub fn fit<M, L: crate::loss::Loss + ?Sized, I>(
+        &self,
+        model: &mut M,
+        loss: &L,
+        optimizer: &mut dyn Optimizer,
+        input: I,
+        schedule: EpochSchedule,
+    ) -> MlResult<TrainResult>
+    where
+        M: TrainableModel,
+        S: PreparedTrainingStrategy<M>,
+        I: IntoBatchLoader<Batch = S::Batch>,
+    {
+        let mut bound = strategy::BoundTraining {
+            model,
+            strategy: &self.strategy,
+            loss,
+        };
         self.fit_impl(&mut bound, optimizer, input, schedule, None)
     }
-    pub fn fit_checkpointed<M, O, I>(&self, model: &mut M, objective: &O, optimizer: &mut dyn Optimizer, input: I, schedule: EpochSchedule) -> MlResult<TrainResult>
-    where M: TrainableModel + CheckpointableModel, O: PreparedObjective<M>, I: IntoBatchLoader<Batch = O::Batch> {
+    pub fn fit_checkpointed<M, L: crate::loss::Loss + ?Sized, I>(
+        &self,
+        model: &mut M,
+        loss: &L,
+        optimizer: &mut dyn Optimizer,
+        input: I,
+        schedule: EpochSchedule,
+    ) -> MlResult<TrainResult>
+    where
+        M: TrainableModel + CheckpointableModel,
+        S: PreparedTrainingStrategy<M>,
+        I: IntoBatchLoader<Batch = S::Batch>,
+    {
         checkpoint::install_interrupt_handler()?;
-        let mut bound = objective::BoundObjective { model, objective };
-        self.fit_impl(&mut bound, optimizer, input, schedule, Some(|m, p| m.save_checkpoint(p)))
+        let mut bound = strategy::BoundTraining {
+            model,
+            strategy: &self.strategy,
+            loss,
+        };
+        self.fit_impl(
+            &mut bound,
+            optimizer,
+            input,
+            schedule,
+            Some(|m, p| m.save_checkpoint(p)),
+        )
     }
     fn fit_impl<M, I>(
         &self,

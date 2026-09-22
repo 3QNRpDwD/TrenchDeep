@@ -25,7 +25,7 @@ fn builder() -> GraphVisualizationObserverBuilder {
 
 fn context(epoch: usize, batch: usize) -> BatchStartContext {
     BatchStartContext {
-        paradigm: "test",
+        paradigm: crate::trainer::ParadigmTag::Supervised,
         epoch,
         batch,
         total_epochs: 20,
@@ -111,7 +111,7 @@ fn injected_writer_runs_only_at_train_end() {
     });
     assert!(writes.lock().unwrap().is_empty());
     observer.on_train_end(&TrainEndContext {
-        paradigm: "test",
+        paradigm: crate::trainer::ParadigmTag::Supervised,
         units_completed: 1,
         interrupted: false,
     });

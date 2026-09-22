@@ -9,7 +9,12 @@ pub struct MLP {
 }
 
 impl MLP {
-    pub fn new(ctx: &ExecutionContext, input: usize, hidden: usize, output: usize) -> MlResult<Self> {
+    pub fn new(
+        ctx: &ExecutionContext,
+        input: usize,
+        hidden: usize,
+        output: usize,
+    ) -> MlResult<Self> {
         let mut mlp = Sequential::new(&ctx, "MLP");
         mlp.push(Box::new(Linear::new(&ctx, input, hidden, "l1")?))?;
         mlp.push(Box::new(Activation::new(&ctx, ActivationKind::ReLU, "a1")))?;
@@ -72,8 +77,6 @@ impl crate::trainer::TrainableModel for MLP {
     }
 }
 
-
-
 #[test]
 #[cfg(all(
     feature = "builtinKernels",
@@ -81,7 +84,7 @@ impl crate::trainer::TrainableModel for MLP {
     feature = "enableBackward",
 ))]
 pub fn three_layer_model_prepare() -> MlResult<()> {
-    use crate::trainer::PreparedObjective;
+    use crate::trainer::PreparedTrainingStrategy;
     use crate::trainer::{SupervisedBatch, TrainableModel};
 
     let ctx = ExecutionContext::new();
@@ -98,7 +101,8 @@ pub fn three_layer_model_prepare() -> MlResult<()> {
 
     let mut optimizer = Adam::new(&ctx, lr, 0.9, 0.999, 1e-8)?;
     optimizer.register_all(&mlp.parameters())?;
-    let batch = objective().execution_batch(&mut mlp, 
+    let batch = crate::trainer::Supervised.execution_batch(
+        &mut mlp,
         &SupervisedBatch {
             inputs: data,
             targets: target,
@@ -107,7 +111,12 @@ pub fn three_layer_model_prepare() -> MlResult<()> {
     )?;
 
     let prepare_start = Instant::now();
-    let mut prepared = ctx.prepare_objective(&mut mlp, &objective(), &batch.inputs)?;
+    let mut prepared = ctx.prepare_training(
+        &mut mlp,
+        &crate::trainer::Supervised,
+        &loss(),
+        &batch.inputs,
+    )?;
     println!("prepare: {:?}", prepare_start.elapsed());
 
     println!("train start");
@@ -123,15 +132,12 @@ pub fn three_layer_model_prepare() -> MlResult<()> {
     Ok(())
 }
 
-
-
 impl crate::trainer::ForwardModel for MLP {
     fn forward(&self, input: &crate::Variable) -> MlResult<crate::Variable> {
-        
         self.network.apply(input)
     }
 }
 
-fn objective() -> crate::trainer::Supervised<crate::loss::MseLoss> {
-    crate::trainer::Supervised::new(crate::loss::MseLoss::new(crate::Reduction::Mean))
+fn loss() -> crate::loss::MseLoss {
+    crate::loss::MseLoss::new()
 }

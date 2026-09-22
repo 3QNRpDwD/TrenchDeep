@@ -189,7 +189,7 @@ impl DDPMScheduler {
         F: Fn(&GlobalTensor<f32>, usize) -> MlResult<GlobalTensor<f32>>,
     {
         // x_T ~ N(0, I)
-        let mut x = Tensor::randn(shape);
+        let x = Tensor::randn(shape);
         let mut x_global = GlobalTensor::from_vec(x.data().to_vec(), x.shape())?;
 
         // t = T-1, T-2, ..., 0

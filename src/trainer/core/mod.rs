@@ -4,7 +4,7 @@
 //! `SemiSupervisedTrainer`, `RLTrainer`) 가 공유하는 타입·함수를 모아둔다.
 //!
 //! - [`TrainerCore`] : 로그 설정 + 메트릭 훅 보관 (아키텍처-불문 공용 상태).
-//! - [`LogConfig`], [`Metrics`], [`TrainerBuilder`] — 학습 루프 구성.
+//! - [`LogConfig`], [`Metrics`] — 학습 루프 구성.
 //! - [`MetricHook`], [`BatchContext`] — 플러그인 메트릭 프로토콜.
 //! - [`Convergence`] — 조기 종료 판정.
 //! - `grad_norm`, `weight_norm`, `update_ratio`, `ClassificationAccuracy` 등 내장 메트릭.
@@ -24,7 +24,7 @@ use std::cell::RefCell;
 pub(crate) use crate::{MlError, MlResult, Parameter, TensorBuffer};
 
 // 공용 API 재수출.
-pub use config::{LogConfig, Metrics, TrainerBuilder, TrainerConfig};
+pub use config::{LogConfig, Metrics, TrainerConfig};
 pub use convergence::Convergence;
 pub use metric_hook::{BatchContext, MetricHook};
 pub use metrics::{

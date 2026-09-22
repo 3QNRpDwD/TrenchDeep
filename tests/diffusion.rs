@@ -16,7 +16,13 @@ fn full_unet_trains_and_samples_through_public_api() -> MlResult<()> {
     let mut model = Diffusion::new(&ctx, unet, scheduler, 7)?;
     let image = ctx.input((0..16).map(|i| i as f32 / 16.0).collect(), &[1, 1, 4, 4])?;
     let noise = ctx.tensor(vec![0.1; 16], &[1, 1, 4, 4])?;
-    let (prediction, loss) = objective().forward_loss_with_noise(&model, &image, &noise, 1)?;
+    let (prediction, loss) = trench_deep::trainer::DiffusionTraining.forward_loss_with_noise(
+        &loss_fn(),
+        &model,
+        &image,
+        &noise,
+        1,
+    )?;
     assert_eq!(prediction.tensor().shape()?, vec![1, 1, 4, 4]);
     assert!(loss.tensor().item()?.is_finite());
     loss.backward()?;
@@ -32,7 +38,13 @@ fn full_unet_trains_and_samples_through_public_api() -> MlResult<()> {
     optimizer.register_all(&model.parameters())?;
     let images = [&image];
     let dataset = UnsupervisedDataset::new(&ctx, &images)?;
-    Trainer::silent(&ctx).fit(&mut model, &objective(), &mut optimizer, &dataset, EpochSchedule::new(1)?)?;
+    Trainer::diffusion(&ctx).silent().fit(
+        &mut model,
+        &loss_fn(),
+        &mut optimizer,
+        &dataset,
+        EpochSchedule::new(1)?,
+    )?;
     assert_eq!(ctx.graph_stats()?.graph_nodes, 0);
     let sample = model.sample(&[1, 1, 4, 4])?;
     assert_eq!(sample.shape()?, vec![1, 1, 4, 4]);
@@ -91,6 +103,6 @@ fn diffusion_checkpoint_round_trip_preserves_sampling() -> Result<(), Box<dyn st
     Ok(())
 }
 
-fn objective() -> trench_deep::trainer::DiffusionObjective<trench_deep::loss::MseLoss> {
-    trench_deep::trainer::DiffusionObjective::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
+fn loss_fn() -> trench_deep::loss::MseLoss {
+    trench_deep::loss::MseLoss::new()
 }

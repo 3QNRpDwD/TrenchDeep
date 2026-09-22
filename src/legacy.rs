@@ -164,12 +164,12 @@ mod benchmark {
     }
 
     fn matyas_function(x: &Variable, y: &Variable) -> MlResult<Variable> {
-        let O_26 = variable!(vec![vec![0.26]]);
-        let O_48 = variable!(vec![vec![0.48]]);
+        let o_26 = variable!(vec![vec![0.26]]);
+        let o_48 = variable!(vec![vec![0.48]]);
 
         let sphere = sphere_function(x, y)?;
         let t = x * y; // x * y
-        Ok(&(&O_26 * &sphere) - &(&O_48 * &t)) // 0.26 * sphere - 0.48 * x * y
+        Ok(&(&o_26 * &sphere) - &(&o_48 * &t)) // 0.26 * sphere - 0.48 * x * y
     }
 
     fn goldstein_price_function(x: &Variable, y: &Variable) -> MlResult<Variable> {

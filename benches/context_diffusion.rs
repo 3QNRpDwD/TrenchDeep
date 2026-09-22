@@ -110,7 +110,12 @@ fn stages(
     };
     let mut plan = if let Some(inputs) = &inputs {
         let (plan, m) = measure("prepare_training", || {
-            ctx.prepare_objective_for_loss(&mut model, &objective(), inputs)
+            ctx.prepare_training_for_loss(
+                &mut model,
+                &trench_deep::trainer::DiffusionTraining,
+                &loss(),
+                inputs,
+            )
         })?;
         measurements.push(m);
         Some(plan)
@@ -159,7 +164,8 @@ fn stages(
         })?
     } else {
         ctx.with_training_scope(|| {
-            let (prediction, loss) = objective().forward_loss_with_noise(&model, &image, &noise, 3)?;
+            let (prediction, loss) = trench_deep::trainer::DiffusionTraining
+                .forward_loss_with_noise(&loss(), &model, &image, &noise, 3)?;
             finish(prediction, loss)
         })?
     };
@@ -189,19 +195,18 @@ fn training(route: ExecutionRoute, prepared: bool) -> MlResult<(Measurement, Vec
         .shuffle(false)
         .build()?;
     let losses = Rc::new(RefCell::new(Vec::with_capacity(3)));
-    let trainer = Trainer::builder(&ctx)
+    let trainer = Trainer::diffusion(&ctx)
         .metrics(Metrics::none())
         .show_progress(false)
-        .build()
         .with_observer(Box::new(LossObserver(losses.clone())));
     let schedule = EpochSchedule::new(3)?.with_tolerance(1e-10);
     let (result, measurement) = measure("training_3_epochs", || {
         if prepared {
             trainer
                 .prepared()
-                .fit(&mut model, &objective(), &mut adam, &mut loader, schedule)
+                .fit(&mut model, &loss(), &mut adam, &mut loader, schedule)
         } else {
-            trainer.fit(&mut model, &objective(), &mut adam, &mut loader, schedule)
+            trainer.fit(&mut model, &loss(), &mut adam, &mut loader, schedule)
         }
     })?;
     assert_eq!(result.units_completed, 3);
@@ -341,11 +346,21 @@ fn verify_rng_feeds(route: ExecutionRoute) -> MlResult<serde_json::Value> {
         let t = rng.random_range(0..10);
         let noise = ctx.tensor(values.clone(), &[2, 1, 8, 8])?;
         let actual = ctx.with_training_scope(|| {
-            let (p, l) = objective().forward_loss(&mut model, &image)?;
+            let (p, l) = trench_deep::trainer::DiffusionTraining.forward_loss(
+                &loss(),
+                &mut model,
+                &image,
+            )?;
             Ok((p.tensor().to_vec()?, l.tensor().to_vec()?))
         })?;
         let expected = ctx.with_training_scope(|| {
-            let (p, l) = objective().forward_loss_with_noise(&model, &image, &noise, t)?;
+            let (p, l) = trench_deep::trainer::DiffusionTraining.forward_loss_with_noise(
+                &loss(),
+                &model,
+                &image,
+                &noise,
+                t,
+            )?;
             Ok((p.tensor().to_vec()?, l.tensor().to_vec()?))
         })?;
         assert_eq!(actual, expected);
@@ -402,7 +417,14 @@ fn memory_lifecycle(route: ExecutionRoute, prepared: bool) -> MlResult<serde_jso
     };
     let mut plan: Option<PreparedModelExecutor> = inputs
         .as_ref()
-        .map(|inputs| ctx.prepare_objective_for_loss(&mut model, &objective(), inputs))
+        .map(|inputs| {
+            ctx.prepare_training_for_loss(
+                &mut model,
+                &trench_deep::trainer::DiffusionTraining,
+                &loss(),
+                inputs,
+            )
+        })
         .transpose()?;
     let arena_bytes = plan
         .as_ref()
@@ -437,7 +459,8 @@ fn memory_lifecycle(route: ExecutionRoute, prepared: bool) -> MlResult<serde_jso
             })?;
         } else {
             ctx.with_training_scope(|| {
-                let (prediction, loss) = objective().forward_loss_with_noise(&model, &image, &noise, 3)?;
+                let (prediction, loss) = trench_deep::trainer::DiffusionTraining
+                    .forward_loss_with_noise(&loss(), &model, &image, &noise, 3)?;
                 finish(prediction, loss)
             })?;
         }
@@ -526,6 +549,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn objective() -> trench_deep::trainer::DiffusionObjective<trench_deep::loss::MseLoss> {
-    trench_deep::trainer::DiffusionObjective::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
+fn loss() -> trench_deep::loss::MseLoss {
+    trench_deep::loss::MseLoss::new()
 }

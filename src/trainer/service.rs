@@ -115,7 +115,7 @@ impl TrainingService {
                 crate::BackwardOptions::default(),
                 profile,
                 crate::visualization::CaptureContext {
-                    paradigm: Some(batch.paradigm.into()),
+                    paradigm: Some(batch.paradigm.as_str().into()),
                     epoch: Some(batch.epoch),
                     batch: Some(batch.batch),
                     episode: batch.episode,
@@ -231,7 +231,7 @@ impl TrainingService {
         optimizer: &mut dyn Optimizer,
         input: I,
         schedule: EpochSchedule,
-        paradigm: &'static str,
+        paradigm: crate::trainer::checkpoint::ParadigmTag,
         mut step: F,
         save: Option<fn(&M, &Path) -> MlResult<()>>,
         step_owns_scope: bool,
@@ -367,7 +367,7 @@ impl TrainingService {
                 batch_progress.finish();
                 for (batch, loss) in summaries {
                     tracing::info!(
-                        paradigm,
+                        paradigm = %paradigm,
                         epoch = epoch + 1,
                         batch,
                         loss,
@@ -386,7 +386,7 @@ impl TrainingService {
                     };
                 }
                 metrics.insert("avg_loss".into(), final_loss);
-                if paradigm == "autoregressive" && self.core.config.metrics.paradigm {
+                if paradigm == ParadigmTag::Autoregressive && self.core.config.metrics.paradigm {
                     metrics.insert("perplexity".into(), final_loss.exp());
                 }
                 metrics.insert(
@@ -406,7 +406,7 @@ impl TrainingService {
                     && (epoch + 1) % self.core.config.epoch_log_interval == 0
                 {
                     tracing::info!(
-                        paradigm,
+                        paradigm = %paradigm,
                         epoch = epoch + 1,
                         loss = final_loss,
                         "training epoch"

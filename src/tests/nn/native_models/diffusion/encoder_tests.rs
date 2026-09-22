@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn sinusoidal_pe_predict_shape() -> MlResult<()> {
-    let mut pe = SinusoidalPE::new(4, "pe")?;
+    let pe = SinusoidalPE::new(4, "pe")?;
     let t = Tensor::from_vec(vec![0.0, 1.0], &[2, 1])?;
     let out = pe.predict(&t)?;
     assert_eq!(out.shape(), &[2, 4]);

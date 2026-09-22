@@ -89,22 +89,23 @@ fn run_training_route(
         trace: trace.clone(),
     };
     // The exact same concrete Diffusion and Adam are passed to the public Trainer
-    // on both routes. Diffusion::forward_loss owns timestep/noise generation.
-    let trainer = Trainer::builder(&ctx)
+    // on both routes. The diffusion strategy requests timestep/noise generation from the model.
+    let trainer = Trainer::diffusion(&ctx)
         .metrics(Metrics::all())
         .show_progress(false)
-        .build()
         .with_observer(Box::new(observer));
     let result = if prepared {
         trainer.prepared().fit(
-            &mut model, &objective(),
+            &mut model,
+            &loss(),
             &mut optimizer,
             &mut loader,
             EpochSchedule::new(3)?.with_tolerance(1e-10),
         )?
     } else {
         trainer.fit(
-            &mut model, &objective(),
+            &mut model,
+            &loss(),
             &mut optimizer,
             &mut loader,
             EpochSchedule::new(3)?.with_tolerance(1e-10),
@@ -207,8 +208,13 @@ fn prepared_diffusion_feeds_reuse_plan_and_match_eager_updates() -> MlResult<()>
             &model.parameters(),
             trench_deep::runtime::prepared::PreparedMode::Training,
             |inputs| {
-                let (prediction, loss) =
-                    objective().forward_loss_with_feeds(&model, &inputs.get("image")?.as_variable()?, inputs)?;
+                let (prediction, loss) = trench_deep::trainer::DiffusionTraining
+                    .forward_loss_with_feeds(
+                        &loss(),
+                        &model,
+                        &inputs.get("image")?.as_variable()?,
+                        inputs,
+                    )?;
                 Ok(vec![prediction.tensor().clone(), loss.tensor().clone()])
             },
         )?
@@ -265,7 +271,8 @@ fn prepared_diffusion_feeds_reuse_plan_and_match_eager_updates() -> MlResult<()>
             Ok(result)
         })?;
         let expected = eager.with_training_scope(|| {
-            let (prediction, loss) = objective().forward_loss_with_feeds(&other, &eimage, &efeeds)?;
+            let (prediction, loss) = trench_deep::trainer::DiffusionTraining
+                .forward_loss_with_feeds(&loss(), &other, &eimage, &efeeds)?;
             loss.backward()?;
             let result = (
                 prediction.tensor().to_vec()?,
@@ -562,8 +569,13 @@ fn into_diffusion_training_matches_eager_updates() -> MlResult<()> {
             &model.parameters(),
             trench_deep::runtime::prepared::PreparedMode::Training,
             |inputs| {
-                let (prediction, loss) =
-                    objective().forward_loss_with_feeds(&model, &inputs.get("image")?.as_variable()?, inputs)?;
+                let (prediction, loss) = trench_deep::trainer::DiffusionTraining
+                    .forward_loss_with_feeds(
+                        &loss(),
+                        &model,
+                        &inputs.get("image")?.as_variable()?,
+                        inputs,
+                    )?;
                 Ok(vec![prediction.tensor().clone(), loss.tensor().clone()])
             },
         )?
@@ -621,7 +633,8 @@ fn into_diffusion_training_matches_eager_updates() -> MlResult<()> {
             Ok(result)
         })?;
         let expected = eager.with_training_scope(|| {
-            let (prediction, loss) = objective().forward_loss_with_feeds(&other, &eimage, &efeeds)?;
+            let (prediction, loss) = trench_deep::trainer::DiffusionTraining
+                .forward_loss_with_feeds(&loss(), &other, &eimage, &efeeds)?;
             loss.backward()?;
             let result = (
                 prediction.tensor().to_vec()?,
@@ -661,6 +674,6 @@ fn common_prepared_trainer_matches_eager_rng_metrics_and_adam() -> MlResult<()> 
     Ok(())
 }
 
-fn objective() -> trench_deep::trainer::DiffusionObjective<trench_deep::loss::MseLoss> {
-    trench_deep::trainer::DiffusionObjective::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
+fn loss() -> trench_deep::loss::MseLoss {
+    trench_deep::loss::MseLoss::new()
 }

@@ -25,8 +25,9 @@ fn bigram_pilot_trains_end_to_end() -> MlResult<()> {
     let dataset = AutoregressiveDataset::new(&context, &refs)?;
     let mut optimizer = Adam::new(&context, 0.05, 0.9, 0.999, 1e-8)?;
     optimizer.register_all(&model.parameters())?;
-    let result = Trainer::silent(&context).fit(
-        &mut model, &objective(),
+    let result = Trainer::autoregressive(&context).silent().fit(
+        &mut model,
+        &loss(),
         &mut optimizer,
         &dataset,
         EpochSchedule::new(5)?.with_tolerance(0.0),
@@ -59,8 +60,9 @@ fn bigram_pilot_accepts_stacked_loader_batches() -> MlResult<()> {
     .build()?;
     let mut optimizer = Adam::new(&context, 0.02, 0.9, 0.999, 1e-8)?;
     optimizer.register_all(&model.parameters())?;
-    let result = Trainer::silent(&context).fit(
-        &mut model, &objective(),
+    let result = Trainer::autoregressive(&context).silent().fit(
+        &mut model,
+        &loss(),
         &mut optimizer,
         &mut loader,
         EpochSchedule::new(2)?.with_tolerance(0.0),
@@ -80,13 +82,20 @@ fn autoregressive_padding_is_rejected_until_it_has_loss_semantics() -> MlResult<
     let mut optimizer = Adam::new(&context, 0.02, 0.9, 0.999, 1e-8)?;
     optimizer.register_all(&model.parameters())?;
     assert!(
-        Trainer::silent(&context)
-            .fit(&mut model, &objective(), &mut optimizer, &dataset, EpochSchedule::new(1)?)
+        Trainer::autoregressive(&context)
+            .silent()
+            .fit(
+                &mut model,
+                &loss(),
+                &mut optimizer,
+                &dataset,
+                EpochSchedule::new(1)?
+            )
             .is_err()
     );
     Ok(())
 }
 
-fn objective() -> trench_deep::trainer::Autoregressive<trench_deep::loss::SoftmaxCrossEntropyLoss> {
-    trench_deep::trainer::Autoregressive::new(trench_deep::loss::SoftmaxCrossEntropyLoss::new(trench_deep::Reduction::Mean))
+fn loss() -> trench_deep::loss::SoftmaxCrossEntropyLoss {
+    trench_deep::loss::SoftmaxCrossEntropyLoss::new()
 }

@@ -70,15 +70,24 @@ fn capture_is_published_after_cleanup_and_suppressed_when_hook_fails() -> MlResu
         let targets = [&target];
         let dataset = SupervisedDataset::new(&ctx, &inputs, &targets)?;
         let events = Rc::new(RefCell::new(Vec::new()));
-        let mut trainer = Trainer::silent(&ctx).with_observer(Box::new(CaptureOrder {
-            ctx: ctx.clone(),
-            parameters: model.parameters().into_iter().cloned().collect(),
-            events: events.clone(),
-        }));
+        let mut trainer =
+            Trainer::supervised(&ctx)
+                .silent()
+                .with_observer(Box::new(CaptureOrder {
+                    ctx: ctx.clone(),
+                    parameters: model.parameters().into_iter().cloned().collect(),
+                    events: events.clone(),
+                }));
         if fail {
             trainer = trainer.with_hook(Box::new(FailHook));
         }
-        let result = trainer.fit(&mut model, &objective(), &mut optimizer, &dataset, EpochSchedule::new(1)?);
+        let result = trainer.fit(
+            &mut model,
+            &loss(),
+            &mut optimizer,
+            &dataset,
+            EpochSchedule::new(1)?,
+        );
         if fail {
             assert!(matches!(
                 result,
@@ -153,6 +162,6 @@ fn independent_contexts_capture_without_shared_sessions() -> MlResult<()> {
     Ok(())
 }
 
-fn objective() -> trench_deep::trainer::Supervised<trench_deep::loss::MseLoss> {
-    trench_deep::trainer::Supervised::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
+fn loss() -> trench_deep::loss::MseLoss {
+    trench_deep::loss::MseLoss::new()
 }

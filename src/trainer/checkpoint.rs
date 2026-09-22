@@ -150,7 +150,7 @@ impl TrainingCheckpoint {
 
 pub(crate) fn save_model(
     directory: &str,
-    paradigm: &str,
+    paradigm: ParadigmTag,
     completed: usize,
     schedule: EpochSchedule,
     loss: f32,
@@ -163,13 +163,6 @@ pub(crate) fn save_model(
     let model = directory.join("model.tdw");
     let metadata = directory.join("training.json");
     save(&model)?;
-    let tag = match paradigm {
-        "supervised" => ParadigmTag::Supervised,
-        "unsupervised" => ParadigmTag::Unsupervised,
-        "semi_supervised" => ParadigmTag::SemiSupervised,
-        "autoregressive" => ParadigmTag::Autoregressive,
-        _ => ParadigmTag::Reinforcement,
-    };
     TrainingCheckpoint {
         schema_version: CHECKPOINT_SCHEMA_VERSION,
         epochs_done: completed,
@@ -179,10 +172,16 @@ pub(crate) fn save_model(
         optimizer_lr: lr,
         model_path: model.to_string_lossy().into_owned(),
         timestamp: time::OffsetDateTime::now_utc().to_string(),
-        paradigm: Some(tag),
+        paradigm: Some(paradigm),
         rng_seed: seed,
         optimizer_snapshot: None,
     }
     .save(&metadata)?;
     Ok(CheckpointPaths { model, metadata })
+}
+
+impl std::fmt::Display for ParadigmTag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
 }

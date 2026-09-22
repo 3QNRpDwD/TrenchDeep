@@ -35,17 +35,19 @@ impl TrainableModel for Scheduled {
         vec![&self.weight]
     }
 }
-struct ScheduledObjective;
-impl Objective<Scheduled> for ScheduledObjective {
+struct ScheduledStrategy;
+impl TrainingStrategy<Scheduled> for ScheduledStrategy {
     type Batch = SemiSupervisedBatch;
-    const PARADIGM: &'static str = "semi_supervised";
-    fn forward_batch(
-        &self, model: &mut Scheduled,
+    const PARADIGM: ParadigmTag = ParadigmTag::SemiSupervised;
+    fn forward_batch<L: trench_deep::loss::Loss + ?Sized>(
+        &self,
+        loss: &L,
+        model: &mut Scheduled,
         batch: &Self::Batch,
         step: &TrainingStepContext,
     ) -> MlResult<TrainingOutput> {
         let batch = self.execution_batch(model, batch, step)?;
-        let output = self.forward_inputs(model, &batch.inputs)?;
+        let output = self.forward_inputs(loss, model, &batch.inputs)?;
         Ok(TrainingOutput {
             loss: output.loss,
             prediction: output.prediction,
@@ -56,9 +58,10 @@ impl Objective<Scheduled> for ScheduledObjective {
         })
     }
 }
-impl PreparedObjective<Scheduled> for ScheduledObjective {
+impl PreparedTrainingStrategy<Scheduled> for ScheduledStrategy {
     fn execution_batch(
-        &self, model: &mut Scheduled,
+        &self,
+        model: &mut Scheduled,
         batch: &Self::Batch,
         step: &TrainingStepContext,
     ) -> MlResult<PreparedBatch> {
@@ -82,10 +85,15 @@ impl PreparedObjective<Scheduled> for ScheduledObjective {
         result.lambda = Some(lambda);
         Ok(result)
     }
-    fn forward_inputs(&self, model: &Scheduled, inputs: &ExecutionInputs) -> MlResult<ModelOutput> {
+    fn forward_inputs<L: trench_deep::loss::Loss + ?Sized>(
+        &self,
+        loss: &L,
+        model: &Scheduled,
+        inputs: &ExecutionInputs,
+    ) -> MlResult<ModelOutput> {
         model.captures.set(model.captures.get() + 1);
         let prediction = inputs.get("x")?.as_variable()?.mul(model.weight.tensor())?;
-        let loss = prediction.mse_loss(inputs.get("target")?, Reduction::Mean)?;
+        let loss = loss.compute(&model.ctx, &prediction, inputs.get("target")?)?;
         let loss = loss.mul(inputs.get("lambda")?)?;
         Ok(ModelOutput::new(loss, Some(prediction)))
     }
@@ -158,7 +166,7 @@ struct Observer {
 }
 impl TrainingObserver for Observer {
     fn on_train_start(&mut self, c: &TrainStartContext) {
-        assert_eq!(c.paradigm, "semi_supervised");
+        assert_eq!(c.paradigm, ParadigmTag::SemiSupervised);
         self.trace.borrow_mut().events.push("start".into());
     }
     fn on_epoch_start(&mut self, c: &EpochContext) {
@@ -223,11 +231,10 @@ fn modes_preserve_configuration_hooks_observers_and_scheduled_gradients() -> MlR
         optimizer.register_all(&model.parameters())?;
         let mut data = dataset(&ctx)?;
         let trace = Rc::new(RefCell::new(Trace::default()));
-        let trainer = Trainer::builder(&ctx)
+        let trainer = Trainer::from_strategy(&ctx, ScheduledStrategy)
             .show_progress(false)
             .metrics(Metrics::all())
             .seed(7)
-            .build()
             .with_seed(42)
             .with_ramp(ramp)
             .check_finite_gradients(true)
@@ -240,11 +247,21 @@ fn modes_preserve_configuration_hooks_observers_and_scheduled_gradients() -> MlR
             }));
         let schedule = EpochSchedule::new(3)?;
         let result = if prepared {
-            trainer
-                .prepared()
-                .fit(&mut model, &ScheduledObjective, &mut optimizer, &mut data, schedule)?
+            trainer.prepared().fit(
+                &mut model,
+                &trench_deep::loss::MseLoss::new(),
+                &mut optimizer,
+                &mut data,
+                schedule,
+            )?
         } else {
-            trainer.fit(&mut model, &ScheduledObjective, &mut optimizer, &mut data, schedule)?
+            trainer.fit(
+                &mut model,
+                &trench_deep::loss::MseLoss::new(),
+                &mut optimizer,
+                &mut data,
+                schedule,
+            )?
         };
         assert_eq!(
             model.steps,
@@ -287,7 +304,8 @@ fn prepared_variants_are_cached_within_fit_and_errors_release_scope() -> MlResul
     optimizer.register_all(&model.parameters())?;
     let mut data = dataset(&ctx)?;
     // Configuration methods also work after selecting the prepared type.
-    let trainer = Trainer::silent(&ctx)
+    let trainer = Trainer::from_strategy(&ctx, ScheduledStrategy)
+        .silent()
         .prepared()
         .with_seed(8)
         .with_ramp(ConsistencyRamp::Constant(1.0))
@@ -297,7 +315,8 @@ fn prepared_variants_are_cached_within_fit_and_errors_release_scope() -> MlResul
     let before = ctx.graph_stats()?;
     for expected in [2, 4] {
         trainer.fit(
-            &mut model, &ScheduledObjective,
+            &mut model,
+            &trench_deep::loss::MseLoss::new(),
             &mut optimizer,
             &mut data,
             EpochSchedule::new(3)?,
@@ -310,7 +329,8 @@ fn prepared_variants_are_cached_within_fit_and_errors_release_scope() -> MlResul
     assert!(
         trainer
             .fit(
-                &mut model, &ScheduledObjective,
+                &mut model,
+                &trench_deep::loss::MseLoss::new(),
                 &mut optimizer,
                 &mut data,
                 EpochSchedule::new(1)?
@@ -322,7 +342,8 @@ fn prepared_variants_are_cached_within_fit_and_errors_release_scope() -> MlResul
     assert!(model.weight.grad()?.is_none());
     model.fail_input = false;
     trainer.fit(
-        &mut model, &ScheduledObjective,
+        &mut model,
+        &trench_deep::loss::MseLoss::new(),
         &mut optimizer,
         &mut data,
         EpochSchedule::new(1)?,
@@ -330,18 +351,23 @@ fn prepared_variants_are_cached_within_fit_and_errors_release_scope() -> MlResul
 
     let other = ExecutionContext::new();
     assert!(matches!(
-        Trainer::silent(&other).prepared().fit(
-            &mut model, &ScheduledObjective,
-            &mut optimizer,
-            &mut data,
-            EpochSchedule::new(1)?
-        ),
+        Trainer::from_strategy(&other, ScheduledStrategy)
+            .silent()
+            .prepared()
+            .fit(
+                &mut model,
+                &trench_deep::loss::MseLoss::new(),
+                &mut optimizer,
+                &mut data,
+                EpochSchedule::new(1)?
+            ),
         Err(MlError::ContextError(ContextError::Mismatch))
     ));
     let mut empty_optimizer = SGD::new(&ctx, 0.1)?;
     assert!(matches!(
         trainer.fit(
-            &mut model, &ScheduledObjective,
+            &mut model,
+            &trench_deep::loss::MseLoss::new(),
             &mut empty_optimizer,
             &mut data,
             EpochSchedule::new(1)?
@@ -374,10 +400,9 @@ fn both_modes_require_checkpointed_fit_and_save_after_cleanup()
             std::process::id(),
             prepared
         ));
-        let trainer = Trainer::builder(&ctx)
+        let trainer = Trainer::from_strategy(&ctx, ScheduledStrategy)
             .show_progress(false)
             .checkpoint_dir(dir.to_str().unwrap())
-            .build()
             .with_seed(123)
             .with_observer(Box::new(Observer {
                 ctx: ctx.clone(),
@@ -388,16 +413,40 @@ fn both_modes_require_checkpointed_fit_and_save_after_cleanup()
         let result = if prepared {
             let trainer = trainer.prepared();
             assert!(matches!(
-                trainer.fit(&mut model, &ScheduledObjective, &mut optimizer, &mut data, schedule),
+                trainer.fit(
+                    &mut model,
+                    &trench_deep::loss::MseLoss::new(),
+                    &mut optimizer,
+                    &mut data,
+                    schedule
+                ),
                 Err(MlError::UnsupportedCapability { .. })
             ));
-            trainer.fit_checkpointed(&mut model, &ScheduledObjective, &mut optimizer, &mut data, schedule)?
+            trainer.fit_checkpointed(
+                &mut model,
+                &trench_deep::loss::MseLoss::new(),
+                &mut optimizer,
+                &mut data,
+                schedule,
+            )?
         } else {
             assert!(matches!(
-                trainer.fit(&mut model, &ScheduledObjective, &mut optimizer, &mut data, schedule),
+                trainer.fit(
+                    &mut model,
+                    &trench_deep::loss::MseLoss::new(),
+                    &mut optimizer,
+                    &mut data,
+                    schedule
+                ),
                 Err(MlError::UnsupportedCapability { .. })
             ));
-            trainer.fit_checkpointed(&mut model, &ScheduledObjective, &mut optimizer, &mut data, schedule)?
+            trainer.fit_checkpointed(
+                &mut model,
+                &trench_deep::loss::MseLoss::new(),
+                &mut optimizer,
+                &mut data,
+                schedule,
+            )?
         };
         assert_eq!(result.stop_reason, StopReason::Interrupted);
         assert_eq!(model.steps.len(), 1);

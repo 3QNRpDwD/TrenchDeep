@@ -160,11 +160,13 @@ impl TrainableModel for BrokenModel {
 impl ForwardModel for BrokenModel {
     fn forward(&self, _: &Variable) -> MlResult<Variable> {
         let _graph = self.p.square()?;
-        Err(MlError::UnsupportedCapability { module: "broken model", capability: "forward", operation: "forward" })
+        Err(MlError::UnsupportedCapability {
+            module: "broken model",
+            capability: "forward",
+            operation: "forward",
+        })
     }
 }
-
-
 
 #[test]
 fn primary_and_cleanup_errors_are_both_preserved() -> MlResult<()> {
@@ -184,8 +186,13 @@ fn primary_and_cleanup_errors_are_both_preserved() -> MlResult<()> {
     let xs = [&x];
     let ys = [&y];
     let data = SupervisedDataset::new(&ctx, &xs, &ys)?;
-    let error =
-        Trainer::silent(&ctx).fit(&mut model, &objective(), &mut optimizer, &data, EpochSchedule::new(1)?);
+    let error = Trainer::supervised(&ctx).silent().fit(
+        &mut model,
+        &loss(),
+        &mut optimizer,
+        &data,
+        EpochSchedule::new(1)?,
+    );
     match error {
         Err(MlError::CleanupError { primary, cleanup }) => {
             assert!(matches!(
@@ -234,6 +241,6 @@ fn a_dataset_that_cannot_supply_its_sample_returns_an_error() -> MlResult<()> {
     Ok(())
 }
 
-fn objective() -> trench_deep::trainer::Supervised<trench_deep::loss::MseLoss> {
-    trench_deep::trainer::Supervised::new(trench_deep::loss::MseLoss::new(trench_deep::Reduction::Mean))
+fn loss() -> trench_deep::loss::MseLoss {
+    trench_deep::loss::MseLoss::new()
 }

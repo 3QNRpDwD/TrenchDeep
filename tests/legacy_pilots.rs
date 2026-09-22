@@ -37,8 +37,17 @@ fn pi_model_matches_the_original_nonzero_sampled_augmentations() -> Result<()> {
     );
     let first = ctx.input(views[0].data().to_vec(), views[0].shape())?;
     let second = ctx.input(views[1].data().to_vec(), views[1].shape())?;
-    let objective = SemiSupervised::new(trench_deep::loss::SoftmaxCrossEntropyLoss::new(Reduction::Mean), 0.2)?;
-    let (y, loss) = objective.forward_loss_with_augmentations(&model, &x, t.tensor(), &first, &second, 0.4)?;
+    let loss_fn = trench_deep::loss::SoftmaxCrossEntropyLoss::new();
+    let objective = SemiSupervised::new(0.2)?;
+    let (y, loss) = objective.forward_loss_with_augmentations(
+        &loss_fn,
+        &model,
+        &x,
+        t.tensor(),
+        &first,
+        &second,
+        0.4,
+    )?;
     close(&y.tensor().to_vec()?, oy.tensor().data());
     verify(&ctx, &loss, &oloss, model.parameters(), baseline.params())
 }
@@ -127,9 +136,21 @@ fn bigram_matches_shift_loss_gradients_and_update() -> Result<()> {
         vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
         &[3, 3],
     )?;
-    let objective = Autoregressive::new(trench_deep::loss::SoftmaxCrossEntropyLoss::new(Reduction::Mean));
-    let output = objective.forward_batch(&mut model, &AutoregressiveBatch { sequences: x.clone() }, &TrainingStepContext::default())?;
-    let (y, loss, tokens) = (output.prediction.unwrap(), output.loss, output.tokens.unwrap());
+    let loss_fn = trench_deep::loss::SoftmaxCrossEntropyLoss::new();
+    let objective = Autoregressive;
+    let output = objective.forward_batch(
+        &loss_fn,
+        &mut model,
+        &AutoregressiveBatch {
+            sequences: x.clone(),
+        },
+        &TrainingStepContext::default(),
+    )?;
+    let (y, loss, tokens) = (
+        output.prediction.unwrap(),
+        output.loss,
+        output.tokens.unwrap(),
+    );
     let (oy, oloss, old_tokens) =
         old::trainer::AutoregressiveModel::forward_loss(&mut baseline, &ox)?;
     assert_eq!(tokens, old_tokens);
@@ -145,8 +166,21 @@ fn pi_model_zero_noise_fixture_matches_loss_gradients_and_update() -> Result<()>
     initialize(&ctx, model.parameters(), baseline.params())?;
     let (x, ox) = input(&ctx, vec![0.2, 0.8], &[1, 2])?;
     let (t, ot) = input(&ctx, vec![0.0, 1.0], &[1, 2])?;
-    let objective = SemiSupervised::new(trench_deep::loss::SoftmaxCrossEntropyLoss::new(Reduction::Mean), 0.0)?;
-    let output = objective.forward_batch(&mut model, &SemiSupervisedBatch { labeled_inputs: x.clone(), labeled_targets: t.tensor().clone(), unlabeled_inputs: x.clone() }, &TrainingStepContext { lambda: Some(0.4), ..Default::default() })?;
+    let loss_fn = trench_deep::loss::SoftmaxCrossEntropyLoss::new();
+    let objective = SemiSupervised::new(0.0)?;
+    let output = objective.forward_batch(
+        &loss_fn,
+        &mut model,
+        &SemiSupervisedBatch {
+            labeled_inputs: x.clone(),
+            labeled_targets: t.tensor().clone(),
+            unlabeled_inputs: x.clone(),
+        },
+        &TrainingStepContext {
+            lambda: Some(0.4),
+            ..Default::default()
+        },
+    )?;
     let (y, loss) = (output.prediction.unwrap(), output.loss);
     let (oy, oloss) =
         old::trainer::SemiSupervisedModel::forward_loss(&mut baseline, &ox, &ot, &ox, 0.4)?;

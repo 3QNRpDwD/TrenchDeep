@@ -2,13 +2,13 @@
 
 #[derive(Debug, Clone)]
 pub struct TrainStartContext {
-    pub paradigm: &'static str,
+    pub paradigm: crate::trainer::checkpoint::ParadigmTag,
     pub total_units: usize,
 }
 
 #[derive(Debug, Clone)]
 pub struct EpochContext {
-    pub paradigm: &'static str,
+    pub paradigm: crate::trainer::checkpoint::ParadigmTag,
     pub epoch: usize,
     pub total_epochs: usize,
     pub total_batches: Option<usize>,
@@ -16,7 +16,7 @@ pub struct EpochContext {
 
 #[derive(Debug, Clone)]
 pub struct BatchStartContext {
-    pub paradigm: &'static str,
+    pub paradigm: crate::trainer::checkpoint::ParadigmTag,
     pub epoch: usize,
     pub batch: usize,
     pub total_epochs: usize,
@@ -32,7 +32,7 @@ pub struct BatchEndContext {
 
 #[derive(Debug, Clone)]
 pub struct TrainEndContext {
-    pub paradigm: &'static str,
+    pub paradigm: crate::trainer::checkpoint::ParadigmTag,
     pub units_completed: usize,
     pub interrupted: bool,
 }
